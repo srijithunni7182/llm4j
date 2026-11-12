@@ -56,6 +56,18 @@ Depth is stated per note. "Read" means the code named was opened; "grep only" me
 - **Statement recognition.** `parseStatementBody` is an `if/else` chain on token types and `isWord(...)` lookahead; `halt` is `isWord("halt")`. Words used in the lexer as keywords (`TokenType.CALL`, `ALT`, `LOOP`) are not candidates; `start`, `wait`, `cancel` and `steer` lex as plain IDENTIFIERs, so a contextual check works as D19 says. Top-level `supervise` is handled in the script-level parser (`parseSupervise`); inside a workflow body there is no `supervise` statement yet.
 - **Repository layout note.** The spec lived only on the unmerged branch `ccr-08cda518-w8aqfn`, not on `main`. That branch was merged into this one (docs only) to get it.
 
+### Where the code contradicts a decision or the design (stopped, for the owner)
+
+1. **Graph node kind `start` (D16, DESIGN 4.11) collides with the existing entry node.** `Kinds.START = "start"` is already the kind of the graph's entry node (`graph/Kinds.java`, drawn by the shared renderer). D16 names the new node kinds `start`, `wait` and `cancel`. Both cannot be called `start`. I did **not** pick another name. The graph item of D16 (node kinds, the dotted edge from a `start` to its `wait` or `supervise`, `sync-graph-render.sh`) is **not done**; a child statement is drawn as the existing `unknown` kind until the owner says what the new kind is called (for example `child_start`) or renames the entry node. `wait` and `cancel` have no clash.
+2. **D4 says the child id carries "the parent's attempt number"; DESIGN 4.2 says the generation already in the step id is that number and no new counter is needed.** I follow DESIGN 4.2 (it is the later text and is consistent with D4's meaning: a resume keeps it, a rewind changes it). Raised here so it is not a silent choice.
+3. **"A cost rule with no price table" is a `weave check` finding (D23), but the validator's `Context` carries no price table** (prices arrive at run and review time, `CostEstimator`). The check is therefore a warning that always fires for a `cost` rule and says what to run with (`--prices FILE`). If the owner wants it to be silent when a table is given, the validator needs the price table in its context.
+
+### Build status by sub-phase
+
+| Sub-phase | State | Notes |
+|---|---|---|
+| 33a The language | **built, except the graph kinds (finding 1), the keyed-variable additions and the fact reads in conditions, which need the runtime (33b)** | Parser, AST, walker, `StatementText`, `SubstitutedText`, explain, the checks (`ChildChecks`), a fail-closed refusal in the executor. |
+
 ## 1. Acceptance: what must be true when the phase is built
 
 Every row is `not built`. "How" says what proves it; the level is the minimum accepted.

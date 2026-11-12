@@ -45,6 +45,8 @@ final class ControlChecks {
                     w.getStatements(),
                     s -> {
                         if (s instanceof RunStmt r) runResults.add(head(r.getVariableName()));
+                        if (s instanceof io.github.llm4j.loom.ast.StartStmt st)
+                            runResults.add(st.getTarget().name());
                     });
             StatementWalker.walk(
                     w.getStatements(),
@@ -129,7 +131,11 @@ final class ControlChecks {
 
     private static String head(String name) {
         if (name == null) return "";
-        int dot = name.indexOf('.');
-        return dot < 0 ? name : name.substring(0, dot);
+        int cut = name.length();
+        for (char ch : new char[] {'.', '['}) {
+            int i = name.indexOf(ch);
+            if (i >= 0) cut = Math.min(cut, i);
+        }
+        return name.substring(0, cut);
     }
 }

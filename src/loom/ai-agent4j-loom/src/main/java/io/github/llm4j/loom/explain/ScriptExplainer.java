@@ -462,6 +462,8 @@ public final class ScriptExplainer {
             facts.people++;
             return "A person is asked: " + quote(h.getMessage()) + kept(h.getVariableName());
         }
+        String childSentence = ChildSentences.of(s);
+        if (childSentence != null) return childSentence;
         if (s instanceof NoteStmt n) return "A note is shown: " + quote(n.getMessage());
         if (s instanceof io.github.llm4j.loom.ast.HaltStmt h)
             return "The run stops here, saying: " + quote(h.getMessage());

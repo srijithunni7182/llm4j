@@ -3272,6 +3272,20 @@ public class HarnessExecutor implements LoomEngine {
             rewinder.rewind(rewind, frames.get());
         } else if (stmt instanceof io.github.llm4j.loom.ast.DecideStmt decide) {
             decider.decide(decide);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.StartStmt
+                || stmt instanceof io.github.llm4j.loom.ast.WaitStmt
+                || stmt instanceof io.github.llm4j.loom.ast.CancelStmt
+                || stmt instanceof io.github.llm4j.loom.ast.SteerStmt
+                || stmt instanceof io.github.llm4j.loom.ast.SuperviseStmt) {
+            // Fails closed until the child runs of phase 33b exist: a script that starts a
+            // workflow must never run as though it had waited for it.
+            throw new IllegalStateException(
+                    StatementText.of(stmt)
+                            + " (line "
+                            + stmt.getLine()
+                            + ") cannot run yet: starting workflows as children of their own is"
+                            + " not available in this build. Use call to run a workflow to"
+                            + " completion.");
         } else if (stmt instanceof NoteStmt note) {
             String noteText = resolvePayload(note.getMessage());
             lastNote = noteText;

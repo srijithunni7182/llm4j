@@ -44,6 +44,7 @@ public final class SubstitutedText {
                     "SetStmt.getValue",
                     "ReturnStmt.getValue",
                     "RunStmt.getArgs",
+                    "StartStmt.getArgs",
                     "UseStmt.getArgs",
                     "IntentClassifyStmt.getInputs",
                     "ExtractStmt.getInputs",
@@ -100,7 +101,14 @@ public final class SubstitutedText {
                     "RunStmt.getVariableName",
                     "RunStmt.getModel",
                     "SetStmt.getName",
-                    "SleepStmt.getText");
+                    "SleepStmt.getText",
+                    "StartStmt.getWorkflow",
+                    "StartStmt.getTarget",
+                    "WaitStmt.getResultVariable",
+                    "CancelStmt.getReason",
+                    "CancelStmt.getRewindCheckpoint",
+                    "SteerStmt.getAgent",
+                    "SteerStmt.getText");
 
     private SubstitutedText() {}
 
@@ -127,6 +135,9 @@ public final class SubstitutedText {
         else if (s instanceof RunStmt r) {
             for (RunStmt.Arg a : r.getArgs())
                 if (a.kind() == RunStmt.Kind.STRING) add(out, "run argument", a.text());
+        } else if (s instanceof io.github.llm4j.loom.ast.StartStmt st) {
+            for (RunStmt.Arg a : st.getArgs())
+                if (a.kind() == RunStmt.Kind.STRING) add(out, "start argument", a.text());
         } else if (s instanceof io.github.llm4j.loom.ast.UseStmt u) {
             for (RunStmt.Arg a : u.getArgs())
                 if (a.kind() == RunStmt.Kind.STRING) add(out, "use argument", a.text());

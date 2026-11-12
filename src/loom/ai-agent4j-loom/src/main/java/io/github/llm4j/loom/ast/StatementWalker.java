@@ -36,6 +36,7 @@ public final class StatementWalker {
         if (s instanceof CheckStmt k) return List.of(k.getOnFailure());
         if (s instanceof GuardrailStmt g) return List.of(g.getBody(), g.getOnViolation());
         if (s instanceof AskStmt a) return List.of(a.getOnFailure());
+        if (s instanceof WaitStmt w) return List.of(w.getOnTimeout(), w.getOnFailure());
         if (s instanceof RewindStmt r) return List.of(r.getIfStillFails(), r.getIfBlocked());
         return List.of();
     }

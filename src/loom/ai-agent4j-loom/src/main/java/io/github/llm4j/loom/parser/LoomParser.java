@@ -99,6 +99,8 @@ public class LoomParser {
                 if (script.getMediaMaxBytes() != null || script.getMediaMaxItems() != null)
                     throw error(keyword, "Only one media block can be given.");
                 parseMediaBlock(script);
+            } else if (isNamedAttribute("max_children") || isNamedAttribute("max_depth")) {
+                parseChildLimit(script);
             } else if (isNamedAttribute("substitution")) {
                 // Contextual, like shared_prompt: stays usable as a name everywhere else.
                 Token keyword = advance();
@@ -551,6 +553,16 @@ public class LoomParser {
                 && peekAt(1).getValue().matches("[A-Za-z_][A-Za-z0-9_.]*")
                 && "against".equals(peekAt(2).getValue())) {
             return parseCheck();
+        } else if (isStartStatement()) {
+            return parseStart();
+        } else if (isWaitStatement()) {
+            return parseWait();
+        } else if (isCancelStatement()) {
+            return parseCancel();
+        } else if (isSteerStatement()) {
+            return parseSteer();
+        } else if (isSuperviseStatement()) {
+            return parseSuperviseStatement();
         } else if (isWord("halt")) {
             return parseHalt();
         } else if (isWord("set")) {
@@ -1642,6 +1654,411 @@ public class LoomParser {
             text.append(advance().getValue());
         }
         return text.toString();
+    }
+
+
+    // -----------------------------------------------------------------------
+    // Phase 33: start, wait, cancel, steer, and supervise on a handle. Contextual words, like
+    // `run`: a verb only where a statement starts and the shape it needs follows.
+    // -----------------------------------------------------------------------
+
+    /** A placeholder such as {name}: refused in a steer, where data must not choose the words. */
+    private static final java.util.regex.Pattern PLACEHOLDER =
+            java.util.regex.Pattern.compile("\\{[^{}]*\\}");
+
+    /** {@code max_children: N} and {@code max_depth: N}. */
+    private void parseChildLimit(LoomScript script) {
+        Token keyword = advance();
+        advance(); // the colon
+        Token n = consume(TokenType.NUMBER_LITERAL, "Write " + keyword.getValue() + ": 3.");
+        int value = (int) Double.parseDouble(n.getValue());
+        if (value < 1) throw error(n, keyword.getValue() + " must be at least 1.");
+        boolean children = "max_children".equals(keyword.getValue());
+        if ((children ? script.getMaxChildren() : script.getMaxDepth()) != null)
+            throw error(keyword, "Only one " + keyword.getValue() + " can be given.");
+        if (children) script.setMaxChildren(value);
+        else script.setMaxDepth(value);
+    }
+
+    /** {@code start Name(}: the verb is a word only with a workflow name and '(' after it. */
+    private boolean isStartStatement() {
+        return isWord("start") && isNameToken(peekAt(1)) && peekAt(2).getType() == TokenType.LPAREN;
+    }
+
+    /** {@code wait handle} or {@code wait all handles}: a name after the verb. */
+    private boolean isWaitStatement() {
+        return isWord("wait") && isNameToken(peekAt(1));
+    }
+
+    /** {@code cancel handle}: a name after the verb. */
+    private boolean isCancelStatement() {
+        return isWord("cancel") && isNameToken(peekAt(1));
+    }
+
+    /** {@code steer handle Agent "text"}, or with a keyed handle. */
+    private boolean isSteerStatement() {
+        if (!isWord("steer") || !isNameToken(peekAt(1))) return false;
+        int i = 2;
+        if (peekAt(i).getType() == TokenType.LBRACKET) {
+            while (peekAt(i).getType() != TokenType.RBRACKET && i < tokens.size()) i++;
+            i++;
+        }
+        return isNameToken(peekAt(i)) && peekAt(i + 1).getType() == TokenType.STRING_LITERAL;
+    }
+
+    /** {@code supervise handle {} or {@code supervise handle budget ...} in a workflow body. */
+    private boolean isSuperviseStatement() {
+        if (!isWord("supervise") || !isNameToken(peekAt(1))) return false;
+        Token after = peekAt(2);
+        return after.getType() == TokenType.LBRACE
+                || after.getType() == TokenType.LBRACKET
+                || "budget".equals(after.getValue());
+    }
+
+    /** {@code name} or {@code name[key]} or {@code name["key"]}. */
+    private HandleRef parseHandleRef(String what) {
+        Token name = advance();
+        if (!isNameToken(name))
+            throw error(name, "Expect the handle " + what + " names, a variable bound by start.");
+        if (match(TokenType.LBRACKET)) {
+            Token key = advance();
+            boolean literal = key.getType() == TokenType.STRING_LITERAL;
+            if (!literal && !(key.getValue() != null && key.getValue().matches("[A-Za-z][A-Za-z0-9_.-]*")))
+                throw error(key, "Expect a key in " + name.getValue() + "[...]: a name or a quoted word.");
+            consume(TokenType.RBRACKET, "Expect ']' after the key.");
+            return new HandleRef(name.getValue(), key.getValue(), literal);
+        }
+        return HandleRef.variable(name.getValue());
+    }
+
+    /** {@code start Workflow(args) [timeout 20m] [budget { }] -> handle}, after the cursor is at start. */
+    private StartStmt parseStart() {
+        advance();
+        Token workflow = advance();
+        consume(TokenType.LPAREN, "Expect '(' after the workflow name.");
+        List<RunStmt.Arg> args = parseCallArgs("start", workflow);
+        Long timeout = null;
+        io.github.llm4j.loom.ast.BudgetDef budget = null;
+        while (isWord("timeout") || isWord("budget")) {
+            Token option = advance();
+            if ("timeout".equals(option.getValue())) {
+                if (timeout != null) throw error(option, "A start can have only one timeout.");
+                timeout = durationMillis();
+            } else {
+                if (budget != null) throw error(option, "A start can have only one budget.");
+                budget = parseBudgetBlock(false);
+            }
+        }
+        consume(
+                TokenType.ARROW,
+                "Expect '-> handle' after start " + workflow.getValue()
+                        + "(...), as in: start " + workflow.getValue() + "(...) budget { tokens: 50000 } -> work");
+        StartStmt stmt = new StartStmt(workflow.getValue(), args, parseHandleRef("start"));
+        stmt.setTimeoutMillis(timeout);
+        stmt.setBudget(budget);
+        return stmt;
+    }
+
+    /** {@code wait [all] handle [timeout 5m] [-> result] [on_timeout { }] [on_failure { }]}. */
+    private WaitStmt parseWait() {
+        advance();
+        boolean all = false;
+        if (isWord("all") && isNameToken(peekAt(1))) {
+            advance();
+            all = true;
+        }
+        WaitStmt stmt = new WaitStmt(parseHandleRef("wait"), all);
+        while (true) {
+            if (isWord("timeout")) {
+                Token option = advance();
+                if (stmt.getTimeoutMillis() != null)
+                    throw error(option, "A wait can have only one timeout.");
+                stmt.setTimeoutMillis(durationMillis());
+            } else if (check(TokenType.ARROW)) {
+                advance();
+                stmt.setResultVariable(
+                        consume(TokenType.IDENTIFIER, "Expect a variable name after '->'.")
+                                .getValue());
+            } else if (isWord("on_timeout")) {
+                advance();
+                parseBlockInto(stmt.getOnTimeout(), "on_timeout");
+            } else if (match(TokenType.ON_FAILURE)) {
+                parseBlockInto(stmt.getOnFailure(), "on_failure");
+            } else {
+                return stmt;
+            }
+        }
+    }
+
+    private void parseBlockInto(List<Statement> into, String name) {
+        consume(TokenType.LBRACE, "Expect '{' before the " + name + " body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) into.add(parseStatement());
+        consume(TokenType.RBRACE, "Expect '}' after the " + name + " body.");
+    }
+
+    /** {@code cancel handle [outcome | rewind to cp at most N times] [reason "..."]}. */
+    private CancelStmt parseCancel() {
+        advance();
+        CancelStmt stmt = new CancelStmt(parseHandleRef("cancel"));
+        if (isWord("rewind") && peekAt(1).getType() == TokenType.TO) {
+            advance();
+            advance();
+            Token checkpoint =
+                    consume(TokenType.IDENTIFIER, "Expect the name of a checkpoint after 'rewind to'.");
+            if (!isWord("at"))
+                throw error(
+                        peek(), "A rewind needs a limit: add \"at most 2 times\" (or another number).");
+            advance();
+            expectWord("most", "Write the limit as: at most 2 times");
+            Token n = consume(TokenType.NUMBER_LITERAL, "Expect a number after 'at most'.");
+            int atMost = (int) Double.parseDouble(n.getValue());
+            if (atMost < 1) throw error(n, "\"at most\" must be at least 1 time");
+            if (isWord("times") || isWord("time")) advance();
+            stmt.setRewind(checkpoint.getValue(), atMost);
+        } else {
+            OutcomeStmt outcome = parseOutcome(1);
+            if (outcome != null) stmt.setOutcome(outcome.getKind());
+        }
+        if (isWord("reason")) {
+            advance();
+            stmt.setReason(
+                    consume(TokenType.STRING_LITERAL, "Write the reason in quotes: reason \"not needed\"")
+                            .getValue());
+        }
+        return stmt;
+    }
+
+    /** {@code steer handle Agent "text"}: the text is literal. */
+    private SteerStmt parseSteer() {
+        advance();
+        HandleRef target = parseHandleRef("steer");
+        Token agent = advance();
+        Token text = consume(TokenType.STRING_LITERAL, "Write what to tell the agent in quotes.");
+        requireLiteral(text, "steer");
+        return new SteerStmt(target, agent.getValue(), text.getValue());
+    }
+
+    private void requireLiteral(Token text, String what) {
+        if (PLACEHOLDER.matcher(text.getValue()).find())
+            throw error(
+                    text,
+                    "The text of a "
+                            + what
+                            + " is literal, written in the script: a placeholder such as {name} would let data decide what an agent is told. Write the words out.");
+    }
+
+    /** {@code supervise handle [budget { }] { when ... assert ... }}. */
+    private SuperviseStmt parseSuperviseStatement() {
+        Token keyword = advance();
+        SuperviseStmt stmt = new SuperviseStmt(parseHandleRef("supervise"));
+        if (isWord("budget") && peekAt(1).getType() == TokenType.LBRACE) {
+            advance();
+            stmt.setBudget(parseBudgetBlock(false));
+        }
+        consume(TokenType.LBRACE, "Expect '{' after supervise " + stmt.getTarget().describe() + ".");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token head = advance();
+            if ("when".equals(head.getValue())) parseCountedRule(stmt, head);
+            else if ("assert".equals(head.getValue())) parseAssertion(stmt, head);
+            else
+                throw error(
+                        head,
+                        "Inside supervise, write a rule: when tokens > 90000 { cancel }, or an assertion: assert never calls shell { cancel }");
+        }
+        consume(TokenType.RBRACE, "Expect '}' after supervise.");
+        if (stmt.getCounted().isEmpty() && stmt.getCode().isEmpty() && stmt.getJudged().isEmpty())
+            throw error(keyword, "supervise " + stmt.getTarget().describe() + " has no rules.");
+        return stmt;
+    }
+
+    private static final String COUNTERS = "tokens, cost, calls, elapsed or idle";
+
+    private void parseCountedRule(SuperviseStmt stmt, Token when) {
+        Token word = advance();
+        SuperviseStmt.Counter counter = SuperviseStmt.Counter.ofWord(word.getValue());
+        if (counter == null)
+            throw error(
+                    word,
+                    "\"" + word.getValue() + "\" is not something to count. A rule watches " + COUNTERS
+                            + "; a child's status is read with its handle, not watched.");
+        SuperviseStmt.Comparison comparison = comparison(word);
+        Long number = null;
+        java.math.BigDecimal money = null;
+        if (counter == SuperviseStmt.Counter.COST) {
+            Token amount =
+                    consume(TokenType.STRING_LITERAL, "Write the money in quotes: when cost > \"$0.50\"");
+            money = new java.math.BigDecimal(amount.getValue().replaceAll("[^0-9.]", ""));
+        } else if (counter.isDuration()) {
+            number = durationMillis();
+        } else {
+            Token n = consume(TokenType.NUMBER_LITERAL, "Write a number after " + counter.word() + ".");
+            number = (long) Double.parseDouble(n.getValue());
+        }
+        ActionBlock block = parseActionBlock("when " + counter.word(), when, false);
+        stmt.getCounted()
+                .add(
+                        new SuperviseStmt.Counted(
+                                counter, comparison, number, money, block.once(), block.actions(),
+                                when.getLine()));
+    }
+
+    private SuperviseStmt.Comparison comparison(Token after) {
+        Token op = advance();
+        return switch (op.getType()) {
+            case GT -> SuperviseStmt.Comparison.GREATER;
+            case GTE -> SuperviseStmt.Comparison.GREATER_OR_EQUAL;
+            case LT -> SuperviseStmt.Comparison.LESS;
+            case LTE -> SuperviseStmt.Comparison.LESS_OR_EQUAL;
+            case EQUALS -> SuperviseStmt.Comparison.EQUAL;
+            default -> throw error(
+                    op, "Compare " + after.getValue() + " with >, >=, <, <= or ==.");
+        };
+    }
+
+    private void parseAssertion(SuperviseStmt stmt, Token assertion) {
+        int line = assertion.getLine();
+        if (check(TokenType.STRING_LITERAL)) {
+            parseJudged(stmt, assertion);
+            return;
+        }
+        if (isWord("never") && "calls".equals(peekAt(1).getValue())) {
+            advance();
+            advance();
+            Token name = advance();
+            ActionBlock block = parseActionBlock("assert never calls", assertion, false);
+            stmt.getCode()
+                    .add(
+                            new SuperviseStmt.CodeAssertion(
+                                    SuperviseStmt.AssertionKind.NEVER_CALLS, name.getValue(), null,
+                                    null, null, block.once(), block.actions(), line));
+        } else if (isWord("calls")) {
+            advance();
+            Token first = advance();
+            if (isWord("at")) {
+                advance();
+                expectWord("most", "Write the limit as: calls search at most 5 times");
+                Token n = consume(TokenType.NUMBER_LITERAL, "Expect a number after 'at most'.");
+                if (isWord("times") || isWord("time")) advance();
+                ActionBlock block = parseActionBlock("assert calls", assertion, false);
+                stmt.getCode()
+                        .add(
+                                new SuperviseStmt.CodeAssertion(
+                                        SuperviseStmt.AssertionKind.CALLS_AT_MOST, first.getValue(),
+                                        null, (int) Double.parseDouble(n.getValue()), null,
+                                        block.once(), block.actions(), line));
+            } else {
+                expectWord("before", "Write: assert calls plan before write { ... }");
+                Token second = advance();
+                ActionBlock block = parseActionBlock("assert calls", assertion, false);
+                stmt.getCode()
+                        .add(
+                                new SuperviseStmt.CodeAssertion(
+                                        SuperviseStmt.AssertionKind.CALLS_BEFORE, first.getValue(),
+                                        second.getValue(), null, null, block.once(), block.actions(),
+                                        line));
+            }
+        } else if (isWord("reaches")) {
+            advance();
+            Token checkpoint =
+                    consume(TokenType.STRING_LITERAL, "Write the checkpoint in quotes: reaches \"collected\"");
+            expectWord("within", "Write: assert reaches \"collected\" within 10m { ... }");
+            long within = durationMillis();
+            ActionBlock block = parseActionBlock("assert reaches", assertion, false);
+            stmt.getCode()
+                    .add(
+                            new SuperviseStmt.CodeAssertion(
+                                    SuperviseStmt.AssertionKind.REACHES_WITHIN, checkpoint.getValue(),
+                                    null, null, within, block.once(), block.actions(), line));
+        } else {
+            throw error(
+                    peek(),
+                    "An assertion is: never calls <name>, calls <name> at most N times, calls A before B, reaches \"checkpoint\" within 10m, or a quoted sentence judged using an evaluator.");
+        }
+    }
+
+    private void parseJudged(SuperviseStmt stmt, Token assertion) {
+        Token text = advance();
+        expectWord("using", "Name the judge: assert \"stays on topic\" using TopicJudge every 2m max 4 { ... }");
+        Token evaluator = advance();
+        boolean seeing = false;
+        if (isWord("seeing")) {
+            advance();
+            expectWord("content", "Write: seeing content");
+            seeing = true;
+        }
+        expectWord("every", "Say how often: every 2m or every 3 steps");
+        Long everyMillis = null;
+        Integer everySteps = null;
+        Token n = peek();
+        if (peekAt(1).getType() == TokenType.IDENTIFIER && "steps".equals(peekAt(1).getValue())) {
+            advance();
+            advance();
+            everySteps = (int) Double.parseDouble(n.getValue());
+            if (everySteps < 1) throw error(n, "every needs at least 1 step.");
+        } else {
+            everyMillis = durationMillis();
+        }
+        if (!isWord("max"))
+            throw error(
+                    peek(),
+                    "A judged assertion needs a ceiling on how often the judge is asked: add max 4 after the cadence.");
+        advance();
+        Token max = consume(TokenType.NUMBER_LITERAL, "Write a number after max.");
+        int ceiling = (int) Double.parseDouble(max.getValue());
+        if (ceiling < 1) throw error(max, "max must be at least 1.");
+        ActionBlock block = parseActionBlock("assert", assertion, true);
+        stmt.getJudged()
+                .add(
+                        new SuperviseStmt.Judged(
+                                text.getValue(), evaluator.getValue(), seeing, everyMillis,
+                                everySteps, ceiling, block.once(), block.actions(),
+                                assertion.getLine()));
+    }
+
+    private record ActionBlock(List<SuperviseDef.Action> actions, boolean once) {}
+
+    /**
+     * {@code { steer "text" | wrap_up | cancel [outcome] | once ... }}: the actions of a rule.
+     * A judged assertion may only steer, wrap up or cancel use partial (D25).
+     */
+    private ActionBlock parseActionBlock(String rule, Token head, boolean judged) {
+        consume(TokenType.LBRACE, "Expect '{' after " + rule + ".");
+        boolean once = false;
+        List<SuperviseDef.Action> actions = new java.util.ArrayList<>();
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token verb = advance();
+            String word = verb.getValue();
+            if ("steer".equals(word)) {
+                Token text =
+                        consume(
+                                TokenType.STRING_LITERAL,
+                                "Write what to tell the agent: steer \"Use a different source.\"");
+                requireLiteral(text, "steer");
+                actions.add(new SuperviseDef.Action(SuperviseDef.Do.STEER, text.getValue(), null));
+            } else if ("wrap_up".equals(word)) {
+                actions.add(new SuperviseDef.Action(SuperviseDef.Do.WRAP_UP, null, null));
+            } else if ("cancel".equals(word)) {
+                OutcomeStmt outcome = parseOutcome(1);
+                OutcomeStmt.Kind kind = outcome == null ? null : outcome.getKind();
+                if (judged && kind != OutcomeStmt.Kind.USE_PARTIAL)
+                    throw error(
+                            verb,
+                            "A judged assertion may only steer, wrap_up or cancel use partial: a judge's opinion is not enough to discard work or send a child back. Use a counted rule or an assertion in code for that.");
+                actions.add(new SuperviseDef.Action(SuperviseDef.Do.CANCEL, null, kind));
+            } else if ("once".equals(word)) {
+                once = true;
+            } else {
+                throw error(
+                        verb,
+                        "A rule can steer \"...\", wrap_up or cancel [outcome], and end with once; not \""
+                                + word
+                                + "\".");
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after the rule.");
+        if (actions.isEmpty())
+            throw error(head, "The rule " + rule + " does nothing; give it steer, wrap_up or cancel.");
+        return new ActionBlock(actions, once);
     }
 
     /** {@code halt "reason"} */
