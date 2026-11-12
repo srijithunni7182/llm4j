@@ -266,4 +266,50 @@ class ChildClosureTest {
                 .hasMessageContaining("unsupervised")
                 .hasMessageContaining("50");
     }
+
+    // ---- F8: a sleeping child's time does not count as running or idle time ----
+
+    @Test
+    void aSleepingChildIsNeitherRunningNorIdleHoweverLongItSleeps() {
+        ControlledChildScheduler scheduler = new ControlledChildScheduler();
+        h.task(
+                "LetItNap",
+                ctx -> {
+                    scheduler.runNext(); // the child runs until it sleeps
+                    return io.github.llm4j.agent.task.TaskResult.value("napping");
+                });
+        h.task(
+                "TwoHoursLater",
+                ctx -> {
+                    h.clock.advance(java.time.Duration.ofHours(2));
+                    h.parent.tickChildren(); // the supervisor looks, as its thread would
+                    return io.github.llm4j.agent.task.TaskResult.value("later");
+                });
+        HarnessExecutor e =
+                h.parent(
+                        """
+                        workflow Napper(x) { sleep 10h  note "done" }
+                        workflow Main(q) {
+                            start Napper(x = q) budget { tokens: 10 } -> work
+                            supervise work {
+                                when elapsed > 90m { cancel }
+                                when idle > 5m { cancel }
+                            }
+                            run LetItNap() -> nap
+                            set before = work.status
+                            run TwoHoursLater() -> later
+                            set after = work.status
+                        }
+                        """,
+                        scheduler);
+
+        e.executeWorkflow("Main", java.util.Map.of("q", "x"));
+
+        assertThat(e.getContext().getVariable("before")).isEqualTo("sleeping");
+        assertThat(e.getContext().getVariable("after"))
+                .as("two hours asleep are not two hours of running or idling: no rule fired")
+                .isEqualTo("sleeping");
+        assertThat(h.journals.get("p").all().values())
+                .noneMatch(en -> en.value() instanceof java.util.Map<?, ?> m && "fired".equals(m.get("outcome")));
+    }
 }

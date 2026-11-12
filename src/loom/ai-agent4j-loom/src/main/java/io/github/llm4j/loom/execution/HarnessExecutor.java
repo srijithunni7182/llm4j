@@ -4387,6 +4387,20 @@ public class HarnessExecutor implements LoomEngine {
                 java.util.Objects.requireNonNull(scheduler, "scheduler");
     }
 
+    private ChildScripts childScripts = workflow -> java.util.Optional.empty();
+
+    /**
+     * Tells {@code start} to run a scripted behaviour instead of the child's workflow, for the
+     * workflows a test scripts ({@code weave test}'s {@code children:}). Inherited by the children.
+     */
+    public void setChildScripts(ChildScripts scripts) {
+        this.childScripts = java.util.Objects.requireNonNull(scripts, "scripts");
+    }
+
+    ChildScripts childScripts() {
+        return childScripts;
+    }
+
     private final Trajectory trajectory = new Trajectory();
     private final ForbiddenCalls forbidden = new ForbiddenCalls(trajectory);
 
@@ -4572,6 +4586,7 @@ public class HarnessExecutor implements LoomEngine {
         child.classifierFactory = classifierFactory;
         child.childRuns = childRuns;
         child.childScheduler = childScheduler;
+        child.childScripts = childScripts;
         child.childLimits = childLimits;
         child.childDepth = childDepth + 1;
         child.parentRunId = runId;

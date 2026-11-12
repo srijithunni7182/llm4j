@@ -456,6 +456,11 @@ final class ChildLauncher {
                 settleCancelled(child, handle, marker.get());
                 return null;
             }
+            Optional<ScriptedChild> scripted = executor.childScripts().forWorkflow(workflow);
+            if (scripted.isPresent()) { // a test scripted this child: no workflow, no model
+                runScripted(child, handle, scripted.get());
+                return null;
+            }
             applyPendingRewind(child.journal(), workflow); // a restart between the request and the rewind
             child.initialize();
             child.executeWorkflow(workflow, null, invoker);
@@ -489,6 +494,40 @@ final class ChildLauncher {
             throw died;
         }
         return null;
+    }
+
+    /**
+     * Plays a scripted child (F5): each step waits its {@code after} on the injected sleeper (the
+     * virtual clock in a test, so the supervisor's ticks happen as time passes), then looks for a
+     * stop, as a real child does at each step, then becomes what the step says.
+     */
+    private void runScripted(HarnessExecutor child, ChildHandle handle, ScriptedChild script) {
+        for (ScriptedChild.Step step : script.steps()) {
+            if (!step.after().isZero()) {
+                try {
+                    child.sleeper().sleep(step.after());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RunStopped("interrupted while a scripted child was working");
+                }
+            }
+            child.control().checkpoint("scripted child"); // a cancel reaches it here
+            switch (step.state()) {
+                case WORKING -> {}
+                case COMPLETED -> {
+                    handle.complete(step.result());
+                    return;
+                }
+                case FAILED -> {
+                    handle.end(ChildStatus.FAILED, step.reason() == null ? "failed" : step.reason());
+                    return;
+                }
+                case WAITING -> {
+                    handle.pause(ChildStatus.WAITING, null);
+                    return;
+                }
+            }
+        }
     }
 
     /** What to do after the body when a parent asked for the child to be sent back, or null. */

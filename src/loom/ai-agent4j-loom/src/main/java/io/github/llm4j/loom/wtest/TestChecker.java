@@ -50,7 +50,8 @@ public final class TestChecker {
                     "stop",
                     "remotes",
                     "channels",
-                    "judges");
+                    "judges",
+                    "children");
 
     /** The keys of {@code expect}. */
     static final List<String> EXPECT_KEYS =
@@ -225,6 +226,7 @@ public final class TestChecker {
         scripts(c, "tasks", tasks, problems);
         a2a(c, problems);
         children(c, problems);
+        scriptedChildren(c, problems);
         real(c, problems);
         fail(c, problems);
         for (String key : List.of("humans", "resume"))
@@ -721,6 +723,44 @@ public final class TestChecker {
                     if (!names.contains(name))
                         problems.add(where(c) + "expect.children: '" + name + "' is not a workflow of the script" + Suggest.hint(name, names));
                 }
+        }
+    }
+
+    /** The states a scripted child can be in: what {@link io.github.llm4j.loom.execution.ScriptedChild.State} offers. */
+    static final List<String> CHILD_STATES = List.of("working", "completed", "failed", "waiting");
+
+    /** {@code children:}: workflows of the script, each a list of steps that ends by settling or pausing the child. */
+    private void scriptedChildren(TestFile.Case c, List<String> problems) {
+        JsonNode scripts = c.get("children");
+        if (scripts == null) return;
+        if (!scripts.isObject()) {
+            problems.add(where(c) + "children: a map of workflow names to a list of steps, such as Research: [ { state: completed, result: \"…\" } ]");
+            return;
+        }
+        Set<String> names = new LinkedHashSet<>(workflowNames());
+        for (Iterator<String> it = scripts.fieldNames(); it.hasNext(); ) {
+            String name = it.next();
+            JsonNode steps = scripts.get(name);
+            if (!names.contains(name)) {
+                problems.add(where(c) + "children: '" + name + "' is not a workflow of the script" + Suggest.hint(name, names));
+                continue;
+            }
+            if (!steps.isArray() || steps.isEmpty()) {
+                problems.add(where(c) + "children." + name + ": a list of steps, such as [ { state: completed, result: \"…\" } ]");
+                continue;
+            }
+            for (int i = 0; i < steps.size(); i++) {
+                JsonNode step = steps.get(i);
+                String at = where(c) + "children." + name + "[" + (i + 1) + "]: ";
+                String state = step.path("state").asText("");
+                if (!step.isObject() || !CHILD_STATES.contains(state))
+                    problems.add(at + "state '" + state + "' is not one of " + String.join(", ", CHILD_STATES) + Suggest.hint(state, CHILD_STATES));
+                if (step.has("after") && Durations.parse(step.get("after").asText()) == null)
+                    problems.add(at + "after '" + step.get("after").asText() + "' is not a duration such as 30s, 5m or 2h");
+            }
+            String last = steps.get(steps.size() - 1).path("state").asText("");
+            if (last.equals("working"))
+                problems.add(where(c) + "children." + name + ": the last step must settle the child or pause it (completed, failed or waiting), not leave it working");
         }
     }
 
