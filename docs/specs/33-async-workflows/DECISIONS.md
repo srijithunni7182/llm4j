@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D13, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D14, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -24,7 +24,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D11 | Whose budget a child spends | **taken** (its own required budget, charged to the parent, with reservation) |
 | D12 | What `steer` targets | **taken** (only `steerable` agents; literal text; named outside `supervise`) |
 | D13 | What `cancel` means | **taken** (existing outcomes; effects finish first; `h.partial`; rewind to a declared checkpoint) |
-| D14 | Limits on the tree | open |
+| D14 | Limits on the tree | **taken** (`max_children`, `max_depth`, bounded starts in loops; a start over a limit fails) |
 | D15 | Authority and security | open |
 | D16 | Visibility | open |
 | D17 | Tests | open |
@@ -297,7 +297,11 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation:** all three, with small defaults.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed.**
+- **Live children per run:** a runtime default (proposed 8) and a ceiling set by the host; a script may lower it, or raise it up to the ceiling, with the top-level setting `max_children: N` (no new block). A `start` that would exceed it **fails** at run time with a message naming the limit; it does not queue.
+- **Depth:** a child that starts children is one level deeper; default 2 levels below the top workflow, with a host ceiling; `max_depth: N` lowers or raises it within the ceiling; a `start` past it fails the same way. `weave check` warns about a workflow that starts itself directly.
+- **Starts in loops:** a `start` inside `loop until ... max N` or `for each ... max N` is bounded by that `max` (the rule that already covers a list a model wrote, LR13); a `start` in a construct with no bound is a `weave check` error; `weave check` warns where it can prove a contradiction (for example a loop that starts more children than `max_children` allows with nothing waited on in the loop).
+- With D11 the worst-case cost is the child budgets times the live cap; with D10 nothing over the limit is ever created, so nothing needs cancelling. The total started over a run is not capped separately: a loop is bounded by its own `max` and by the budgets.
 
 ## D15. Authority and security
 
