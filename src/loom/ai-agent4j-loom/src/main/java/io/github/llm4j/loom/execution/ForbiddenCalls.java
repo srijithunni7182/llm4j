@@ -24,10 +24,6 @@ final class ForbiddenCalls {
         names.add(name);
     }
 
-    boolean forbids(String name) {
-        return names.contains(name);
-    }
-
     /**
      * Counts and refuses the call of {@code name} if it is forbidden.
      *

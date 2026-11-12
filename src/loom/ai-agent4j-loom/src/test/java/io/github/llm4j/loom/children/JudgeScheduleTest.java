@@ -83,4 +83,12 @@ class JudgeScheduleTest {
         assertThat(schedule.decide(5 * MIN, 5, 5)).isEqualTo(Decision.BUDGET_USED_UP);
         assertThat(schedule.decide(6 * MIN, 6, 6)).isEqualTo(Decision.STOPPED);
     }
+
+    @Test
+    void itCountsHowManyTimesTheJudgeWasAsked() {
+        var schedule = new JudgeSchedule(rule("1m", 4), 0, 1);
+        assertThat(schedule.askedCount()).isEqualTo(1);
+        schedule.asked(MIN, 1, 1);
+        assertThat(schedule.askedCount()).isEqualTo(2);
+    }
 }

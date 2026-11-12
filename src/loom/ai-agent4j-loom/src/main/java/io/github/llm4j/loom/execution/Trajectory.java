@@ -13,7 +13,7 @@ import java.util.Set;
  * and the facts a judge sees by default in D25). Read from the run's own trace, so nothing is asked
  * of the child and no tool argument or result is kept.
  */
-final class Trajectory implements TraceListener {
+public final class Trajectory implements TraceListener {
 
     /** A moment's copy: safe to read while the child goes on. */
     public record Snapshot(

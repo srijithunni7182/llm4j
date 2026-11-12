@@ -185,4 +185,49 @@ class SuperviseEvaluatorTest {
 
         assertThat(firings).extracting(Firing::rule).containsExactly(0, 1);
     }
+
+    private static SuperviseEvaluator.Facts withTrajectory(long elapsed, java.util.Map<String, Integer> calls, java.util.List<String> order,
+            java.util.Set<String> reached, java.util.Map<String, Integer> refused) {
+        return new SuperviseEvaluator.Facts(0, 0, BigDecimal.ZERO, elapsed, 0,
+                new io.github.llm4j.loom.execution.Trajectory.Snapshot(calls, order, reached, refused));
+    }
+
+    @Test
+    void callsAtMostFiresOnlyPastTheLimitNotAtIt() {
+        var e = new SuperviseEvaluator(block("assert calls Search at most 2 times { wrap_up }"), Set.of());
+        assertThat(e.evaluate(withTrajectory(0, java.util.Map.of("Search", 2), java.util.List.of("Search"), Set.of(), java.util.Map.of()))).isEmpty();
+        assertThat(e.evaluate(withTrajectory(0, java.util.Map.of("Search", 3), java.util.List.of("Search"), Set.of(), java.util.Map.of()))).hasSize(1);
+    }
+
+    @Test
+    void callsBeforeIsViolatedByTheOtherComingFirstOrByTheFirstNeverComing() {
+        var rules = "assert calls Plan before Write { wrap_up }";
+        var rightOrder = new SuperviseEvaluator(block(rules), Set.of());
+        assertThat(rightOrder.evaluate(withTrajectory(0, java.util.Map.of("Plan", 1, "Write", 1), java.util.List.of("Plan", "Write"), Set.of(), java.util.Map.of()))).isEmpty();
+        var neverPlanned = new SuperviseEvaluator(block(rules), Set.of());
+        assertThat(neverPlanned.evaluate(withTrajectory(0, java.util.Map.of("Write", 1), java.util.List.of("Write"), Set.of(), java.util.Map.of()))).hasSize(1);
+        var notYet = new SuperviseEvaluator(block(rules), Set.of());
+        assertThat(notYet.evaluate(withTrajectory(0, java.util.Map.of("Plan", 1), java.util.List.of("Plan"), Set.of(), java.util.Map.of()))).isEmpty();
+    }
+
+    @Test
+    void reachesWithinIsViolatedOnlyPastTheDeadlineNotAtIt() {
+        var e = new SuperviseEvaluator(block("assert reaches \"collected\" within 5m { wrap_up }"), Set.of());
+        assertThat(e.evaluate(withTrajectory(300_000, java.util.Map.of(), java.util.List.of(), Set.of(), java.util.Map.of()))).isEmpty();
+        assertThat(e.evaluate(withTrajectory(300_001, java.util.Map.of(), java.util.List.of(), Set.of(), java.util.Map.of()))).hasSize(1);
+    }
+
+    @Test
+    void neverCallsIsViolatedByARefusalOrByTheCallItself() {
+        var refused = new SuperviseEvaluator(block("assert never calls shell { cancel }"), Set.of());
+        assertThat(refused.evaluate(withTrajectory(0, java.util.Map.of(), java.util.List.of(), Set.of(), java.util.Map.of("shell", 1)))).hasSize(1);
+        var called = new SuperviseEvaluator(block("assert never calls shell { cancel }"), Set.of());
+        assertThat(called.evaluate(withTrajectory(0, java.util.Map.of("shell", 1), java.util.List.of("shell"), Set.of(), java.util.Map.of()))).hasSize(1);
+    }
+
+    @Test
+    void aRuleIndexOutsideTheBlockIsIgnoredWhenReadingWhatFiredBefore() {
+        var e = new SuperviseEvaluator(block("when tokens > 5 { steer \"a\" }"), Set.of(-1, 7));
+        assertThat(fired(e.evaluate(facts(10, 0, 0, 0)))).hasSize(1);
+    }
 }

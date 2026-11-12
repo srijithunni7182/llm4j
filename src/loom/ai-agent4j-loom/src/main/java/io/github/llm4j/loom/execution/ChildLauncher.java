@@ -71,6 +71,7 @@ final class ChildLauncher {
                             + " completion without that.");
         checkLimits(stmt);
         reserve(stmt);
+        String bound = boundName(stmt.getTarget()); // a key that is not a plain word is refused before anything starts
         String parentRun = executor.getRunId();
         if (parentRun == null)
             throw new IllegalStateException(
@@ -121,7 +122,7 @@ final class ChildLauncher {
         String workflow = stmt.getWorkflow();
         // a console or chat reaches the child by a longer label: parent/handle/workflow
         String label = LiveRuns.shared().labelOf(executor)
-                .map(parentLabel -> parentLabel + "/" + boundName(stmt.getTarget()).replace('[', '/').replace("]", "") + "/" + workflow)
+                .map(parentLabel -> parentLabel + "/" + bound.replace('[', '/').replace("]", "") + "/" + workflow)
                 .orElse(null);
         ChildScheduler.Task task =
                 executor.childScheduler()
@@ -146,7 +147,7 @@ final class ChildLauncher {
         synchronized (tasks) {
             tasks.put(handle, new Live(stepId, task, child, childJournal, deadline, timeoutMillis, capTokens, capCalls, capCost));
         }
-        executor.bind(boundName(stmt.getTarget()), handle, Provenance.NOT_MODEL);
+        executor.bind(bound, handle, Provenance.NOT_MODEL);
         log.info("Started child " + childRun + " (" + workflow + ")");
     }
 

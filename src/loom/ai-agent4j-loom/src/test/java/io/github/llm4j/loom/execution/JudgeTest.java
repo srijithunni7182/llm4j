@@ -82,4 +82,18 @@ class JudgeTest {
     void aVerdictIsOneWordAndAnythingElseIsNotAVerdict(String answer, Judge.Verdict expected) {
         assertThat(Judge.read(answer)).isEqualTo(expected);
     }
+
+    @Test
+    void timesAreShownInSeconds() {
+        String facts = Judge.facts(COUNTERS, 6, TRAJECTORY, null);
+        assertThat(facts).contains("Running time: 95 s").contains("idle: 10 s");
+    }
+
+    @Test
+    void contentIsCutAtTheLimitAndNotBefore() {
+        String exact = Judge.facts(COUNTERS, 1, TRAJECTORY, Map.of("a", "x".repeat(4000 - "{a=}".length())));
+        assertThat(exact).doesNotContain("...");
+        String over = Judge.facts(COUNTERS, 1, TRAJECTORY, Map.of("a", "x".repeat(4000)));
+        assertThat(over).contains("...");
+    }
 }

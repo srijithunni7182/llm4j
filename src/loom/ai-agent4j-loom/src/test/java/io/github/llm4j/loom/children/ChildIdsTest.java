@@ -42,4 +42,11 @@ class ChildIdsTest {
         assertThat(derive("a-run", deep)).isEqualTo(id);
         assertThat(derive("a-run", deep + "x")).as("two long ids that begin alike differ").isNotEqualTo(id);
     }
+
+    @Test
+    void aLetterOutsideAsciiIsEscapedSoTheIdStaysASafeFolderName() throws Exception {
+        String id = derive("r", "Main/caf\u00e9");
+
+        assertThat(id).matches("[A-Za-z0-9._@-]+").doesNotContain("\u00e9").isNotEqualTo(derive("r", "Main/cafe"));
+    }
 }

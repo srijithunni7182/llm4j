@@ -636,8 +636,6 @@
                             </targetTests>
                             <excludedTests>
                                 <param>io.github.llm4j.loom.children.KillPointTest</param>
-                                <param>io.github.llm4j.loom.children.ChildPauseTest</param>
-                                <param>io.github.llm4j.loom.children.ChildJudgeTest</param>
                                 <param>io.github.llm4j.loom.children.ChildDocsTest</param>
                             </excludedTests>
                             <threads>4</threads>
