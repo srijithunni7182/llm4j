@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **taken: D1 to D5, D8 to D21, D23, D24, D28 and D29; partly taken: D25 and D26; deferred to the later phase: D6, D7 and B and C of D22; open: D27 and D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **taken: D1 to D5, D8 to D21, D23 to D25, D28 and D29; partly taken: D26; deferred to the later phase: D6, D7 and B and C of D22; open: D27 and D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -35,7 +35,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D22 | How a child exposes progress | runtime facts in this phase; B and C deferred to v3 (the owner wants all three) |
 | D23 | The counted conditions | **taken** (`tokens`, `cost`, `calls`, `elapsed`, `idle`; `status` is a readable fact only) |
 | D24 | Assertions in code | **taken** (four assertions; `never calls` is preventive) |
-| D25 | Judged assertions | **partly taken** (a judge inside `supervise` is wanted) |
+| D25 | Judged assertions | **taken** (facts by default; a fixed verdict and fixed text; only `steer`, `wrap_up`, `cancel use partial`) |
 | D26 | Time: how long, how often | **partly taken** (time is in scope) |
 | D27 | Who pays for a judge | open |
 | D28 | What `elapsed` measures | **taken** (running time; `idle` excludes sleep and waiting; the `start` deadline is wall clock; `weave check` warns on a longer sleep) |
@@ -373,6 +373,8 @@ tutorial, wiki, README census, release notes).
 5. **Security and ecosystem:** new canary cases in the provenance oracle for `start` arguments and returned results (D15); `RepositoryScriptsTest` covers the new starter; compatibility-kit scenarios, including restart and replay (D16).
 6. **Mutation and coverage:** a new `mutation-children` profile (the supervise rule evaluator, the child-id derivation, the reservation, the limits) at 85% or more; new classes meet the per-class coverage gates; the fast tier stays about two minutes, with only the exhaustive kill-point test slow.
 
+**Addition (D25):** `weave test` also scripts a judge's verdicts one per look, in the style of `models:` and `remotes:`: `judges: { TopicJudge: [ pass, fail ] }`.
+
 ## D18. The Java side
 
 **Why.** `LoomRun` is the embedding API. A script that starts children should be visible to a Java host, and a host should be able to steer a child by the same names.
@@ -487,7 +489,16 @@ assert "searches only for the topic and reads at least two sources" using TopicJ
 
 **Recommendation:** v2, facts only by default, fixed text or a table, the verdict journaled.
 
-**Decision:** partly taken. **The owner wants a judge agent inside `supervise` that asserts the trajectory of the sub-workflow.** Open: the `assert` spelling (a proposal), what the judge sees, where the action text comes from, whether the ladder applies.
+**Decision (owner): accepted as proposed.**
+1. **What the judge sees:** by default **facts about the trajectory only** (the sequence of steps with the agent, tool or task name, the outcome of each, the checkpoints reached, counts and durations); not the **content** (tool arguments, tool results, agent outputs). A rule may opt in with `seeing content`, which the audit lists.
+2. **The verdict** is pass or fail, never free text; the action text is **fixed text written in the script** (the table keyed by verdict is dropped).
+3. **What a judged rule may do:** only `steer`, `wrap_up` and `cancel use partial`; never `discard` or `rewind` (a rule that needs those uses a counted or code rule).
+4. **The ladder does not apply in v2**; `weave audit` lists each judged rule, what the judge can see and what it can cause.
+5. **Replay:** each verdict is journaled with the child's position when it was judged, and a resume returns the recorded verdict without asking again.
+6. **The rubric** is inline text in v2 (a rubric in a policy file is a later extension).
+7. **Cost and cadence** are bounded by D26 and paid for as D27 decides.
+8. **Testing:** `weave test` scripts the judge's verdicts one per look, in the style of `models:` and `remotes:` (`judges: { TopicJudge: [ pass, fail ] }`); this extends D17.
+- Spelling: `assert "<text>" using <Evaluator> every <duration or N steps> max <N> { <actions> }`, with an `evaluator` declared as it is today.
 
 ## D26. Time: how long, and how often
 
