@@ -3,14 +3,14 @@ package io.github.llm4j.loom.execution;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.budget.Budget;
 import io.github.llm4j.loom.ast.BudgetDef;
-import io.github.llm4j.loom.ast.HandleRef;
 import io.github.llm4j.loom.ast.CancelStmt;
-import io.github.llm4j.loom.ast.SteerStmt;
+import io.github.llm4j.loom.ast.HandleRef;
 import io.github.llm4j.loom.ast.OutcomeStmt;
-import io.github.llm4j.loom.ast.SuperviseDef;
-import io.github.llm4j.loom.ast.SuperviseStmt;
 import io.github.llm4j.loom.ast.RunStmt;
 import io.github.llm4j.loom.ast.StartStmt;
+import io.github.llm4j.loom.ast.SteerStmt;
+import io.github.llm4j.loom.ast.SuperviseDef;
+import io.github.llm4j.loom.ast.SuperviseStmt;
 import io.github.llm4j.loom.ast.WaitStmt;
 import io.github.llm4j.loom.runtime.ChildHandle;
 import io.github.llm4j.loom.runtime.ChildStatus;
@@ -19,17 +19,17 @@ import io.github.llm4j.loom.runtime.RunHalted;
 import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.loom.runtime.RunStopped;
 import io.github.llm4j.loom.runtime.RunSuspended;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.time.Instant;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
@@ -478,7 +478,8 @@ final class ChildLauncher {
     /**
      * Attaches the rules of a {@code supervise} block to a child for as long as it runs (D21). The
      * rules that fired before a restart are read back from the journal, so a resume does not steer
-     * or cancel twice. Counted rules, assertions in code ({@code never calls} is preventive) and judged
+     * or cancel twice. A steer, wrap-up or cancel is journaled as an intent before it is delivered, so
+     * delivery is at most once: a run that dies in between leaves it unsent. Counted rules, assertions in code ({@code never calls} is preventive) and judged
      * assertions are all taken; a judged one needs the block's own budget.
      */
     void supervise(SuperviseStmt stmt) {
@@ -745,7 +746,7 @@ final class ChildLauncher {
         record.put("at", w.live.journal().all().size()); // the child's position: how many steps it had recorded
         if (firing.delivered()) {
             record.put("outcome", INTENT);
-            record.put("detail", "about to act");
+            record.put("detail", "delivery unknown: the run stopped before it was recorded");
             record.put("delivered", 0);
             executor.journal().put(key, new RunJournal.Entry("supervise", new LinkedHashMap<>(record)));
         }
@@ -783,7 +784,9 @@ final class ChildLauncher {
     /**
      * Tells one {@code steerable} agent of a child what to do next (D12). The text is literal, from
      * the script. If no such agent is running nothing is delivered, which is recorded and is not an
-     * error. Recorded in the parent's journal, so a replay never sends it again.
+     * error. Recorded in the parent's journal, so a replay never sends it again. The record is made
+     * <em>before</em> delivery, so delivery is at most once: a run that dies between the two leaves the
+     * steer unsent, and the entry then reads as delivery unknown ({@code weave why} says so).
      */
     void steer(SteerStmt stmt) {
         String stepId = executor.currentStepId();

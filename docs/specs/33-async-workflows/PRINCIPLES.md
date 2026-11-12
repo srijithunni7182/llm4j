@@ -1,8 +1,7 @@
 # Phase 33: starting workflows and supervising them, the guiding principles
 
-Status: **draft for the owner's decision.** Nothing here is built. The idea is the owner's; this draft states what the code already does, proposes principles, and
-leaves every choice open in [DECISIONS.md](DECISIONS.md). A principle becomes final when the owner accepts it. A decision that conflicts with a principle is
-settled here first.
+Status: **final for phase 33, and built.** The idea is the owner's; the principles were accepted and every choice in [DECISIONS.md](DECISIONS.md) was taken by the owner. What was built, and
+how far it is verified, is in [VERIFICATION.md](VERIFICATION.md). A decision that conflicts with a principle is settled here first.
 
 ## The idea
 

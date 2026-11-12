@@ -172,4 +172,32 @@ class ChildIntentTest {
                 .isEqualTo(1);
         assertThat(audits).doesNotContain("child_supervise");
     }
+
+    @Test
+    void aStartWithoutABudgetInsideABudgetedRunIsRefusedInWordsNotWithANullPointer() {
+        var script =
+                StartParseTest.parse(
+                        """
+                        workflow Leaf(x) { return x }
+                        workflow Main(q) { start Leaf(x = q) budget { tokens: 1 } -> work }
+                        """);
+        var run = new HarnessExecutor(script, new ToolRegistry(), new MockModels());
+        run.setClock(clock);
+        run.setRunId("p");
+        run.setJournal(RunJournal.inMemory());
+        run.setBudgetOverrides(1000L, null, null);
+        run.setChildRuns(id -> stores.computeIfAbsent(id, k -> RunJournal.inMemory()));
+        run.setChildScheduler(new ControlledChildScheduler());
+        run.initialize();
+        // The validator rejects a start without a budget at load time, so take it away once the run is loaded
+        // to reach the launcher's own guard.
+        script.getWorkflows().stream()
+                .flatMap(w -> w.getStatements().stream())
+                .filter(io.github.llm4j.loom.ast.StartStmt.class::isInstance)
+                .forEach(st -> ((io.github.llm4j.loom.ast.StartStmt) st).setBudget(null));
+
+        assertThatThrownBy(() -> run.executeWorkflow("Main", Map.of("q", "x")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("has no budget");
+    }
 }

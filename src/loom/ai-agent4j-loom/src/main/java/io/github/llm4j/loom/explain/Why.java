@@ -388,6 +388,15 @@ public final class Why {
         return String.join(", ", parts);
     }
 
+    /** What a steer's recorded count says: none, some, or unknown because the run stopped mid-delivery. */
+    private static String deliveryOf(Object delivered) {
+        return switch (String.valueOf(delivered)) {
+            case "0" -> " (not delivered)";
+            case "-1" -> " (delivery unknown: the run stopped before it was recorded)";
+            default -> " (delivered)";
+        };
+    }
+
     static String summary(RunJournal.Entry e) {
         if (e == null) return null;
         Object v = e.value();
@@ -408,7 +417,7 @@ public final class Why {
             case "child" -> v instanceof Map<?, ?> m ? "started the child run of " + m.get("workflow") + " (" + m.get("run") + ")" : "started a child";
             case "child-wait" -> v instanceof Map<?, ?> m ? "waited: " + childOutcomes(m) : "waited for a child";
             case "child-cancel" -> v instanceof Map<?, ?> m ? "cancelled a child: " + m.get("reason") : "cancelled a child";
-            case "child-steer" -> v instanceof Map<?, ?> m ? "steered " + m.get("agent") + (String.valueOf(m.get("delivered")).equals("0") ? " (not delivered)" : " (delivered)") : "steered a child";
+            case "child-steer" -> v instanceof Map<?, ?> m ? "steered " + m.get("agent") + deliveryOf(m.get("delivered")) : "steered a child";
             case "supervise" -> v instanceof Map<?, ?> m ? "a supervise rule " + m.get("rule") + ": " + m.get("detail") : "a supervise rule acted";
             case "judge" -> v instanceof Map<?, ?> m ? "a judge said " + m.get("verdict") : "a judge was asked";
             default -> e.kind();
