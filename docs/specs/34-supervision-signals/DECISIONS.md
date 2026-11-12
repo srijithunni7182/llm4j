@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D5 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D6 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -12,7 +12,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D3 | The judge budget: reserved at `start` | **taken** (paired statically; a warning for a supervise that cannot be paired) |
 | D4 | The judge's facts view | **taken** (keep `Trajectory`; risk 7 closed as not followed, by choice) |
 | D5 | A judge-driven demo test | **taken** (a case in starter 18's tests where the judge fires on virtual time) |
-| D6 | Declared progress: the syntax and the typing | open |
+| D6 | Declared progress: the syntax and the typing | **taken** (flat typed shape, enum and mixed allowed; contextual `report {` and `progress`) |
 | D7 | Declared progress: what a script may do with it | open |
 | D8 | The signal model | open |
 | D9 | `notify`: forms, payload, provenance | open |
@@ -106,9 +106,14 @@ workflow Research(topic) progress { stage: string, done: number, of: number } {
 - **Bounds.** A report's fields may not exceed 2000 characters in all, and a run may make at most 1000 reports (proposed); a report beyond either bound is **dropped and recorded**, not silently ignored and not an error that stops the child.
 - **Provenance:** `unchecked`. Fields are checked against the declared types at the statement (a mismatch is a failed step), and an undeclared field is a load error.
 
-**Recommendation:** as above. **Open sub-question:** is a flat shape enough, or do you want an `enum` stage only (`progress { stage: enum[...] }`) so a parent can compare with `==`?
+**Recommendation:** as above.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed, with enum and mixed shapes allowed.**
+- **Declaration:** `workflow W(params) progress { field: type, ... } { ... }`; types are `string`, `number`, `boolean` and `enum[...]`, one flat level (no lists or nested objects); an enum-only shape and a mixed shape are both allowed, the choice is the workflow author's.
+- **Statement:** `report { field: value, ... }`, a statement only when `report` is directly followed by `{` at the start of a statement; `report` stays an ordinary word everywhere else (`-> report`), and `progress` is a keyword only directly after a workflow's `)` and before `{`.
+- **Checks:** `weave check` refuses an undeclared field, a mismatched type it can see, and a `report` in a workflow with no declaration, and warns about a workflow that declares progress but never reports.
+- **Storage:** each report is an entry in the **child's own journal** (`#progress.<n>`, the step id's generation applying); the latest is what a parent reads, earlier ones stay as history, so it survives a restart and a rewind shows the value at the checkpoint.
+- **Bounds (proposed numbers):** at most 2000 characters per report and 1000 reports per run; a report beyond either bound is dropped and recorded, not silently ignored and not an error that stops the child. **Provenance** is `unchecked`; a mismatch at the `report` statement fails the step.
 
 ## D7. Declared progress: what a script may do with it
 
