@@ -1,6 +1,6 @@
-# Phase 33: open decisions
+# Phase 33: decisions
 
-Status: **taken: D1 to D5, D8 to D21, D23 to D29; deferred to the later phase: D6, D7 and B and C of D22; open: D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **all decisions for this phase are taken: D1 to D5, D8 to D21 and D23 to D30; deferred to the later phase: D6, D7 and B and C of D22; nothing is open for this phase** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -40,39 +40,47 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D27 | Who pays for a judge | **taken** (its own budget on the `supervise` statement, charged to the parent, with reservation) |
 | D28 | What `elapsed` measures | **taken** (running time; `idle` excludes sleep and waiting; the `start` deadline is wall clock; `weave check` warns on a longer sleep) |
 | D29 | A suspended parent | **taken** (a waiting parent does not pause children; a parent suspended otherwise does) |
-| D30 | Overlap and testing time | open |
+| D30 | Overlap and testing time | **taken** (one block per handle; as written with counted rules first; one steer per agent per tick) |
 
 "Partly taken" means the owner has said what is wanted; the details under it are still open.
 
-## The current sketch
+## The sketch with every decision applied
 
-Not valid Loom today; the `NEW` marks the proposed parts. Everything else is ordinary Loom. This is where the discussion stands, and it changes as decisions are taken.
+Not valid Loom today; the `NEW` marks the proposed parts. Everything else is ordinary Loom. This is the shape the decisions above produce for this phase (v1 and v2).
 
 ```loom
+substitution: braces
+import "researcher.loom"            // a workflow with `steerable: true` agents and a `checkpoint collected`
+
+max_children: 5                     // NEW setting (D14): lowers the host default
+budget { tokens: 400000  calls: 80 }
+
 evaluator TopicJudge { model: "gemini-2.5-flash" }
 
 workflow Main(question) {
     delegate "Question: {question}" to Planner -> plan
 
     for each t in plan.topics max 3 {
-        start Research(topic = t.topic) timeout 20m budget { tokens: 100000 } -> work[t.name]     // NEW
-        supervise work[t.name] {                                                                   // existing form; the header names the handle (D21)
-            when tokens > 90000 { cancel use partial }                                             // NEW condition (D23)
-            when idle > 3m      { steer "You seem stuck. Narrow the topic and answer with what you have." once }   // NEW condition (D23)
-            assert never calls shell { cancel }                                                    // NEW (D24)
+        start Research(topic = t.topic) timeout 20m budget { tokens: 100000 } -> work[t.name]     // NEW (D8, D11, D26)
+        supervise work[t.name] budget { tokens: 20000 } {                                         // existing form; the header names the handle (D21); the budget pays for the judge (D27)
+            when tokens > 90000 { cancel use partial }                                            // NEW counter (D23)
+            when idle > 3m      { steer "You seem stuck. Narrow the topic and answer with what you have." once }   // NEW counter (D23)
+            assert never calls shell { cancel }                                                   // NEW, preventive (D24)
+            assert reaches "collected" within 10m { steer "Narrow the topic." once }              // NEW (D24)
             assert "searches only for the topic and reads at least two sources"
-                using TopicJudge every 2m max 4 { steer "Go back to the topic." once }             // NEW (D25, D26)
+                using TopicJudge every 2m max 4 { steer "Go back to the topic." once }            // NEW (D25, D26)
         }
     }
 
-    wait all work timeout 25m -> results                                                           // NEW
+    wait all work timeout 25m -> results                                                          // NEW (D8)
+
+    alt (work["a"] is ok) { note "first topic finished" }                                         // NEW fact (D9)
     delegate "Question: {question}\nFindings:\n{results}" to Editor -> report
     return report
 }
 ```
 
-The child is an ordinary workflow and needs no change to be supervised. What the surface adds: `start` (with `timeout`, `budget` and a handle), `wait`, the existing `supervise` block pointed at a handle,
-three counted conditions, and two kinds of `assert`. What it leaves out for now: a declared `progress` shape and `report` (D22), signals and `notify` (D6, D7), and `wait any`.
+What the surface adds: `start` (with `timeout`, `budget` and a handle), `wait`, `cancel`, the existing `supervise` block pointed at a handle with counted rules, code assertions and judged assertions, readable facts on a handle, and the settings `max_children` and `max_depth`. What it leaves for the later phase: a declared `progress` shape and `report`, signals and `notify`, and `wait any` (D6, D7, D22 B and C).
 
 ## D1. What is in the first version?
 
@@ -568,7 +576,15 @@ Because the started workflow's script is known, `weave check` **warns when that 
 - **Tests.** `weave test` needs a fake clock and scripted children that take chosen amounts of time (their durations, their counters, their verdicts), so every timeout, `idle` and cadence rule can be tested with no real waiting. Designed with the feature, not after.
 - **The guard test.** Kill the parent at every point between `start` and `wait`, resume, and check that there is exactly one child and every effect happened once (D17); break the guard on purpose once to see it fail.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed.**
+1. **One `supervise` block per handle**; two blocks naming the same handle is a `weave check` error.
+2. **Order within a block is as written, except that counted rules and code assertions run before judged assertions** (exact and free first; no wasted model call).
+3. **A `cancel` or `wrap_up` ends the evaluation for that child**: the rules after it do not fire in that tick, and judged rules are skipped.
+4. **At most one steer per agent per tick**: the first in order is delivered and the others are recorded as "skipped: already steered this tick".
+5. **A preventive `never calls` (D24) is immediate** and not part of the tick; its action block joins the next evaluation.
+6. **A parent's steer and the child's own `supervise` rules** are delivered through the same path in the order they arrive, journaled in that order; the one-per-tick limit applies to the parent's steers only.
+7. **Everything is journaled with the tick:** each rule that fired, each skipped and why, and each verdict, with the child's position, so a replay and `weave why` show what happened.
+- **Testing time** is as D17 says: a fake clock and a controlled executor, `fired:` in `expect:`, an overlap test for each of rules 1 to 6, and the kill-point test with its deliberately broken guard.
 
 ## Not yet read, to settle before the design is written
 
