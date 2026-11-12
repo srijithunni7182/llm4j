@@ -296,7 +296,7 @@ final class ChildLauncher {
                 Live live = tasks.get(h);
                 task = live == null ? null : live.task();
             }
-            if (task == null || h.status().isSettled()) continue;
+            if (task == null) continue; // a settled child's task may still be recording its end
             try {
                 task.await(Math.max(0, deadline - executor.nowMillis()));
             } catch (InterruptedException e) {
@@ -386,6 +386,172 @@ final class ChildLauncher {
         boolean pending = handles.values().stream().anyMatch(h -> !h.status().isSettled());
         if (pending && !stmt.getOnTimeout().isEmpty()) executor.runBlockAt(stmt.getOnTimeout(), "wt");
         if (failed && !stmt.getOnFailure().isEmpty()) executor.runBlockAt(stmt.getOnFailure(), "wf");
+    }
+
+    // ---- supervise ----
+
+    /** One {@code supervise} block watching one child. */
+    private static final class Watch {
+        final ChildHandle handle;
+        final Live live;
+        final SuperviseEvaluator evaluator;
+        final String stepId;
+        final int firstSequence;
+        int sequence;
+        long lastTick = -1;
+        long runningMillis;
+        long lastProgress = -1;
+        long signature = -1;
+
+        Watch(ChildHandle handle, Live live, SuperviseEvaluator evaluator, String stepId, int sequence) {
+            this.handle = handle;
+            this.live = live;
+            this.evaluator = evaluator;
+            this.stepId = stepId;
+            this.firstSequence = sequence;
+            this.sequence = sequence;
+        }
+    }
+
+    private final List<Watch> watches = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private java.util.concurrent.ScheduledExecutorService ticker;
+
+    /**
+     * Attaches the rules of a {@code supervise} block to a child for as long as it runs (D21). The
+     * rules that fired before a restart are read back from the journal, so a resume does not steer
+     * or cancel twice. Only counted rules run in this build; the other kinds fail closed.
+     */
+    void supervise(io.github.llm4j.loom.ast.SuperviseStmt stmt) {
+        if (!stmt.getCode().isEmpty() || !stmt.getJudged().isEmpty())
+            throw new IllegalStateException(
+                    "supervise " + stmt.getTarget().describe() + " (line " + stmt.getLine()
+                            + ") has assertions, which cannot run yet: only counted rules (when tokens > N { ... }) are available in this build.");
+        ChildHandle handle = singleHandle(stmt.getTarget());
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        if (live == null)
+            throw new IllegalStateException(
+                    stmt.getTarget().describe() + " is a handle this run did not start, so it cannot supervise it");
+        String stepId = executor.currentStepId();
+        String prefix = stepId + FIRE;
+        java.util.Set<Integer> before = new java.util.HashSet<>();
+        int count = 0;
+        for (Map.Entry<String, RunJournal.Entry> e : executor.journal().all().entrySet()) {
+            if (!e.getKey().startsWith(prefix)) continue;
+            count++;
+            if (e.getValue().value() instanceof Map<?, ?> m && m.get("rule") instanceof Number n && "fired".equals(m.get("outcome")))
+                before.add(n.intValue());
+        }
+        Watch watch = new Watch(handle, live, new SuperviseEvaluator(stmt, before), stepId, count);
+        watch.lastTick = executor.nowMillis(); // the child's time with this block begins now
+        watch.lastProgress = watch.lastTick;
+        watch.signature = signatureOf(live);
+        watches.add(watch);
+        startTicking();
+    }
+
+    /** Journal key infix of what a supervise rule did, in the parent's journal. */
+    static final String FIRE = "#fire.";
+
+    private synchronized void startTicking() {
+        long every = executor.superviseTick().toMillis();
+        if (every <= 0 || ticker != null) return;
+        ticker =
+                java.util.concurrent.Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+                            Thread t = new Thread(r, "loom-supervise");
+                            t.setDaemon(true);
+                            return t;
+                        });
+        ticker.scheduleWithFixedDelay(this::tickSafely, every, every, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    private void tickSafely() {
+        try {
+            tick();
+        } catch (RuntimeException e) {
+            log.log(java.util.logging.Level.WARNING, "a supervise tick failed: " + e.getMessage(), e);
+        }
+    }
+
+    private synchronized void stopTicking() {
+        if (ticker != null) ticker.shutdownNow();
+        ticker = null;
+    }
+
+    /**
+     * One look at every watched child: reads its counters, lets each block decide, carries out what
+     * it decided and journals every firing and every skip with the child's position (D30). Called
+     * every tick by the supervisor's own thread, and by a test when it moves its clock.
+     */
+    void tick() {
+        long now = executor.nowMillis();
+        for (Watch w : watches) {
+            if (w.handle.status().isSettled()) {
+                watches.remove(w);
+                continue;
+            }
+            synchronized (w) {
+                SuperviseEvaluator.Facts facts = factsOf(w, now);
+                for (SuperviseEvaluator.Firing firing : w.evaluator.evaluate(facts)) apply(w, firing, facts);
+            }
+        }
+        if (watches.isEmpty()) stopTicking();
+    }
+
+    /** A number that changes whenever the child does something: spends, calls or records a step. */
+    private static long signatureOf(Live live) {
+        var budget = live.run().getRunBudget();
+        var spent = budget == null ? null : budget.spent();
+        return (spent == null ? 0 : spent.tokens() * 31 + spent.calls() * 17) + live.journal().all().size();
+    }
+
+    private SuperviseEvaluator.Facts factsOf(Watch w, long now) {
+        var budget = w.live.run().getRunBudget();
+        var spent = budget == null ? null : budget.spent();
+        long tokens = spent == null ? 0 : spent.tokens();
+        long calls = spent == null ? 0 : spent.calls();
+        BigDecimal cost = spent == null ? BigDecimal.ZERO : spent.cost();
+        boolean running = w.handle.status() == ChildStatus.RUNNING;
+        long signature = signatureOf(w.live);
+        if (running) w.runningMillis += now - w.lastTick;
+        if (signature != w.signature || !running) w.lastProgress = now; // work done, or nothing to do
+        w.signature = signature;
+        w.lastTick = now;
+        return new SuperviseEvaluator.Facts(
+                tokens, calls, cost, w.runningMillis, running ? now - w.lastProgress : 0);
+    }
+
+    private void apply(Watch w, SuperviseEvaluator.Firing firing, SuperviseEvaluator.Facts facts) {
+        String origin = "supervise of " + executor.getRunId() + ", rule " + firing.rule();
+        String outcome = firing.outcome();
+        int delivered = 0;
+        if (firing.delivered()) {
+            var action = firing.action();
+            switch (action.kind()) {
+                case STEER -> {
+                    delivered = w.live.run().steer("*", action.text(), origin);
+                    outcome = delivered > 0 ? "fired" : "fired: not delivered, no steerable agent was running";
+                }
+                case WRAP_UP -> delivered = w.live.run().wrapUp("*", "supervise rule " + firing.rule(), origin);
+                case CANCEL -> cancelChild(w.handle, w.live, action.outcome(), "supervise rule " + firing.rule() + " cancelled it");
+            }
+        }
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("rule", firing.rule());
+        record.put("action", firing.action().kind().name());
+        record.put("outcome", outcome.startsWith("fired") ? "fired" : outcome);
+        record.put("detail", outcome);
+        record.put("delivered", delivered);
+        record.put("tokens", facts.tokens());
+        record.put("calls", facts.calls());
+        record.put("elapsedMillis", facts.elapsedMillis());
+        record.put("idleMillis", facts.idleMillis());
+        record.put("at", w.live.journal().all().size()); // the child's position: how many steps it had recorded
+        executor.journal().put(w.stepId + FIRE + w.sequence++, new RunJournal.Entry("supervise", record));
+        executor.audit("child_supervise", record);
     }
 
     // ---- steer ----
@@ -532,6 +698,8 @@ final class ChildLauncher {
      * settle; its journal shows where it stopped (decision D10).
      */
     void cancelAll(String reason) {
+        stopTicking();
+        watches.clear();
         List<Map.Entry<ChildHandle, Live>> going = new ArrayList<>();
         synchronized (tasks) {
             for (Map.Entry<ChildHandle, Live> e : tasks.entrySet())

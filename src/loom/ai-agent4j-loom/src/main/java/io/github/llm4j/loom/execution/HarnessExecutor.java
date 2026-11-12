@@ -3285,15 +3285,8 @@ public class HarnessExecutor implements LoomEngine {
             children.cancel(cancel);
         } else if (stmt instanceof io.github.llm4j.loom.ast.SteerStmt steer) {
             children.steer(steer);
-        } else if (stmt instanceof io.github.llm4j.loom.ast.SuperviseStmt) {
-            // Fails closed until supervision exists: a script that supervises a child must never run
-            // as though the rules were watching.
-            throw new IllegalStateException(
-                    StatementText.of(stmt)
-                            + " (line "
-                            + stmt.getLine()
-                            + ") cannot run yet: supervising a started workflow is not available in this"
-                            + " build.");
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SuperviseStmt supervise) {
+            children.supervise(supervise);
         } else if (stmt instanceof NoteStmt note) {
             String noteText = resolvePayload(note.getMessage());
             lastNote = noteText;
@@ -4384,6 +4377,26 @@ public class HarnessExecutor implements LoomEngine {
     public void setChildScheduler(ChildScheduler scheduler) {
         this.childScheduler =
                 java.util.Objects.requireNonNull(scheduler, "scheduler");
+    }
+
+    private java.time.Duration superviseTick = java.time.Duration.ofSeconds(10);
+
+    /**
+     * How often the counters of supervised children are looked at (about every 10 seconds). A
+     * runtime setting, not script text. {@link java.time.Duration#ZERO} turns the supervisor's own
+     * thread off, for a test that calls {@link #tickChildren()} itself.
+     */
+    public void setSuperviseTick(java.time.Duration every) {
+        this.superviseTick = java.util.Objects.requireNonNull(every, "every");
+    }
+
+    java.time.Duration superviseTick() {
+        return superviseTick;
+    }
+
+    /** One look at every supervised child now, as the supervisor's tick does. */
+    public void tickChildren() {
+        children.tick();
     }
 
     private ChildLimits childLimits = ChildLimits.HOST_DEFAULT;
