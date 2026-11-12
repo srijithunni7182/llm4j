@@ -1,13 +1,13 @@
 # Phase 34: decisions
 
-Status: **all open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
 
 | | Decision | State |
 |---|---|---|
-| D1 | The scope and staging of this phase | open |
+| D1 | The scope and staging of this phase | **taken** (one phase, five sub-phases, a review gate after 34a) |
 | D2 | Which v1 gaps are carried into this phase | open |
 | D3 | The judge budget: reserved at `start` | open |
 | D4 | The judge's facts view | open |
@@ -36,7 +36,8 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 
 **Recommendation: A, with a review gate after 34a.** The closure fixes departures from decisions already taken, so it should land and be looked at before signals are built on top of the same launcher. The ecosystem moves together at the end, as in phase 33.
 
-**Decision:** open.
+**Decision (owner): option A, with a review gate after 34a.** One phase with five sub-phases: 34a closure of the gaps; 34b declared progress; 34c signals; 34d `wait any`; 34e the ecosystem and closure (one ecosystem pass at the end, as in phase 33, D16).
+**The gate:** the implementation session **stops after 34a**, reports what it built and what it found, and waits for the owner, who then tells it to continue to 34b or to change something. Nothing is merged in between; the gate is about the owner's review of the branch.
 
 ## D2. Which v1 gaps are carried into this phase
 
