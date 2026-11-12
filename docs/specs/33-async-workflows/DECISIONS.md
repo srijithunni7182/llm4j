@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D18, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D19, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -29,7 +29,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D16 | Visibility | **taken** (the whole ecosystem in one scope; Fabric stays flat with a parent link) |
 | D17 | Tests | **taken** (real or stubbed children, virtual clock, a controlled executor, guard tests first, a mutation profile) |
 | D18 | The Java side | **taken** (children are `LoomRun`s; `#label` reaches them; a journal factory, no new `RunJournal` method) |
-| D19 | Names | **partly taken** (`wait`, `notify` are the owner's) |
+| D19 | Names | **taken** (`start`, `wait`, `cancel`, `steer` as contextual keywords) |
 | D20 | What stays out | open |
 | D21 | Where supervision is written | **taken** (the header names the handle) |
 | D22 | How a child exposes progress | open (the owner's view recorded) |
@@ -394,7 +394,11 @@ tutorial, wiki, README census, release notes).
 - **Recommendation:** `start`, `wait`, `notify`, `cancel`, `steer`. They read as plain words, none clashes with an existing keyword (to be confirmed by the lexer check),
   and they match the Java names where one exists (`steer`, `cancel`).
 
-**Decision:** partly taken. `wait` and `notify` are the owner's words, and the Java names `steer` and `cancel` already exist. `start` is a proposal (the owner said "invoke async"). To confirm with the lexer check.
+**Decision (owner): `start`, `wait`, `cancel` and `steer`, as contextual keywords.**
+- **The verbs:** `start` (the new one; `spawn` and `launch` were the alternatives), `wait` and `notify` (the owner's words; `notify` arrives with signals in v3), `cancel` and `steer` (already in the language as `supervise` actions and in Java as `LoomRun`).
+- **Contextual, not reserved:** a word is a verb only at the start of a statement in a workflow body followed by the shape the statement needs (for `start`, a workflow name and `(`); everywhere else it stays an ordinary word. Read for this decision: `start` and `wait` already appear in the ladder language (`start at watch`, `start over`) and `wait` as a setting value in `rate_limits { on_limit: wait }`; none of `start`, `wait` or `notify` is a reserved word today, and no script in the repository uses them as variable or agent names. `RepositoryScriptsTest` guards every `.loom` file; the VS Code grammar and the parser-parity baseline are updated with the feature (D16).
+- **Other names:** clauses `timeout` and `budget` on `start`, and `reason "..."` on `cancel`; readable facts on a handle `status`, `result`, `partial`, `reason`, `failure`, `tokens`, `cost`, `calls`, `elapsed`, `idle`, `wakes`; top-level settings `max_children` and `max_depth`; in the documentation the started workflow is "a child", the starter "the parent" and the value "a handle".
+- Not traced: how the parser recognises statements such as `run`, `use` and `extract` (they are not in the part of `TokenType` that was read); the design must follow that mechanism.
 
 ## D20. What stays out of this phase
 
