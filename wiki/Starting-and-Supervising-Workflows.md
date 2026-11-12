@@ -28,11 +28,11 @@ A child's run id is worked out from its parent's run and the step that started i
 
 A child never outlives the run that started it: when the parent ends, children still going are cancelled and the end waits for them for a grace period.
 
-## What it does not do yet
+## Where it runs, and what is not there yet
 
-- `start` needs a `LoomHost` with persistence, so it works from Java and from a service built on the host. **`weave run` does not start children yet.**
-- The deadline on `start` is parsed but not enforced, and `cancel h rewind to ...` is refused.
-- `weave graph`, `weave timeline`, Fabric and the live page, the editor extension and the compatibility kit do not show children yet, and `weave test` has no vocabulary for a scripted child.
+- `start` keeps each child's run somewhere: under `weave run --journal DIR` (a sibling folder for each child) or a `LoomHost` with persistence. Without either it fails closed. `weave fork` copies the children, `weave timeline` draws them as a tree, and Fabric shows a child under its parent with the cost of the whole tree.
+- `weave test` runs children for real under scripted models and the virtual clock, with `judges:` and `starts:`, `children:`, `fired:` and `steers:` in `expect:`. Starter 18 is a worked example.
+- Not there yet: `cancel h rewind to ...` (refused by `weave check`), a scripted stub of a child, and the worst-case cost of a supervisor in `weave review`.
 
 [VERIFICATION.md](../docs/specs/33-async-workflows/VERIFICATION.md) lists exactly what is built and what is not.
 

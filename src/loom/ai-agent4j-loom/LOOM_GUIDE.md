@@ -2940,13 +2940,13 @@ workflow Main(question) {
 
 **A handle is opaque.** It is held by the script, never by a model: `{h}` in a prompt, a handle given to a task or a tool, or a handle returned from a workflow is a load error. You read facts about it instead: `h.status`, `h.result`, `h.partial`, `h.reason`, `h.failure`, and `h is ok`.
 
-**What a child's status can be:** `running`, `sleeping`, `waiting` (on a person), `completed`, `failed`, `stopped`, `cancelled`. `h is ok` is true only for `completed`. The result exists only for a completed child: reading `h.result` of any other is an error that names the status, so guard it with `alt (h is ok)`. A child's result and `h.partial` come back marked `unchecked`, like any model-written text.
+**What a child's status can be:** `running`, `sleeping`, `waiting` (on a person), `completed`, `failed`, `stopped`, `cancelled`, `timed out`. `h is ok` is true only for `completed`. The result exists only for a completed child: reading `h.result` of any other is an error that names the status, so guard it with `alt (h is ok)`. A child's result and `h.partial` come back marked `unchecked`, like any model-written text.
 
 **Waiting.** A `wait` parks while a child is running, and the children keep running and stay supervised. When nothing can run (every child is asleep or waiting for a person) the whole tree suspends and the process may exit; running the parent again finds each child by its run id and carries on, with no effect repeated. A parent suspended for anything else, such as its own `human_prompt`, pauses its children at their next step.
 
 **When a parent ends**, in any way (it finishes, `halt`s, fails or is stopped), every child still going is cancelled with the reason "parent ended" and the end waits for them to settle for a grace period (30 seconds unless the host says otherwise). `weave check` warns about a handle that is never waited on, cancelled or supervised.
 
-**Budgets.** A child has its own budget, the smaller of the `start`'s and the script's, and what it spends counts against the parent too. A `start` is refused, at run time and with a message, when the parent could not pay for it after what the other live children may still spend. A child that runs out of budget ends `failed`, with `budget:` in `h.failure`.
+**Budgets.** A child has its own budget, the smaller of the `start`'s and the script's, and what it spends counts against the parent too. A `start`'s `timeout` is a wall-clock deadline from the first start, and it counts sleep: a child still going when it passes is `timed out`, stopped the way a cancel stops it (checked every tick, so up to about 10 seconds late). A `start` is refused, at run time and with a message, when the parent could not pay for it after what the other live children may still spend. A child that runs out of budget ends `failed`, with `budget:` in `h.failure`.
 
 **Limits.** `max_children: N` (default 8) and `max_depth: N` (default 2 levels below the top workflow) can be lowered or raised up to the host's ceiling. A `start` past a limit fails and names it; it does not queue. A `start` inside a loop needs the loop's `max`.
 
@@ -2960,7 +2960,11 @@ A `cancel` or `wrap_up` ends the evaluation of that tick, and at most one steer 
 
 **Who can steer.** `weave audit` lists a script that can steer a started workflow as an input channel (LA28) and each judged rule (LA29). Authority only narrows: a child runs with the invoker's credentials or less.
 
-**Where it runs.** `start` needs somewhere to keep the child's run, so it works under a `LoomHost` with a persistence (file or JDBC; a child is a sibling run whose record names its parent) and fails closed with a clear message where there is none. `weave run` does not start children yet.
+**Where it runs.** `start` needs somewhere to keep the child's run, so it works under `weave run --journal DIR` (each child is a sibling folder of the run folder with its own `journal.json`) and under a `LoomHost` with a persistence (file or JDBC; a child is a sibling run whose record names its parent, and `LoomRun.children()` lists them). It fails closed with a clear message where there is none. `weave fork` copies a run's children under the ids the copy will look for, and `weave timeline` draws them as a tree. A console or chat reaches a running child by a longer label (`#digest/work/a/Child`), and Fabric lists it under its parent with the cost of the whole tree.
+
+**Testing it.** `weave test` runs a child for real under scripted models and the virtual clock, one child at a time when the parent waits, and a model call of a child makes the supervisor look. A case can script a judge with `judges: { TopicJudge: [pass, fail] }` and expect `starts: [Research]`, `children: { Research: { status: cancelled, reason: "..." } }`, `fired: [ { rule: 0, action: cancel } ]` and `steers: { delivered: 1 }`. Starter 18 shows all of it. A scripted *stub* of a child (a child with no script of its own) is not available yet.
+
+**What is not there yet.** `cancel h rewind to <checkpoint>` is refused by `weave check`. A parent's wait timeout uses wall time, not the injected clock. A rewind of the parent does cancel the children of the generation it left.
 
 ### Workflow Composition & Modularity
 Loom supports building complex multi-agent systems by composing workflows from multiple files. This is achieved using the `import` statement and the `call` statement.

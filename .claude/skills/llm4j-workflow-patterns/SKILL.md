@@ -1,6 +1,6 @@
 ---
 name: llm4j-workflow-patterns
-description: Picks the shape of an llm4j workflow from what the user wants to build, and gives a tested starting skeleton for it: route by label, write-review loop, parallel research, plan and fan out, approval before anything is sent, extract fields from text, answers from documents, wait for a person, run on a schedule, long step-by-step job, check against house rules. Use at the very start, when the user describes a goal and has not chosen agents or structure, or asks how to structure or lay out a workflow. Building and testing it is llm4j-workflow-guide.
+description: Picks the shape of an llm4j workflow from what the user wants to build, and gives a tested starting skeleton for it: route by label, write-review loop, parallel research, plan and fan out, approval before anything is sent, extract fields from text, answers from documents, wait for a person, run on a schedule, long step-by-step job, check against house rules, start several workflows at once and supervise them. Use at the very start, when the user describes a goal and has not chosen agents or structure, or asks how to structure or lay out a workflow. Building and testing it is llm4j-workflow-guide.
 ---
 
 # llm4j workflow patterns

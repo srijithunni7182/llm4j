@@ -563,10 +563,82 @@ workflow Main(question) {
 
 Stages that matter: 2 (a reply that breaks each rule), 7 (audit), 8 (a violation case).
 
+## 12. Start several workflows at once and supervise them
+
+**Use it when:** One job splits into pieces that can run at the same time, and you want to watch them, step in when one goes wrong, and carry on with the rest: parallel research with a spending cap on each researcher, a coding agent that must not touch certain files, a batch where one slow item must not hold the others.
+
+**Decide with the person:**
+
+- What each child may spend (`budget` on every `start`) and the most children at once (`max_children`).
+- Which rules are counts (tokens, calls, idle time) and which need a judge. Start with counts; a judge is a model's opinion, so give it a small budget and a cadence of a few minutes.
+- What a rule does: steer (text written in the script), wrap up, or cancel and keep what the child had.
+- What the parent does with a child that failed or was cancelled: a child's outcome is a value, so decide whether the report goes ahead without it.
+
+<!-- starter:18-supervise-workflows -->
+```loom
+// 18-supervise-workflows: start a workflow without waiting for it, then watch it. A planner names the topics; each topic
+// becomes a researcher that runs as a child of its own, all at once. While they run, rules count what each one spends and
+// how long it sits idle, and a judge asks whether it stays on topic. A child that spends too much is cancelled and keeps
+// what it had; one that drifts is steered. Every child has its own budget, and a restart finds the same children again.
+
+substitution: braces
+max_children: 3
+
+budget { tokens: 400000  calls: 80 }
+
+evaluator TopicJudge { model: "gemini-2.5-flash" }
+
+agent Planner {
+    model: "gemini-2.5-flash"
+    system: "Split the question into 2 or 3 topics. Give each a short one-word name and the topic to research."
+    temperature: 0.2
+    output_schema: { topics: list<{ name: string, topic: string }> }
+}
+agent Researcher {
+    model: "gemini-2.5-flash"
+    system: "Research the topic and answer in a short paragraph."
+    steerable: true
+    streaming: true
+}
+agent Editor { model: "gemini-2.5-flash"  system: "Combine the findings into one short report. Say which topics are missing." }
+
+workflow Research(topic) {
+    delegate "Research: {topic}" to Researcher -> notes
+    checkpoint collected
+    return notes
+}
+
+workflow Main(question) {
+    delegate "Question: {question}" to Planner -> plan
+
+    for each t in plan.topics max 3 {
+        start Research(topic = t.topic) timeout 20m budget { tokens: 100000 } -> work[t.name]
+        supervise work[t.name] budget { tokens: 20000 } {
+            when tokens > 90000 { cancel use partial }
+            when tokens > 60000 { steer "You are using a lot. Narrow the topic and answer with what you have." once }
+            when idle > 3m      { steer "You seem stuck. Narrow the topic." once }
+            assert "searches only for the topic" using TopicJudge every 2m max 4 { steer "Go back to the topic." once }
+        }
+    }
+
+    wait all work timeout 25m -> results
+    delegate "Question: {question}\nFindings by topic:\n{results}" to Editor -> report
+    return report
+}
+```
+
+**What to keep and what to watch:**
+
+- `start` needs somewhere to keep each child's run: use `--journal` with `weave run`, or a `LoomHost` with persistence. Kill the parent and run it again and it finds the same children.
+- A handle is never written into a prompt and never given to a task; read `work.status` or `work is ok` instead.
+- `never calls` refuses the call before it runs; a steer needs an agent marked `steerable`. `weave audit` lists who may steer a child (LA28) and each judged rule (LA29).
+
+Stages that matter: 5 (cost per child, the reservation), 7 (audit), 8 (trajectory tests with `children:` and `fired:`), 15 (stop and supervise).
+
 ## Shapes that are not a pattern of their own
 
 - **Remembers each person:** an agent with a `memory` block and a `persona`; ask what may be remembered, for how long, and who may erase it.
 - **Rewind and retry:** a `checkpoint` and a `rewind` that carries feedback back to an earlier step; use it where a late step can show an early one was wrong.
-- **Rules that watch an agent:** a `supervise` block (guide chapter 15) when a person or a rule may need to step in while it runs.
+- **Rules that watch an agent:** a `supervise` block (guide chapter 15) when a person or a rule may need to step in while it runs; for watching a whole started workflow, pattern 12.
 - **An agent that earns the right to decide:** the earned-autonomy ladder (guide chapter 13), only when an agent will take over a decision a person makes today.
 - **A person asked mid-run:** `human_prompt` waits for a typed answer; the run is durable when it has a journal.

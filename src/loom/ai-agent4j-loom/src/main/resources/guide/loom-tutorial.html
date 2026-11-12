@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 493dfd3d1d0df1cbaade24eee5dd392648b3267d42e67d1e041f043b892a8b98 -->
+<!-- source-sha256: 54824fec07490d05d79b974295a2ea4db80afc8ee5fb2f9aeb10eba7a00d7a1a -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -3372,6 +3372,39 @@ extractor Progress {
     <span class="tk-k">return</span> progress.done
 }</code></pre></figure>
 <p>The progress is now typed, <strong>journaled</strong> (a resumed run continues from it, as starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/16-step-by-step-agent" target="_blank" rel="noopener">16-step-by-step-agent</a> proves), <strong>bounded</strong> by <code>max</code>, drawn in the graph, and testable, and compaction cannot remove it. No new construct was needed.</p>
+<h2 id="c11-starting-a-workflow-and-watching-it">Starting a workflow and watching it</h2>
+<p><code>call</code> runs a workflow to the end before the next line. Sometimes you want the opposite: start several workflows at once, keep an eye on them, step in when one goes wrong, and wait for the rest. <code>start</code> does that. It gives the workflow a <strong>run of its own</strong> (a <em>child</em>), hands you a <strong>handle</strong> at once, and the script carries on.</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+<span class="tk-k">budget</span> { tokens: <span class="tk-n">300000</span> }
+
+<span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span> system: <span class="tk-s">"Research the topic in a short paragraph."</span> }
+
+<span class="tk-k">workflow</span> Research(topic) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"Research: <span class="tk-v">{topic}</span>"</span> <span class="tk-k">to</span> Researcher -&gt; notes
+    <span class="tk-k">return</span> notes
+}
+
+<span class="tk-k">workflow</span> Main(topic) {
+    start Research(topic = topic) <span class="tk-k">timeout</span> <span class="tk-n">10m</span> <span class="tk-k">budget</span> { tokens: <span class="tk-n">100000</span> } -&gt; work
+    <span class="tk-k">supervise</span> work {
+        <span class="tk-k">when</span> tokens &gt; <span class="tk-n">90000</span> { cancel use partial }
+    }
+    wait work <span class="tk-k">timeout</span> <span class="tk-n">12m</span> -&gt; findings
+    <span class="tk-k">alt</span> (work is ok) {
+        <span class="tk-k">return</span> findings
+    }
+    <span class="tk-k">halt</span> <span class="tk-s">"the research did not finish: <span class="tk-v">{work.status}</span>"</span>
+}</code></pre></figure>
+<p>Read it top to bottom:</p>
+<ul>
+<li><strong><code>start</code></strong> needs a <code>budget</code>: the child can never spend more than that, and what it spends also counts against yours, so your own <code>budget</code> is still the limit for the whole run. A <code>start</code> is refused, with a message, if you could not pay for it.</li>
+<li><strong><code>supervise work { ... }</code></strong> watches the child while it runs. Here one rule: if it has used more than 90,000 tokens, cancel it and keep what it had. A rule is a count, not an opinion. You can also write checks in code (<code>assert never calls shell { cancel }</code>) and, when only a model can tell, ask a judge (<code>assert &quot;stays on topic&quot; using TopicJudge every 2m max 4 { steer &quot;Go back to the topic.&quot; }</code>), which sees facts about what the child did and not what it wrote.</li>
+<li><strong><code>wait work timeout 12m -&gt; findings</code></strong> waits for the child. It always has a timeout, and it returns when the child is done or the time is up.</li>
+<li><strong><code>work is ok</code></strong> is true only if the child finished with a result. A child that failed, was cancelled or timed out is a <em>value</em> you can read (<code>work.status</code>), not an exception that stops your script.</li>
+</ul>
+<p>Two promises are worth knowing. If your run is killed and started again, it finds the <strong>same child</strong> by its run id and no step happens twice. And a child never outlives the run that started it: when yours ends, the children still going are cancelled first.</p>
+<p>Starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/18-supervise-workflows" target="_blank" rel="noopener">18-supervise-workflows</a> starts one researcher for each topic of a plan, with rules and a judge, and <code>weave test</code> runs it with scripted models and a virtual clock. The full reference is <a href="https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise" target="_blank" rel="noopener">the guide</a>.</p>
 <h2 id="c11-putting-a-workflow-under-control-from-outside">Putting a workflow under control from outside</h2>
 <p>A running workflow can be reached by other programs and people:</p>
 <table>
@@ -3407,6 +3440,7 @@ extractor Progress {
 <li>In starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/13-rewind-and-retry" target="_blank" rel="noopener">13-rewind-and-retry</a>, change <code>side effects: keep</code> to <code>ask first</code> and add a <code>webhook</code> tool to the Writer. What does <code>weave check</code> warn about?</li>
 <li>Run <code>weave autonomy status</code> against a store where you ran starter 15 a few times by hand.</li>
 <li>Add a second schedule to starter 11 with <code>every: 6h</code>.</li>
+<li>In starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/18-supervise-workflows" target="_blank" rel="noopener">18-supervise-workflows</a>, lower the first rule to <code>when tokens &gt; 50000</code> and run <code>weave test</code>. Which case now fails, and why?</li>
 </ol>
 <p>Next: <a href="#c12">Running it for real</a>.</p>
 
