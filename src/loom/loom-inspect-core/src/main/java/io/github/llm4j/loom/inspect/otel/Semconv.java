@@ -202,6 +202,12 @@ public final class Semconv {
     public static final String LOOM_INSPECT_HASH = "loom.inspect.hash";
     public static final String EV_NOTE = "loom.note";
 
+    /** A signal sent or read between a parent and a child (phase 34, additive): {@code loom.data.op} is sent or read. */
+    public static final String EV_SIGNAL = "loom.signal";
+
+    /** A workflow's declared progress report (phase 34, additive): each field is {@code loom.data.f.<name>}. */
+    public static final String EV_PROGRESS = "loom.progress";
+
     /**
      * A {@code for each … max N} found more items than its bound before any item started. Carries
      * {@code loom.data.count}, {@code max}, {@code list}, {@code producer} and {@code

@@ -607,6 +607,7 @@ final class ChildLauncher {
         if (cancelled) record.put("reason", "written, but the child was cancelled, so it will not be read (cancel wins)");
         executor.journal().put(stepId, new RunJournal.Entry(SignalRunner.NOTIFY, record));
         executor.audit("signal_sent", Map.of("direction", "to child", "name", stmt.getName()));
+        executor.traceSignal("sent", live.launch().childRun(), stmt.getName(), stmt.isSticky());
         if (!cancelled) wake(handle, live, stmt.getName());
     }
 
@@ -797,7 +798,10 @@ final class ChildLauncher {
         value.put("taken", taken);
         value.put("n", executor.journal().all().values().stream().filter(e -> WAIT_ANY.equals(e.kind())).count() + 1); // the order they came in
         executor.journal().put(stepId, new RunJournal.Entry(WAIT_ANY, value));
-        if (signal != null) Mailbox.take(((Live) done.get("live")).journal(), Mailbox.Direction.OUT, signal);
+        if (signal != null) {
+            Mailbox.take(((Live) done.get("live")).journal(), Mailbox.Direction.OUT, signal);
+            executor.traceSignal("read", ((Live) done.get("live")).launch().childRun(), signal.name(), signal.sticky());
+        }
         bindEvent(stmt, event, handles);
         executor.audit("wait_any", Map.of("kind", String.valueOf(event.get("kind"))));
     }
@@ -1327,6 +1331,7 @@ final class ChildLauncher {
                 }
                 w.currentSignal = null;
                 Mailbox.take(w.live.journal(), Mailbox.Direction.OUT, sig);
+                executor.traceSignal("read", w.live.launch().childRun(), sig.name(), sig.sticky());
                 if (rule.once()) w.signalSpent[j] = true;
             }
         }

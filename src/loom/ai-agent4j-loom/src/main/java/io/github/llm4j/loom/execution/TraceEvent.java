@@ -115,6 +115,12 @@ public record TraceEvent(
      */
     public static final String MODEL_CALL = "model_call";
 
+    /** A message sent or read between a parent and a child (phase 34): {@code op}, {@code peer} (the run on the other side), {@code name}, {@code sticky}. Never the text. */
+    public static final String SIGNAL = "signal";
+
+    /** A workflow's declared progress report (phase 34): each field under {@code f.<name>}. */
+    public static final String PROGRESS = "progress";
+
     /**
      * One tool call: {@code tool}, {@code outcome}, {@code duration_ms}, {@code approval_ms},
      * {@code result_chars}, {@code soft_failure}, {@code reach} (the legs of the lethal trifecta

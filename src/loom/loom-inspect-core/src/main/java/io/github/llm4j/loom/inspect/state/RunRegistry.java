@@ -316,7 +316,15 @@ public final class RunRegistry {
         List<Map<String, Object>> out = new ArrayList<>();
         if (id == null) return out;
         for (RunState r : runs.values())
-            if (id.equals(r.parentRunId()) && r.client().equals(run.client())) out.add(r.summary());
+            if (id.equals(r.parentRunId()) && r.client().equals(run.client())) {
+                Map<String, Object> row = new java.util.LinkedHashMap<>(r.summary());
+                // what each side has sent that the other has not read yet (additive; messages only)
+                Map<String, Object> signals = new java.util.LinkedHashMap<>();
+                signals.put("toChild", Math.max(0, run.signalsSentTo(r.runId()) - r.signalsReadFrom(id)));
+                signals.put("toParent", Math.max(0, r.signalsSentTo(id) - run.signalsReadFrom(r.runId())));
+                row.put("signals", signals);
+                out.add(row);
+            }
         out.sort((x, y) -> String.valueOf(x.get("startedAt")).compareTo(String.valueOf(y.get("startedAt"))));
         return out;
     }

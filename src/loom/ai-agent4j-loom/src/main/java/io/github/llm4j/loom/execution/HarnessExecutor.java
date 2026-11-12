@@ -3225,6 +3225,25 @@ public class HarnessExecutor implements LoomEngine {
         return nowMillis();
     }
 
+    /** The run id of the run that started this one, or null. */
+    String parentRunId() {
+        return parentRunId;
+    }
+
+    /**
+     * Says in the trace that a message was sent to, or read from, the run {@code peer}: the console
+     * pairs the two to show what is unread. The text is never in it; a latch is marked sticky so it
+     * is not counted as unread.
+     */
+    void traceSignal(String op, String peer, String name, boolean sticky) {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("op", op);
+        data.put("peer", peer == null ? "" : peer);
+        data.put("name", name);
+        data.put("sticky", sticky);
+        trace(TraceEvent.SIGNAL, null, "signal " + op + " " + name, data);
+    }
+
     /** True when another run started this one, so there is a parent to signal and be signalled by. */
     boolean hasParent() {
         return parentRunId != null;
@@ -3258,8 +3277,14 @@ public class HarnessExecutor implements LoomEngine {
         if (decl == null)
             throw new IllegalStateException("report needs the workflow to declare what it reports: progress { ... }");
         Tracked<Object> value = tracked(() -> valueOf(report.getValue(), "report"));
+        boolean fresh = journal.get(step.get() + ProgressLog.KEY).isEmpty();
         ProgressLog.Result result =
                 progressLog.write(journal, step.get(), decl, (Map<String, Object>) value.value(), nowMillis());
+        if (fresh && result.kept()) {
+            Map<String, Object> shown = new java.util.LinkedHashMap<>();
+            ((Map<String, Object>) value.value()).forEach((k, v) -> shown.put("f." + k, v instanceof Number || v instanceof Boolean ? v : String.valueOf(v)));
+            trace(TraceEvent.PROGRESS, null, "report", shown);
+        }
         if (!result.kept()) {
             Map<String, Object> data = new java.util.LinkedHashMap<>();
             data.put("step", step.get());

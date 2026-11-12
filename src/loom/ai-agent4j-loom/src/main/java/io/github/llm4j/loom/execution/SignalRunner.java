@@ -62,6 +62,7 @@ final class SignalRunner {
         record.put("seq", sent.seq());
         journal.put(stepId, new RunJournal.Entry(NOTIFY, record));
         executor.audit("signal_sent", Map.of("direction", "to parent", "name", stmt.getName()));
+        executor.traceSignal("sent", executor.parentRunId(), stmt.getName(), stmt.isSticky());
         executor.signalParent();
     }
 
@@ -135,6 +136,7 @@ final class SignalRunner {
         Mailbox.take(mailbox, direction, signal);
         bindText(stmt, signal.text());
         executor.audit("signal_received", Map.of("name", signal.name(), "sticky", signal.sticky()));
+        executor.traceSignal("read", stream.isEmpty() ? executor.parentRunId() : stream, signal.name(), signal.sticky());
     }
 
     /** The wait's timeout passed with nothing to read: journaled, so a replay times out the same way. */

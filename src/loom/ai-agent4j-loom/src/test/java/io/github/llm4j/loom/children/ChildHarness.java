@@ -57,6 +57,9 @@ public final class ChildHarness {
     public final List<String> settled = Collections.synchronizedList(new ArrayList<>());
     public final Map<String, String> parents = new ConcurrentHashMap<>();
     public final TaskRegistry tasks = new TaskRegistry();
+    /** Every trace event of the parent and of each child, tagged with the run that traced it. */
+    public final List<String> traces = Collections.synchronizedList(new ArrayList<>());
+    public final List<io.github.llm4j.loom.execution.TraceEvent> traceEvents = Collections.synchronizedList(new ArrayList<>());
     /** Each executor the launcher built for a child, in order: a re-run makes a new one. */
     public final List<HarnessExecutor> attempts = Collections.synchronizedList(new ArrayList<>());
     public HarnessExecutor parent;
@@ -149,6 +152,7 @@ public final class ChildHarness {
                     @Override
                     public void prepared(String childRunId, HarnessExecutor child) {
                         attempts.add(child);
+                        child.addTraceListener(traceEvents::add);
                     }
 
                     @Override
@@ -157,6 +161,7 @@ public final class ChildHarness {
                     }
                 });
         parent.setChildScheduler(scheduler);
+        parent.addTraceListener(traceEvents::add);
         parent.initialize();
         return parent;
     }
