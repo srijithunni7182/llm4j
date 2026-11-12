@@ -586,7 +586,6 @@ Because the started workflow's script is known, `weave check` **warns when that 
 7. **Everything is journaled with the tick:** each rule that fired, each skipped and why, and each verdict, with the child's position, so a replay and `weave why` show what happened.
 - **Testing time** is as D17 says: a fake clock and a controlled executor, `fired:` in `expect:`, an overlap test for each of rules 1 to 6, and the kill-point test with its deliberately broken guard.
 
-## Not yet read, to settle before the design is written
+## Still to read before the design is final
 
-`BudgetCoordinator`, the trigger store and `weave tick`/`daemon`, `InterventionCoordinator`, `LiveRuns`, how `loom-inspect` and Fabric identify a run, and whether the lexer accepts
-`start`, `wait` and `notify` as new keywords without breaking existing scripts (the repository's `.loom` files are the test: `RepositoryScriptsTest`).
+Some of the code the decisions depend on has been read since the first draft (the statement parser, `BudgetCoordinator`, `LiveRuns`, `InterventionCoordinator`, `Persistence`, `LoomHost`, `Runs.java`, `RunRegistry` and `RunState` in `loom-inspect-core`, the journal and its generations); what was found is in [DESIGN.md](DESIGN.md) and [VERIFICATION.md](VERIFICATION.md) section 0. What is still unread (resume, tick and daemon; `parallel`'s join and `RunSuspended`; `BudgetSet`; the JDBC registry migration; the tool-call hook chain; Fabric's wire format; the evaluation dataset's rendering of a trajectory) is listed there as P1 to P9.

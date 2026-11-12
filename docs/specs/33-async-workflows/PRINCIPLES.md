@@ -25,7 +25,7 @@ These facts were read in the source on the day this draft was written; each is a
 - Steering and stopping are already audited (`steerable`, rule LA18) and journaled; `supervise` already acts on counts of what an agent did, from a closed set of runtime counters, and the guide says so: "every signal is a count, never a model's opinion".
 - `delegate ... timeout 60s` already exists, and `sleep` journals its wake time (`RunJournal`), which is how a time-based event can be replayed.
 
-Not read yet, to be checked before the design: `BudgetCoordinator` (how a budget is shared), the trigger store and `weave tick`/`daemon` (how a suspended run is picked up),
+Some of this has since been read and the rest is listed as P1 to P9 in [VERIFICATION.md](VERIFICATION.md) (the design is in [DESIGN.md](DESIGN.md)).
 `InterventionCoordinator`, and how Fabric and `loom-inspect` identify a run.
 
 ## The principles (proposed)
