@@ -1,5 +1,6 @@
 package io.github.llm4j.loom.execution;
 
+import io.github.llm4j.LLMClient;
 import io.github.llm4j.loom.ast.BudgetDef;
 import io.github.llm4j.loom.ast.HandleRef;
 import io.github.llm4j.loom.ast.RunStmt;
@@ -402,6 +403,11 @@ final class ChildLauncher {
         long runningMillis;
         long lastProgress = -1;
         long signature = -1;
+        List<JudgeSchedule> schedules = List.of();
+        boolean[] judgedFiredOnce = new boolean[0];
+        io.github.llm4j.budget.Budget judgeBudget;
+        io.github.llm4j.loom.ast.SuperviseStmt stmt;
+        List<io.github.llm4j.budget.Budget> enclosing = List.of();
 
         Watch(ChildHandle handle, Live live, SuperviseEvaluator evaluator, String stepId, int sequence) {
             this.handle = handle;
@@ -422,10 +428,6 @@ final class ChildLauncher {
      * or cancel twice. Only counted rules run in this build; the other kinds fail closed.
      */
     void supervise(io.github.llm4j.loom.ast.SuperviseStmt stmt) {
-        if (!stmt.getJudged().isEmpty())
-            throw new IllegalStateException(
-                    "supervise " + stmt.getTarget().describe() + " (line " + stmt.getLine()
-                            + ") has a judged assertion, which cannot run yet: counted rules and assertions in code are available in this build.");
         ChildHandle handle = singleHandle(stmt.getTarget());
         Live live;
         synchronized (tasks) {
@@ -451,8 +453,111 @@ final class ChildLauncher {
         watch.lastTick = executor.nowMillis(); // the child's time with this block begins now
         watch.lastProgress = watch.lastTick;
         watch.signature = signatureOf(live);
+        if (!stmt.getJudged().isEmpty()) {
+            if (stmt.getBudget() == null)
+                throw new IllegalStateException(
+                        "supervise " + stmt.getTarget().describe() + " has a judged assertion and no budget to pay for the judge: write supervise "
+                                + stmt.getTarget().describe() + " budget { tokens: 20000 } { ... }");
+            watch.judgeBudget = executor.newJudgeBudget("judge of " + stmt.getTarget().describe(), stmt.getBudget());
+            watch.enclosing = executor.enclosingBudgets();
+            List<JudgeSchedule> schedules = new ArrayList<>();
+            for (int j = 0; j < stmt.getJudged().size(); j++) {
+                String judgePrefix = stepId + JUDGE + j + ".";
+                int asked = (int) executor.journal().all().keySet().stream().filter(k -> k.startsWith(judgePrefix)).count();
+                schedules.add(new JudgeSchedule(stmt.getJudged().get(j), watch.signature, asked));
+            }
+            watch.schedules = schedules;
+            watch.judgedFiredOnce = new boolean[stmt.getJudged().size()];
+            watch.stmt = stmt;
+        }
         watches.add(watch);
         startTicking();
+    }
+
+    /** Journal key infix of a judgement, in the parent's journal: {@code <step>#judge.<rule>.<n>}. */
+    static final String JUDGE = "#judge.";
+
+    /**
+     * The judged assertions, last in the order (D30) and skipped when a rule already ended the
+     * tick. A judgement is journaled with the child's position when it is made, so a resume counts
+     * it and never asks again (D25); a judge that cannot answer still counts, so a failing judge is
+     * bounded too.
+     */
+    private void runJudges(Watch w, SuperviseEvaluator.Facts facts) {
+        if (w.stmt == null) return;
+        int steps = w.live.journal().all().size();
+        long signature = signatureOf(w.live);
+        for (int j = 0; j < w.stmt.getJudged().size(); j++) {
+            var rule = w.stmt.getJudged().get(j);
+            JudgeSchedule schedule = w.schedules.get(j);
+            JudgeSchedule.Decision decision = schedule.decide(facts.elapsedMillis(), steps, signature);
+            int ruleIndex = w.stmt.getCounted().size() + w.stmt.getCode().size() + j;
+            switch (decision) {
+                case NOT_YET, SKIP_NO_PROGRESS, STOPPED -> {
+                    continue;
+                }
+                case LIMIT_REACHED -> {
+                    note(w, ruleIndex, "judge limit reached");
+                    continue;
+                }
+                case BUDGET_USED_UP -> {
+                    note(w, ruleIndex, "judge budget used up");
+                    continue;
+                }
+                case ASK -> {}
+            }
+            Judge.Verdict verdict;
+            String detail = "";
+            try {
+                var def = executor.loomScript().findEvaluator(rule.evaluator());
+                LLMClient client = executor.judgeClient(def, w.judgeBudget, w.enclosing);
+                String shown =
+                        Judge.facts(facts, steps, facts.trajectory(), rule.seeingContent() ? partialOf(w.live.run()) : null);
+                verdict = Judge.ask(client, rule.text(), shown);
+            } catch (io.github.llm4j.budget.BudgetExceeded exhausted) {
+                schedule.budgetUsedUp();
+                note(w, ruleIndex, "judge budget used up");
+                continue;
+            } catch (RuntimeException failed) {
+                verdict = Judge.Verdict.UNREADABLE;
+                detail = "the judge could not answer: " + failed.getMessage();
+            }
+            schedule.asked(facts.elapsedMillis(), steps, signature);
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("rule", ruleIndex);
+            record.put("verdict", verdict.name().toLowerCase());
+            record.put("detail", detail);
+            record.put("steps", steps);
+            record.put("elapsedMillis", facts.elapsedMillis());
+            record.put("content", rule.seeingContent());
+            executor.journal().put(w.stepId + JUDGE + j + "." + (schedule.askedCount() - 1), new RunJournal.Entry("judge", record));
+            executor.audit("child_judge", record);
+            if (verdict != Judge.Verdict.FAIL || (rule.once() && w.judgedFiredOnce[j])) continue;
+            w.judgedFiredOnce[j] = true;
+            boolean ended = false;
+            boolean steered = false;
+            for (var action : rule.actions()) {
+                if (action.kind() == io.github.llm4j.loom.ast.SuperviseDef.Do.STEER) {
+                    if (steered) continue; // one steer a tick
+                    steered = true;
+                }
+                apply(w, new SuperviseEvaluator.Firing(ruleIndex, action, "fired", action.kind() != io.github.llm4j.loom.ast.SuperviseDef.Do.STEER), facts);
+                if (action.kind() != io.github.llm4j.loom.ast.SuperviseDef.Do.STEER) {
+                    ended = true;
+                    break;
+                }
+            }
+            if (ended) return;
+        }
+    }
+
+    private void note(Watch w, int ruleIndex, String text) {
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("rule", ruleIndex);
+        record.put("outcome", "note");
+        record.put("detail", text);
+        executor.journal().put(w.stepId + FIRE + w.sequence++, new RunJournal.Entry("supervise", record));
+        executor.audit("child_supervise", record);
     }
 
     /** Journal key infix of what a supervise rule did, in the parent's journal. */
@@ -496,7 +601,12 @@ final class ChildLauncher {
             synchronized (w) {
                 // a last look when the child has just settled, so a violation that ended it is recorded
                 SuperviseEvaluator.Facts facts = factsOf(w, now);
-                for (SuperviseEvaluator.Firing firing : w.evaluator.evaluate(facts)) apply(w, firing, facts);
+                boolean ended = false;
+                for (SuperviseEvaluator.Firing firing : w.evaluator.evaluate(facts)) {
+                    apply(w, firing, facts);
+                    ended |= firing.endsEvaluation() && firing.delivered();
+                }
+                if (!ended && !settled) runJudges(w, facts);
             }
             if (settled) watches.remove(w);
         }

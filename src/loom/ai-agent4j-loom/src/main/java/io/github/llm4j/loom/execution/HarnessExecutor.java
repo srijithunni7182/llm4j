@@ -4459,6 +4459,28 @@ public class HarnessExecutor implements LoomEngine {
         return List.copyOf(all);
     }
 
+    /** The judge's own budget, built from the {@code supervise} statement's {@code budget { }}. */
+    io.github.llm4j.budget.Budget newJudgeBudget(String name, io.github.llm4j.loom.ast.BudgetDef def) {
+        return budgets.newBudget(name, def);
+    }
+
+    /**
+     * The model of an {@code evaluator}, charged to the judge's own budget and, so the run total
+     * holds, to the budgets that enclose it (decision D27). The judge's budget is enforced whether
+     * or not the script has a run budget.
+     */
+    io.github.llm4j.LLMClient judgeClient(
+            io.github.llm4j.loom.ast.EvaluatorDef def,
+            io.github.llm4j.budget.Budget judgeBudget,
+            List<io.github.llm4j.budget.Budget> enclosing) {
+        List<io.github.llm4j.budget.Budget> all = new java.util.ArrayList<>(enclosing);
+        all.add(judgeBudget);
+        return io.github.llm4j.budget.BudgetedLLMClient.builder(clientFor(def.getModel()))
+                .budgets(() -> io.github.llm4j.budget.BudgetSet.of(all))
+                .model(def.getModel())
+                .build();
+    }
+
     /** Called on the thread that runs a child: what it spends is also charged to these. */
     void installOuterBudgets(List<io.github.llm4j.budget.Budget> outer) {
         scopes.set(List.copyOf(outer));

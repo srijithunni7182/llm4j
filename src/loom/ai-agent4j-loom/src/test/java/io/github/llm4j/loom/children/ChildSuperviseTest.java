@@ -1,7 +1,6 @@
 package io.github.llm4j.loom.children;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.llm4j.agent.task.Task;
 import io.github.llm4j.agent.task.TaskEffect;
@@ -150,24 +149,6 @@ class ChildSuperviseTest {
                         .getValue();
         assertThat(entry.kind()).isEqualTo("supervise");
         assertThat(entry.value()).asString().contains("action=STEER").contains("not delivered");
-    }
-
-    @Test
-    void aJudgedAssertionFailsClosedUntilItExists() {
-        HarnessExecutor e =
-                executor(
-                        "evaluator J { model: \"m\" }\n"
-                                + CHILD
-                                + """
-                                workflow Main(q) {
-                                    start Child(x = q) budget { tokens: 1 } -> work
-                                    supervise work budget { tokens: 5 } { assert "stays on topic" using J every 1m max 1 { wrap_up } }
-                                    wait work timeout 1m
-                                }
-                                """);
-
-        assertThatThrownBy(() -> e.executeWorkflow("Main", Map.of("q", "x")))
-                .hasMessageContaining("cannot run yet");
     }
 
     @Test
