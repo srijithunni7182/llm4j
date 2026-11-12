@@ -15,6 +15,15 @@ import io.github.llm4j.loom.runtime.RunJournal;
 public interface ChildRuns {
 
     /**
+     * The run id a child started at {@code stepId} of the run {@code parentRunId} gets (decision
+     * D4). A tool that copies a run, such as {@code weave fork}, uses it to give the copy's children
+     * the ids the copy will look for.
+     */
+    static String idOf(String parentRunId, String stepId) {
+        return ChildIds.derive(parentRunId, stepId);
+    }
+
+    /**
      * The journal of the child run {@code childRunId}: the same journal every time the same id is
      * asked for, so a resumed parent re-attaches to the child it started and not to a new one.
      */
@@ -26,6 +35,14 @@ public interface ChildRuns {
      * child, so it must be idempotent.
      */
     default void record(String childRunId, String parentRunId, String workflow) {}
+
+    /**
+     * Called with each child's executor before it runs, so a host can do for it what it does for
+     * the runs it starts itself: attach an observer, a trace listener, a customizer. The child
+     * already carries what it inherits from its parent. Called again when a resumed parent
+     * re-attaches to the child.
+     */
+    default void prepared(String childRunId, HarnessExecutor child) {}
 
     /**
      * Notes that the child ended up as {@code status} (see {@code ChildStatus#word}), so its record

@@ -32,6 +32,9 @@ public final class Semconv {
     // ---- Loom attributes ----
     public static final String LOOM_RUN_ID = "loom.run.id";
     public static final String LOOM_WORKFLOW = "loom.workflow";
+
+    /** The run that started this one with {@code start}: set on the start record of a child run. */
+    public static final String LOOM_PARENT_RUN_ID = "loom.run.parent";
     public static final String LOOM_STEP = "loom.step";
     public static final String LOOM_SEQ = "loom.seq";
     public static final String LOOM_SPAN_KIND = "loom.span.kind";

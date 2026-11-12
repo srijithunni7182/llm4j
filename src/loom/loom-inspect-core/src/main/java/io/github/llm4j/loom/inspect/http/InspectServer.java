@@ -373,7 +373,7 @@ public final class InspectServer {
                             x,
                             200,
                             "application/json",
-                            json(withControls(run.get().view(), run.get().traceId(), x)));
+                            json(withControls(withChildren(run.get().view(), run.get()), run.get().traceId(), x)));
                 else send(x, 404, "application/json", json(Map.of("error", "no such run")));
             } else {
                 send(x, 404, "application/json", json(Map.of("error", "not found")));
@@ -411,6 +411,15 @@ public final class InspectServer {
             }
         }
         return null;
+    }
+
+    /** A parent's page lists its children with their status, tokens and time, and the cost with them. */
+    private Map<String, Object> withChildren(Map<String, Object> view, io.github.llm4j.loom.inspect.state.RunState run) {
+        var children = registry.childrenOf(run);
+        if (children.isEmpty()) return view;
+        Map<String, Object> out = new java.util.LinkedHashMap<>(view);
+        out.put("children", children);
+        return out;
     }
 
     private Map<String, Object> withControls(

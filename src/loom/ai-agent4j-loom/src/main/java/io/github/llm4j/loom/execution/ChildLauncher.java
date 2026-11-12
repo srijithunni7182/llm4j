@@ -115,18 +115,30 @@ final class ChildLauncher {
         var enclosing = executor.enclosingBudgets();
 
         ChildHandle handle = new ChildHandle(childRun, stmt.getWorkflow());
+        runs.prepared(childRun, child);
         child.onProgress(this::tickSafely); // a counter changed: look at once, not only on the tick
         var invoker = executor.currentInvoker();
         String workflow = stmt.getWorkflow();
+        // a console or chat reaches the child by a longer label: parent/handle/workflow
+        String label = LiveRuns.shared().labelOf(executor)
+                .map(parentLabel -> parentLabel + "/" + boundName(stmt.getTarget()).replace('[', '/').replace("]", "") + "/" + workflow)
+                .orElse(null);
         ChildScheduler.Task task =
                 executor.childScheduler()
                         .submit(
                                 childRun,
                                 () -> {
+                                    AutoCloseable registered = null;
                                     try {
+                                        if (label != null) registered = LiveRuns.shared().register(label, child);
                                         child.installOuterBudgets(enclosing);
                                         runChild(child, handle, workflow, invoker);
                                     } finally {
+                                        try {
+                                            if (registered != null) registered.close();
+                                        } catch (Exception closing) {
+                                            log.log(java.util.logging.Level.FINE, "could not unregister " + label, closing);
+                                        }
                                         runs.settled(childRun, handle.status());
                                     }
                                 });
@@ -398,6 +410,16 @@ final class ChildLauncher {
     }
 
     // ---- supervise ----
+
+    /** The children that have not settled, as views for a host (decision D18). */
+    List<HarnessExecutor.ChildView> going() {
+        List<HarnessExecutor.ChildView> out = new ArrayList<>();
+        synchronized (tasks) {
+            for (Map.Entry<ChildHandle, Live> e : tasks.entrySet())
+                if (!e.getKey().status().isSettled()) out.add(new HarnessExecutor.ChildView(e.getKey(), e.getValue().run()));
+        }
+        return out;
+    }
 
     /** One {@code supervise} block watching one child. */
     private static final class Watch {

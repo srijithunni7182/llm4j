@@ -317,4 +317,44 @@ class StartWaitEngineTest {
                 .extracting(ChildStatus::word)
                 .contains("timed out", "cancelled", "stopped");
     }
+
+    @Test
+    void aChildsRunStartEventNamesItsParentSoFabricCanLinkThem() {
+        java.util.List<io.github.llm4j.loom.execution.TraceEvent> starts =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        TaskRegistry tasks = new TaskRegistry();
+        tasks.register(Task.of("Fine", TaskEffect.NONE, EffectPolicy.DEFAULT, ctx -> TaskResult.value("ok")));
+        HarnessExecutor parent =
+                new HarnessExecutor(
+                        StartParseTest.parse(
+                                "workflow Good(topic) { run Fine() -> r  return r }\n"
+                                        + "workflow Main(q) { start Good(topic = q) budget { tokens: 10 } -> work  wait work timeout 1m }"),
+                        new ToolRegistry(),
+                        model -> null);
+        parent.setTaskRegistry(tasks);
+        parent.setRunId("parent");
+        parent.setJournal(RunJournal.inMemory());
+        parent.setChildRuns(
+                new ChildRuns() {
+                    @Override
+                    public RunJournal openJournal(String childRunId) {
+                        return journals.computeIfAbsent(childRunId, k -> RunJournal.inMemory());
+                    }
+
+                    @Override
+                    public void prepared(String childRunId, HarnessExecutor child) {
+                        child.addTraceListener(
+                                e -> {
+                                    if (io.github.llm4j.loom.execution.TraceEvent.RUN_START.equals(e.type())) starts.add(e);
+                                });
+                    }
+                });
+        parent.setChildScheduler(new ControlledChildScheduler());
+        parent.initialize();
+
+        parent.executeWorkflow("Main", Map.of("q", "x"));
+
+        assertThat(starts).hasSize(1);
+        assertThat(starts.get(0).data()).containsEntry("parent", "parent").containsEntry("workflow", "Good");
+    }
 }

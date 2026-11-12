@@ -652,6 +652,15 @@ public final class LoomHost implements AutoCloseable {
             }
 
             @Override
+            public void prepared(String childRunId, HarnessExecutor child) {
+                // a child is watched like any run the host starts
+                if (o.observe != null) {
+                    if (o.scriptFile != null) o.observe.attach(child.observable(), o.scriptFile);
+                    else o.observe.attach(child.observable());
+                }
+            }
+
+            @Override
             public void record(String childRunId, String parentRunId, String workflow) {
                 if (registry.find(childRunId).isPresent()) return;
                 Instant now = clock.instant();

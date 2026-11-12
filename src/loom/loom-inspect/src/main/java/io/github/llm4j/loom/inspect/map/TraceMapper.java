@@ -247,6 +247,7 @@ public final class TraceMapper {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_RUN_ID, runId);
         a.put(Semconv.LOOM_WORKFLOW, workflow);
+        if (data.get("parent") != null) a.put(Semconv.LOOM_PARENT_RUN_ID, String.valueOf(data.get("parent")));
         a.put(Semconv.LOOM_RESUMED, "true".equals(String.valueOf(data.get("resumed"))));
         if ("false".equals(String.valueOf(data.get("evaluated")))) a.put(Semconv.LOOM_EVALUATED, false);
         if ("true".equals(String.valueOf(data.get("served")))) a.put(Semconv.LOOM_SERVED, true);

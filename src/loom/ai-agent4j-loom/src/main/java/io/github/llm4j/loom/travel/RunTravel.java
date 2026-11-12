@@ -291,7 +291,7 @@ public final class RunTravel {
                 checkpoints.add(m.get("name") + " (" + key.substring(0, key.length() - 11) + ")");
             if (key.contains("#")) continue;
             String kind = entry.kind();
-            if (!List.of("delegate", "handoff", "broadcast", "human", "failed", "retry", "task")
+            if (!List.of("delegate", "handoff", "broadcast", "human", "failed", "retry", "task", "child")
                     .contains(kind)) continue;
             boolean current = generations.isCurrent(key);
             String state =

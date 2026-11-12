@@ -3050,6 +3050,7 @@ public class HarnessExecutor implements LoomEngine {
             Map<String, Object> startData = new java.util.LinkedHashMap<>();
             startData.put("workflow", workflowName);
             if (runId != null) startData.put("run", runId);
+            if (parentRunId != null) startData.put("parent", parentRunId); // a child says whose it is
             startData.put("resumed", String.valueOf(resumedFromPause));
             if (servedFromOutside) startData.put("served", "true");
             // the page never reads the dataset itself: the host that ran the check says so here
@@ -4426,6 +4427,7 @@ public class HarnessExecutor implements LoomEngine {
 
     private ChildLimits childLimits = ChildLimits.HOST_DEFAULT;
     private int childDepth;
+    private String parentRunId;
 
     /** The ceilings a script's {@code max_children} and {@code max_depth} may not pass. */
     public void setChildLimits(ChildLimits limits) {
@@ -4465,6 +4467,14 @@ public class HarnessExecutor implements LoomEngine {
     /** Told, on the thread of a child run, after each model call it makes: the parent's supervisor looks then. */
     void onProgress(Runnable listener) {
         this.onProgress = listener;
+    }
+
+    /** A child this run started: its handle and the executor that runs it. */
+    record ChildView(io.github.llm4j.loom.runtime.ChildHandle handle, HarnessExecutor executor) {}
+
+    /** The children this run started that have not settled. */
+    List<ChildView> startedChildren() {
+        return children.going();
     }
 
     /** The judge's own budget, built from the {@code supervise} statement's {@code budget { }}. */
@@ -4555,6 +4565,7 @@ public class HarnessExecutor implements LoomEngine {
         child.childScheduler = childScheduler;
         child.childLimits = childLimits;
         child.childDepth = childDepth + 1;
+        child.parentRunId = runId;
         child.stepListener = stepListener; // a test that counts the steps a run reached counts the child's
         child.statementListener = statementListener;
         child.sinkOracle = sinkOracle; // a test that watches the exits of a run watches the child's too

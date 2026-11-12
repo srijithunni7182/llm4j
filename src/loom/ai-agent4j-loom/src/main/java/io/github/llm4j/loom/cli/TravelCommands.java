@@ -123,7 +123,10 @@ final class TravelCommands {
                     new com.fasterxml.jackson.databind.ObjectMapper()
                             .writerWithDefaultPrettyPrinter()
                             .writeValueAsString(t));
-        else out.print(t.text());
+        else {
+            out.print(t.text());
+            out.print(ChildFork.tree(dir, journal(dir)));
+        }
         return 0;
     }
 
@@ -486,6 +489,7 @@ final class TravelCommands {
         }
         RunJournal to = new FileRunJournal(child.resolve(JOURNAL));
         int entries = RunTravel.copy(from, to);
+        int childRuns = ChildFork.copy(parent, child, to);
         Generations.Boundary b = null;
         try {
             if (at != null)
@@ -544,6 +548,7 @@ final class TravelCommands {
                                 + " ("
                                 + entries
                                 + " journal entries copied"
+                                + (childRuns > 0 ? ", and " + childRuns + " child run" + (childRuns == 1 ? "" : "s") : "")
                                 + (b != null
                                         ? ", going back to " + at + ": generation " + b.generation()
                                         : "")
