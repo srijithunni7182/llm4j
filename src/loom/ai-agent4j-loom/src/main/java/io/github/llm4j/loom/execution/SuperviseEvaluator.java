@@ -20,7 +20,19 @@ import java.util.Set;
 public final class SuperviseEvaluator {
 
     /** The counters of a child at one look (D23); {@code elapsed} and {@code idle} in milliseconds. */
-    public record Facts(long tokens, long calls, BigDecimal cost, long elapsedMillis, long idleMillis) {}
+    public record Facts(
+            long tokens,
+            long calls,
+            BigDecimal cost,
+            long elapsedMillis,
+            long idleMillis,
+            Trajectory.Snapshot trajectory) {
+
+        /** The counters alone, for a child whose calls are not in question. */
+        public Facts(long tokens, long calls, BigDecimal cost, long elapsedMillis, long idleMillis) {
+            this(tokens, calls, cost, elapsedMillis, idleMillis, Trajectory.Snapshot.EMPTY);
+        }
+    }
 
     /**
      * One action a tick decided on, or skipped. {@code rule} is the rule's index in the block;
@@ -35,7 +47,9 @@ public final class SuperviseEvaluator {
 
     private static final String ALREADY_STEERED = "skipped: already steered this tick";
 
-    private final List<SuperviseStmt.Counted> rules;
+    private record Rule(java.util.function.Predicate<Facts> holds, boolean once, List<SuperviseDef.Action> actions) {}
+
+    private final List<Rule> rules;
     private final boolean[] wasTrue;
     private final boolean[] spent;
 
@@ -45,7 +59,12 @@ public final class SuperviseEvaluator {
      *     again while they stay true, and a {@code once} rule never does
      */
     public SuperviseEvaluator(SuperviseStmt block, Set<Integer> firedBefore) {
-        this.rules = List.copyOf(block.getCounted());
+        List<Rule> all = new ArrayList<>();
+        for (SuperviseStmt.Counted c : block.getCounted())
+            all.add(new Rule(f -> holds(c, f), c.once(), c.actions()));
+        for (SuperviseStmt.CodeAssertion a : block.getCode())
+            all.add(new Rule(f -> violated(a, f), a.once(), a.actions()));
+        this.rules = List.copyOf(all);
         this.wasTrue = new boolean[rules.size()];
         this.spent = new boolean[rules.size()];
         for (int i : firedBefore) {
@@ -61,8 +80,8 @@ public final class SuperviseEvaluator {
         boolean steered = false;
         boolean ended = false;
         for (int i = 0; i < rules.size(); i++) {
-            SuperviseStmt.Counted rule = rules.get(i);
-            boolean holds = holds(rule, facts);
+            Rule rule = rules.get(i);
+            boolean holds = rule.holds().test(facts);
             boolean becameTrue = holds && !wasTrue[i];
             wasTrue[i] = holds;
             if (ended || !becameTrue || spent[i]) continue;
@@ -84,6 +103,21 @@ public final class SuperviseEvaluator {
             }
         }
         return out;
+    }
+
+    /** An assertion in code is violated when what it forbids has happened (D24). */
+    private static boolean violated(SuperviseStmt.CodeAssertion a, Facts facts) {
+        Trajectory.Snapshot t = facts.trajectory();
+        return switch (a.kind()) {
+            case NEVER_CALLS -> t.refusedOf(a.name()) > 0 || t.callsOf(a.name()) > 0;
+            case CALLS_AT_MOST -> t.callsOf(a.name()) > a.limit();
+            case CALLS_BEFORE -> {
+                int before = t.firstCallOrder().indexOf(a.name());
+                int after = t.firstCallOrder().indexOf(a.other());
+                yield after >= 0 && (before < 0 || before > after);
+            }
+            case REACHES_WITHIN -> !t.reached().contains(a.name()) && facts.elapsedMillis() > a.withinMillis();
+        };
     }
 
     private static boolean holds(SuperviseStmt.Counted rule, Facts facts) {

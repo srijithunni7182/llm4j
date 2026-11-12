@@ -422,10 +422,10 @@ final class ChildLauncher {
      * or cancel twice. Only counted rules run in this build; the other kinds fail closed.
      */
     void supervise(io.github.llm4j.loom.ast.SuperviseStmt stmt) {
-        if (!stmt.getCode().isEmpty() || !stmt.getJudged().isEmpty())
+        if (!stmt.getJudged().isEmpty())
             throw new IllegalStateException(
                     "supervise " + stmt.getTarget().describe() + " (line " + stmt.getLine()
-                            + ") has assertions, which cannot run yet: only counted rules (when tokens > N { ... }) are available in this build.");
+                            + ") has a judged assertion, which cannot run yet: counted rules and assertions in code are available in this build.");
         ChildHandle handle = singleHandle(stmt.getTarget());
         Live live;
         synchronized (tasks) {
@@ -444,6 +444,9 @@ final class ChildLauncher {
             if (e.getValue().value() instanceof Map<?, ?> m && m.get("rule") instanceof Number n && "fired".equals(m.get("outcome")))
                 before.add(n.intValue());
         }
+        for (io.github.llm4j.loom.ast.SuperviseStmt.CodeAssertion a : stmt.getCode())
+            if (a.kind() == io.github.llm4j.loom.ast.SuperviseStmt.AssertionKind.NEVER_CALLS)
+                live.run().forbid(a.name()); // preventive: refused before it runs, narrowing the child
         Watch watch = new Watch(handle, live, new SuperviseEvaluator(stmt, before), stepId, count);
         watch.lastTick = executor.nowMillis(); // the child's time with this block begins now
         watch.lastProgress = watch.lastTick;
@@ -489,14 +492,13 @@ final class ChildLauncher {
     void tick() {
         long now = executor.nowMillis();
         for (Watch w : watches) {
-            if (w.handle.status().isSettled()) {
-                watches.remove(w);
-                continue;
-            }
+            boolean settled = w.handle.status().isSettled();
             synchronized (w) {
+                // a last look when the child has just settled, so a violation that ended it is recorded
                 SuperviseEvaluator.Facts facts = factsOf(w, now);
                 for (SuperviseEvaluator.Firing firing : w.evaluator.evaluate(facts)) apply(w, firing, facts);
             }
+            if (settled) watches.remove(w);
         }
         if (watches.isEmpty()) stopTicking();
     }
@@ -521,7 +523,8 @@ final class ChildLauncher {
         w.signature = signature;
         w.lastTick = now;
         return new SuperviseEvaluator.Facts(
-                tokens, calls, cost, w.runningMillis, running ? now - w.lastProgress : 0);
+                tokens, calls, cost, w.runningMillis, running ? now - w.lastProgress : 0,
+                w.live.run().trajectory());
     }
 
     private void apply(Watch w, SuperviseEvaluator.Firing firing, SuperviseEvaluator.Facts facts) {

@@ -153,14 +153,15 @@ class ChildSuperviseTest {
     }
 
     @Test
-    void aBlockWithAssertionsFailsClosedUntilTheyExist() {
+    void aJudgedAssertionFailsClosedUntilItExists() {
         HarnessExecutor e =
                 executor(
-                        CHILD
+                        "evaluator J { model: \"m\" }\n"
+                                + CHILD
                                 + """
                                 workflow Main(q) {
                                     start Child(x = q) budget { tokens: 1 } -> work
-                                    supervise work { assert calls Fine at most 1 times { cancel } }
+                                    supervise work budget { tokens: 5 } { assert "stays on topic" using J every 1m max 1 { wrap_up } }
                                     wait work timeout 1m
                                 }
                                 """);

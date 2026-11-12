@@ -27,6 +27,7 @@ final class UseRunner {
 
     void run(UseStmt stmt) {
         String name = stmt.getTool();
+        executor.requireAllowed(name);
         String stepId = executor.currentStep();
         RunJournal journal = executor.journal();
 

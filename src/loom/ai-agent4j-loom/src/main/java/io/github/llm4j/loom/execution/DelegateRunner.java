@@ -51,6 +51,9 @@ final class DelegateRunner {
         /** A step may name its agent or variable by a {@code {path}} into the run's data. */
         String resolveName(String name);
 
+        /** Fails the step when a supervisor has forbidden calling {@code name}. */
+        void requireAllowed(String name);
+
         /** The variable an answer is stored in; refuses a dynamic name that could overwrite something. */
         String resolveResultName(String name);
 
@@ -206,6 +209,7 @@ final class DelegateRunner {
         host.modelStepReached();
         host.beginAttempt();
         String agentName = host.resolveName(del.getTargetAgent());
+        host.requireAllowed(agentName);
         String variableName = host.resolveResultName(del.getVariableName());
         if (!del.getAllowedTargets().isEmpty() && !del.getAllowedTargets().contains(agentName)) {
             // A model chose the target; the script says where it may point (a prompt is not a boundary).

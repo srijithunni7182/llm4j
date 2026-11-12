@@ -396,6 +396,11 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
+                        public void requireAllowed(String name) {
+                            HarnessExecutor.this.requireAllowed(name);
+                        }
+
+                        @Override
                         public String resolveResultName(String name) {
                             return HarnessExecutor.this.resolveResultName(name);
                         }
@@ -2802,6 +2807,7 @@ public class HarnessExecutor implements LoomEngine {
                     agentBuilder.addToolHook(
                             new PolicyToolHook(
                                     this, agentDef, changing, !agentDef.getMcpServers().isEmpty()));
+                agentBuilder.addToolHook(forbidden.hook());
             }
             if (agentDef.isApproveAll() || !agentDef.getApprove().isEmpty()) {
                 String agentName = agentDef.getName();
@@ -4379,6 +4385,24 @@ public class HarnessExecutor implements LoomEngine {
                 java.util.Objects.requireNonNull(scheduler, "scheduler");
     }
 
+    private final Trajectory trajectory = new Trajectory();
+    private final ForbiddenCalls forbidden = new ForbiddenCalls(trajectory);
+
+    /** What this run has done, as facts (for the supervisor that watches it). */
+    Trajectory.Snapshot trajectory() {
+        return trajectory.snapshot();
+    }
+
+    /** Refuses, before it runs, any later call of {@code name} (a supervisor's {@code never calls}). */
+    void forbid(String name) {
+        forbidden.forbid(name);
+    }
+
+    /** Fails the step if {@code name} is forbidden; called before a task, tool or agent runs. */
+    void requireAllowed(String name) {
+        forbidden.require(name);
+    }
+
     private java.time.Duration superviseTick = java.time.Duration.ofSeconds(10);
 
     /**
@@ -4501,6 +4525,7 @@ public class HarnessExecutor implements LoomEngine {
         child.childScheduler = childScheduler;
         child.childLimits = childLimits;
         child.childDepth = childDepth + 1;
+        child.addTraceListener(child.trajectory);
         return child;
     }
 

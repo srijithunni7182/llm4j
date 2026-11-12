@@ -39,6 +39,7 @@ final class TaskRunner {
     void run(RunStmt stmt) {
         String stepId = executor.currentStep();
         String name = stmt.getTaskName();
+        executor.requireAllowed(name);
         Task task = executor.getTaskRegistry().get(name);
         if (task == null)
             throw new IllegalStateException("Task not found: " + name); // validated earlier
