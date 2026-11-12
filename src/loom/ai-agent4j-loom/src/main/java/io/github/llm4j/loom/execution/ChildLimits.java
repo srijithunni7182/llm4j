@@ -8,8 +8,18 @@ package io.github.llm4j.loom.execution;
  *
  * @param ceilingChildren the most live children a script may ask for
  * @param ceilingDepth the most levels below the top workflow a script may ask for
+ * @param settleGrace how long a parent that ends waits for the children it cancelled to settle
+ *     (decision D10); one still going after it is recorded as cancelled with a note
  */
-public record ChildLimits(int ceilingChildren, int ceilingDepth) {
+public record ChildLimits(int ceilingChildren, int ceilingDepth, java.time.Duration settleGrace) {
+
+    /** How long a parent waits for its cancelled children when the host says nothing. */
+    public static final java.time.Duration DEFAULT_SETTLE_GRACE = java.time.Duration.ofSeconds(30);
+
+    /** The ceilings, with the default grace period. */
+    public ChildLimits(int ceilingChildren, int ceilingDepth) {
+        this(ceilingChildren, ceilingDepth, DEFAULT_SETTLE_GRACE);
+    }
 
     /** Live children a run may have when its script says nothing. */
     public static final int DEFAULT_MAX_CHILDREN = 8;
@@ -22,6 +32,9 @@ public record ChildLimits(int ceilingChildren, int ceilingDepth) {
             new ChildLimits(4 * DEFAULT_MAX_CHILDREN, 4 * DEFAULT_MAX_DEPTH);
 
     public ChildLimits {
+        java.util.Objects.requireNonNull(settleGrace, "settleGrace");
+        if (settleGrace.isNegative())
+            throw new IllegalArgumentException("the grace period cannot be negative: " + settleGrace);
         if (ceilingChildren < 1 || ceilingDepth < 1)
             throw new IllegalArgumentException(
                     "the ceilings must be at least 1, got " + ceilingChildren + " and " + ceilingDepth);

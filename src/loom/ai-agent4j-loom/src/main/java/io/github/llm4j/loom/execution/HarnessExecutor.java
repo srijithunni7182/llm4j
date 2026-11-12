@@ -3037,6 +3037,7 @@ public class HarnessExecutor implements LoomEngine {
         }
         step.set(topLevel ? workflowName : parent + ">" + workflowName);
         String ended = "completed";
+        boolean cancelChildren = topLevel; // a suspension is not an end, and neither is a crash
         Map<String, Object> endData = new java.util.LinkedHashMap<>();
         if (topLevel) {
             Map<String, Object> startData = new java.util.LinkedHashMap<>();
@@ -3066,6 +3067,8 @@ public class HarnessExecutor implements LoomEngine {
             throw halted;
         } catch (RunSuspended paused) {
             ended = "suspended";
+            cancelChildren = false; // the tree suspends with it and a resume re-attaches
+            if (topLevel) children.onParentSuspended(paused);
             endData.put("reason", paused.reason().name());
             if (paused.resumeAt() != null) endData.put("resumeAt", paused.resumeAt().toString());
             if (topLevel && paused.resumeAt() != null) recordSuspension(paused);
@@ -3076,6 +3079,7 @@ public class HarnessExecutor implements LoomEngine {
             throw stopped;
         } catch (RuntimeException | Error failure) {
             ended = failure instanceof io.github.llm4j.budget.BudgetExceeded ? "budget" : "failed";
+            if (failure instanceof Error) cancelChildren = false; // a process death cancels nothing
             endData.put("error", String.valueOf(failure.getMessage()));
             Map<String, Object> culprit = unhandledFailure.get();
             if (culprit != null) {
@@ -3087,6 +3091,7 @@ public class HarnessExecutor implements LoomEngine {
             throw failure;
         } finally {
             step.set(parent);
+            if (cancelChildren) endChildren();
             if (topLevel) {
                 endData.put("workflow", workflowName);
                 if (runId != null) endData.put("run", runId);
@@ -3276,17 +3281,19 @@ public class HarnessExecutor implements LoomEngine {
             children.start(start);
         } else if (stmt instanceof io.github.llm4j.loom.ast.WaitStmt wait) {
             children.await(wait);
-        } else if (stmt instanceof io.github.llm4j.loom.ast.CancelStmt
-                || stmt instanceof io.github.llm4j.loom.ast.SteerStmt
-                || stmt instanceof io.github.llm4j.loom.ast.SuperviseStmt) {
-            // Fails closed until the control of a child exists: a script that cancels, steers or
-            // supervises a child must never run as though it had.
+        } else if (stmt instanceof io.github.llm4j.loom.ast.CancelStmt cancel) {
+            children.cancel(cancel);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SteerStmt steer) {
+            children.steer(steer);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SuperviseStmt) {
+            // Fails closed until supervision exists: a script that supervises a child must never run
+            // as though the rules were watching.
             throw new IllegalStateException(
                     StatementText.of(stmt)
                             + " (line "
                             + stmt.getLine()
-                            + ") cannot run yet: controlling a started workflow is not available in"
-                            + " this build.");
+                            + ") cannot run yet: supervising a started workflow is not available in this"
+                            + " build.");
         } else if (stmt instanceof NoteStmt note) {
             String noteText = resolvePayload(note.getMessage());
             lastNote = noteText;
@@ -4430,6 +4437,21 @@ public class HarnessExecutor implements LoomEngine {
 
     io.github.llm4j.secret.InvokerCredentials currentInvoker() {
         return threadScope.invoker.get();
+    }
+
+    /**
+     * The run has ended: cancel the children still going. A failure to do so is logged, not thrown,
+     * so it never hides why the run ended.
+     */
+    private void endChildren() {
+        try {
+            children.cancelAll("parent ended");
+        } catch (RuntimeException e) {
+            log.log(
+                    java.util.logging.Level.WARNING,
+                    "could not cancel the children of a run that ended: " + e.getMessage(),
+                    e);
+        }
     }
 
     long nowMillis() {

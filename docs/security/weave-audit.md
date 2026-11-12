@@ -68,6 +68,7 @@ the runtime always enforces.
 | LA25 | A `delegate` to a remote agent sends text, and attached files, to another organisation. The finding names the remote and says nothing in the script masks personal data first. Medium when the workflow reaches private data and no agent of it has a `pii` guard; a developer who masks in the transport or the channel accepts the finding in writing with that reason | low / medium | LLM02 |
 | LA26 | An `agent_channel` has `audience: automatic`: code answers a party from outside with no person looking. High when a `remote` uses the channel, because that remote can ask for authorization, which code would then arrange | medium / high | LLM06 |
 | LA27 | An `expose` has neither a budget of its own nor a run budget in the script, so whoever can call it decides what it costs | high | LLM10 |
+| LA28 | A script can steer a started workflow: a `steer` statement, or a `supervise` rule that steers, puts words written in the script in front of a `steerable` agent of the child while it works, an input channel as LA18 is for a person. The finding names the agents it can reach and is medium when one of them also reaches private data and can send or act. Cancelling a child is not an input channel and gets no rule | info / medium | LLM01 |
 
 The audit reads the script only. It cannot see what Java, host-registered and MCP tools do, operating-system and
 database permissions, what is inside indexed documents or memory, or what agents actually produce. Use it with

@@ -13,7 +13,9 @@ import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.loom.runtime.RunStopped;
 import io.github.llm4j.loom.runtime.RunSuspended;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -40,7 +42,7 @@ final class ChildLauncher {
     private final HarnessExecutor executor;
     /** A child this launcher started: its task, its run and the most it may still spend. */
     private record Live(
-            ChildScheduler.Task task, HarnessExecutor run, Long capTokens, Long capCalls, BigDecimal capCost) {}
+            ChildScheduler.Task task, HarnessExecutor run, RunJournal journal, Long capTokens, Long capCalls, BigDecimal capCost) {}
 
     private final Map<ChildHandle, Live> tasks = new IdentityHashMap<>();
 
@@ -95,7 +97,8 @@ final class ChildLauncher {
                             START, Map.of("run", childRun, "workflow", stmt.getWorkflow())));
         runs.record(childRun, parentRun, stmt.getWorkflow());
 
-        HarnessExecutor child = executor.deriveChild(childRun, runs.openJournal(childRun));
+        RunJournal childJournal = runs.openJournal(childRun);
+        HarnessExecutor child = executor.deriveChild(childRun, childJournal);
         args.value().forEach((name, value) -> child.bind(name, value, args.tag()));
         BudgetDef scripted = executor.loomScript().getBudget();
         Long capTokens = smaller(stmt.getBudget().getTokens(), scripted == null ? null : scripted.getTokens());
@@ -120,7 +123,7 @@ final class ChildLauncher {
                                     }
                                 });
         synchronized (tasks) {
-            tasks.put(handle, new Live(task, child, capTokens, capCalls, capCost));
+            tasks.put(handle, new Live(task, child, childJournal, capTokens, capCalls, capCost));
         }
         executor.bind(boundName(stmt.getTarget()), handle, Provenance.NOT_MODEL);
         log.info("Started child " + childRun + " (" + workflow + ")");
@@ -212,6 +215,11 @@ final class ChildLauncher {
             String workflow,
             io.github.llm4j.secret.InvokerCredentials invoker) {
         try {
+            Optional<RunJournal.Entry> marker = child.journal().get(CANCEL_MARKER);
+            if (marker.isPresent()) { // cancelled before it ran, or before a crash: it stays so
+                settleCancelled(child, handle, marker.get());
+                return;
+            }
             child.initialize();
             child.executeWorkflow(workflow, null, invoker);
             handle.complete(child.getContext().getVariable("result"));
@@ -220,7 +228,9 @@ final class ChildLauncher {
                     paused.resumeAt() != null ? ChildStatus.SLEEPING : ChildStatus.WAITING,
                     paused.resumeAt());
         } catch (RunStopped stopped) {
-            handle.end(ChildStatus.STOPPED, stopped.getMessage());
+            Optional<RunJournal.Entry> marker = child.journal().get(CANCEL_MARKER);
+            if (marker.isPresent()) settleCancelled(child, handle, marker.get());
+            else handle.end(ChildStatus.STOPPED, stopped.getMessage());
         } catch (RunHalted halted) {
             handle.end(ChildStatus.FAILED, "halted: " + halted.reason());
         } catch (io.github.llm4j.budget.BudgetExceeded exhausted) {
@@ -302,6 +312,8 @@ final class ChildLauncher {
      * replays the start, which re-attaches to each child by its id, and waits again. Nothing is
      * journaled for the wait, so the replay waits afresh.
      */
+    private volatile RunSuspended suspendedByWait;
+
     private void suspendIfNothingCanRun(String stepId, Map<String, ChildHandle> handles) {
         java.time.Instant earliest = null;
         boolean person = false;
@@ -314,9 +326,12 @@ final class ChildLauncher {
             else if (earliest == null || h.wakes().isBefore(earliest)) earliest = h.wakes();
         }
         if (!paused) return;
-        if (person)
-            throw new RunSuspended(stepId, "waiting for a child that is waiting for a person");
-        throw new RunSuspended(stepId, earliest, "waiting for a child that sleeps");
+        RunSuspended suspension =
+                person
+                        ? new RunSuspended(stepId, "waiting for a child that is waiting for a person")
+                        : new RunSuspended(stepId, earliest, "waiting for a child that sleeps");
+        suspendedByWait = suspension;
+        throw suspension;
     }
 
     private Map<String, Object> outcomesOf(Map<String, ChildHandle> handles) {
@@ -371,6 +386,189 @@ final class ChildLauncher {
         boolean pending = handles.values().stream().anyMatch(h -> !h.status().isSettled());
         if (pending && !stmt.getOnTimeout().isEmpty()) executor.runBlockAt(stmt.getOnTimeout(), "wt");
         if (failed && !stmt.getOnFailure().isEmpty()) executor.runBlockAt(stmt.getOnFailure(), "wf");
+    }
+
+    // ---- steer ----
+
+    /** Journal kind of a {@code steer} statement: who was told, and how many agents took it. */
+    static final String STEER = "child-steer";
+
+    /**
+     * Tells one {@code steerable} agent of a child what to do next (D12). The text is literal, from
+     * the script. If no such agent is running nothing is delivered, which is recorded and is not an
+     * error. Recorded in the parent's journal, so a replay never sends it again.
+     */
+    void steer(io.github.llm4j.loom.ast.SteerStmt stmt) {
+        String stepId = executor.currentStepId();
+        if (executor.journal().get(stepId).isPresent()) return; // sent before a restart: not sent again
+        boolean steerable =
+                executor.loomScript().getAgents().stream()
+                        .anyMatch(a -> a.getName().equals(stmt.getAgent()) && a.isSteerable());
+        if (!steerable)
+            throw new IllegalStateException(
+                    "steer " + stmt.getTarget().describe() + " " + stmt.getAgent() + ": the agent "
+                            + stmt.getAgent() + " is not steerable, so a parent may not steer it. Mark it steerable: true in the child's script.");
+        ChildHandle handle = singleHandle(stmt.getTarget());
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        if (live == null)
+            throw new IllegalStateException(
+                    stmt.getTarget().describe() + " is a handle this run did not start, so it cannot steer it");
+        int delivered =
+                handle.status().isSettled()
+                        ? 0
+                        : live.run().steer(stmt.getAgent(), stmt.getText(), "parent " + executor.getRunId() + ", line " + stmt.getLine());
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("agent", stmt.getAgent());
+        record.put("delivered", delivered);
+        record.put("text", stmt.getText());
+        executor.journal().put(stepId, new RunJournal.Entry(STEER, record));
+        Map<String, Object> audit = new LinkedHashMap<>(record);
+        audit.put("child", live.run().getRunId());
+        audit.put("outcome", delivered > 0 ? "delivered" : "not delivered");
+        executor.audit("child_steer", audit);
+    }
+
+    /**
+     * The parent suspended. When that is not its {@code wait} finding nothing can run, nothing is
+     * awake to supervise the children, so they are paused too (D29): each is asked to suspend at its
+     * next step, which lets an effect under way finish first. A resume replays the start and the
+     * child goes on from its journal.
+     */
+    void onParentSuspended(RunSuspended paused) {
+        if (paused == suspendedByWait) return;
+        List<Live> going = new ArrayList<>();
+        synchronized (tasks) {
+            for (Map.Entry<ChildHandle, Live> e : tasks.entrySet())
+                if (!e.getKey().status().isSettled()) going.add(e.getValue());
+        }
+        for (Live live : going)
+            live.run().control().request(RunControl.Action.SUSPEND, "parent suspended");
+    }
+
+    // ---- cancel ----
+
+    /** Journal key, in the child's own journal, of a cancel: it survives a restart (D13). */
+    static final String CANCEL_MARKER = "#cancel";
+
+    /** Journal kind of a {@code cancel} statement, in the parent's journal. */
+    static final String CANCEL = "child-cancel";
+
+    void cancel(io.github.llm4j.loom.ast.CancelStmt stmt) {
+        if (stmt.getRewindCheckpoint() != null)
+            throw new IllegalStateException(
+                    "cancel " + stmt.getTarget().describe() + " rewind to " + stmt.getRewindCheckpoint()
+                            + " cannot run yet: sending a child back to a checkpoint is not available in this build.");
+        String stepId = executor.currentStepId();
+        ChildHandle handle = singleHandle(stmt.getTarget());
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        if (live == null)
+            throw new IllegalStateException(
+                    stmt.getTarget().describe() + " is a handle this run did not start, so it cannot cancel it");
+        String reason =
+                stmt.getReason() != null
+                        ? stmt.getReason()
+                        : "cancelled by the parent script, line " + stmt.getLine();
+        cancelChild(handle, live, stmt.getOutcome(), reason);
+        if (executor.journal().get(stepId).isEmpty())
+            executor.journal()
+                    .put(
+                            stepId,
+                            new RunJournal.Entry(
+                                    CANCEL, Map.of("status", handle.status().word(), "reason", reason)));
+    }
+
+    /**
+     * Asks a child to stop. Idempotent, and a settled child is left alone (a recorded no-op). The
+     * cancel is written to the child's journal first, so a restart cannot run it again. A sleeping
+     * or waiting child settles at once; a running one stops at its next step, because an effect
+     * under way always finishes and is journaled first (there is no forced kill).
+     */
+    private void cancelChild(
+            ChildHandle handle, Live live, io.github.llm4j.loom.ast.OutcomeStmt.Kind outcome, String reason) {
+        if (handle.status().isSettled()) return;
+        live.journal()
+                .put(
+                        CANCEL_MARKER,
+                        new RunJournal.Entry(
+                                "cancel",
+                                Map.of("reason", reason, "outcome", outcome == null ? "" : outcome.phrase())));
+        if (handle.status() == ChildStatus.SLEEPING || handle.status() == ChildStatus.WAITING) {
+            handle.cancelled(reason, outcome == io.github.llm4j.loom.ast.OutcomeStmt.Kind.USE_PARTIAL ? partialOf(live.run()) : null);
+            executor.childRuns().settled(live.run().getRunId(), ChildStatus.CANCELLED);
+            return;
+        }
+        live.run().control().request(RunControl.Action.STOP, "parent: " + reason);
+    }
+
+    /** What a child had produced: its variables, the runtime's own left out. */
+    private static Map<String, Object> partialOf(HarnessExecutor child) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        child.getContext().getAll().forEach((k, v) -> {
+            if (!k.startsWith("_") && !k.startsWith("#")) out.put(k, v);
+        });
+        return out;
+    }
+
+    private void settleCancelled(HarnessExecutor child, ChildHandle handle, RunJournal.Entry marker) {
+        String reason = "cancelled";
+        boolean keep = false;
+        if (marker.value() instanceof Map<?, ?> m) {
+            reason = String.valueOf(m.get("reason"));
+            keep = io.github.llm4j.loom.ast.OutcomeStmt.Kind.USE_PARTIAL.phrase().equals(m.get("outcome"));
+        }
+        handle.cancelled(reason, keep ? partialOf(child) : null);
+    }
+
+    /**
+     * The parent has ended (it finished, halted, failed or was stopped): every child still going
+     * is cancelled with {@code reason}, and the end waits for them to settle for at most the grace
+     * period. One still unsettled after it is recorded as cancelled with a note that it did not
+     * settle; its journal shows where it stopped (decision D10).
+     */
+    void cancelAll(String reason) {
+        List<Map.Entry<ChildHandle, Live>> going = new ArrayList<>();
+        synchronized (tasks) {
+            for (Map.Entry<ChildHandle, Live> e : tasks.entrySet())
+                if (!e.getKey().status().isSettled()) going.add(e);
+        }
+        if (going.isEmpty()) return;
+        for (Map.Entry<ChildHandle, Live> e : going) cancelChild(e.getKey(), e.getValue(), null, reason);
+        long deadline = executor.nowMillis() + executor.childLimits().settleGrace().toMillis();
+        for (Map.Entry<ChildHandle, Live> e : going) {
+            ChildHandle handle = e.getKey();
+            if (handle.status().isSettled()) continue;
+            try {
+                e.getValue().task().await(Math.max(0, deadline - executor.nowMillis()));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            if (!handle.status().isSettled()) {
+                handle.cancelled(
+                        reason + "; it did not settle within the grace period of "
+                                + executor.childLimits().settleGrace().toSeconds() + " s",
+                        null);
+                executor.childRuns().settled(e.getValue().run().getRunId(), ChildStatus.CANCELLED);
+            }
+        }
+    }
+
+    /** The one handle {@code ref} names, for a statement that acts on a single child. */
+    private ChildHandle singleHandle(HandleRef ref) {
+        Object base = executor.view().getVariable(ref.name());
+        Object found = base;
+        if (ref.isKeyed()) {
+            String key = ref.keyIsLiteral() ? ref.key() : String.valueOf(ConditionEvaluator.resolvePath(ref.key(), executor.view()));
+            found = base instanceof Map<?, ?> map ? map.get(key) : null;
+        }
+        if (found instanceof ChildHandle h) return h;
+        throw new IllegalStateException(
+                ref.describe() + " holds no handle at this point: start the child before using it");
     }
 
     // ---- handles in variables ----

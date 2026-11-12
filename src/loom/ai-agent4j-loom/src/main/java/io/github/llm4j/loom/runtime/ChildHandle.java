@@ -16,6 +16,7 @@ public final class ChildHandle {
     private volatile String reason;
     private volatile String failure;
     private volatile java.time.Instant wakes;
+    private volatile Object partial;
 
     /**
      * A handle for the child run {@code runId}, started from {@code workflow}.
@@ -59,6 +60,17 @@ public final class ChildHandle {
     }
 
     /**
+     * The child was cancelled by its parent or by a rule, for {@code why}; {@code kept} is what it
+     * had produced when the outcome was {@code use partial}, or null.
+     */
+    public void cancelled(String why, Object kept) {
+        this.partial = kept;
+        this.reason = why;
+        this.failure = null;
+        this.status = ChildStatus.CANCELLED;
+    }
+
+    /**
      * The child is asleep (it wakes at {@code wakeAt}) or waiting for a person ({@code wakeAt}
      * null), not running.
      */
@@ -87,7 +99,8 @@ public final class ChildHandle {
     }
 
     /**
-     * A fact a script may read: {@code status}, {@code result}, {@code reason} or {@code failure}.
+     * A fact a script may read: {@code status}, {@code result}, {@code partial}, {@code reason} or
+     * {@code failure}.
      * The result exists only for a completed child: reading it otherwise is an error that names the
      * status (D9).
      *
@@ -108,6 +121,7 @@ public final class ChildHandle {
                 yield result;
             }
             case "wakes" -> wakes == null ? null : wakes.toString();
+            case "partial" -> partial;
             case "reason" -> reason;
             case "failure" -> failure;
             default -> throw new IllegalStateException(
