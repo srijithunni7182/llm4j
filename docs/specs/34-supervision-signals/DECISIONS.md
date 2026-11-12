@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D9 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D10 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -16,7 +16,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D7 | Declared progress: what a script may do with it | **taken** (readable; one assertion `progress.<field> changes within`; no rule on content) |
 | D8 | The signal model | **taken** (a mailbox as journal entries, plus `sticky` for state-like signals; no siblings; no explicit monitor; a check for same-name waits in parallel) |
 | D9 | `notify`: forms, payload, provenance | **taken** (placeholders allowed; always `unchecked` on receipt) |
-| D10 | How a signal is received | open |
+| D10 | How a signal is received | **taken** (a child's `wait signal`; in a parent `wait any`, `when signal` and `wait <handle> signal`) |
 | D11 | `wait any`: events and the journaled winner | open |
 | D12 | Waking a suspended child | open |
 | D13 | Limits and edge cases of signals | open |
@@ -177,7 +177,10 @@ notify parent "stuck" "no reliable sources for {topic}"     // child to its star
 
 **Recommendation:** all three, because they serve different scripts: (2) for a supervisor that reacts, (1) for one that collects, (3) for a simple handshake. Each is small once the mailbox exists.
 
-**Decision:** open.
+**Decision (owner): all three ways to receive in a parent, plus the child's wait.**
+- **In a child:** `wait signal "go" timeout T -> text`; a timeout is required; while it waits the child is `waiting` with a readable fact `h.waits` naming what it waits for (for example "signal go"); a message is consumed, a sticky signal is read and stays set (and a set sticky signal returns at once).
+- **In a parent:** (1) **`wait any`** returns an event of kind `signal` (D11); (2) a **`supervise` rule** `when signal "stuck" { actions }`, whose actions stay fixed text and **cannot use the payload**; (3) **`wait <handle> signal "name" timeout T -> text`** for one named signal from one child.
+- **A `when signal` rule fires once per arrival** (a signal is an event, not a condition that becomes true); `once` limits it to a single firing; for a sticky signal, setting it counts as an arrival and replacing it counts as another. A `when signal` rule **consumes** a message as a `wait` does, and a sticky signal is read by it and by a wait alike without being consumed, so a rule and a `wait any` never take the same message twice.
 
 ## D11. `wait any`: events and the journaled winner
 
