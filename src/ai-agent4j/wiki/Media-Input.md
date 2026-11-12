@@ -29,8 +29,9 @@ Confirmed means a real call on 2026-11-06 returned the right answer ([the record
 | OpenAI Responses | confirmed | confirmed | no (chat completions only) | no |
 | xAI (Grok 4 family, Grok 2 vision) | confirmed | no | no | no |
 | Kimi (vision models), Qwen (`-vl` models) | documented | no | no | no |
+| Sarvam V2 (`gemma4`, `glm5.3-flash`, the DeepSeek flash models, `kimi-k3.1-pro`, `qwen38-27b`) | confirmed on `gemma4` and `glm5.3-flash` (2026-11-12) | no | no | no |
 | Ollama (vision models such as `gemma3`, `llava`) | documented | no | no | no |
-| Sarvam, Perplexity, any generic OpenAI-style server | no | no | no | no |
+| Sarvam's other models, the V1 `SarvamChatProvider`, Perplexity, any generic OpenAI-style server | no | no | no | no |
 
 What a model takes is recorded **by model name**, and a model nobody recorded takes nothing: a new model is refused until it is added, which is the safe direction. Ask first:
 

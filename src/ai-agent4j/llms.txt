@@ -12,7 +12,7 @@ Maven: `io.github.srijithunni7182:ai-agent4j:5.0`. This file covers the core lib
 
 ## Providers
 
-- `GoogleProvider`, `AnthropicProvider`, `SarvamChatProvider`, `OllamaProvider`, `OpenAiCompatibleProvider` (OpenAI, xAI, Kimi, Qwen, any OpenAI-style server; vendors are data in `Dialect` and `ModelTraits`, found by name with `Vendor`) and `OpenAiResponsesProvider` (Perplexity's Agent API, OpenAI's Responses API) implement one `LLMProvider` contract, with `chat` and streaming `chatStream`. The system prompt, finish reasons (the raw value is in `metadata.finish_reason_raw`) and errors mean the same on every provider.
+- `GoogleProvider`, `AnthropicProvider`, `OllamaProvider`, `OpenAiCompatibleProvider` (OpenAI, xAI, Kimi, Qwen, Sarvam V2 with the Token Factory models, any OpenAI-style server; `SarvamChatProvider` is the deprecated V1 provider; vendors are data in `Dialect` and `ModelTraits`, found by name with `Vendor`) and `OpenAiResponsesProvider` (Perplexity's Agent API, OpenAI's Responses API) implement one `LLMProvider` contract, with `chat` and streaming `chatStream`. The system prompt, finish reasons (the raw value is in `metadata.finish_reason_raw`) and errors mean the same on every provider.
 - Typed exceptions, all `LLMException`:
   - `AuthenticationException`;
   - `InvalidRequestException`;
@@ -61,7 +61,7 @@ Maven: `io.github.srijithunni7182:ai-agent4j:5.0`. This file covers the core lib
 - [Getting Started](wiki/Getting-Started.md)
 - [ReAct Agent Guide](wiki/ReAct-Agent-Guide.md)
 - [Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md)
-- [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](wiki/OpenAI-Family-Providers.md)
+- [OpenAI, xAI, Kimi, Qwen, Sarvam and any OpenAI-style server](wiki/OpenAI-Family-Providers.md)
 - [The Responses schema, and Perplexity's Agent API](wiki/Responses-Schema-and-Perplexity.md)
 - [Web-search grounding: one option, typed citations](wiki/Web-Search-Grounding.md)
 - [Creating Custom Tools](wiki/Creating-Custom-Tools.md)

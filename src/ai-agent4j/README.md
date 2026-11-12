@@ -305,7 +305,7 @@ Only the provider line changes; requests, responses, streaming and exceptions st
 // config(key, model) = LLMConfig.builder().apiKey(System.getenv(key)).defaultModel(model).build()
 LLMProvider provider = switch (choice) {
     case "gemini"    -> new GoogleProvider(config("GEMINI_API_KEY", "gemini-2.5-flash"));
-    case "sarvam"    -> new SarvamChatProvider(config("SARVAM_API_KEY", "sarvam-m"));
+    case "sarvam"    -> OpenAiCompatibleProvider.sarvam(config("SARVAM_API_KEY", "sarvam-105b"));
     case "claude"    -> new AnthropicProvider(config("ANTHROPIC_API_KEY", "claude-haiku-4-5"));
     default          -> new OllamaProvider(LLMConfig.builder().defaultModel("llama3.2").build());
 };

@@ -131,7 +131,7 @@ Loom does not decide for you which of your agents are "internal". That depends o
 | `openai/gpt-4o`, `gpt-4o` | OpenAI | `OPENAI_API_KEY` |
 | `xai/grok-4`, `grok-4` | xAI | `XAI_API_KEY` |
 | `ollama/llama3` | A local Ollama server | `OLLAMA_BASE_URL` (default `http://localhost:11434`) |
-| `sarvam/sarvam-m` | Sarvam (Indian languages) | `SARVAM_API_KEY` |
+| `sarvam/sarvam-105b`, `sarvam/glm5.3`, `sarvam/gemma4` | Sarvam (Indian languages, and the open-weight models of its Token Factory) | `SARVAM_API_KEY` |
 | `perplexity/openai/gpt-5.6-sol` | Perplexity | `PERPLEXITY_API_KEY` |
 | `kimi/...`, `qwen/...` | Kimi, Qwen (preview) | `MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY` |
 

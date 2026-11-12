@@ -7,7 +7,7 @@ A `ReActAgent` can ask a model to use tools in two ways:
 | How the model is told about tools | as function definitions in the API request | in the system prompt |
 | How the model asks for one | a structured tool call in the response | a JSON block it writes, which the agent parses |
 | Arguments | the model's own JSON, validated against your schema by the provider | whatever parses |
-| Works with | Gemini and Claude | every provider, including Sarvam and Ollama |
+| Works with | Gemini, Claude and the OpenAI family (OpenAI, xAI, Kimi, Qwen, Sarvam V2, Perplexity) | every provider, including Ollama and the V1 `SarvamChatProvider` |
 
 Native calling is the more reliable path: nothing is parsed out of prose, so a stray code fence, CRLF line endings or a multi-line
 argument cannot break a step. **It is the default** (`ToolCalling.AUTO`) whenever it can be used.
@@ -31,7 +31,7 @@ ReActAgent agent = ReActAgent.builder()
 A prompt of your own decides the protocol, so a custom `systemPrompt` keeps the text loop in `AUTO`. `instructions(...)`, personas and
 skills work in both modes.
 
-Check support with `client.supportsToolCalling()`. Gemini and Claude return true; Sarvam and Ollama return false. Clients that wrap them
+Check support with `client.supportsToolCalling()`. Gemini, Claude and the OpenAI family (Sarvam through `OpenAiCompatibleProvider.sarvam` included) return true; Ollama and the deprecated `SarvamChatProvider` return false. Clients that wrap them
 (`BudgetedLLMClient`, `MaskingLLMClient`) pass the answer through, and `RoutingLLMClient` answers true only when every client it routes to does.
 Sending tools to a client that cannot honour them fails with an `InvalidRequestException`; it is never silently ignored.
 
@@ -82,7 +82,7 @@ holds several calls they run in order.
 
 ## Also fixed: the text protocol
 
-For everything that still uses the text protocol (Sarvam, Ollama, custom prompts, `TEXT` mode), parsing is now tolerant: ` ```JSON `,
+For everything that still uses the text protocol (Ollama, the V1 `SarvamChatProvider`, custom prompts, `TEXT` mode), parsing is now tolerant: ` ```JSON `,
 CRLF line endings, spaces after the fence, a bare JSON reply, and a multi-line `Action Input:` all work. And the confidence score now counts
 a step as a failure by its `StepOutcome` (an exception, an unknown tool, a blocked duplicate), not by whether the tool's reply text begins
 with "Error".
