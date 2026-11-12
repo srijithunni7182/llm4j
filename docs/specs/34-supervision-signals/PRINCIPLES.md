@@ -1,6 +1,6 @@
 # Phase 34: supervision, part two: closing the gaps, progress, signals and `wait any`
 
-Status: **draft for the owner's decision.** Nothing here is built. Phase 33 built `start`, `wait`, `cancel`, `steer` and `supervise` (counted rules, assertions in code, judged assertions); this phase closes what that build left open and adds the three things D1 and D20 of phase 33 deferred: **declared progress**, **signals** and **`wait any`**.
+Status: **final for phase 34 (all decisions taken); not yet built.** Phase 33 built `start`, `wait`, `cancel`, `steer` and `supervise` (counted rules, assertions in code, judged assertions); this phase closes what that build left open and adds the three things D1 and D20 of phase 33 deferred: **declared progress**, **signals** and **`wait any`**.
 The principles of [phase 33](../33-async-workflows/PRINCIPLES.md) all still hold and are not repeated; this file adds what is new. Every choice is in [DECISIONS.md](DECISIONS.md), open, with a recommendation.
 
 ## Where phase 33 stands (so this phase starts from facts)

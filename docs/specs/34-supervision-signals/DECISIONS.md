@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D17 taken; D18 is open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **all eighteen decisions are taken by the owner; the phase is ready to build.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -24,7 +24,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D15 | Testing: signals, a stubbed child, time | **taken** (the vocabulary, a controlled wake, the kill-point extension; principle 22) |
 | D16 | Visibility: the ecosystem for v3 | **taken** (all of it, starter 18 extended, a tutorial chapter of its own) |
 | D17 | Names: `report`, `progress`, `notify`, `signal`, `any` | **taken** (contextual; the parser separates keyword, variable and text by position and shape) |
-| D18 | What stays out of this phase | open |
+| D18 | What stays out of this phase | **taken** (the list is confirmed) |
 
 ## D1. The scope and staging of this phase
 
@@ -313,4 +313,4 @@ The whole ecosystem moves together (the rule of phase 33, D16): graph kinds (`ch
 - Progress as a `supervise` condition on its content (D7 option B).
 - Streaming progress to Fabric as a time series (a refinement of the Children section).
 
-**Decision:** open.
+**Decision (owner): accepted; everything on the list stays out of this phase.** The list: signalling between siblings and an explicit monitor value (D8); a timer that wakes a *sleeping* child in-process (D12; a sleeping child is still resumed by a replay or `weave daemon`); `detach` (not wanted); children on other machines, a scheduler or queue of children, and supervision across suspended runs; a **visual builder** (a graphical editor that writes the script, as opposed to `weave graph`, which only draws it; it needs the language to settle first and would deserve its own spec starting with who it is for); collections and a type system (their own phase); a `remote` A2A agent as a child; `weave generate` for supervisors; progress as a `supervise` condition on its content (D7); a way to unset a sticky signal (D8 amendment); **sending a signal from outside into a top-level run** (a person, a host or another system; a `wait signal` in a run with no parent fails with a message, so signals are parent-to-child and child-to-parent only; it rhymes with `RunJournal.answer` and `RemoteTasks.taskChanged` and would need a host API, authentication of the sender and a decision about who may signal what, so it would deserve its own spec); streaming progress to Fabric as a time series.

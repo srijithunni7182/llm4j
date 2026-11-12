@@ -1,6 +1,6 @@
 # Phase 34 design: closing the gaps, progress, signals and `wait any` (Loom)
 
-Status: **draft for review. Every choice below is a recommendation from [DECISIONS.md](DECISIONS.md), which is still open;** each section names the decision it rests on, and if the owner decides otherwise the section changes. Nothing is built.
+Status: **final for phase 34, ready to build.** Every choice below is a decision the owner took in [DECISIONS.md](DECISIONS.md); each section names the decision it rests on. Nothing is built.
 The facts were read in the merged phase 33 source (`ChildLauncher`, `ChildHandle`, `ChildStatus`, `Judge`, `Trajectory`, `SuperviseEvaluator`, `ControlledChildScheduler`, `CaseRunner`, `LoomParser`) on the day this was written; what was not read is in §7 and in [VERIFICATION.md](VERIFICATION.md).
 Companions: [PRINCIPLES.md](PRINCIPLES.md), [DECISIONS.md](DECISIONS.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), and for what came before [phase 33](../33-async-workflows/DESIGN.md).
 

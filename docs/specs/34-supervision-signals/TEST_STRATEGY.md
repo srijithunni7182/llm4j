@@ -1,6 +1,6 @@
 # Phase 34 test strategy: closing the gaps, progress, signals and `wait any`
 
-Status: **draft for review.** Companion to [DESIGN.md](DESIGN.md); the decisions behind it are D15 and parts of D2, D12 and D14 in [DECISIONS.md](DECISIONS.md), all still open. Nothing is built, so every test below is to be written, and **the guard tests are written before the code they guard**.
+Status: **final for phase 34, ready to build.** Companion to [DESIGN.md](DESIGN.md); the decisions behind it are D15 and parts of D2, D12 and D14 in [DECISIONS.md](DECISIONS.md), all taken. Nothing is built, so every test below is to be written, and **the guard tests are written before the code they guard**.
 It continues [phase 33's strategy](../33-async-workflows/TEST_STRATEGY.md): the same rules (hermetic, behaviour not structure, a guard is tested by breaking it, the tiers stay honest) and the guard numbering carries on from G15.
 
 ## 1. What phase 34 adds to the test tools

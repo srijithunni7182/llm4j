@@ -1,6 +1,6 @@
 # Phase 34 verification plan: closing the gaps, progress, signals and `wait any`
 
-Status: **draft for review. Nothing is built; every row is `not built`.** Section 0 lists what was read and what is still to read; section 1 lists what must be proved. Companions: [DESIGN.md](DESIGN.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [DECISIONS.md](DECISIONS.md), [phase 33 VERIFICATION](../33-async-workflows/VERIFICATION.md).
+Status: **final for phase 34, ready to build. Nothing is built; every row is `not built`.** Section 0 lists what was read and what is still to read; section 1 lists what must be proved. Companions: [DESIGN.md](DESIGN.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [DECISIONS.md](DECISIONS.md), [phase 33 VERIFICATION](../33-async-workflows/VERIFICATION.md).
 **Evidence levels:** E0 read in the source or documents; E1 a unit test; E2 an engine test with scripted models on the controlled scheduler; E3 a kill-and-resume or concurrency test; E4 run by hand on a real provider or process (the owner's gate). No live key is needed; `make test-live` is never run.
 
 ## 0. Survey
