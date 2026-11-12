@@ -54,3 +54,21 @@ cases:
     expect:
       starts: 0
       calls: { Researcher: 0, Editor: 1 }
+  - name: a judge passes the first look and fails the second, so the supervisor steers, all on virtual time
+    input: { question: "How do solar roofs work?" }
+    judges: { TopicJudge: [pass, fail] }
+    models:
+      Planner:
+        topics:
+          - { name: panels, topic: "How panels make power" }
+      Editor: "One report."
+    children:
+      Research:
+        - { state: working, after: 2m }
+        - { state: working, after: 2m }
+        - { state: working, after: 2m }
+        - { state: completed, result: "Panels turn light into current.", after: 1m }
+    expect:
+      result: { contains: "One report" }
+      children: { Research: { status: completed } }
+      fired: [ { rule: 3, action: steer } ]

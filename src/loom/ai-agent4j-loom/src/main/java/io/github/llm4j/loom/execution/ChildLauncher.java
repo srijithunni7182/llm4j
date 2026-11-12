@@ -496,12 +496,16 @@ final class ChildLauncher {
         return null;
     }
 
+    /** Journal key prefix, in a scripted child's journal, of each step it reached. */
+    static final String SCRIPTED = "#scripted.";
+
     /**
      * Plays a scripted child (F5): each step waits its {@code after} on the injected sleeper (the
      * virtual clock in a test, so the supervisor's ticks happen as time passes), then looks for a
      * stop, as a real child does at each step, then becomes what the step says.
      */
     private void runScripted(HarnessExecutor child, ChildHandle handle, ScriptedChild script) {
+        int index = 0;
         for (ScriptedChild.Step step : script.steps()) {
             if (!step.after().isZero()) {
                 try {
@@ -512,6 +516,9 @@ final class ChildLauncher {
                 }
             }
             child.control().checkpoint("scripted child"); // a cancel reaches it here
+            // reaching a step is something the child did: the supervisor's idle time and a judge's
+            // skip-if-nothing-changed both read the journal's size
+            child.journal().put(SCRIPTED + index++, new RunJournal.Entry("scripted", step.state().name()));
             switch (step.state()) {
                 case WORKING -> {}
                 case COMPLETED -> {

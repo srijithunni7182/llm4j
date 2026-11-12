@@ -40,6 +40,13 @@ class StubbedChildTest {
                 set seen = work.status
                 return findings
             }
+            workflow Idle(q) {
+                start Research(topic = q) budget { tokens: 100000 } -> work
+                supervise work { when idle > 3m { cancel use partial } }
+                wait work timeout 20m -> findings
+                set seen = work.status
+                return seen
+            }
             workflow Watched(q) {
                 start Research(topic = q) budget { tokens: 100000 } -> work
                 supervise work { when elapsed > 5m { cancel use partial } }
@@ -142,6 +149,35 @@ class StubbedChildTest {
                                         - { state: completed, result: "in time", after: 1m }
                                     expect:
                                       result: { contains: "completed" }
+                                      children: { Research: { status: completed } }
+                                """));
+
+        assertThat(code).as(out + "\n" + err).isZero();
+    }
+
+    @Test
+    void aScriptedChildThatSitsStillForLongerThanTheIdleRuleIsCancelledAndOneThatKeepsWorkingIsNot() throws Exception {
+        int code =
+                run(
+                        cases(
+                                "Idle",
+                                """
+                                  - name: four quiet minutes is idle
+                                    input: { q: "peru" }
+                                    children:
+                                      Research:
+                                        - { state: working, after: 4m }
+                                        - { state: completed, result: "late", after: 1m }
+                                    expect:
+                                      children: { Research: { status: cancelled } }
+                                  - name: a child that moves every two minutes is never idle
+                                    input: { q: "peru" }
+                                    children:
+                                      Research:
+                                        - { state: working, after: 2m }
+                                        - { state: working, after: 2m }
+                                        - { state: completed, result: "on time", after: 1m }
+                                    expect:
                                       children: { Research: { status: completed } }
                                 """));
 
