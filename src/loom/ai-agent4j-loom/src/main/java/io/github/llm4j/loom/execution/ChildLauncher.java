@@ -1,8 +1,14 @@
 package io.github.llm4j.loom.execution;
 
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.budget.Budget;
 import io.github.llm4j.loom.ast.BudgetDef;
 import io.github.llm4j.loom.ast.HandleRef;
+import io.github.llm4j.loom.ast.CancelStmt;
+import io.github.llm4j.loom.ast.SteerStmt;
+import io.github.llm4j.loom.ast.OutcomeStmt;
+import io.github.llm4j.loom.ast.SuperviseDef;
+import io.github.llm4j.loom.ast.SuperviseStmt;
 import io.github.llm4j.loom.ast.RunStmt;
 import io.github.llm4j.loom.ast.StartStmt;
 import io.github.llm4j.loom.ast.WaitStmt;
@@ -13,6 +19,10 @@ import io.github.llm4j.loom.runtime.RunHalted;
 import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.loom.runtime.RunStopped;
 import io.github.llm4j.loom.runtime.RunSuspended;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.time.Instant;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -40,11 +50,22 @@ final class ChildLauncher {
     /** Journal kind of a {@code wait}: the outcome of each child it waited for. */
     static final String WAIT = "child-wait";
 
-    private final HarnessExecutor executor;
-    /** A child this launcher started: its task, its run and the most it may still spend. */
+    /**
+     * A child this launcher started: where it was started, its task and run, its deadline (wall
+     * clock, or null) and the most it may still spend in each dimension.
+     */
     private record Live(
-            String stepId, ChildScheduler.Task task, HarnessExecutor run, RunJournal journal, Long deadlineMillis, long timeoutMillis, Long capTokens, Long capCalls, BigDecimal capCost) {}
+            String stepId,
+            ChildScheduler.Task task,
+            HarnessExecutor run,
+            RunJournal journal,
+            Long deadlineMillis,
+            long timeoutMillis,
+            Long capTokens,
+            Long capCalls,
+            BigDecimal capCost) {}
 
+    private final HarnessExecutor executor;
     private final Map<ChildHandle, Live> tasks = new IdentityHashMap<>();
 
     ChildLauncher(HarnessExecutor executor) {
@@ -69,6 +90,9 @@ final class ChildLauncher {
                             + " a journal. Run it through LoomHost with persistence, or give the executor"
                             + " ChildRuns (HarnessExecutor.setChildRuns). Use call to run a workflow to"
                             + " completion without that.");
+        if (stmt.getBudget() == null)
+            throw new IllegalStateException(
+                    "start " + stmt.getWorkflow() + " has no budget: a child's spending must be capped. Write budget { tokens: 100000 } on the start.");
         checkLimits(stmt);
         reserve(stmt);
         String bound = boundName(stmt.getTarget()); // a key that is not a plain word is refused before anything starts
@@ -87,9 +111,6 @@ final class ChildLauncher {
                     "the journal entry of " + stepId + " is not a start of child " + childRun
                             + ": the script changed since the run began, or the journal is not this run's");
 
-        if (stmt.getBudget() == null)
-            throw new IllegalStateException(
-                    "start " + stmt.getWorkflow() + " has no budget: a child's spending must be capped. Write budget { tokens: 100000 } on the start.");
         HarnessExecutor.Tracked<Map<String, Object>> args =
                 executor.tracked(() -> argumentValues(stmt));
         long startedAt =
@@ -328,16 +349,17 @@ final class ChildLauncher {
         }
     }
 
+    /** The suspension this launcher's own {@code wait} threw, so the executor can tell it from any other. */
+    private volatile RunSuspended suspendedByWait;
+
     /**
      * The tree suspends, and the process may go, only when nothing can run (D8): every child that is
      * not settled is asleep or waiting for a person. The parent then holds no thread; a resume
      * replays the start, which re-attaches to each child by its id, and waits again. Nothing is
      * journaled for the wait, so the replay waits afresh.
      */
-    private volatile RunSuspended suspendedByWait;
-
     private void suspendIfNothingCanRun(String stepId, Map<String, ChildHandle> handles) {
-        java.time.Instant earliest = null;
+        Instant earliest = null;
         boolean person = false;
         boolean paused = false;
         for (ChildHandle h : handles.values()) {
@@ -436,9 +458,9 @@ final class ChildLauncher {
         long signature = -1;
         List<JudgeSchedule> schedules = List.of();
         boolean[] judgedFiredOnce = new boolean[0];
-        io.github.llm4j.budget.Budget judgeBudget;
-        io.github.llm4j.loom.ast.SuperviseStmt stmt;
-        List<io.github.llm4j.budget.Budget> enclosing = List.of();
+        Budget judgeBudget;
+        SuperviseStmt stmt;
+        List<Budget> enclosing = List.of();
 
         Watch(ChildHandle handle, Live live, SuperviseEvaluator evaluator, String stepId, int sequence) {
             this.handle = handle;
@@ -451,14 +473,15 @@ final class ChildLauncher {
     }
 
     private final List<Watch> watches = new java.util.concurrent.CopyOnWriteArrayList<>();
-    private java.util.concurrent.ScheduledExecutorService ticker;
+    private ScheduledExecutorService ticker;
 
     /**
      * Attaches the rules of a {@code supervise} block to a child for as long as it runs (D21). The
      * rules that fired before a restart are read back from the journal, so a resume does not steer
-     * or cancel twice. Only counted rules run in this build; the other kinds fail closed.
+     * or cancel twice. Counted rules, assertions in code ({@code never calls} is preventive) and judged
+     * assertions are all taken; a judged one needs the block's own budget.
      */
-    void supervise(io.github.llm4j.loom.ast.SuperviseStmt stmt) {
+    void supervise(SuperviseStmt stmt) {
         ChildHandle handle = singleHandle(stmt.getTarget());
         Live live;
         synchronized (tasks) {
@@ -474,11 +497,11 @@ final class ChildLauncher {
         for (Map.Entry<String, RunJournal.Entry> e : executor.journal().all().entrySet()) {
             if (!e.getKey().startsWith(prefix)) continue;
             count++;
-            if (e.getValue().value() instanceof Map<?, ?> m && m.get("rule") instanceof Number n && "fired".equals(m.get("outcome")))
+            if (e.getValue().value() instanceof Map<?, ?> m && m.get("rule") instanceof Number n && ("fired".equals(m.get("outcome")) || INTENT.equals(m.get("outcome"))))
                 before.add(n.intValue());
         }
-        for (io.github.llm4j.loom.ast.SuperviseStmt.CodeAssertion a : stmt.getCode())
-            if (a.kind() == io.github.llm4j.loom.ast.SuperviseStmt.AssertionKind.NEVER_CALLS)
+        for (SuperviseStmt.CodeAssertion a : stmt.getCode())
+            if (a.kind() == SuperviseStmt.AssertionKind.NEVER_CALLS)
                 live.run().forbid(a.name()); // preventive: refused before it runs, narrowing the child
         Watch watch = new Watch(handle, live, new SuperviseEvaluator(stmt, before), stepId, count);
         watch.lastTick = executor.nowMillis(); // the child's time with this block begins now
@@ -568,12 +591,12 @@ final class ChildLauncher {
             boolean ended = false;
             boolean steered = false;
             for (var action : rule.actions()) {
-                if (action.kind() == io.github.llm4j.loom.ast.SuperviseDef.Do.STEER) {
+                if (action.kind() == SuperviseDef.Do.STEER) {
                     if (steered) continue; // one steer a tick
                     steered = true;
                 }
-                apply(w, new SuperviseEvaluator.Firing(ruleIndex, action, "fired", action.kind() != io.github.llm4j.loom.ast.SuperviseDef.Do.STEER), facts);
-                if (action.kind() != io.github.llm4j.loom.ast.SuperviseDef.Do.STEER) {
+                apply(w, new SuperviseEvaluator.Firing(ruleIndex, action, "fired", action.kind() != SuperviseDef.Do.STEER), facts);
+                if (action.kind() != SuperviseDef.Do.STEER) {
                     ended = true;
                     break;
                 }
@@ -598,13 +621,13 @@ final class ChildLauncher {
         long every = executor.superviseTick().toMillis();
         if (every <= 0 || ticker != null) return;
         ticker =
-                java.util.concurrent.Executors.newSingleThreadScheduledExecutor(
+                Executors.newSingleThreadScheduledExecutor(
                         r -> {
                             Thread t = new Thread(r, "loom-supervise");
                             t.setDaemon(true);
                             return t;
                         });
-        ticker.scheduleWithFixedDelay(this::tickSafely, every, every, java.util.concurrent.TimeUnit.MILLISECONDS);
+        ticker.scheduleWithFixedDelay(this::tickSafely, every, every, TimeUnit.MILLISECONDS);
     }
 
     private void tickSafely() {
@@ -671,11 +694,19 @@ final class ChildLauncher {
         return millis / 1000 + " seconds";
     }
 
+    /**
+     * Weights that keep a token, a call and a step from cancelling each other out in {@link
+     * #signatureOf}: any change in any of them changes the number.
+     */
+    private static final long TOKEN_WEIGHT = 31;
+
+    private static final long CALL_WEIGHT = 17;
+
     /** A number that changes whenever the child does something: spends, calls or records a step. */
     private static long signatureOf(Live live) {
         var budget = live.run().getRunBudget();
         var spent = budget == null ? null : budget.spent();
-        return (spent == null ? 0 : spent.tokens() * 31 + spent.calls() * 17) + live.journal().all().size();
+        return (spent == null ? 0 : spent.tokens() * TOKEN_WEIGHT + spent.calls() * CALL_WEIGHT) + live.journal().all().size();
     }
 
     private SuperviseEvaluator.Facts factsOf(Watch w, long now) {
@@ -695,8 +726,29 @@ final class ChildLauncher {
                 w.live.run().trajectory());
     }
 
+    /**
+     * Carries out one firing. A steer or a wrap-up cannot be taken back, so the firing is written
+     * down as an intent <em>before</em> it is delivered and rewritten with its outcome after: a run
+     * that dies between the two finds the intent on resume and does not act again (a cancel is also
+     * protected by the child's own marker).
+     */
     private void apply(Watch w, SuperviseEvaluator.Firing firing, SuperviseEvaluator.Facts facts) {
         String origin = "supervise of " + executor.getRunId() + ", rule " + firing.rule();
+        String key = w.stepId + FIRE + w.sequence++;
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("rule", firing.rule());
+        record.put("action", firing.action().kind().name());
+        record.put("tokens", facts.tokens());
+        record.put("calls", facts.calls());
+        record.put("elapsedMillis", facts.elapsedMillis());
+        record.put("idleMillis", facts.idleMillis());
+        record.put("at", w.live.journal().all().size()); // the child's position: how many steps it had recorded
+        if (firing.delivered()) {
+            record.put("outcome", INTENT);
+            record.put("detail", "about to act");
+            record.put("delivered", 0);
+            executor.journal().put(key, new RunJournal.Entry("supervise", new LinkedHashMap<>(record)));
+        }
         String outcome = firing.outcome();
         int delivered = 0;
         if (firing.delivered()) {
@@ -710,22 +762,20 @@ final class ChildLauncher {
                 case CANCEL -> cancelChild(w.handle, w.live, action.outcome(), "supervise rule " + firing.rule() + " cancelled it");
             }
         }
-        Map<String, Object> record = new LinkedHashMap<>();
-        record.put("rule", firing.rule());
-        record.put("action", firing.action().kind().name());
         record.put("outcome", outcome.startsWith("fired") ? "fired" : outcome);
         record.put("detail", outcome);
         record.put("delivered", delivered);
-        record.put("tokens", facts.tokens());
-        record.put("calls", facts.calls());
-        record.put("elapsedMillis", facts.elapsedMillis());
-        record.put("idleMillis", facts.idleMillis());
-        record.put("at", w.live.journal().all().size()); // the child's position: how many steps it had recorded
-        executor.journal().put(w.stepId + FIRE + w.sequence++, new RunJournal.Entry("supervise", record));
+        executor.journal().put(key, new RunJournal.Entry("supervise", record));
         executor.audit("child_supervise", record);
     }
 
+    /** The outcome written before a firing is delivered; on resume it counts as fired, never as not yet. */
+    private static final String INTENT = "intent";
+
     // ---- steer ----
+
+    /** What a steer's {@code delivered} says until the delivery has been counted. */
+    private static final int PENDING = -1;
 
     /** Journal kind of a {@code steer} statement: who was told, and how many agents took it. */
     static final String STEER = "child-steer";
@@ -735,7 +785,7 @@ final class ChildLauncher {
      * the script. If no such agent is running nothing is delivered, which is recorded and is not an
      * error. Recorded in the parent's journal, so a replay never sends it again.
      */
-    void steer(io.github.llm4j.loom.ast.SteerStmt stmt) {
+    void steer(SteerStmt stmt) {
         String stepId = executor.currentStepId();
         if (executor.journal().get(stepId).isPresent()) return; // sent before a restart: not sent again
         boolean steerable =
@@ -753,14 +803,17 @@ final class ChildLauncher {
         if (live == null)
             throw new IllegalStateException(
                     stmt.getTarget().describe() + " is a handle this run did not start, so it cannot steer it");
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("agent", stmt.getAgent());
+        record.put("delivered", PENDING);
+        record.put("text", stmt.getText());
+        // the intent first: a run that dies after delivering finds it and does not steer again
+        executor.journal().put(stepId, new RunJournal.Entry(STEER, new LinkedHashMap<>(record)));
         int delivered =
                 handle.status().isSettled()
                         ? 0
                         : live.run().steer(stmt.getAgent(), stmt.getText(), "parent " + executor.getRunId() + ", line " + stmt.getLine());
-        Map<String, Object> record = new LinkedHashMap<>();
-        record.put("agent", stmt.getAgent());
         record.put("delivered", delivered);
-        record.put("text", stmt.getText());
         executor.journal().put(stepId, new RunJournal.Entry(STEER, record));
         Map<String, Object> audit = new LinkedHashMap<>(record);
         audit.put("child", live.run().getRunId());
@@ -793,7 +846,7 @@ final class ChildLauncher {
     /** Journal kind of a {@code cancel} statement, in the parent's journal. */
     static final String CANCEL = "child-cancel";
 
-    void cancel(io.github.llm4j.loom.ast.CancelStmt stmt) {
+    void cancel(CancelStmt stmt) {
         if (stmt.getRewindCheckpoint() != null)
             throw new IllegalStateException(
                     "cancel " + stmt.getTarget().describe() + " rewind to " + stmt.getRewindCheckpoint()
@@ -827,12 +880,12 @@ final class ChildLauncher {
      * under way always finishes and is journaled first (there is no forced kill).
      */
     private void cancelChild(
-            ChildHandle handle, Live live, io.github.llm4j.loom.ast.OutcomeStmt.Kind outcome, String reason) {
+            ChildHandle handle, Live live, OutcomeStmt.Kind outcome, String reason) {
         cancelChild(handle, live, outcome, reason, false);
     }
 
     private void cancelChild(
-            ChildHandle handle, Live live, io.github.llm4j.loom.ast.OutcomeStmt.Kind outcome, String reason, boolean timeout) {
+            ChildHandle handle, Live live, OutcomeStmt.Kind outcome, String reason, boolean timeout) {
         if (handle.status().isSettled()) return;
         live.journal()
                 .put(
@@ -842,7 +895,7 @@ final class ChildLauncher {
                                 Map.of("reason", reason, "outcome", outcome == null ? "" : outcome.phrase(), "timeout", timeout)));
         if (handle.status() == ChildStatus.SLEEPING || handle.status() == ChildStatus.WAITING) {
             if (timeout) handle.timedOut(reason);
-            else handle.cancelled(reason, outcome == io.github.llm4j.loom.ast.OutcomeStmt.Kind.USE_PARTIAL ? partialOf(live.run()) : null);
+            else handle.cancelled(reason, outcome == OutcomeStmt.Kind.USE_PARTIAL ? partialOf(live.run()) : null);
             executor.childRuns().settled(live.run().getRunId(), timeout ? ChildStatus.TIMED_OUT : ChildStatus.CANCELLED);
             return;
         }
@@ -865,7 +918,7 @@ final class ChildLauncher {
         if (marker.value() instanceof Map<?, ?> m) {
             reason = String.valueOf(m.get("reason"));
             timeout = Boolean.TRUE.equals(m.get("timeout"));
-            keep = io.github.llm4j.loom.ast.OutcomeStmt.Kind.USE_PARTIAL.phrase().equals(m.get("outcome"));
+            keep = OutcomeStmt.Kind.USE_PARTIAL.phrase().equals(m.get("outcome"));
         }
         if (timeout) handle.timedOut(reason);
         else handle.cancelled(reason, keep ? partialOf(child) : null);
