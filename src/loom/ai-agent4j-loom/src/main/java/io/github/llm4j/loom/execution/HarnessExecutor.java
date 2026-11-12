@@ -4379,8 +4379,45 @@ public class HarnessExecutor implements LoomEngine {
                 java.util.Objects.requireNonNull(scheduler, "scheduler");
     }
 
+    private ChildLimits childLimits = ChildLimits.HOST_DEFAULT;
+    private int childDepth;
+
+    /** The ceilings a script's {@code max_children} and {@code max_depth} may not pass. */
+    public void setChildLimits(ChildLimits limits) {
+        this.childLimits = java.util.Objects.requireNonNull(limits, "limits");
+    }
+
+    ChildLimits childLimits() {
+        return childLimits;
+    }
+
+    /** How many levels below the top workflow this run is: 0 for a run nobody started. */
+    int childDepth() {
+        return childDepth;
+    }
+
+    LoomScript loomScript() {
+        return script;
+    }
+
     ChildRuns childRuns() {
         return childRuns;
+    }
+
+    /**
+     * The budgets whatever this run starts also spends from: the run budget and the loop or step
+     * budgets in scope on this thread. A child is charged to every one of them.
+     */
+    List<io.github.llm4j.budget.Budget> enclosingBudgets() {
+        List<io.github.llm4j.budget.Budget> all = new java.util.ArrayList<>();
+        if (budgets.runBudget() != null) all.add(budgets.runBudget());
+        all.addAll(scopes.get());
+        return List.copyOf(all);
+    }
+
+    /** Called on the thread that runs a child: what it spends is also charged to these. */
+    void installOuterBudgets(List<io.github.llm4j.budget.Budget> outer) {
+        scopes.set(List.copyOf(outer));
     }
 
     ChildScheduler childScheduler() {
@@ -4427,6 +4464,8 @@ public class HarnessExecutor implements LoomEngine {
         child.classifierFactory = classifierFactory;
         child.childRuns = childRuns;
         child.childScheduler = childScheduler;
+        child.childLimits = childLimits;
+        child.childDepth = childDepth + 1;
         return child;
     }
 

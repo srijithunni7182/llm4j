@@ -1,5 +1,6 @@
 package io.github.llm4j.loom.execution;
 
+import io.github.llm4j.loom.ast.BudgetDef;
 import io.github.llm4j.loom.ast.HandleRef;
 import io.github.llm4j.loom.ast.RunStmt;
 import io.github.llm4j.loom.ast.StartStmt;
@@ -11,6 +12,7 @@ import io.github.llm4j.loom.runtime.RunHalted;
 import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.loom.runtime.RunStopped;
 import io.github.llm4j.loom.runtime.RunSuspended;
+import java.math.BigDecimal;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -36,7 +38,11 @@ final class ChildLauncher {
     static final String WAIT = "child-wait";
 
     private final HarnessExecutor executor;
-    private final Map<ChildHandle, ChildScheduler.Task> tasks = new IdentityHashMap<>();
+    /** A child this launcher started: its task, its run and the most it may still spend. */
+    private record Live(
+            ChildScheduler.Task task, HarnessExecutor run, Long capTokens, Long capCalls, BigDecimal capCost) {}
+
+    private final Map<ChildHandle, Live> tasks = new IdentityHashMap<>();
 
     ChildLauncher(HarnessExecutor executor) {
         this.executor = executor;
@@ -45,6 +51,14 @@ final class ChildLauncher {
     // ---- start ----
 
     void start(StartStmt stmt) {
+        // One start at a time: the limits and the reservation are read and the child registered
+        // together, so two branches cannot both take the last of the parent's budget.
+        synchronized (tasks) {
+            startLocked(stmt);
+        }
+    }
+
+    private void startLocked(StartStmt stmt) {
         ChildRuns runs = executor.childRuns();
         if (runs == null)
             throw new IllegalStateException(
@@ -52,6 +66,8 @@ final class ChildLauncher {
                             + " a journal. Run it through LoomHost with persistence, or give the executor"
                             + " ChildRuns (HarnessExecutor.setChildRuns). Use call to run a workflow to"
                             + " completion without that.");
+        checkLimits(stmt);
+        reserve(stmt);
         String parentRun = executor.getRunId();
         if (parentRun == null)
             throw new IllegalStateException(
@@ -67,6 +83,9 @@ final class ChildLauncher {
                     "the journal entry of " + stepId + " is not a start of child " + childRun
                             + ": the script changed since the run began, or the journal is not this run's");
 
+        if (stmt.getBudget() == null)
+            throw new IllegalStateException(
+                    "start " + stmt.getWorkflow() + " has no budget: a child's spending must be capped. Write budget { tokens: 100000 } on the start.");
         HarnessExecutor.Tracked<Map<String, Object>> args =
                 executor.tracked(() -> argumentValues(stmt));
         if (recorded.isEmpty())
@@ -78,11 +97,12 @@ final class ChildLauncher {
 
         HarnessExecutor child = executor.deriveChild(childRun, runs.openJournal(childRun));
         args.value().forEach((name, value) -> child.bind(name, value, args.tag()));
-        if (stmt.getBudget() != null)
-            child.setBudgetOverrides(
-                    stmt.getBudget().getTokens(),
-                    stmt.getBudget().getCalls(),
-                    stmt.getBudget().getCost());
+        BudgetDef scripted = executor.loomScript().getBudget();
+        Long capTokens = smaller(stmt.getBudget().getTokens(), scripted == null ? null : scripted.getTokens());
+        Long capCalls = smaller(stmt.getBudget().getCalls(), scripted == null ? null : scripted.getCalls());
+        BigDecimal capCost = smaller(stmt.getBudget().getCost(), scripted == null ? null : scripted.getCost());
+        child.setBudgetOverrides(capTokens, capCalls, capCost);
+        var enclosing = executor.enclosingBudgets();
 
         ChildHandle handle = new ChildHandle(childRun, stmt.getWorkflow());
         var invoker = executor.currentInvoker();
@@ -93,16 +113,96 @@ final class ChildLauncher {
                                 childRun,
                                 () -> {
                                     try {
+                                        child.installOuterBudgets(enclosing);
                                         runChild(child, handle, workflow, invoker);
                                     } finally {
                                         runs.settled(childRun, handle.status());
                                     }
                                 });
         synchronized (tasks) {
-            tasks.put(handle, task);
+            tasks.put(handle, new Live(task, child, capTokens, capCalls, capCost));
         }
         executor.bind(boundName(stmt.getTarget()), handle, Provenance.NOT_MODEL);
         log.info("Started child " + childRun + " (" + workflow + ")");
+    }
+
+    /** Refuses a start past a limit, naming it; nothing is queued and nothing is journaled (D14). */
+    private void checkLimits(StartStmt stmt) {
+        ChildLimits ceiling = executor.childLimits();
+        Integer scriptChildren = executor.loomScript().getMaxChildren();
+        Integer scriptDepth = executor.loomScript().getMaxDepth();
+        if (scriptChildren != null && scriptChildren > ceiling.ceilingChildren())
+            throw new IllegalStateException(
+                    "max_children: " + scriptChildren + " is above this host's ceiling of "
+                            + ceiling.ceilingChildren() + ". Lower it, or ask the host to raise its ceiling.");
+        if (scriptDepth != null && scriptDepth > ceiling.ceilingDepth())
+            throw new IllegalStateException(
+                    "max_depth: " + scriptDepth + " is above this host's ceiling of "
+                            + ceiling.ceilingDepth() + ". Lower it, or ask the host to raise its ceiling.");
+        int maxChildren = scriptChildren != null ? scriptChildren : Math.min(ChildLimits.DEFAULT_MAX_CHILDREN, ceiling.ceilingChildren());
+        int maxDepth = scriptDepth != null ? scriptDepth : Math.min(ChildLimits.DEFAULT_MAX_DEPTH, ceiling.ceilingDepth());
+        if (executor.childDepth() + 1 > maxDepth)
+            throw new IllegalStateException(
+                    "start " + stmt.getWorkflow() + " would nest children " + (executor.childDepth() + 1)
+                            + " levels deep, past max_depth: " + maxDepth
+                            + ". A started workflow that starts workflows is one level deeper; raise max_depth or start fewer levels.");
+        long live;
+        synchronized (tasks) {
+            live = tasks.keySet().stream().filter(h -> !h.status().isSettled()).count();
+        }
+        if (live >= maxChildren)
+            throw new IllegalStateException(
+                    "start " + stmt.getWorkflow() + " would be child number " + (live + 1)
+                            + ", past max_children: " + maxChildren
+                            + ". A start does not queue: wait for or cancel a child first, or raise max_children.");
+    }
+
+    /**
+     * Refuses a start the parent could not pay for (D11): the child's cap, with what the other live
+     * children could still spend, must fit in what the parent has left. A child's spending is
+     * already in the parent's budget, so a live child holds back only what it has not yet spent.
+     * Nothing is journaled for a refused start.
+     */
+    private void reserve(StartStmt stmt) {
+        BudgetDef cap = stmt.getBudget();
+        long heldTokens = 0;
+        long heldCalls = 0;
+        BigDecimal heldCost = BigDecimal.ZERO;
+        for (Map.Entry<ChildHandle, Live> e : tasks.entrySet()) {
+            if (e.getKey().status().isSettled()) continue;
+            Live live = e.getValue();
+            var own = live.run().getRunBudget();
+            var spent = own == null ? null : own.spent();
+            if (live.capTokens() != null)
+                heldTokens += Math.max(0, live.capTokens() - (spent == null ? 0 : spent.tokens()));
+            if (live.capCalls() != null)
+                heldCalls += Math.max(0, live.capCalls() - (spent == null ? 0 : spent.calls()));
+            if (live.capCost() != null)
+                heldCost = heldCost.add(live.capCost().subtract(spent == null ? BigDecimal.ZERO : spent.cost()).max(BigDecimal.ZERO));
+        }
+        for (var budget : executor.enclosingBudgets()) {
+            var left = budget.remaining();
+            String who = "the budget " + budget.name();
+            if (cap.getTokens() != null && left.tokens().isPresent() && cap.getTokens() > left.tokens().getAsLong() - heldTokens)
+                refuseReservation(stmt, who, cap.getTokens() + " tokens", left.tokens().getAsLong(), heldTokens);
+            if (cap.getCalls() != null && left.calls().isPresent() && cap.getCalls() > left.calls().getAsLong() - heldCalls)
+                refuseReservation(stmt, who, cap.getCalls() + " calls", left.calls().getAsLong(), heldCalls);
+            if (cap.getCost() != null && left.cost().isPresent() && cap.getCost().compareTo(left.cost().get().subtract(heldCost)) > 0)
+                refuseReservation(stmt, who, "$" + cap.getCost().toPlainString(), left.cost().get().longValue(), heldCost.longValue());
+        }
+    }
+
+    private static void refuseReservation(StartStmt stmt, String who, String wanted, long left, long held) {
+        throw new IllegalStateException(
+                "start " + stmt.getWorkflow() + " cannot reserve " + wanted + ": " + who + " has " + left
+                        + " left and the other live children could still spend " + held
+                        + ". Start fewer children, give each a smaller budget, or wait for one to finish first.");
+    }
+
+    private static <T extends Comparable<T>> T smaller(T a, T b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a.compareTo(b) <= 0 ? a : b;
     }
 
     /** The body of a child: its whole run, ending in a status on the handle. */
@@ -123,6 +223,8 @@ final class ChildLauncher {
             handle.end(ChildStatus.STOPPED, stopped.getMessage());
         } catch (RunHalted halted) {
             handle.end(ChildStatus.FAILED, "halted: " + halted.reason());
+        } catch (io.github.llm4j.budget.BudgetExceeded exhausted) {
+            handle.end(ChildStatus.FAILED, "budget: " + exhausted.getMessage());
         } catch (RuntimeException failed) {
             handle.end(ChildStatus.FAILED, String.valueOf(failed.getMessage()));
         } catch (Error died) {
@@ -181,7 +283,8 @@ final class ChildLauncher {
         for (ChildHandle h : handles.values()) {
             ChildScheduler.Task task;
             synchronized (tasks) {
-                task = tasks.get(h);
+                Live live = tasks.get(h);
+                task = live == null ? null : live.task();
             }
             if (task == null || h.status().isSettled()) continue;
             try {

@@ -705,6 +705,7 @@ public final class LoomHost implements AutoCloseable {
         ex.setLenient(o.lenient);
         if (!o.toolReach.isEmpty()) ex.setToolReach(o.toolReach);
         if (o.taskRegistry != null) ex.setTaskRegistry(o.taskRegistry);
+        if (o.childLimits != null) ex.setChildLimits(o.childLimits);
         if (o.promptRegistry != null) ex.setPromptRegistry(o.promptRegistry);
         if (o.priceTable != null) ex.setPriceTable(o.priceTable);
         if (o.maxTokens != null || o.maxCalls != null || o.maxCost != null)
@@ -859,6 +860,7 @@ public final class LoomHost implements AutoCloseable {
         private final ToolRegistry tools;
         private final LLMClientFactory models;
         private Persistence persistence = Persistence.none();
+        private io.github.llm4j.loom.execution.ChildLimits childLimits;
         private Path baseDir;
         private String scriptRef;
         private Path scriptFile;
@@ -891,6 +893,16 @@ public final class LoomHost implements AutoCloseable {
             this.script = java.util.Objects.requireNonNull(script, "script");
             this.tools = java.util.Objects.requireNonNull(tools, "tools");
             this.models = java.util.Objects.requireNonNull(models, "models");
+        }
+
+        /**
+         * The ceilings a script's {@code max_children} and {@code max_depth} may not pass, and so
+         * how large a tree of started workflows can get under this host. The default allows a
+         * script four times the defaults of 8 children and 2 levels.
+         */
+        public Builder childLimits(io.github.llm4j.loom.execution.ChildLimits limits) {
+            this.childLimits = java.util.Objects.requireNonNull(limits, "limits");
+            return this;
         }
 
         public Builder persistence(Persistence p) {
