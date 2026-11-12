@@ -7,7 +7,17 @@ public class WorkflowDef implements Node {
     private final String name;
     private final List<String> parameters = new ArrayList<>();
     private final List<Statement> statements = new ArrayList<>();
+    private ProgressDecl progress;
     private int line;
+
+    /** What this workflow may report about itself, or null when it declares no progress. */
+    public ProgressDecl getProgress() {
+        return progress;
+    }
+
+    public void setProgress(ProgressDecl progress) {
+        this.progress = progress;
+    }
 
     public WorkflowDef(String name) {
         this.name = name;

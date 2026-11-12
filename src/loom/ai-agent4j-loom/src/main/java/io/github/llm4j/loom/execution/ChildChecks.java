@@ -47,7 +47,7 @@ final class ChildChecks {
     static final Set<String> FACTS =
             Set.of(
                     "status", "result", "partial", "reason", "failure", "tokens", "cost", "calls",
-                    "elapsed", "idle", "wakes");
+                    "elapsed", "idle", "wakes", "progress");
 
     /** The shortest cadence of a judge, in milliseconds (D26). */
     static final long JUDGE_FLOOR_MILLIS = 30_000;

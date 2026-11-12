@@ -29,6 +29,9 @@ final class ChildSentences {
             return "The agent " + x.getAgent() + " of " + x.getTarget().describe()
                     + " is told, in these words: \"" + x.getText() + "\"";
         if (s instanceof SuperviseStmt x) return supervise(x);
+        if (s instanceof io.github.llm4j.loom.ast.ReportStmt x)
+            return "The workflow reports where it is: " + String.join(", ", x.getValue().fields().keySet())
+                    + ". Whoever started it can read the latest report, as text it cannot trust.";
         return null;
     }
 
@@ -112,6 +115,9 @@ final class ChildSentences {
             case CALLS_BEFORE -> "the child must call " + a.name() + " before " + a.other();
             case REACHES_WITHIN ->
                     "the child must reach the checkpoint " + a.name() + " within " + duration(a.withinMillis());
+            case CHANGES_WITHIN ->
+                    "the child's reported " + a.name() + " must change at least every " + duration(a.withinMillis())
+                            + " of running time (only whether it moves is looked at, never what it says)";
         };
     }
 

@@ -992,6 +992,11 @@ public class HarnessExecutor implements LoomEngine {
         VariableContext scope = view();
         Object exact = scope.originOf(path);
         int dot = path.indexOf('.');
+        // what a child reports about itself is the child's own words: never trusted (D6)
+        int progress = path.indexOf(".progress");
+        if (progress > 0
+                && ConditionEvaluator.resolvePath(path.substring(0, progress), scope)
+                        instanceof io.github.llm4j.loom.runtime.ChildHandle) return Provenance.UNCHECKED;
         if (dot > 0) {
             Object head = scope.originOf(path.substring(0, dot));
             if (exact != head && exact instanceof Provenance.Tag t) return t; // recorded for this path
@@ -3165,7 +3170,7 @@ public class HarnessExecutor implements LoomEngine {
      * A script's value as a plain Java value: texts have their placeholders filled in, a reference
      * keeps the type of what it names.
      */
-    private Object valueOf(io.github.llm4j.loom.ast.ValueExpr value, String where) {
+    Object valueOf(io.github.llm4j.loom.ast.ValueExpr value, String where) {
         if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Text t)
             return resolvePayload(t.text());
         if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Num n) {
@@ -3193,6 +3198,30 @@ public class HarnessExecutor implements LoomEngine {
             out.put(f.getKey(), valueOf(f.getValue(), where));
         }
         return out;
+    }
+
+    private final ProgressLog progressLog = new ProgressLog();
+
+    /**
+     * {@code report { ... }} (phase 34b): writes the fields, checked against the workflow's {@code
+     * progress} declaration and the size and count bounds, into this run's own journal. A report
+     * over a bound is dropped and recorded, never an error that stops the run.
+     */
+    @SuppressWarnings("unchecked")
+    private void executeReport(io.github.llm4j.loom.ast.ReportStmt report) {
+        io.github.llm4j.loom.ast.ProgressDecl decl = ProgressDecls.of(script, report);
+        if (decl == null)
+            throw new IllegalStateException("report needs the workflow to declare what it reports: progress { ... }");
+        Tracked<Object> value = tracked(() -> valueOf(report.getValue(), "report"));
+        ProgressLog.Result result =
+                progressLog.write(journal, step.get(), decl, (Map<String, Object>) value.value(), nowMillis());
+        if (!result.kept()) {
+            Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("step", step.get());
+            data.put("reason", result.reason());
+            audit("progress_dropped", data);
+            log.warning("a progress report was dropped: " + result.reason());
+        }
     }
 
     static final class HandoffSignal extends RuntimeException {
@@ -3302,6 +3331,8 @@ public class HarnessExecutor implements LoomEngine {
             trace(TraceEvent.NOTE, null, noteText, null);
         } else if (stmt instanceof io.github.llm4j.loom.ast.HaltStmt halt) {
             executeHalt(halt);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.ReportStmt report) {
+            executeReport(report);
         } else if (stmt instanceof io.github.llm4j.loom.ast.SetStmt set) {
             Tracked<Object> value =
                     tracked(() -> valueOf(set.getValue(), "set " + set.getName()));

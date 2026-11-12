@@ -265,6 +265,7 @@ final class ChildLauncher {
                                 args.tag(),
                                 executor.enclosingBudgets(),
                                 executor.currentInvoker()));
+        handle.progressFrom(() -> ProgressLog.latest(childJournal));
         launch(handle, live, null);
         if (deadline != null) startTicking();
         synchronized (tasks) {

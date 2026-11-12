@@ -79,7 +79,9 @@ public final class SuperviseStmt extends LocatedStatement {
         NEVER_CALLS,
         CALLS_AT_MOST,
         CALLS_BEFORE,
-        REACHES_WITHIN
+        REACHES_WITHIN,
+        /** {@code assert progress.<field> changes within <duration>}: movement, never meaning (D7). */
+        CHANGES_WITHIN
     }
 
     /**

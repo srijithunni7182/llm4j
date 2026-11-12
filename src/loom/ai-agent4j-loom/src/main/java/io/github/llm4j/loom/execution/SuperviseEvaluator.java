@@ -26,7 +26,19 @@ public final class SuperviseEvaluator {
             BigDecimal cost,
             long elapsedMillis,
             long idleMillis,
-            Trajectory.Snapshot trajectory) {
+            Trajectory.Snapshot trajectory,
+            java.util.Map<String, Long> unchangedMillis) {
+
+        public Facts {
+            unchangedMillis = java.util.Map.copyOf(unchangedMillis);
+        }
+
+        /** As a child that has declared no progress: nothing to say about how long a field has stood still. */
+        public Facts(
+                long tokens, long calls, BigDecimal cost, long elapsedMillis, long idleMillis,
+                Trajectory.Snapshot trajectory) {
+            this(tokens, calls, cost, elapsedMillis, idleMillis, trajectory, java.util.Map.of());
+        }
 
         /** The counters alone, for a child whose calls are not in question. */
         public Facts(long tokens, long calls, BigDecimal cost, long elapsedMillis, long idleMillis) {
@@ -117,6 +129,8 @@ public final class SuperviseEvaluator {
                 yield after >= 0 && (before < 0 || before > after);
             }
             case REACHES_WITHIN -> !t.reached().contains(a.name()) && facts.elapsedMillis() > a.withinMillis();
+            // movement only, never what the value says (D7): the field has stood still for too long
+            case CHANGES_WITHIN -> facts.unchangedMillis().getOrDefault(a.name(), 0L) > a.withinMillis();
         };
     }
 

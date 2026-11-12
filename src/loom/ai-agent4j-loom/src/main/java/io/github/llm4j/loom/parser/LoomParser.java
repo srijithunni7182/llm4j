@@ -484,6 +484,9 @@ public class LoomParser {
                 } while (match(TokenType.COMMA));
             }
             consume(TokenType.RPAREN, "Expect ')' after parameters.");
+            // contextual (D17): `progress` is a keyword only here, right after ')' and before '{'
+            if (isWord("progress") && peekAt(1).getType() == TokenType.LBRACE)
+                workflow.setProgress(parseProgressDecl());
         }
 
         consume(TokenType.LBRACE, "Expect '{' before workflow body.");
@@ -494,6 +497,44 @@ public class LoomParser {
 
         consume(TokenType.RBRACE, "Expect '}' after workflow body.");
         return workflow;
+    }
+
+    /** {@code progress { field: type, ... }}: one flat level of scalar types (D6). */
+    private io.github.llm4j.loom.ast.ProgressDecl parseProgressDecl() {
+        Token word = advance();
+        consume(TokenType.LBRACE, "Expect '{' after progress.");
+        java.util.Map<String, SchemaDef> fields = new java.util.LinkedHashMap<>();
+        if (check(TokenType.RBRACE))
+            throw error(peek(), "progress { } needs at least one field, such as progress { stage: string, done: number }.");
+        do {
+            Token field = advance();
+            if (field.getValue() == null || !field.getValue().matches("[A-Za-z_][A-Za-z0-9_]*"))
+                throw error(field, "Expect a progress field name.");
+            if (fields.containsKey(field.getValue()))
+                throw error(field, "The progress field " + field.getValue() + " is declared twice.");
+            consume(TokenType.COLON, "Expect ':' after the progress field " + field.getValue() + ".");
+            if (check(TokenType.LBRACE))
+                throw error(peek(), "progress is one flat level: " + field.getValue() + " cannot hold an object. Use string, number, boolean or enum[...].");
+            SchemaDef type = parseSchema();
+            if (type.getType() == SchemaDef.Type.LIST || type.getType() == SchemaDef.Type.OBJECT)
+                throw error(
+                        previous(),
+                        "progress is one flat level: the field " + field.getValue() + " cannot be a list or an object. Use string, number, boolean or enum[...].");
+            fields.put(field.getValue(), type);
+        } while (match(TokenType.COMMA));
+        consume(TokenType.RBRACE, "Expect '}' after the progress fields.");
+        return new io.github.llm4j.loom.ast.ProgressDecl(fields, word.getLine());
+    }
+
+    /** {@code report { field: value, ... }}: flat values only. */
+    private io.github.llm4j.loom.ast.ReportStmt parseReport() {
+        advance();
+        io.github.llm4j.loom.ast.ValueExpr value = parseValue();
+        io.github.llm4j.loom.ast.ValueExpr.Obj obj = (io.github.llm4j.loom.ast.ValueExpr.Obj) value;
+        for (var e : obj.fields().entrySet())
+            if (e.getValue() instanceof io.github.llm4j.loom.ast.ValueExpr.Obj)
+                throw error(previous(), "report is one flat level: " + e.getKey() + " cannot hold an object. Give a text, a number, true or false, or a variable.");
+        return new io.github.llm4j.loom.ast.ReportStmt(obj);
     }
 
     /** Parses one statement and records the line its first token is on. */
@@ -536,6 +577,8 @@ public class LoomParser {
             return parseCallStmt();
         } else if (parseOutcomeAhead()) {
             return pendingOutcome;
+        } else if (isWord("report") && peekAt(1).getType() == TokenType.LBRACE) {
+            return parseReport(); // contextual (D17): only `report {` at the start of a statement
         } else if (isWord("checkpoint") && peekAt(1).getType() == TokenType.IDENTIFIER) {
             return parseCheckpoint();
         } else if (isWord("rewind") && peekAt(1).getType() == TokenType.TO) {
@@ -1969,10 +2012,23 @@ public class LoomParser {
                             new SuperviseStmt.CodeAssertion(
                                     SuperviseStmt.AssertionKind.REACHES_WITHIN, checkpoint.getValue(),
                                     null, null, within, block.once(), block.actions(), line));
+        } else if (peek().getValue() != null
+                && peek().getValue().startsWith("progress.")
+                && "changes".equals(peekAt(1).getValue())) {
+            String field = advance().getValue().substring("progress.".length());
+            advance(); // changes
+            expectWord("within", "Write: assert progress.done changes within 5m { ... }");
+            long within = durationMillis();
+            ActionBlock block = parseActionBlock("assert progress", assertion, false);
+            stmt.getCode()
+                    .add(
+                            new SuperviseStmt.CodeAssertion(
+                                    SuperviseStmt.AssertionKind.CHANGES_WITHIN, field, null, null,
+                                    within, block.once(), block.actions(), line));
         } else {
             throw error(
                     peek(),
-                    "An assertion is: never calls <name>, calls <name> at most N times, calls A before B, reaches \"checkpoint\" within 10m, or a quoted sentence judged using an evaluator.");
+                    "An assertion is: never calls <name>, calls <name> at most N times, calls A before B, reaches \"checkpoint\" within 10m, progress.<field> changes within 5m, or a quoted sentence judged using an evaluator.");
         }
     }
 

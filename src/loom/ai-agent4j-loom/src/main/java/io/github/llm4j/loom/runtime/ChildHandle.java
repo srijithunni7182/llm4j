@@ -17,6 +17,16 @@ public final class ChildHandle {
     private volatile String failure;
     private volatile java.time.Instant wakes;
     private volatile Object partial;
+    private volatile java.util.function.Supplier<java.util.Map<String, Object>> progress =
+            java.util.Map::of;
+
+    /**
+     * Where this handle reads the child's latest declared progress from (phase 34b): the child's
+     * own journal, so it is the same after a restart. Set by whoever launched the child.
+     */
+    public void progressFrom(java.util.function.Supplier<java.util.Map<String, Object>> reader) {
+        this.progress = java.util.Objects.requireNonNull(reader, "reader");
+    }
 
     /**
      * A handle for the child run {@code runId}, started from {@code workflow}.
@@ -109,8 +119,8 @@ public final class ChildHandle {
     }
 
     /**
-     * A fact a script may read: {@code status}, {@code result}, {@code partial}, {@code reason} or
-     * {@code failure}.
+     * A fact a script may read: {@code status}, {@code result}, {@code partial}, {@code reason},
+     * {@code failure} or {@code progress} (a map of the child's latest report, empty before the first).
      * The result exists only for a completed child: reading it otherwise is an error that names the
      * status (D9).
      *
@@ -130,6 +140,7 @@ public final class ChildHandle {
                                     + ". Check it first: alt (handle is ok) { ... }");
                 yield result;
             }
+ case "progress" -> progress.get();
             case "wakes" -> wakes == null ? null : wakes.toString();
             case "partial" -> partial;
             case "reason" -> reason;
