@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D15, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D16, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -26,7 +26,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D13 | What `cancel` means | **taken** (existing outcomes; effects finish first; `h.partial`; rewind to a declared checkpoint) |
 | D14 | Limits on the tree | **taken** (`max_children`, `max_depth`, bounded starts in loops; a start over a limit fails) |
 | D15 | Authority and security | **taken** (authority narrows; the audit counts the child; LA28 for steering; provenance across the boundary) |
-| D16 | Visibility | open |
+| D16 | Visibility | **taken** (the whole ecosystem in one scope; Fabric stays flat with a parent link) |
 | D17 | Tests | open |
 | D18 | The Java side | open |
 | D19 | Names | **partly taken** (`wait`, `notify` are the owner's) |
@@ -337,7 +337,16 @@ tutorial, wiki, README census, release notes).
 
 **Recommendation:** child runs appear as runs, linked to the parent; a tree view is a refinement.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed, and all of it is in one scope: the whole ecosystem moves together.**
+- **`weave graph`:** new node kinds `start`, `wait` and `cancel`; a dotted edge from a `start` to the `wait` or `supervise` that uses its handle; `supervise` on a handle drawn like the existing supervise handlers; `scripts/sync-graph-render.sh` keeps the shared renderer in step.
+- **`weave explain`:** plain sentences for start, wait, cancel and each supervise rule.
+- **`weave timeline` and `weave why`:** a child is a run of its own (D3), so `why <child folder>` works as is; in the parent a `start` step shows the child's id and outcome, and `timeline` shows children as a tree under the parent.
+- **Fabric and the live page:** the registry stays flat (keyed by process name and trace id, which is how it works today) and gains a **parent run attribute** on a child's records; the run list groups children under the parent, the parent row shows how many children are in each status, and the run page has a **Children** section with each child's status, tokens and elapsed time; the parent's cost view shows the total including children (D11). Option B (nesting inside the parent's run state) is not taken.
+- **Incidents:** none new in v1; each child run is watched by the existing detectors as a run of its own.
+- **VS Code:** grammar, snippets, hover, the parser-parity baseline and a `CHANGELOG` line. **Compatibility kit:** scenarios for start, wait, cancel and supervise, including restart and replay.
+- **Starter and tutorial:** a new starter (18) for the supervisor with tests and its picture (`StartersTest`), and a tutorial chapter.
+- **Docs and skills:** a section in `LOOM_GUIDE.md`, `LOOM_PROMPT.md`, a wiki page, the README tables, `llms.txt`, the release notes, the workflow guide's chapter, the audit rule in `docs/security/weave-audit.md` and the OWASP mapping; in the skills, a "supervisor" pattern in `llm4j-workflow-patterns` and a row for children in `llm4j-run-debugging`'s triage.
+- Nothing is held back for a follow-up. Read for this decision: `RunRegistry`, `RunState` and `Snapshot` in `loom-inspect-core` (no parent link exists today).
 
 ## D17. What does a test look like?
 
