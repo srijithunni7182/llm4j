@@ -56,6 +56,50 @@ final class ChildAudit {
         }
     }
 
+    /** LA29: each judged assertion, what its judge can see and what it can cause. */
+    static void judges(LoomScript script, List<Finding> findings) {
+        for (WorkflowDef w : script.getWorkflows())
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (!(s instanceof SuperviseStmt supervise)) return;
+                        for (SuperviseStmt.Judged j : supervise.getJudged()) {
+                            List<String> causes = new ArrayList<>();
+                            for (SuperviseDef.Action a : j.actions())
+                                causes.add(
+                                        switch (a.kind()) {
+                                            case STEER -> "steer";
+                                            case WRAP_UP -> "wrap_up";
+                                            case CANCEL -> "cancel use partial";
+                                        });
+                            findings.add(
+                                    new Finding(
+                                            "LA29",
+                                            j.seeingContent() ? Severity.LOW : Severity.INFO,
+                                            List.of(Owasp.LLM01, Owasp.LLM06),
+                                            w.getName() + " / supervise " + supervise.getTarget().describe(),
+                                            j.line(),
+                                            j.seeingContent()
+                                                    ? "A judge reads what a child produced"
+                                                    : "A model judges a started workflow",
+                                            "The judge "
+                                                    + j.evaluator()
+                                                    + " is asked, at most "
+                                                    + j.max()
+                                                    + " times, whether \""
+                                                    + j.text()
+                                                    + "\". It sees "
+                                                    + (j.seeingContent()
+                                                            ? "content: what the child produced, which may carry instructions written by someone else"
+                                                            : "facts only: what was called, how often, in what order, and for how long")
+                                                    + ", answers pass or fail, and a fail can only cause: "
+                                                    + String.join(", ", causes)
+                                                    + " (text fixed in the script). It is a model's opinion; it is not under the earned-autonomy ladder.",
+                                            "Prefer a counted rule or an assertion in code where a count can say it; keep seeing content for a judge you trust with that text; give the judge a small budget."));
+                        }
+                    });
+    }
+
     private static boolean steers(SuperviseStmt s) {
         List<List<SuperviseDef.Action>> all = new ArrayList<>();
         s.getCounted().forEach(r -> all.add(r.actions()));

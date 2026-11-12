@@ -1567,6 +1567,7 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 - **`remote` / `agent_channel` / `ask`**: Call an agent another organisation runs over A2A. See [Calling an agent that someone else runs](#calling-an-agent-that-someone-else-runs-remote-agent_channel-ask).
 - **`expose`**: Let other agents call a workflow over A2A. See [Letting others call a workflow](#letting-others-call-a-workflow-expose-weave-card).
 - **`supervise` / `intervention` / `on_stopped`**: Rules that watch an agent, and what a run does when a person steers or stops it. See [Steering, Stopping and Wrapping Up an Agent](#steering-stopping-and-wrapping-up-an-agent).
+- **`start` / `wait` / `cancel` / `steer` / `supervise <handle>`**: Start a workflow as a child run of its own without waiting for it, then wait for it, cancel it, steer it and watch it with rules. See [Starting workflows and supervising them](#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise).
 - **`checkpoint` / `rewind`**: Name a point and go back to it. See [Checkpoints, Rewind and Fork](#checkpoints-rewind-and-fork).
 - **`decision` / `decide`**: Earned autonomy. See [Earned Autonomy](#earned-autonomy).
 
@@ -2891,6 +2892,75 @@ workflow RobustTask() {
         }
 }
 ```
+
+### Starting workflows and supervising them (`start`, `wait`, `cancel`, `steer`, `supervise`)
+
+`call` runs a workflow to the end before the next line. `start` does not: it gives the workflow a run of its own (a **child**), hands back a **handle** at once, and the script goes on. The script can then wait for the child, cancel it, steer it, read facts about it, and set rules that watch it while it runs. One workflow can run, watch and operate others, and the guarantees of a run come with it: the child has its own journal and budget, a restart finds it again, and an effect is never repeated.
+
+```loom
+substitution: braces
+max_children: 3
+
+evaluator TopicJudge { model: "gemini-2.5-flash" }
+agent Researcher { model: "gemini-2.5-flash" system: "Research the topic." steerable: true streaming: true }
+agent Editor { model: "gemini-2.5-flash" system: "Write the report." }
+
+workflow Research(topic) {
+    delegate "Find sources on {topic}" to Researcher -> notes
+    checkpoint collected
+    return notes
+}
+
+workflow Main(question) {
+    start Research(topic = question) timeout 20m budget { tokens: 100000 } -> work
+    supervise work budget { tokens: 20000 } {
+        when tokens > 90000 { cancel use partial }
+        when idle > 3m      { steer "You seem stuck. Narrow the topic." once }
+        assert reaches "collected" within 10m { steer "Narrow the topic." once }
+        assert "searches only for the topic" using TopicJudge every 2m max 4 { steer "Go back to the topic." once }
+    }
+    wait work timeout 25m -> findings
+    alt (work is ok) {
+        delegate "Question: {question}\nFindings:\n{findings}" to Editor -> report
+        return report
+    }
+    halt "the research did not finish: {work.status}"
+}
+```
+
+**The statements**
+
+| Statement | What it does |
+|---|---|
+| `start W(args) [timeout D] budget { ... } -> h` | Starts workflow `W` as a child and binds a handle to `h` (a variable, or one key of a keyed variable: `-> work[topic.name]`). The `budget` is required, and so is `timeout` on every `wait`. |
+| `wait h timeout D -> r` | Parks until the child settles or the timeout passes, then returns either way. `wait all work timeout D -> results` waits for every child in a keyed variable and records every outcome, failed ones too. `on_timeout { }` and `on_failure { }` are optional. |
+| `cancel h [use partial \| skip \| discard \| conclude] [reason "..."]` | Stops a child. An effect under way finishes and is journaled first; the child then stops at its next step. `use partial` keeps what it had produced as `h.partial`. Cancelling a child that already settled changes nothing. |
+| `steer h Agent "text"` | Tells one agent of the child what to do next. Only agents the child's author marked `steerable: true` can be steered, and the text is literal: a placeholder in it is a load error. If no such agent is running, nothing is delivered, which is recorded and is not an error. |
+| `supervise h [budget { }] { rules }` | Watches the child for as long as it runs. One block for each handle. |
+
+**A handle is opaque.** It is held by the script, never by a model: `{h}` in a prompt, a handle given to a task or a tool, or a handle returned from a workflow is a load error. You read facts about it instead: `h.status`, `h.result`, `h.partial`, `h.reason`, `h.failure`, and `h is ok`.
+
+**What a child's status can be:** `running`, `sleeping`, `waiting` (on a person), `completed`, `failed`, `stopped`, `cancelled`. `h is ok` is true only for `completed`. The result exists only for a completed child: reading `h.result` of any other is an error that names the status, so guard it with `alt (h is ok)`. A child's result and `h.partial` come back marked `unchecked`, like any model-written text.
+
+**Waiting.** A `wait` parks while a child is running, and the children keep running and stay supervised. When nothing can run (every child is asleep or waiting for a person) the whole tree suspends and the process may exit; running the parent again finds each child by its run id and carries on, with no effect repeated. A parent suspended for anything else, such as its own `human_prompt`, pauses its children at their next step.
+
+**When a parent ends**, in any way (it finishes, `halt`s, fails or is stopped), every child still going is cancelled with the reason "parent ended" and the end waits for them to settle for a grace period (30 seconds unless the host says otherwise). `weave check` warns about a handle that is never waited on, cancelled or supervised.
+
+**Budgets.** A child has its own budget, the smaller of the `start`'s and the script's, and what it spends counts against the parent too. A `start` is refused, at run time and with a message, when the parent could not pay for it after what the other live children may still spend. A child that runs out of budget ends `failed`, with `budget:` in `h.failure`.
+
+**Limits.** `max_children: N` (default 8) and `max_depth: N` (default 2 levels below the top workflow) can be lowered or raised up to the host's ceiling. A `start` past a limit fails and names it; it does not queue. A `start` inside a loop needs the loop's `max`.
+
+**Rules in `supervise`.** Three kinds, checked in this order every tick (about every 10 seconds):
+
+- **Counted rules**: `when tokens > 90000 { ... }`. The counters are a closed set: `tokens`, `cost` (needs a price table), `calls`, `elapsed` (running time, not sleeping time) and `idle` (time with work to do and no progress). Compare with `>`, `>=`, `<`, `<=`, `==`. A rule fires when it **becomes** true and again only after it went false and true; `once` limits it to one firing, even across a restart.
+- **Assertions in code**: `assert never calls shell { cancel }`, `assert calls Search at most 5 times { ... }`, `assert calls Plan before Write { ... }`, `assert reaches "collected" within 10m { ... }`. `never calls` is **preventive**: the call is refused before it runs, for a tool, a task, an agent or a `use` step, so the effect never happens; then the block runs. The names are checked against the child's script.
+- **Judged assertions**: `assert "text" using Judge every 2m max 4 { ... }`. A model's opinion, so it is explicit and bounded: the cadence has a floor of 30 seconds, `max` is required, a judgement is skipped when the child has done nothing since the last, and the judge is paid from the `supervise` block's own `budget`. By default the judge sees **facts** about the trajectory (what was called and how often, in what order, which checkpoints, how long) and not content; `seeing content` opts in, and `weave audit` says so (LA29). It answers pass or fail, the action is text written in the script, and only `steer`, `wrap_up` and `cancel use partial` are allowed. Each verdict is journaled, so a restart never asks again.
+
+A `cancel` or `wrap_up` ends the evaluation of that tick, and at most one steer is delivered a tick; what fired, what was skipped and why is journaled with the child's position.
+
+**Who can steer.** `weave audit` lists a script that can steer a started workflow as an input channel (LA28) and each judged rule (LA29). Authority only narrows: a child runs with the invoker's credentials or less.
+
+**Where it runs.** `start` needs somewhere to keep the child's run, so it works under a `LoomHost` with a persistence (file or JDBC; a child is a sibling run whose record names its parent) and fails closed with a clear message where there is none. `weave run` does not start children yet.
 
 ### Workflow Composition & Modularity
 Loom supports building complex multi-agent systems by composing workflows from multiple files. This is achieved using the `import` statement and the `call` statement.

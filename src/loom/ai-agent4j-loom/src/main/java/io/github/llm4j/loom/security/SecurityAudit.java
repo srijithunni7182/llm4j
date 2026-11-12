@@ -88,6 +88,7 @@ public final class SecurityAudit {
         personRunsWhatIsWritten(script, profiles, findings);
         A2AAudit.findings(script, profiles, findings);
         ChildAudit.findings(script, profiles, findings);
+        ChildAudit.judges(script, findings);
 
         findings.sort(
                 Comparator.comparing(Finding::severity)

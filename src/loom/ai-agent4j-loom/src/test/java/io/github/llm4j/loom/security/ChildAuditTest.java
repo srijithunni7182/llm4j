@@ -106,4 +106,38 @@ class ChildAuditTest {
         assertThat(io.github.llm4j.loom.review.adapt.AuditCatalog.rules())
                 .anyMatch(r -> r.id().equals("LA28"));
     }
+
+    private static List<Finding> la29(String main) {
+        LoomScript script = new LoomParser(new Lexer(AGENTS + "evaluator J { model: \"m\" }\n" + main).tokenize()).parseScript();
+        return SecurityAudit.audit(script, "t.loom").findings().stream()
+                .filter(f -> f.rule().equals("LA29"))
+                .toList();
+    }
+
+    @Test
+    void aJudgedAssertionIsListedWithWhatTheJudgeSeesAndWhatItCanCause() {
+        var found =
+                la29(
+                        """
+                        workflow Main(q) {
+                            start Research(topic = q) budget { tokens: 10 } -> work
+                            supervise work budget { tokens: 100 } {
+                                assert "stays on topic" using J every 2m max 3 { steer "Go back." once }
+                                assert "reads sources" using J seeing content every 3 steps max 2 { cancel use partial }
+                            }
+                            wait work timeout 1m
+                        }
+                        """);
+
+        assertThat(found).hasSize(2);
+        var facts = found.stream().filter(f -> f.severity() == Severity.INFO).findFirst().orElseThrow();
+        var content = found.stream().filter(f -> f.severity() == Severity.LOW).findFirst().orElseThrow();
+        assertThat(facts.risk()).contains("facts").contains("steer");
+        assertThat(content.risk()).contains("content").contains("cancel use partial");
+    }
+
+    @Test
+    void aScriptWithNoJudgedAssertionHasNoLa29() {
+        assertThat(la29("workflow Main(q) { note \"x\" }")).isEmpty();
+    }
 }
