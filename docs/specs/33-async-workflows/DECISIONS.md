@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **taken: D1 to D5, D8 to D21, D23, D28 and D29; partly taken: D25 and D26; deferred to the later phase: D6, D7 and B and C of D22; open: D24, D27 and D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **taken: D1 to D5, D8 to D21, D23, D24, D28 and D29; partly taken: D25 and D26; deferred to the later phase: D6, D7 and B and C of D22; open: D27 and D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -34,7 +34,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D21 | Where supervision is written | **taken** (the header names the handle) |
 | D22 | How a child exposes progress | runtime facts in this phase; B and C deferred to v3 (the owner wants all three) |
 | D23 | The counted conditions | **taken** (`tokens`, `cost`, `calls`, `elapsed`, `idle`; `status` is a readable fact only) |
-| D24 | Assertions in code | open |
+| D24 | Assertions in code | **taken** (four assertions; `never calls` is preventive) |
 | D25 | Judged assertions | **partly taken** (a judge inside `supervise` is wanted) |
 | D26 | Time: how long, how often | **partly taken** (time is in scope) |
 | D27 | Who pays for a judge | open |
@@ -463,7 +463,10 @@ The same facts remain readable as plain values elsewhere in the script (`work[t.
 
 **Recommendation:** v2, and before any judged assertion (D25). **Open:** the exact list; whether they should reuse the `weave test` path syntax.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed, with `never calls` preventive.**
+- **v2 set:** `assert never calls <tool|agent|task>`; `assert calls <name> at most N times`; `assert calls A before B`; `assert reaches "<checkpoint>" within <duration>` (a checkpoint the child declared). The block runs when the assertion is **violated**, with the same actions as `when` (`steer`, `wrap_up`, `cancel`).
+- **`never calls` is preventive:** the child's tool call is **refused before it runs**, the refusal is recorded as a violation, and then the block runs (the hooks that check each tool call are where this lives; `PolicyToolHook` is one). It narrows the child's authority for this run (D15). If the child's script has no handler for a refused tool, that step fails like any other tool failure. The other three are **detective**: they describe how a run unfolds, not a single call to refuse.
+- `weave check` verifies the names against the child's script (which it can read), and warns when an assertion can never be violated (the child cannot use that name).
 
 ## D25. Judged assertions: a judge agent asserts the trajectory
 
