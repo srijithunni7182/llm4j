@@ -50,6 +50,7 @@ Every row is `not built`.
 | A7 | `assert progress.<field> changes within <duration>` fires when the field has not changed, and never reads its meaning | tests on the virtual clock | E2 |
 | A8 | A signal is received **exactly once** across a crash at every journal write (G16) and one sent before the wait is not lost (G17) | the kill-point test extended; a unit test | E3 |
 | A9 | A `notify` wakes a waiting child; one run of a child at a time under a racing `notify` (G19) | engine and concurrency tests | E2 and E3 |
+| A9b | A `sticky` signal is read by every wait without being consumed and a message is consumed once, FIFO per name (G31); `weave check` refuses two same-name waits that can be active at once (G32) | tests | E2 |
 | A10 | A `notify` to a settled child is a recorded no-op; an old generation's signal is not delivered to a new one (G20); the limits fail loudly (G24) | tests | E2 |
 | A11 | `wait any` returns signal, finished and timeout events; the winner and the cursor are journaled and a replay returns the same (G18) | tests; the kill-point test | E2 and E3 |
 | A12 | `supervise ... when signal "name"` fires on arrival, and its actions' text stays literal (G23) | tests | E2 |

@@ -14,7 +14,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D5 | A judge-driven demo test | **taken** (a case in starter 18's tests where the judge fires on virtual time) |
 | D6 | Declared progress: the syntax and the typing | **taken** (flat typed shape, enum and mixed allowed; contextual `report {` and `progress`) |
 | D7 | Declared progress: what a script may do with it | **taken** (readable; one assertion `progress.<field> changes within`; no rule on content) |
-| D8 | The signal model | **taken** (a mailbox as journal entries; no sibling signalling; no explicit monitor) |
+| D8 | The signal model | **taken** (a mailbox as journal entries, plus `sticky` for state-like signals; no siblings; no explicit monitor; a check for same-name waits in parallel) |
 | D9 | `notify`: forms, payload, provenance | open |
 | D10 | How a signal is received | open |
 | D11 | `wait any`: events and the journaled winner | open |
@@ -145,11 +145,18 @@ workflow Research(topic) progress { stage: string, done: number, of: number } {
 - **Siblings do not signal each other** (the owner's answer to the question standing from 33-D7). A child that needs another child to know something tells its parent, and the parent decides whether to signal the other: one extra hop, visible in the script and checkable by the audit.
 - **An explicit monitor value (option B) is not taken.** The owner noted that B is the more elegant construct; without a need for sibling signals its extra generality buys nothing now, and it can be revisited if a requirement appears (for example more than two parties on one channel). The precedent to confirm when building is `RunJournal.answer` and the human-answer machinery (P7 in VERIFICATION).
 
+**Amendment (owner, after raising a child with two waits): messages and sticky signals.** A mailbox is message passing: each message is for one receiver, once, and a child with two `wait signal` states for the same name consumes them in order (FIFO per name, each consumption journaled at its own step). That fails for a **state-like** signal ("approved") that two waits need: the first consumes it and the second hangs. So:
+- **Messages stay consume-once and FIFO per name** (the default).
+- **`notify h "approved" sticky`** leaves the signal **set**: any `wait signal "approved"`, now or later, returns at once **without consuming it**; the receiving code does not change, the sender says what kind of signal it is. A later `notify` of the same name replaces a sticky value. It is still a journal entry, and each wait journals what it read, so replay is unchanged. (This is the latch of 33-D6 option B.)
+- **`weave check` refuses two `wait signal` statements for the same name that can be active at once** (in different branches of one `parallel`), because which branch would get a message on the first run is not deterministic; one `wait signal` per name per branch removes it.
+- **No way to unset** a sticky signal in this phase (a new `notify` of the same name replaces it, and the child's script can ignore an old state); it can be added if a need appears.
+
 ## D9. `notify`: forms, payload, provenance
 
 ```loom
 notify work["a"] "go"                   // parent to a child
 notify work["a"] "go" "use the 2025 data"
+notify work["a"] "approved" sticky          // state: stays set, not consumed (D8 amendment)
 notify parent "stuck" "no reliable sources for {topic}"     // child to its starter
 ```
 

@@ -42,6 +42,8 @@ It continues [phase 33's strategy](../33-async-workflows/TEST_STRATEGY.md): the 
 | G27 | **An unfinished child's `-> r` fails closed** (F2) | Reading `{r}` after a `wait` on a cancelled, failed or timed-out child raises the status error. | Binding an empty value. |
 | G28 | **A wait times out on the injected clock** (F3) | A `wait` with a child still running returns on virtual time. | Using wall time. |
 | G29 | **A handle never reaches a prompt, even if the static check is bypassed** (F7) | A runtime assembly path given a handle fails closed. | Removing the guard. |
+| G31 | **A sticky signal is read without being consumed; a message is consumed once, FIFO per name** (D8) | Two waits for one sticky signal both return; two waits for one message name consume two messages in order; a replay reads the same. | Consuming a sticky signal; consuming out of order. |
+| G32 | **Two same-name waits that can be active at once are refused** (D8) | A script with the same `wait signal` name in two branches of one `parallel` fails `weave check`; the same name in sequence or in a loop is accepted. | Dropping the check. |
 | G30 | **The new words stay ordinary words elsewhere** (D17) | `-> report`, `set progress = ...`, a variable named `signal`, `parent` or `any` all still parse and run. | Reserving a word. |
 
 G7 and G13 of phase 33, which were not broken on purpose, are broken on purpose in 34a (F14).
