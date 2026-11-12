@@ -312,4 +312,33 @@ class ChildClosureTest {
         assertThat(h.journals.get("p").all().values())
                 .noneMatch(en -> en.value() instanceof java.util.Map<?, ?> m && "fired".equals(m.get("outcome")));
     }
+
+    // ---- F14: guard G2 of phase 33, its resume half: a resumed parent re-attaches to its child ----
+
+    @Test
+    void aParentRunAgainOverItsJournalsReattachesToTheChildItStartedAndDoesNotStartAnother() {
+        java.util.concurrent.atomic.AtomicInteger effect = new java.util.concurrent.atomic.AtomicInteger();
+        h.task(
+                "Once",
+                ctx -> io.github.llm4j.agent.task.TaskResult.value("effect " + effect.incrementAndGet()));
+        String source =
+                """
+                workflow Child(x) { run Once() -> r  return r }
+                workflow Main(q) {
+                    start Child(x = q) budget { tokens: 10 } -> work
+                    wait work timeout 1m -> out
+                }
+                """;
+        h.parent(source, new ControlledChildScheduler()).executeWorkflow("Main", java.util.Map.of("q", "x"));
+        java.util.Set<String> before = new java.util.TreeSet<>(h.journals.keySet());
+
+        // a resume: a new executor over the same journals, as after a restart
+        HarnessExecutor again = h.parent(source, new ControlledChildScheduler());
+        again.executeWorkflow("Main", java.util.Map.of("q", "x"));
+
+        assertThat(h.journals.keySet()).as("one parent and the same one child: no second child").isEqualTo(before).hasSize(2);
+        assertThat(effect).as("the child's effect happened once across the resume").hasValue(1);
+        assertThat(String.valueOf(again.getContext().getVariable("out"))).contains("effect 1");
+        assertThat(h.parents).as("the child's record names the same parent").containsValue("p").hasSize(1);
+    }
 }
