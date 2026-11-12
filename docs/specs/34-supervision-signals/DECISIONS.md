@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D13 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D14 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -20,7 +20,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D11 | `wait any`: events and the journaled winner | **taken** (three event kinds; `remaining`; the first return journaled) |
 | D12 | Waking a suspended child | **taken** (a durable wake in two steps: the launch factor and `cancel ... rewind` in 34a, the mailbox wake in 34c) |
 | D13 | Limits and edge cases of signals | **taken** (limits fail loudly; no-ops for settled children and a missing parent; a clean mailbox after a rewind) |
-| D14 | Security: signals as an input channel | open |
+| D14 | Security: signals as an input channel | **taken** (LA30 for reading only; no signal steers an agent; a child signals only its parent) |
 | D15 | Testing: signals, a stubbed child, time | open |
 | D16 | Visibility: the ecosystem for v3 | open |
 | D17 | Names: `report`, `progress`, `notify`, `signal`, `any` | open |
@@ -253,7 +253,14 @@ alt (event.kind == "finished") { set results[event.name] = event.result }
 
 **Recommendation:** as above, written before the runtime (the rule and the oracle cases first).
 
-**Decision:** open.
+**Decision (owner): accepted as proposed, with LA30 for reading only.**
+1. **LA30 (proposed number, after LA28 and LA29):** a workflow that **reads** a signal (`wait signal`, `when signal`, or a `wait any` that can return one) gets a finding that names the signal and the side that can send it, in the shape of LA18 for `steerable` agents. **There is no rule for sending** (the parent already gets the child's result, so the channel is not new); a rule on sending can be added if a case appears.
+2. **Provenance:** a signal's payload is `unchecked` on the receiving side in both directions (D9); the provenance oracle gets canary cases for a parent's model-written text sent to a child and for a child's text sent to the parent.
+3. **No signal steers an agent:** routing a received payload into a `steer` is a **load error**; a `when signal` rule fires on the arrival of a named signal, never on its content.
+4. **Who may signal whom:** a child only its parent (the word `parent`; there is no way to name another run); a parent only handles it started, checked at load and at run time. This makes "no siblings" (D8) enforceable, not a convention.
+5. **A signal carries no authority:** it cannot grant a tool, widen a budget or lift a limit.
+6. **Declared progress** is read-only for the parent and `unchecked`; it adds no channel into the child and needs no rule of its own beyond what the audit already lists.
+7. **Order of work:** the audit rule and the oracle cases are written **before the runtime**; each guard (G22, G23) is broken on purpose once. The rule goes in `docs/security/weave-audit.md` and the OWASP mapping.
 
 ## D15. Testing: signals, a stubbed child, time
 
