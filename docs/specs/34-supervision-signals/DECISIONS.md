@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D10 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D11 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -17,7 +17,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D8 | The signal model | **taken** (a mailbox as journal entries, plus `sticky` for state-like signals; no siblings; no explicit monitor; a check for same-name waits in parallel) |
 | D9 | `notify`: forms, payload, provenance | **taken** (placeholders allowed; always `unchecked` on receipt) |
 | D10 | How a signal is received | **taken** (a child's `wait signal`; in a parent `wait any`, `when signal` and `wait <handle> signal`) |
-| D11 | `wait any`: events and the journaled winner | open |
+| D11 | `wait any`: events and the journaled winner | **taken** (three event kinds; `remaining`; the first return journaled) |
 | D12 | Waking a suspended child | open |
 | D13 | Limits and edge cases of signals | open |
 | D14 | Security: signals as an input channel | open |
@@ -199,7 +199,11 @@ alt (event.kind == "finished") { set results[event.name] = event.result }
 
 **Recommendation:** as above.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed, with `event.remaining`.**
+- **An event** is a keyed value: `kind` (`finished`, `signal` or `timeout`), `name` (the handle's key), for `finished` the `status` and the `result` (readable only when completed, as 33-D9), for `signal` the signal's own `name` and its `text` (always `unchecked`), and **`remaining`**: the number of children not yet finished, a count the runtime keeps, so a loop can end with `loop until (event.remaining == 0)`.
+- **The first return is journaled**: one entry holds the event and the position of every mailbox it read, and a replay returns the recorded event and never decides again (the pattern of `wait`, which journals its outcome).
+- **Order when several are ready at once:** signals before finished children, then the order the handles were started; recorded either way. A finished child is reported **once**; a signal stays pending until consumed, so the next `wait any` or `wait signal` sees what the last one did not take; a sticky signal is read, not consumed.
+- A **timeout is required** and a `timeout` event returns with the children still running (as `wait`, 33-D8); at most `max_children` handles in one `wait any`; a loop reading events is bounded by its own `max`.
 
 ## D12. Waking a suspended child
 

@@ -68,7 +68,7 @@ The same path serves `cancel ... rewind to` (F1).
 
 ### 4.4 `wait any` (34d; D11)
 
-`wait any <handles> timeout T -> event` returns on the first of: a signal from any handle, a handle settling, the timeout. The event is a keyed value `{ kind, name, status?, result?, text? }`. **Ordering when several are ready:** signals before finished, then the order the handles were started. **Journaling:** the first return writes one entry under the statement's step id holding the event **and the consumption cursor of every mailbox read** (the pattern of `await`), and a replay returns the recorded event; a `finished` child is reported once; unconsumed signals stay pending. A `timeout` event leaves the children running. At most `max_children` handles.
+`wait any <handles> timeout T -> event` returns on the first of: a signal from any handle, a handle settling, the timeout. The event is a keyed value `{ kind, name, status?, result?, text?, remaining }`, where `remaining` is the number of children not yet finished (a runtime count, so `loop until (event.remaining == 0)` ends a collecting loop). **Ordering when several are ready:** signals before finished, then the order the handles were started. **Journaling:** the first return writes one entry under the statement's step id holding the event **and the consumption cursor of every mailbox read** (the pattern of `await`), and a replay returns the recorded event; a `finished` child is reported once; unconsumed signals stay pending. A `timeout` event leaves the children running. At most `max_children` handles.
 
 ### 4.5 Security (D14)
 
