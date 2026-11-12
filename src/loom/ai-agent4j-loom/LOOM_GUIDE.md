@@ -2991,9 +2991,43 @@ The types are `string`, `number`, `boolean` and `enum["a", "b"]`, one flat level
 
 The parent reads the latest report as `work.progress.stage`, `work.progress.done` and so on (empty before the first report). It is the child's own words, so it is `unchecked` like any model-written text. It is **data, not control**: `assert progress.<field> changes within <duration> { ... }` fires when the field has not changed within the duration of the child's running time (sleep does not count) and never reads what the value says; there is no `when progress.done > 3` rule, because a rule that cancels or steers never rests on a value the child wrote. The assertion uses the same actions as `when`.
 
+**Signals (`notify`, `wait signal`, `when signal`).** A parent and a child can tell each other things while the child runs. A signal is a named entry in the **receiver's journal**, so one sent before the receiver waits is not lost, none is delivered twice across a crash, and reading it is journaled where it happens.
+
+```loom
+agent Researcher { model: "gemini-2.5-flash" system: "Research the topic." steerable: true streaming: true }
+
+workflow Research(topic) {
+    wait signal "go" timeout 10m -> instruction
+    alt (instruction is ok) {
+        delegate "Research {topic}. Note: {instruction}" to Researcher -> notes
+        notify parent "found" "{notes}"
+        return notes
+    }
+    return "never told to start"
+}
+
+workflow Main(question) {
+    start Research(topic = question) budget { tokens: 100000 } -> work
+    supervise work { when signal "need_help" { steer "Try a narrower reading of the topic." once } }
+    notify work "go" "prefer recent sources"
+    notify work "approved" "yes" sticky
+    wait work signal "found" timeout 10m -> notes
+    alt (notes is ok) { return notes }
+    return "the research did not report"
+}
+```
+
+- **`notify <handle> "name" ["text"] [sticky]`** (a parent to a child it started) and **`notify parent "name" ["text"] [sticky]`** (a child to the workflow that started it). The text may use `{placeholders}`. A **message** is read once, in the order sent, per name; a **`sticky`** signal is a latch: it stays set, any wait for it returns at once without consuming it, and a later `notify` of the same name replaces it (there is no way to unset one).
+- **`wait signal "name" timeout T -> text`** in a child, and **`wait <handle> signal "name" timeout T -> text`** in a parent, wait for one signal of that name. A timeout is required. If it passes first, `text` holds no text and raises an error when read (`text is ok` is false), as an unfinished child's result does. A parent's wait ends at once if the child has settled and sent nothing: no signal can come.
+- **`when signal "name" { actions }`** in a `supervise` block fires once for each arrival (`once` limits it to one), takes the message as a wait does (so a rule and a wait never take the same one twice), and its actions' text stays fixed: the payload is not available to them.
+- **What the receiver reads is `unchecked`**, in both directions, whatever the sender knew, and **a signal never causes anything by itself and can never become a steer's text** (a placeholder in a steer is a load error). `weave audit` lists each workflow that reads a signal (LA30). A child can signal only its parent and a parent only the handles it started (checked by `weave check` and again at run time).
+- **A waiting child holds no thread.** It is recorded as `waiting` with `h.waits == "signal go"`, and the parent's `notify` runs it again over its journal (once, however many `notify`s race; a cancelled child is never woken). The wait's timeout is enforced by the supervisor's tick on the run's clock. A parent waiting for a child that waits on a signal is **not** suspended: it parks until its own timeout, because nothing will wake that child but the parent.
+- **Limits, all failing loudly when passed:** 16 unread messages per name and 64 in all, a name of at most 40 characters (letters, digits and `_`), 2000 characters of text. A `notify` to a child that has settled is a recorded no-op; to one that was cancelled it is written and never read. A rewound child starts with an empty mailbox (what was sent before is history, so send a sticky signal again). A `notify parent` in a run that has no parent is a recorded no-op, and a `wait signal` there **fails** with a message, because it would wait for ever; `weave check` warns about a workflow that does either and that nothing in the script starts. Two waits for the same name that can be active at once (in different branches of one `parallel`, or inside a `parallel for each`) are an error.
+- **Testing it.** `weave test` scripts a signal's arrival on the virtual clock with `signals: { work: [ { at: 2m, name: stuck, text: "no sources" } ] }` (the key is the handle's variable, `work_a` for `work["a"]`), a scripted child sends one with a step `{ signal: stuck, text: "...", after: 1m }`, and `expect: signals: { sent: [go], received: [stuck], timed_out: [other] }` says what the run sent, read and waited for in vain. Nothing sleeps: a wait with nothing to run moves the virtual clock to the next thing that can happen.
+
 **Time.** A `wait`'s timeout counts the injected clock (the run's clock; a test's virtual one), so a wait that times out while a child still runs is a test on virtual time, not a real minute.
 
-**What is not there yet.** Signals between a parent and a child and `wait any` are phase 34 and not yet built. A sleeping child is still woken only when its parent is run again or by `weave daemon`.
+**What is not there yet.** `wait any` is phase 34d and not yet built. A signal cannot come from outside a run (a person, a host) and siblings cannot signal each other. A sleeping child is still woken only when its parent is run again or by `weave daemon`.
 
 ### Workflow Composition & Modularity
 Loom supports building complex multi-agent systems by composing workflows from multiple files. This is achieved using the `import` statement and the `call` statement.

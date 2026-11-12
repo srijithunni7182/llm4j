@@ -3212,6 +3212,19 @@ public class HarnessExecutor implements LoomEngine {
         children.signalChild(handle, name, text, sticky, fromStep);
     }
 
+    /**
+     * For {@code weave test}'s {@code signals:}: delivers a signal to the parent as if {@code handle}'s
+     * child had sent it, from a step named {@code fromStep} so a repeat sends once.
+     */
+    public void simulateSignalFromChild(io.github.llm4j.loom.runtime.ChildHandle handle, String name, String text, boolean sticky, String fromStep, long atMillis) {
+        children.simulateFromChild(handle, name, text, sticky, fromStep, atMillis);
+    }
+
+    /** The run's clock in milliseconds, for a test that stamps a scripted signal. */
+    public long clockMillis() {
+        return nowMillis();
+    }
+
     /** True when another run started this one, so there is a parent to signal and be signalled by. */
     boolean hasParent() {
         return parentRunId != null;

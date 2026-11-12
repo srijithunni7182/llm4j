@@ -36,7 +36,8 @@ A child never outlives the run that started it: when the parent ends, children s
 - `cancel h rewind to <checkpoint> at most N times` sends a child back to a checkpoint it declared and lets it go on (a new generation; the old one stays as history).
 - `weave review` adds each started child's budget, and each judged `supervise`'s budget, to the worst case of the parent.
 - A child can **declare and report progress** (`workflow Research(t) progress { stage: string, done: number } { report { stage: "reading", done: 1 } }`); the parent reads `work.progress.stage` (unchecked, from the child's own journal, so it survives a restart), and `assert progress.done changes within 5m { ... }` watches whether it moves, never what it says.
-- Not there yet: signals and `wait any` (phase 34, not yet built).
+- A parent and a child can **signal each other**: `notify work "go" "text"`, `notify parent "found" "text"`, `wait signal "go" timeout 10m -> text` (a waiting child holds no thread and is woken by the parent's `notify`), `wait work signal "found" timeout 10m -> notes`, and `when signal "need_help" { ... }` in a `supervise` block. A signal is a journal entry in the receiver's run (not lost, never delivered twice), what arrives is unchecked, and `weave audit` lists each workflow that reads one (LA30). `weave test` scripts arrivals with `signals:` and a scripted child's `signal:` step. Starter 18 shows a child that asks for help and a supervisor that steers it.
+- Not there yet: `wait any` (phase 34d, not yet built).
 
 [VERIFICATION.md](../docs/specs/33-async-workflows/VERIFICATION.md) lists exactly what is built and what is not.
 

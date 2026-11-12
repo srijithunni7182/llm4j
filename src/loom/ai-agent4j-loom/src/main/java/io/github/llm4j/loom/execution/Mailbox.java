@@ -63,7 +63,11 @@ final class Mailbox {
     }
 
     /** One signal as the journal holds it. */
-    record Signal(String name, String text, long seq, boolean sticky, int epoch, String from) {}
+    record Signal(String name, String text, long seq, boolean sticky, int epoch, String from, long atMillis) {
+        Signal(String name, String text, long seq, boolean sticky, int epoch, String from) {
+            this(name, text, seq, sticky, epoch, from, 0);
+        }
+    }
 
     private Mailbox() {}
 
@@ -89,6 +93,11 @@ final class Mailbox {
      *     full; the message says which limit
      */
     static Signal send(RunJournal journal, Direction direction, String name, String text, boolean sticky, String fromStep) {
+        return send(journal, direction, name, text, sticky, fromStep, 0);
+    }
+
+    /** As {@link #send(RunJournal, Direction, String, String, boolean, String)}, stamped with when it was sent on the run's clock. */
+    static Signal send(RunJournal journal, Direction direction, String name, String text, boolean sticky, String fromStep, long nowMillis) {
         validate(name, text);
         String payload = text == null ? "" : text;
         synchronized (journal) {
@@ -109,7 +118,7 @@ final class Mailbox {
                         "the mailbox already holds " + MAX_TOTAL + " signals that have not been read, the most it may.");
             }
             long seq = existing.stream().mapToLong(Signal::seq).max().orElse(0) + 1;
-            Signal signal = new Signal(name, payload, seq, sticky, epoch, fromStep);
+            Signal signal = new Signal(name, payload, seq, sticky, epoch, fromStep, nowMillis);
             Map<String, Object> value = new LinkedHashMap<>();
             value.put("name", name);
             value.put("text", payload);
@@ -117,6 +126,7 @@ final class Mailbox {
             value.put("sticky", sticky);
             value.put("epoch", epoch);
             value.put("from", fromStep);
+            value.put("at", nowMillis);
             journal.put(key(direction, name, seq), new RunJournal.Entry("signal", value));
             return signal;
         }
@@ -157,7 +167,8 @@ final class Mailbox {
                             ((Number) m.get("seq")).longValue(),
                             Boolean.TRUE.equals(m.get("sticky")),
                             ((Number) m.get("epoch")).intValue(),
-                            String.valueOf(m.get("from"))));
+                            String.valueOf(m.get("from")),
+                            m.get("at") instanceof Number at ? at.longValue() : 0));
         }
         out.sort(Comparator.comparingLong(Signal::seq));
         return out;

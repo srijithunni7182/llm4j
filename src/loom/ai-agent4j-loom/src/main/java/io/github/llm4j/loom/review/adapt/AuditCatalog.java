@@ -155,6 +155,11 @@ public final class AuditCatalog {
             "A model judges a started workflow",
             "A judged assertion in a supervise block asks an evaluator, on a cadence and at most max times, whether a sentence holds of a started workflow. Lists what the judge sees (facts only, or content with seeing content: low, because content may carry instructions) and what a fail can cause: only steer, wrap_up or cancel use partial, with text fixed in the script. It is a model's opinion and is not under the earned-autonomy ladder."
         },
+        {
+            "LA30",
+            "A workflow reads a signal from another run",
+            "A wait signal in a child, a wait handle signal or a when signal rule in a parent lets text written by another run enter the workflow's variables. Names the signal and the side that can send it; it is read as unchecked. Low when the text is written into a model's prompt or a task's argument, info otherwise. A signal causes nothing by itself and can never become a steer's text. There is no rule for sending a signal: the parent already gets the child's result."
+        },
     };
 
     /** One entry per audit rule. The severity varies with the situation, so none is given. */

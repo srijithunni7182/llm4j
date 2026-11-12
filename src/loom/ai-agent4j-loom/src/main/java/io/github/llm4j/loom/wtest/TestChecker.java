@@ -51,7 +51,8 @@ public final class TestChecker {
                     "remotes",
                     "channels",
                     "judges",
-                    "children");
+                    "children",
+                    "signals");
 
     /** The keys of {@code expect}. */
     static final List<String> EXPECT_KEYS =
@@ -79,6 +80,7 @@ public final class TestChecker {
                     "actions",
                     "starts",
                     "children",
+                    "signals",
                     "fired",
                     "steers");
 
@@ -227,6 +229,7 @@ public final class TestChecker {
         a2a(c, problems);
         children(c, problems);
         scriptedChildren(c, problems);
+        signalsOf(c, problems);
         real(c, problems);
         fail(c, problems);
         for (String key : List.of("humans", "resume"))
@@ -729,6 +732,9 @@ public final class TestChecker {
     /** The states a scripted child can be in: what {@link io.github.llm4j.loom.execution.ScriptedChild.State} offers. */
     static final List<String> CHILD_STATES = List.of("working", "completed", "failed", "waiting");
 
+    /** The keys of {@code expect.signals}. */
+    static final List<String> SIGNAL_EXPECT_KEYS = List.of("sent", "received", "timed_out");
+
     /** {@code children:}: workflows of the script, each a list of steps that ends by settling or pausing the child. */
     private void scriptedChildren(TestFile.Case c, List<String> problems) {
         JsonNode scripts = c.get("children");
@@ -753,7 +759,11 @@ public final class TestChecker {
                 JsonNode step = steps.get(i);
                 String at = where(c) + "children." + name + "[" + (i + 1) + "]: ";
                 String state = step.path("state").asText("");
-                if (!step.isObject() || !CHILD_STATES.contains(state))
+                if (step.has("signal")) {
+                    String sig = step.get("signal").asText();
+                    if (!sig.matches("[A-Za-z0-9_]{1,40}"))
+                        problems.add(at + "signal '" + sig + "' is not a signal name: a plain word (letters, digits and _) of at most 40 characters");
+                } else if (!step.isObject() || !CHILD_STATES.contains(state))
                     problems.add(at + "state '" + state + "' is not one of " + String.join(", ", CHILD_STATES) + Suggest.hint(state, CHILD_STATES));
                 if (step.has("progress")) {
                     var def = script.getWorkflows().stream().filter(x -> x.getName().equals(name)).findFirst().orElse(null);
@@ -772,6 +782,44 @@ public final class TestChecker {
             String last = steps.get(steps.size() - 1).path("state").asText("");
             if (last.equals("working"))
                 problems.add(where(c) + "children." + name + ": the last step must settle the child or pause it (completed, failed or waiting), not leave it working");
+        }
+    }
+
+    /** {@code signals:} and {@code expect.signals:}: arrivals on the virtual clock, and what the run sent, read and waited for. */
+    private void signalsOf(TestFile.Case c, List<String> problems) {
+        JsonNode signals = c.get("signals");
+        if (signals != null) {
+            if (!signals.isObject())
+                problems.add(where(c) + "signals: a map of handles to a list of arrivals, such as work_a: [ { at: 2m, name: stuck, text: \"no sources\" } ]");
+            else
+                for (Iterator<String> it = signals.fieldNames(); it.hasNext(); ) {
+                    String handle = it.next();
+                    JsonNode list = signals.get(handle);
+                    if (!list.isArray()) {
+                        problems.add(where(c) + "signals." + handle + ": a list of arrivals, such as [ { at: 2m, name: stuck } ]");
+                        continue;
+                    }
+                    for (int i = 0; i < list.size(); i++) {
+                        JsonNode a = list.get(i);
+                        String at = where(c) + "signals." + handle + "[" + (i + 1) + "]: ";
+                        if (!a.has("at") || Durations.parse(a.get("at").asText()) == null)
+                            problems.add(at + "at is a duration on the virtual clock such as 30s, 2m or 1h");
+                        if (!a.has("name")) problems.add(at + "name the signal: name: stuck");
+                        else if (!a.get("name").asText().matches("[A-Za-z0-9_]{1,40}"))
+                            problems.add(at + "name '" + a.get("name").asText() + "' is not a plain word (letters, digits and _) of at most 40 characters");
+                    }
+                }
+        }
+        JsonNode expect = c.get("expect");
+        if (expect != null && expect.has("signals")) {
+            JsonNode s = expect.get("signals");
+            if (!s.isObject()) problems.add(where(c) + "expect.signals: a map such as { sent: [go], received: [stuck], timed_out: [other] }");
+            else
+                for (Iterator<String> it = s.fieldNames(); it.hasNext(); ) {
+                    String key = it.next();
+                    if (!SIGNAL_EXPECT_KEYS.contains(key))
+                        problems.add(where(c) + "expect.signals: unknown key '" + key + "'" + Suggest.hint(key, SIGNAL_EXPECT_KEYS));
+                }
         }
     }
 

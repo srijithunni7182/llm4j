@@ -15,6 +15,15 @@ import java.util.Objects;
  */
 public record ScriptedChild(List<Step> steps) {
 
+    /**
+     * A signal the child sends its parent on reaching a step (phase 34c).
+     *
+     * @param name the signal's name
+     * @param text its text, or empty
+     * @param sticky whether it is a latch
+     */
+    public record Signal(String name, String text, boolean sticky) {}
+
     /** What a step does to the child. */
     public enum State {
         /** The child is working: time passes, nothing is settled. */
@@ -35,8 +44,10 @@ public record ScriptedChild(List<Step> steps) {
      * @param result the result of a completed child, or null
      * @param reason the reason of a failed child, or null
      * @param progress what the child reports on reaching this step (phase 34b), or empty for no report
+     * @param signal a signal the child sends its parent on reaching this step (phase 34c), or null
      */
-    public record Step(State state, Duration after, Object result, String reason, java.util.Map<String, Object> progress) {
+    public record Step(
+            State state, Duration after, Object result, String reason, java.util.Map<String, Object> progress, Signal signal) {
         public Step {
             Objects.requireNonNull(state, "state");
             Objects.requireNonNull(after, "after");
@@ -45,7 +56,12 @@ public record ScriptedChild(List<Step> steps) {
 
         /** A step that reports no progress. */
         public Step(State state, Duration after, Object result, String reason) {
-            this(state, after, result, reason, java.util.Map.of());
+            this(state, after, result, reason, java.util.Map.of(), null);
+        }
+
+        /** A step that may report progress and sends no signal. */
+        public Step(State state, Duration after, Object result, String reason, java.util.Map<String, Object> progress) {
+            this(state, after, result, reason, progress, null);
         }
     }
 

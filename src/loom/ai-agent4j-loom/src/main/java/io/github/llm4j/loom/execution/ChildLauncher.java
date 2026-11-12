@@ -524,6 +524,10 @@ final class ChildLauncher {
             // skip-if-nothing-changed both read the journal's size
             child.journal().put(SCRIPTED + index, new RunJournal.Entry("scripted", step.state().name()));
             if (!step.progress().isEmpty()) child.reportScripted(SCRIPTED + index, handle.workflow(), step.progress());
+            if (step.signal() != null) {
+                Mailbox.send(child.journal(), Mailbox.Direction.OUT, step.signal().name(), step.signal().text(), step.signal().sticky(), SCRIPTED + index, executor.nowMillis());
+                child.signalParent();
+            }
             index++;
             switch (step.state()) {
                 case WORKING -> {}
@@ -595,7 +599,7 @@ final class ChildLauncher {
             return;
         }
         executor.observeExit("notify", text.value(), text); // text leaving for another run is an exit
-        Mailbox.Signal sent = Mailbox.send(live.journal(), Mailbox.Direction.IN, stmt.getName(), text.value(), stmt.isSticky(), stepId);
+        Mailbox.Signal sent = Mailbox.send(live.journal(), Mailbox.Direction.IN, stmt.getName(), text.value(), stmt.isSticky(), stepId, executor.nowMillis());
         boolean cancelled = live.journal().get(CANCEL_MARKER).isPresent();
         record.put("delivered", !cancelled);
         record.put("seq", sent.seq());
@@ -603,6 +607,17 @@ final class ChildLauncher {
         executor.journal().put(stepId, new RunJournal.Entry(SignalRunner.NOTIFY, record));
         executor.audit("signal_sent", Map.of("direction", "to child", "name", stmt.getName()));
         if (!cancelled) wake(handle, live, stmt.getName());
+    }
+
+    /** A test's stand-in for a child sending its parent a signal: written to the child's OUT mailbox, and a parked wait looks. */
+    void simulateFromChild(ChildHandle handle, String name, String text, boolean sticky, String fromStep, long atMillis) {
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        if (live == null) throw new IllegalStateException("that is a handle this run did not start");
+        Mailbox.send(live.journal(), Mailbox.Direction.OUT, name, text, sticky, fromStep, atMillis);
+        monitor.changed();
     }
 
     /** The send and the wake of a {@code notify}, for a caller that is not a statement. */
@@ -613,7 +628,7 @@ final class ChildLauncher {
         }
         if (live == null) throw new IllegalStateException("that is a handle this run did not start, so it cannot signal it");
         if (handle.status().isSettled()) return;
-        Mailbox.send(live.journal(), Mailbox.Direction.IN, name, text, sticky, fromStep);
+        Mailbox.send(live.journal(), Mailbox.Direction.IN, name, text, sticky, fromStep, executor.nowMillis());
         if (live.journal().get(CANCEL_MARKER).isEmpty()) wake(handle, live, name);
     }
 
@@ -666,12 +681,14 @@ final class ChildLauncher {
         while (true) {
             long seen = monitor.version();
             Optional<Mailbox.Signal> next = Mailbox.next(live.journal(), Mailbox.Direction.OUT, stmt.getName());
+            // a signal that came after the wait's deadline is not an answer to it (the clock may have run on while a child was driven)
+            if (next.isPresent() && next.get().atMillis() > deadline) next = Optional.empty();
             if (next.isPresent()) {
                 runner.receive(stmt, stepId, live.journal(), Mailbox.Direction.OUT, next.get(), handle.runId());
                 return;
             }
             long left = deadline - executor.nowMillis();
-            if (left <= 0 || (handle.status().isSettled() && !live.active())) { // nothing more can arrive
+            if (left <= 0 || (handle.status().isSettled() && !live.active())) { // time is up, or nothing more can arrive
                 runner.timeOut(stmt, stepId);
                 return;
             }

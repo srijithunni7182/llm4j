@@ -70,6 +70,7 @@ final class CaseRunner {
             Map<String, RunJournal> childJournals = new java.util.concurrent.ConcurrentHashMap<>();
             io.github.llm4j.loom.execution.ControlledChildScheduler childScheduler =
                     new io.github.llm4j.loom.execution.ControlledChildScheduler();
+            ScriptedSignals scriptedSignals = new ScriptedSignals(c.get("signals"));
             Failures failures = new Failures(c.get("fail"));
             boolean repeatLast = c.has("repeat") && "last".equals(c.get("repeat").asText());
             boolean lenient = c.has("lenient") && c.get("lenient").asBoolean();
@@ -128,7 +129,13 @@ final class CaseRunner {
                 executor.setChildScripts(scriptedChildren(c.get("children")));
                 executor.setSuperviseTick(Duration.ZERO); // the virtual clock is the tick
                 final HarnessExecutor ticked = executor;
-                clock.afterAdvance(ticked::tickChildren);
+                clock.afterAdvance(
+                        () -> {
+                            scriptedSignals.deliverDue(clock.elapsed(), ticked);
+                            ticked.tickChildren();
+                        });
+                // a parent's wait with nothing to run lets virtual time pass, up to the next arrival
+                childScheduler.onIdle(ms -> clock.sleep(Duration.ofMillis(Math.min(ms, scriptedSignals.untilNext(clock.elapsed())))));
                 executor.setClock(clock);
                 executor.setSleeper(clock);
                 executor.setBaseDir(script.toAbsolutePath().getParent());
@@ -216,11 +223,14 @@ final class CaseRunner {
                 java.time.Duration after = step.has("after") ? Durations.parse(step.get("after").asText()) : java.time.Duration.ZERO;
                 steps.add(
                         new io.github.llm4j.loom.execution.ScriptedChild.Step(
-                                io.github.llm4j.loom.execution.ScriptedChild.State.valueOf(step.path("state").asText().toUpperCase(java.util.Locale.ROOT)),
+                                io.github.llm4j.loom.execution.ScriptedChild.State.valueOf((step.has("state") ? step.get("state").asText() : "working").toUpperCase(java.util.Locale.ROOT)),
                                 after,
                                 step.has("result") ? step.get("result").asText() : null,
                                 step.has("reason") ? step.get("reason").asText() : null,
-                                progressOf(step.get("progress"))));
+                                progressOf(step.get("progress")),
+                                step.has("signal")
+                                        ? new io.github.llm4j.loom.execution.ScriptedChild.Signal(step.get("signal").asText(), step.has("text") ? step.get("text").asText() : "", step.path("sticky").asBoolean(false))
+                                        : null));
             }
             byWorkflow.put(e.getKey(), new io.github.llm4j.loom.execution.ScriptedChild(steps));
         }

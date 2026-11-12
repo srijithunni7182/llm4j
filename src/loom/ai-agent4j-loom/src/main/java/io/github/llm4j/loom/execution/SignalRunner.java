@@ -57,7 +57,7 @@ final class SignalRunner {
             return;
         }
         executor.observeExit("notify parent", text.value(), text); // text leaving for another run is an exit
-        Mailbox.Signal sent = Mailbox.send(journal, Mailbox.Direction.OUT, stmt.getName(), text.value(), stmt.isSticky(), stepId);
+        Mailbox.Signal sent = Mailbox.send(journal, Mailbox.Direction.OUT, stmt.getName(), text.value(), stmt.isSticky(), stepId, executor.nowMillis());
         record.put("delivered", true);
         record.put("seq", sent.seq());
         journal.put(stepId, new RunJournal.Entry(NOTIFY, record));
@@ -83,6 +83,9 @@ final class SignalRunner {
             return;
         }
         Optional<Mailbox.Signal> next = Mailbox.next(journal, Mailbox.Direction.IN, stmt.getName());
+        long recorded2 = recordedDeadline(journal, stepId);
+        // a signal that came after the wait's deadline is not an answer to it
+        if (next.isPresent() && recorded2 > 0 && next.get().atMillis() > recorded2 && executor.nowMillis() >= recorded2) next = Optional.empty();
         if (next.isPresent()) {
             receive(stmt, stepId, journal, Mailbox.Direction.IN, next.get(), "");
             return;
@@ -96,6 +99,12 @@ final class SignalRunner {
     }
 
     // ---- shared with the parent's wait (ChildLauncher) ----
+
+    /** The deadline already written for this wait, or 0. */
+    long recordedDeadline(RunJournal journal, String stepId) {
+        Optional<RunJournal.Entry> had = journal.get(stepId + DEADLINE);
+        return had.isPresent() && had.get().value() instanceof Map<?, ?> m && m.get("at") instanceof Number n ? n.longValue() : 0;
+    }
 
     /** When the wait at {@code stepId} gives up: written the first time, so a restart never lengthens it. */
     long deadlineOf(RunJournal journal, String stepId, long timeoutMillis) {

@@ -72,3 +72,35 @@ cases:
       result: { contains: "One report" }
       children: { Research: { status: completed } }
       fired: [ { rule: 3, action: steer } ]
+  - name: a researcher that asks for help is steered, and the signal's words are never part of the steer
+    input: { question: "How do solar roofs work?" }
+    judges: { TopicJudge: [pass, pass, pass] }
+    models:
+      Planner:
+        topics:
+          - { name: panels, topic: "How panels make power" }
+      Editor: "One report."
+    children:
+      Research:
+        - { signal: need_help, text: "found nothing on panels", after: 1m }
+        - { state: working, after: 1m }
+        - { state: completed, result: "Panels turn light into current.", after: 1m }
+    expect:
+      result: { contains: "One report" }
+      children: { Research: { status: completed } }
+      fired: [ { rule: 4, action: steer } ]
+  - name: a researcher that never asks for help is not steered by the help rule
+    input: { question: "How do solar roofs work?" }
+    judges: { TopicJudge: [pass, pass, pass] }
+    models:
+      Planner:
+        topics:
+          - { name: panels, topic: "How panels make power" }
+      Editor: "One report."
+    children:
+      Research:
+        - { state: working, after: 1m }
+        - { state: completed, result: "Panels turn light into current.", after: 1m }
+    expect:
+      children: { Research: { status: completed } }
+      fired: []
