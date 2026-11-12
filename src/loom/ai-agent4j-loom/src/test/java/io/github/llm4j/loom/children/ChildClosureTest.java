@@ -341,4 +341,48 @@ class ChildClosureTest {
         assertThat(String.valueOf(again.getContext().getVariable("out"))).contains("effect 1");
         assertThat(h.parents).as("the child's record names the same parent").containsValue("p").hasSize(1);
     }
+
+    // ---- D12 rule 7 and P9: spend after a re-run is restored once, and the parent is not charged twice ----
+
+    @Test
+    void aChildRunAgainRestoresItsOwnSpendFromItsJournalAndTheParentIsChargedOnlyForWhatItSpendsNow() {
+        ControlledChildScheduler scheduler = new ControlledChildScheduler();
+        h.task(
+                "LetItNap",
+                ctx -> {
+                    scheduler.runNext(); // the child spends 30 tokens, then sleeps
+                    return io.github.llm4j.agent.task.TaskResult.value("napping");
+                });
+        HarnessExecutor e =
+                h.parent(
+                        """
+                        budget { tokens: 1000 }
+                        agent R { model: "m" system: "s" }
+                        workflow Worker(x) {
+                            delegate "one" to R -> a
+                            checkpoint collected
+                            delegate "two" to R -> b
+                            sleep 1h
+                            return b
+                        }
+                        workflow Main(q) {
+                            start Worker(x = q) budget { tokens: 500 } -> work
+                            run LetItNap() -> nap
+                            cancel work rewind to collected at most 1 times
+                            wait work timeout 5h -> out
+                        }
+                        """,
+                        scheduler,
+                        ChildBudgetTest::client);
+
+        assertThatThrownBy(() -> e.executeWorkflow("Main", java.util.Map.of("q", "x")))
+                .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class); // it slept again in generation 2
+
+        // 15 (one) + 15 (two) before; after the rewind "two" is asked again: 45, never 60 or 75
+        assertThat(e.getRunBudget().spent().tokens()).as("the parent").isEqualTo(45);
+        assertThat(h.attempts).hasSize(2);
+        assertThat(h.attempts.get(1).getRunBudget().spent().tokens())
+                .as("the re-run child restored 30 from its journal and spent 15 more")
+                .isEqualTo(45);
+    }
 }

@@ -106,11 +106,14 @@ public final class ChildHarness {
 
     /** A parent run named {@code p} over {@code source}, its children on {@code scheduler}. */
     public HarnessExecutor parent(String source, ChildScheduler scheduler) {
+        return parent(source, scheduler, new io.github.llm4j.loom.eval.MockModels());
+    }
+
+    /** As {@link #parent(String, ChildScheduler)}, with the models the test chooses. */
+    public HarnessExecutor parent(
+            String source, ChildScheduler scheduler, io.github.llm4j.loom.execution.LLMClientFactory models) {
         parent =
-                new HarnessExecutor(
-                        StartParseTest.parse(source),
-                        new ToolRegistry(),
-                        new io.github.llm4j.loom.eval.MockModels());
+                new HarnessExecutor(StartParseTest.parse(source), new ToolRegistry(), models);
         parent.setTaskRegistry(tasks);
         parent.setClock(clock);
         parent.setSuperviseTick(Duration.ZERO);

@@ -32,7 +32,10 @@ A child never outlives the run that started it: when the parent ends, children s
 
 - `start` keeps each child's run somewhere: under `weave run --journal DIR` (a sibling folder for each child) or a `LoomHost` with persistence. Without either it fails closed. `weave fork` copies the children, `weave timeline` draws them as a tree, and Fabric shows a child under its parent with the cost of the whole tree.
 - `weave test` runs children for real under scripted models and the virtual clock, with `judges:` and `starts:`, `children:`, `fired:` and `steers:` in `expect:`. Starter 18 is a worked example.
-- Not there yet: `cancel h rewind to ...` (refused by `weave check`), a scripted stub of a child, and the worst-case cost of a supervisor in `weave review`.
+- `weave test` can also **script a child instead of running it** (`children: { Research: [ { state: working, after: 2m }, { state: completed, result: "..." } ] }`): no workflow, no model, on the virtual clock, so a supervisor's rules and a judge's looks are tested without a real clock.
+- `cancel h rewind to <checkpoint> at most N times` sends a child back to a checkpoint it declared and lets it go on (a new generation; the old one stays as history).
+- `weave review` adds each started child's budget, and each judged `supervise`'s budget, to the worst case of the parent.
+- Not there yet: declared progress, signals and `wait any` (phase 34, not yet built).
 
 [VERIFICATION.md](../docs/specs/33-async-workflows/VERIFICATION.md) lists exactly what is built and what is not.
 
