@@ -59,7 +59,7 @@ final class ProgressLog {
         if (size > MAX_CHARS) over = "a report may hold " + MAX_CHARS + " characters in all and this one held " + size;
         else if (accepted.get() >= MAX_REPORTS) over = "a run keeps " + MAX_REPORTS + " reports and this is past the " + MAX_REPORTS;
         if (over != null) {
-            int n = dropped.incrementAndGet();
+            int n = dropped.getAndIncrement();
             if (n < MAX_DROPPED_RECORDS)
                 journal.put(key, new RunJournal.Entry(DROPPED, Map.of("reason", over, "after", accepted.get())));
             return new Result(false, over);

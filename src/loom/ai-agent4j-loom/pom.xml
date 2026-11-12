@@ -637,6 +637,8 @@
                                 <param>io.github.llm4j.loom.children.*Test</param>
                                 <param>io.github.llm4j.loom.execution.Mailbox*Test</param>
                                 <param>io.github.llm4j.loom.execution.ChildMonitorTest</param>
+                                <param>io.github.llm4j.loom.execution.ProgressLogTest</param>
+                                <param>io.github.llm4j.loom.execution.SignalAuditTrailTest</param>
                                 <param>io.github.llm4j.loom.cli.StubbedChildTest</param>
                                 <param>io.github.llm4j.loom.cli.SignalTestVocabularyTest</param>
                                 <param>io.github.llm4j.loom.execution.Signal*Test</param>

@@ -271,4 +271,57 @@ class MailboxTest {
             java.nio.file.Files.deleteIfExists(file.getParent());
         }
     }
+
+    // ---- the total limit, at its edge, for a latch and for a message ----
+
+    /** Fills the mailbox to {@code total} unread signals, one latch ("keep") and the rest messages over four names. */
+    private void fill(int total) {
+        Mailbox.send(journal, Mailbox.Direction.IN, "keep", "latch", true, "latchstep");
+        String[] names = {"m0", "m1", "m2", "m3"};
+        int sent = 1;
+        for (int n = 0; sent < total; n++, sent++) send(names[n % 4], "x");
+    }
+
+    @Test
+    void aNewLatchIsRefusedOnlyOnceSixtyFourSignalsAreWaiting() {
+        fill(Mailbox.MAX_TOTAL - 1);
+        assertThat(Mailbox.pendingTotal(journal, Mailbox.Direction.IN)).isEqualTo(Mailbox.MAX_TOTAL - 1);
+        assertThat(Mailbox.send(journal, Mailbox.Direction.IN, "fresh", "ok", true, "f1").sticky()).isTrue(); // the 64th
+
+        assertThatThrownBy(() -> Mailbox.send(journal, Mailbox.Direction.IN, "another", "no", true, "f2"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("64");
+    }
+
+    @Test
+    void aLatchThatIsAlreadySetMayBeReplacedEvenWhenTheMailboxIsFull() {
+        fill(Mailbox.MAX_TOTAL);
+        assertThat(Mailbox.pendingTotal(journal, Mailbox.Direction.IN)).isEqualTo(Mailbox.MAX_TOTAL);
+
+        Mailbox.Signal replaced = Mailbox.send(journal, Mailbox.Direction.IN, "keep", "newer", true, "latchstep2");
+
+        assertThat(replaced.text()).isEqualTo("newer");
+        assertThat(Mailbox.next(journal, Mailbox.Direction.IN, "keep").orElseThrow().text()).isEqualTo("newer");
+        assertThat(Mailbox.pendingTotal(journal, Mailbox.Direction.IN)).as("a latch counts once however often it is set").isEqualTo(Mailbox.MAX_TOTAL);
+    }
+
+    @Test
+    void aMessageIsRefusedWhenSixtyFourAreWaitingAndAllowedAtSixtyThree() {
+        fill(Mailbox.MAX_TOTAL - 1);
+        Mailbox.send(journal, Mailbox.Direction.IN, "elsewhere", "64th", false, "e1");
+
+        assertThatThrownBy(() -> Mailbox.send(journal, Mailbox.Direction.IN, "another", "65th", false, "e2"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("64 signals that have not been read");
+    }
+
+    @Test
+    void aLatchOfOneNameIsNotTheLatchOfAnother() {
+        Mailbox.send(journal, Mailbox.Direction.IN, "a", "A", true, "s1");
+        Mailbox.send(journal, Mailbox.Direction.IN, "b", "B", true, "s2");
+
+        assertThat(Mailbox.next(journal, Mailbox.Direction.IN, "a").orElseThrow().text()).isEqualTo("A");
+        assertThat(Mailbox.next(journal, Mailbox.Direction.IN, "b").orElseThrow().text()).isEqualTo("B");
+        assertThat(Mailbox.next(journal, Mailbox.Direction.IN, "c")).isEmpty();
+    }
 }

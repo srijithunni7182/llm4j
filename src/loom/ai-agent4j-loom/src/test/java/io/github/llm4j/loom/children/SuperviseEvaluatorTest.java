@@ -230,4 +230,51 @@ class SuperviseEvaluatorTest {
         var e = new SuperviseEvaluator(block("when tokens > 5 { steer \"a\" }"), Set.of(-1, 7));
         assertThat(fired(e.evaluate(facts(10, 0, 0, 0)))).hasSize(1);
     }
+
+    @Test
+    void aFieldThatHasStoodStillForExactlyTheTimeIsNotYetViolatedAndOneMillisecondMoreIs() {
+        var rules = "assert progress.done changes within 5m { wrap_up }";
+        var atLimit = new SuperviseEvaluator(block(rules), Set.of());
+        assertThat(atLimit.evaluate(movement(300_000))).isEmpty();
+        var past = new SuperviseEvaluator(block(rules), Set.of());
+        assertThat(past.evaluate(movement(300_001))).hasSize(1);
+    }
+
+    @Test
+    void aFieldWithNoRecordedStandstillIsNotViolated() {
+        var e = new SuperviseEvaluator(block("assert progress.done changes within 5m { wrap_up }"), Set.of());
+        assertThat(e.evaluate(new Facts(0, 0, BigDecimal.ZERO, 0, 0, io.github.llm4j.loom.execution.Trajectory.Snapshot.EMPTY, java.util.Map.of()))).isEmpty();
+    }
+
+    @Test
+    void callsBeforeIsNotViolatedWhenBothCameAtTheSameFirstPosition() {
+        var e = new SuperviseEvaluator(block("assert calls Plan before Write { wrap_up }"), Set.of());
+        // Plan is index 0 and Write index 1: Plan came first, so no violation; swapped it is one
+        assertThat(e.evaluate(withTrajectory(0, java.util.Map.of("Plan", 1, "Write", 1), java.util.List.of("Plan", "Write"), Set.of(), java.util.Map.of()))).isEmpty();
+        var swapped = new SuperviseEvaluator(block("assert calls Plan before Write { wrap_up }"), Set.of());
+        assertThat(swapped.evaluate(withTrajectory(0, java.util.Map.of("Plan", 1, "Write", 1), java.util.List.of("Write", "Plan"), Set.of(), java.util.Map.of()))).hasSize(1);
+    }
+
+    @Test
+    void aRestartThatNamesARuleOutsideTheBlockIsIgnoredAndOneInsideStaysSpent() {
+        var rules = block("when tokens > 10 { steer \"x\" once }");
+        var e = new SuperviseEvaluator(rules, Set.of(-1, 1, 7, 0));
+
+        assertThat(fired(e.evaluate(facts(50, 0, 0, 0)))).isEmpty();
+        e.evaluate(facts(0, 0, 0, 0));
+        assertThat(fired(e.evaluate(facts(50, 0, 0, 0)))).as("rule 0 was a once rule that fired before").isEmpty();
+    }
+
+    @Test
+    void aRuleThatFiredBeforeButIsNotOnceFiresAgainAfterItWentFalse() {
+        var rules = block("when tokens > 10 { steer \"x\" }");
+        var e = new SuperviseEvaluator(rules, Set.of(0));
+
+        e.evaluate(facts(0, 0, 0, 0));
+        assertThat(fired(e.evaluate(facts(50, 0, 0, 0)))).hasSize(1);
+    }
+
+    private static Facts movement(long unchangedMillis) {
+        return new Facts(0, 0, BigDecimal.ZERO, 0, 0, io.github.llm4j.loom.execution.Trajectory.Snapshot.EMPTY, java.util.Map.of("done", unchangedMillis));
+    }
 }

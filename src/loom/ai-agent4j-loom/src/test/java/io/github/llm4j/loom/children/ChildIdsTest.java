@@ -49,4 +49,20 @@ class ChildIdsTest {
 
         assertThat(id).matches("[A-Za-z0-9._@-]+").doesNotContain("\u00e9").isNotEqualTo(derive("r", "Main/cafe"));
     }
+
+    @Test
+    void anIdOfExactlyTheLimitIsKeptAsItIsAndOneLongerIsShortenedWithinTheLimit() throws Exception {
+        String atLimit = derive("p", "a".repeat(98)); // "p." plus 98 letters: 100 characters
+        assertThat(atLimit).hasSize(100).isEqualTo("p." + "a".repeat(98));
+
+        String over = derive("p", "a".repeat(99));
+        assertThat(over).hasSizeLessThanOrEqualTo(100).isNotEqualTo("p." + "a".repeat(99));
+    }
+
+    @Test
+    void asciiLettersDigitsAndDashesSurviveAndOtherLettersAreEscaped() throws Exception {
+        assertThat(derive("p", "aZ9-")).isEqualTo("p.aZ9-");
+        assertThat(derive("p", "\u00e9")).isEqualTo("p._xe9_"); // a letter outside ASCII is escaped, not kept
+        assertThat(derive("p", "a b")).isEqualTo("p.a_x20_b");
+    }
 }
