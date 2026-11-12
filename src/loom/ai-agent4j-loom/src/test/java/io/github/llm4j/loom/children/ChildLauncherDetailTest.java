@@ -477,7 +477,7 @@ class ChildLauncherDetailTest {
     // ---- real threads ----
 
     @Test
-    void aWaitThatTimesOutWhileTheChildIsStillRunningRunsOnTimeoutAndTheChildKeepsGoing() {
+    void aWaitThatTimesOutWhileTheChildIsStillRunningRunsOnTimeoutAndTheChildKeepsGoing() throws Exception {
         HarnessExecutor e =
                 executor(
                         LEAF.replace("run Fine() -> r", "run Blocked() -> r")
@@ -492,8 +492,18 @@ class ChildLauncherDetailTest {
                         ChildScheduler.threads(),
                         null);
 
-        e.executeWorkflow("Main", Map.of("q", "x"));
+        // the wait counts the injected clock (F3): the test moves it, and nothing sits for a real second
+        Thread parentThread = new Thread(() -> e.executeWorkflow("Main", Map.of("q", "x")));
+        parentThread.setDaemon(true);
+        parentThread.start();
+        assertThat(inBlocked.await(10, TimeUnit.SECONDS)).isTrue();
+        long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (parentThread.isAlive() && System.nanoTime() < end) {
+            clock.advance(Duration.ofSeconds(5));
+            parentThread.join(10);
+        }
 
+        assertThat(parentThread.isAlive()).isFalse();
         assertThat(e.getContext().getVariable("late")).isEqualTo("yes");
         assertThat(e.getContext().getVariable("seen")).isEqualTo("running");
     }

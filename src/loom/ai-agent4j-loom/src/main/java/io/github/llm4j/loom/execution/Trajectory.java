@@ -73,6 +73,18 @@ public final class Trajectory implements TraceListener {
         refused.merge(name, 1, Integer::sum);
     }
 
+    /**
+     * Takes what an earlier run of the same child had done, for a re-run over its journal: a replay
+     * does not emit the events of steps it skips, so without this the facts of a child would start
+     * again from nothing (phase 34, D12 rule 7). Only adds; never lowers a count.
+     */
+    synchronized void carry(Snapshot earlier) {
+        earlier.calls().forEach((name, n) -> calls.merge(name, n, Math::max));
+        for (String name : earlier.firstCallOrder()) if (!order.contains(name)) order.add(name);
+        reached.addAll(earlier.reached());
+        earlier.refused().forEach((name, n) -> refused.merge(name, n, Math::max));
+    }
+
     synchronized Snapshot snapshot() {
         return new Snapshot(calls, order, reached, refused);
     }

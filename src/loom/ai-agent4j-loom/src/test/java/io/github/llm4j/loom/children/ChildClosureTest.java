@@ -118,4 +118,60 @@ class ChildClosureTest {
                                         && p.message().contains("outcome")
                                         && p.message().contains("is ok"));
     }
+
+    // ---- F3, guard G28: a wait times out on the injected clock, not on wall time ----
+
+    /**
+     * A child holds in an effect while a thread moves the virtual clock past the parent's
+     * timeout. A wait that counted wall time would sit for the full minute; one on the injected
+     * clock returns as soon as the virtual minute is up, with the child still running.
+     */
+    @Test
+    void aWaitThatTimesOutOnVirtualTimeReturnsWithTheChildStillRunning() throws Exception {
+        java.util.concurrent.CountDownLatch inEffect = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        h.task(
+                "Hang",
+                ctx -> {
+                    inEffect.countDown();
+                    try {
+                        release.await(20, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return io.github.llm4j.agent.task.TaskResult.value("late");
+                });
+        h.task(
+                "Free",
+                ctx -> {
+                    release.countDown();
+                    return io.github.llm4j.agent.task.TaskResult.value("freed");
+                });
+        HarnessExecutor e =
+                h.parent(
+                        """
+                        workflow Slow(x) { run Hang() -> r  return r }
+                        workflow Main(q) {
+                            start Slow(x = q) budget { tokens: 1 } -> work
+                            wait work timeout 1m -> out on_timeout { set timedOut = "yes" }
+                            set seen = work.status
+                            run Free() -> freed
+                        }
+                        """,
+                        io.github.llm4j.loom.execution.ChildScheduler.threads());
+        Thread parent = new Thread(() -> e.executeWorkflow("Main", java.util.Map.of("q", "x")));
+        parent.setDaemon(true);
+        parent.start();
+        assertThat(inEffect.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+
+        long end = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+        while (parent.isAlive() && System.nanoTime() < end) {
+            h.clock.advance(java.time.Duration.ofMinutes(2)); // virtual time only
+            parent.join(10);
+        }
+
+        assertThat(parent.isAlive()).as("the wait returned without a real minute passing").isFalse();
+        assertThat(e.getContext().getVariable("seen")).isEqualTo("running");
+        assertThat(e.getContext().getVariable("timedOut")).isEqualTo("yes");
+    }
 }

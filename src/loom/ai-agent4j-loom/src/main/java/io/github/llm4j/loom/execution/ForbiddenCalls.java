@@ -24,6 +24,11 @@ final class ForbiddenCalls {
         names.add(name);
     }
 
+    /** A re-run of the child keeps what its supervisor forbade: authority only narrows. */
+    void carry(ForbiddenCalls earlier) {
+        names.addAll(earlier.names);
+    }
+
     /**
      * Counts and refuses the call of {@code name} if it is forbidden.
      *

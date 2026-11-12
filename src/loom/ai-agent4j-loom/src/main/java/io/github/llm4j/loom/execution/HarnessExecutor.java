@@ -4395,6 +4395,15 @@ public class HarnessExecutor implements LoomEngine {
         return trajectory.snapshot();
     }
 
+    /**
+     * A re-run of a child takes from its earlier run what the journal does not hold: the facts of
+     * its trajectory and what its supervisor forbade it (D12 rule 7).
+     */
+    void carryFrom(HarnessExecutor earlier) {
+        trajectory.carry(earlier.trajectory.snapshot());
+        forbidden.carry(earlier.forbidden);
+    }
+
     /** Refuses, before it runs, any later call of {@code name} (a supervisor's {@code never calls}). */
     void forbid(String name) {
         forbidden.forbid(name);

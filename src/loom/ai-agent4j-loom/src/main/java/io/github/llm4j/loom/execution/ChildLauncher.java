@@ -51,19 +51,118 @@ final class ChildLauncher {
     static final String WAIT = "child-wait";
 
     /**
-     * A child this launcher started: where it was started, its task and run, its deadline (wall
-     * clock, or null) and the most it may still spend in each dimension.
+     * What a child needs to be launched again, kept in memory with its {@link Live}: the arguments
+     * the {@code start} resolved (so a re-run binds the same values, with the same provenance), the
+     * budgets it was charged to, the invoker's credentials and the label a console knows it by.
      */
-    private record Live(
-            String stepId,
-            ChildScheduler.Task task,
-            HarnessExecutor run,
-            RunJournal journal,
-            Long deadlineMillis,
-            long timeoutMillis,
-            Long capTokens,
-            Long capCalls,
-            BigDecimal capCost) {}
+    private record Launch(
+            String childRun,
+            String workflow,
+            String label,
+            Map<String, Object> args,
+            Provenance.Tag argsTag,
+            List<Budget> enclosing,
+            io.github.llm4j.secret.InvokerCredentials invoker) {}
+
+    /** One run of a child's body: its executor, its task and whether the body has finished. */
+    private static final class Attempt {
+        final HarnessExecutor run;
+        volatile ChildScheduler.Task task;
+        volatile boolean done;
+
+        Attempt(HarnessExecutor run) {
+            this.run = run;
+        }
+    }
+
+    /**
+     * A child this launcher started: where it was started, its journal, its deadline (wall clock,
+     * or null), the most it may still spend in each dimension, how to launch it again, and its
+     * current attempt. A child is launched once by {@code start} and again whenever it is re-run
+     * over its journal (a rewind; later a signal); the attempt changes and everything else stays,
+     * so a watch on the child keeps seeing the live one.
+     */
+    private static final class Live {
+        private final String stepId;
+        private final RunJournal journal;
+        private final Long deadlineMillis;
+        private final long timeoutMillis;
+        private final Long capTokens;
+        private final Long capCalls;
+        private final BigDecimal capCost;
+        private final Launch launch;
+        private volatile Attempt attempt;
+
+        Live(
+                String stepId,
+                RunJournal journal,
+                Long deadlineMillis,
+                long timeoutMillis,
+                Long capTokens,
+                Long capCalls,
+                BigDecimal capCost,
+                Launch launch) {
+            this.stepId = stepId;
+            this.journal = journal;
+            this.deadlineMillis = deadlineMillis;
+            this.timeoutMillis = timeoutMillis;
+            this.capTokens = capTokens;
+            this.capCalls = capCalls;
+            this.capCost = capCost;
+            this.launch = launch;
+        }
+
+        String stepId() {
+            return stepId;
+        }
+
+        RunJournal journal() {
+            return journal;
+        }
+
+        Long deadlineMillis() {
+            return deadlineMillis;
+        }
+
+        long timeoutMillis() {
+            return timeoutMillis;
+        }
+
+        Long capTokens() {
+            return capTokens;
+        }
+
+        Long capCalls() {
+            return capCalls;
+        }
+
+        BigDecimal capCost() {
+            return capCost;
+        }
+
+        Launch launch() {
+            return launch;
+        }
+
+        HarnessExecutor run() {
+            return attempt.run;
+        }
+
+        /** The current attempt's task, or null for the instant between creating it and queueing it. */
+        ChildScheduler.Task task() {
+            return attempt.task;
+        }
+
+        /** True while the current attempt's body has not finished. */
+        boolean active() {
+            return attempt != null && !attempt.done;
+        }
+    }
+
+    /** The longest a {@code wait} sleeps before it looks at the injected clock again. */
+    static final long POLL_MILLIS = 50;
+
+    private final ChildMonitor monitor = new ChildMonitor();
 
     private final HarnessExecutor executor;
     private final Map<ChildHandle, Live> tasks = new IdentityHashMap<>();
@@ -127,49 +226,89 @@ final class ChildLauncher {
         runs.record(childRun, parentRun, stmt.getWorkflow());
 
         RunJournal childJournal = runs.openJournal(childRun);
-        HarnessExecutor child = executor.deriveChild(childRun, childJournal);
-        args.value().forEach((name, value) -> child.bind(name, value, args.tag()));
         BudgetDef scripted = executor.loomScript().getBudget();
         Long capTokens = smaller(stmt.getBudget().getTokens(), scripted == null ? null : scripted.getTokens());
         Long capCalls = smaller(stmt.getBudget().getCalls(), scripted == null ? null : scripted.getCalls());
         BigDecimal capCost = smaller(stmt.getBudget().getCost(), scripted == null ? null : scripted.getCost());
-        child.setBudgetOverrides(capTokens, capCalls, capCost);
-        var enclosing = executor.enclosingBudgets();
-
-        ChildHandle handle = new ChildHandle(childRun, stmt.getWorkflow());
-        runs.prepared(childRun, child);
-        child.onProgress(this::tickSafely); // a counter changed: look at once, not only on the tick
-        var invoker = executor.currentInvoker();
         String workflow = stmt.getWorkflow();
         // a console or chat reaches the child by a longer label: parent/handle/workflow
         String label = LiveRuns.shared().labelOf(executor)
                 .map(parentLabel -> parentLabel + "/" + bound.replace('[', '/').replace("]", "") + "/" + workflow)
                 .orElse(null);
-        ChildScheduler.Task task =
-                executor.childScheduler()
-                        .submit(
+        ChildHandle handle = new ChildHandle(childRun, workflow);
+        Live live =
+                new Live(
+                        stepId,
+                        childJournal,
+                        deadline,
+                        timeoutMillis,
+                        capTokens,
+                        capCalls,
+                        capCost,
+                        new Launch(
                                 childRun,
-                                () -> {
-                                    AutoCloseable registered = null;
-                                    try {
-                                        if (label != null) registered = LiveRuns.shared().register(label, child);
-                                        child.installOuterBudgets(enclosing);
-                                        runChild(child, handle, workflow, invoker);
-                                    } finally {
-                                        try {
-                                            if (registered != null) registered.close();
-                                        } catch (Exception closing) {
-                                            log.log(java.util.logging.Level.FINE, "could not unregister " + label, closing);
-                                        }
-                                        runs.settled(childRun, handle.status());
-                                    }
-                                });
+                                workflow,
+                                label,
+                                args.value(),
+                                args.tag(),
+                                executor.enclosingBudgets(),
+                                executor.currentInvoker()));
+        launch(handle, live, null);
         if (deadline != null) startTicking();
         synchronized (tasks) {
-            tasks.put(handle, new Live(stepId, task, child, childJournal, deadline, timeoutMillis, capTokens, capCalls, capCost));
+            tasks.put(handle, live);
         }
         executor.bind(bound, handle, Provenance.NOT_MODEL);
         log.info("Started child " + childRun + " (" + workflow + ")");
+    }
+
+    /**
+     * The one place a child's body is launched: an executor over the child's own journal, its
+     * arguments, its caps, the outer budgets it also charges and the console's view of it, queued on
+     * the scheduler. {@code start} calls it once; a re-run of the child over its journal (a
+     * rewind, and later a wake by a signal) calls it again with {@code earlier}, the executor of
+     * the run before, whose trajectory and forbidden calls are carried over, because a replay emits
+     * no events for the steps it skips (D12 rule 7). The attempt it makes replaces the live one.
+     */
+    private void launch(ChildHandle handle, Live live, HarnessExecutor earlier) {
+        ChildRuns runs = executor.childRuns();
+        Launch spec = live.launch();
+        HarnessExecutor child = executor.deriveChild(spec.childRun(), live.journal());
+        spec.args().forEach((name, value) -> child.bind(name, value, spec.argsTag()));
+        child.setBudgetOverrides(live.capTokens(), live.capCalls(), live.capCost());
+        if (earlier != null) child.carryFrom(earlier);
+        runs.prepared(spec.childRun(), child);
+        child.onProgress(this::tickSafely); // a counter changed: look at once, not only on the tick
+        Attempt attempt = new Attempt(child);
+        live.attempt = attempt;
+        attempt.task =
+                executor.childScheduler()
+                        .submit(spec.childRun(), () -> body(child, handle, spec, attempt));
+    }
+
+    /**
+     * What runs on the child's thread: its registration with the console, its run, and the record
+     * of how it stopped. If the run ended by asking to be run again (a rewind), that happens last,
+     * after the child has let go of the console and the host, so the new attempt starts clean.
+     */
+    private void body(HarnessExecutor child, ChildHandle handle, Launch spec, Attempt attempt) {
+        AutoCloseable registered = null;
+        Runnable next = null;
+        try {
+            if (spec.label() != null) registered = LiveRuns.shared().register(spec.label(), child);
+            child.installOuterBudgets(spec.enclosing());
+            next = runChild(child, handle, spec.workflow(), spec.invoker());
+        } finally {
+            try {
+                if (registered != null) registered.close();
+            } catch (Exception closing) {
+                log.log(java.util.logging.Level.FINE, "could not unregister " + spec.label(), closing);
+            }
+            if (next == null) executor.childRuns().settled(spec.childRun(), handle.status());
+        }
+        if (next != null) next.run();
+        attempt.done = true;
+        monitor.changed();
     }
 
     /** Refuses a start past a limit, naming it; nothing is queued and nothing is journaled (D14). */
@@ -252,7 +391,7 @@ final class ChildLauncher {
     }
 
     /** The body of a child: its whole run, ending in a status on the handle. */
-    private void runChild(
+    private Runnable runChild(
             HarnessExecutor child,
             ChildHandle handle,
             String workflow,
@@ -261,7 +400,7 @@ final class ChildLauncher {
             Optional<RunJournal.Entry> marker = child.journal().get(CANCEL_MARKER);
             if (marker.isPresent()) { // cancelled before it ran, or before a crash: it stays so
                 settleCancelled(child, handle, marker.get());
-                return;
+                return null;
             }
             child.initialize();
             child.executeWorkflow(workflow, null, invoker);
@@ -284,6 +423,7 @@ final class ChildLauncher {
             handle.end(ChildStatus.FAILED, String.valueOf(died.getMessage()));
             throw died;
         }
+        return null;
     }
 
     private Map<String, Object> argumentValues(StartStmt stmt) {
@@ -331,22 +471,40 @@ final class ChildLauncher {
         runHandlers(stmt, handles);
     }
 
+    /**
+     * Parks until none of the handles has a body still running, or the timeout has passed on the
+     * injected clock (F3). It sleeps on the monitor, so a child's change of state wakes it at once,
+     * and for at most {@link #POLL_MILLIS} at a time, so the clock is looked at again. A queued
+     * child on a controlled scheduler is driven from here, as before.
+     */
     private void settle(Map<String, ChildHandle> handles, long timeoutMillis) {
         long deadline = executor.nowMillis() + timeoutMillis;
-        for (ChildHandle h : handles.values()) {
-            ChildScheduler.Task task;
-            synchronized (tasks) {
-                Live live = tasks.get(h);
-                task = live == null ? null : live.task();
-            }
-            if (task == null) continue; // a settled child's task may still be recording its end
+        while (true) {
+            long seen = monitor.version();
+            Live running = firstActive(handles);
+            if (running == null) return;
+            long left = deadline - executor.nowMillis();
+            if (left <= 0) return;
             try {
-                task.await(Math.max(0, deadline - executor.nowMillis()));
+                ChildScheduler.Task task = running.task();
+                if (task != null) task.await(0); // runs a queued child here; a threaded one just reports
+                if (running.active()) monitor.awaitChange(seen, Math.min(left, POLL_MILLIS));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException("interrupted while waiting for " + h, e);
+                throw new IllegalStateException("interrupted while waiting for children", e);
             }
         }
+    }
+
+    /** The first of these children whose body is still running, or null. */
+    private Live firstActive(Map<String, ChildHandle> handles) {
+        synchronized (tasks) {
+            for (ChildHandle h : handles.values()) {
+                Live live = tasks.get(h);
+                if (live != null && live.active()) return live;
+            }
+        }
+        return null;
     }
 
     /** The suspension this launcher's own {@code wait} threw, so the executor can tell it from any other. */
@@ -953,7 +1111,7 @@ final class ChildLauncher {
             ChildHandle handle = e.getKey();
             if (handle.status().isSettled()) continue;
             try {
-                e.getValue().task().await(Math.max(0, deadline - executor.nowMillis()));
+                awaitBody(e.getValue(), Math.max(0, deadline - executor.nowMillis()));
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
             }
@@ -986,11 +1144,17 @@ final class ChildLauncher {
         for (Map.Entry<ChildHandle, Live> e : old) cancelChild(e.getKey(), e.getValue(), null, reason);
         for (Map.Entry<ChildHandle, Live> e : old) {
             try {
-                e.getValue().task().await(executor.childLimits().settleGrace().toMillis());
+                awaitBody(e.getValue(), executor.childLimits().settleGrace().toMillis());
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    /** Blocks until the child's current body has finished or {@code millis} have passed. */
+    private static void awaitBody(Live live, long millis) throws InterruptedException {
+        ChildScheduler.Task task = live.task();
+        if (task != null) task.await(millis);
     }
 
     /** The one handle {@code ref} names, for a statement that acts on a single child. */
