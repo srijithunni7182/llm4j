@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D12 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D13 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -19,7 +19,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D10 | How a signal is received | **taken** (a child's `wait signal`; in a parent `wait any`, `when signal` and `wait <handle> signal`) |
 | D11 | `wait any`: events and the journaled winner | **taken** (three event kinds; `remaining`; the first return journaled) |
 | D12 | Waking a suspended child | **taken** (a durable wake in two steps: the launch factor and `cancel ... rewind` in 34a, the mailbox wake in 34c) |
-| D13 | Limits and edge cases of signals | open |
+| D13 | Limits and edge cases of signals | **taken** (limits fail loudly; no-ops for settled children and a missing parent; a clean mailbox after a rewind) |
 | D14 | Security: signals as an input channel | open |
 | D15 | Testing: signals, a stubbed child, time | open |
 | D16 | Visibility: the ecosystem for v3 | open |
@@ -234,7 +234,14 @@ alt (event.kind == "finished") { set results[event.name] = event.result }
 
 **Recommendation:** as above.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed, all seven points.**
+1. **Limits:** at most 16 pending messages per name and 64 in all, per child; a `notify` beyond a limit **fails** naming the limit; a sticky signal counts as one per name (a new one replaces it); a name is a plain word of up to 40 characters; a payload up to 2000 characters.
+2. **A `notify` to a settled child** is a **recorded no-op**, not an error (as cancelling a settled child, 33-D13).
+3. **`notify parent` in a workflow with no parent** is a **recorded no-op at run time**, with a `weave check` warning when a workflow containing it is also the script's entry workflow. (A `wait signal` in a run with no parent **fails** with a message, D12 rule 8, because it would wait forever; sending to nobody is harmless, waiting for nobody is not.)
+4. **A `wait signal` for a name nobody sends** times out like any wait; a timeout is required.
+5. **A rewind:** mailbox entries carry the child's generation (the `~N` suffix of step ids); a signal sent to an earlier generation is not delivered to a rewound one; the old generation's entries stay in the journal as history; **the new generation starts with an empty mailbox**, so a sticky signal sent before the rewind must be sent again (a deliberate simplification, stated in the documentation).
+6. **The parent ends:** the child is cancelled (33-D10), so unread signals are moot and stay in the journal as history.
+7. **A `notify` to a child that is cancelled but not yet settled:** the entry is written (the child's journal is the record) and never delivered, because the cancel marker wins (D12 rule 5).
 
 ## D14. Security: signals as an input channel
 
