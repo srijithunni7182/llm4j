@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D14 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D15 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -21,7 +21,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D12 | Waking a suspended child | **taken** (a durable wake in two steps: the launch factor and `cancel ... rewind` in 34a, the mailbox wake in 34c) |
 | D13 | Limits and edge cases of signals | **taken** (limits fail loudly; no-ops for settled children and a missing parent; a clean mailbox after a rewind) |
 | D14 | Security: signals as an input channel | **taken** (LA30 for reading only; no signal steers an agent; a child signals only its parent) |
-| D15 | Testing: signals, a stubbed child, time | open |
+| D15 | Testing: signals, a stubbed child, time | **taken** (the vocabulary, a controlled wake, the kill-point extension; principle 22) |
 | D16 | Visibility: the ecosystem for v3 | open |
 | D17 | Names: `report`, `progress`, `notify`, `signal`, `any` | open |
 | D18 | What stays out of this phase | open |
@@ -270,7 +270,15 @@ alt (event.kind == "finished") { set results[event.name] = event.result }
 
 **Recommendation:** as above.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed. The guiding principle: the workflow should be well tested.** A construct is not finished until a workflow that uses it can be tested without a model, a real clock or racing threads; the starter's tests are the proof (principle 22).
+1. **`weave test` vocabulary:** `signals:` scripts a signal's arrival on the virtual clock (`signals: { work_a: [ { at: 2m, name: stuck, text: "no sources" } ] }`); the stubbed child (F5) scripts a child's states, progress and signals in the style of `remotes:` (`children: { Research: [ { state: working, progress: {...}, after: 1m }, { signal: stuck, text: "..." }, { state: completed, result: "..." } ] }`); `expect:` keys for signals sent and received and for the `wait any` events and the order they arrived in.
+2. **A controlled wake:** `ControlledChildScheduler` is extended so a woken child is queued and re-runs deterministically when the test advances.
+3. **The kill-point test is extended** to a signal's send, delivery and consumption, a progress report and the `wait any` entry: kill before each, resume, and check every signal is received exactly once and the winner of a `wait any` is the same; it keeps the `slow` tag.
+4. **Guards G16 to G35** (TEST_STRATEGY), each broken on purpose once; G7 and G13 of phase 33 are broken in 34a (F14).
+5. **A concurrency test** for the wake races (a `notify` as a child is about to suspend again; two `notify`s while a woken child runs), on the controlled scheduler first; a real-thread variant tagged `slow` only if the controlled scheduler cannot reach the interleaving.
+6. **Mutation and coverage:** `mutation-children` extended to the new deciding classes at 85% or more, nothing excluded; new classes meet the per-class gates.
+7. **The tiers do not change** (`-Dtest=`, `make test-core` after each sub-phase, `make test-fast` after the phase, `make test-oracle` once, never `make test-full` or `make test-live`).
+- **Not tested here:** a real model's judgement, and waking a sleeping child by a timer; the by-hand run of the demo with a real key stays the owner's.
 
 ## D16. Visibility: the ecosystem for v3
 
