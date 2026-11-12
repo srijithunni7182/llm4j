@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D19, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D20, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -16,8 +16,8 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D3 | Where the child's journal lives | **taken** (a separate linked run, a sibling in today's flat layout; `fork` follows the links) |
 | D4 | Replay and the double start | **taken** (a deterministic id including the parent's attempt, journal first) |
 | D5 | Where the child runs | **taken** (in the same process in v1; the trigger store is not ruled out) |
-| D6 | What the monitor is | open (staged to v3 by D1; parked) |
-| D7 | Monitor separate or part of the handle | open (staged to v3 by D1; parked; a question for the owner) |
+| D6 | What the monitor is | deferred (v3, a later phase) |
+| D7 | Monitor separate or part of the handle | deferred (v3, a later phase; a question for the owner) |
 | D8 | What `wait` does | **taken** (required timeout; returns on timeout; `wait all` records every outcome; no thread held) |
 | D9 | How a child's outcome reaches the parent | **taken** (eight statuses including `sleeping`; `status`, `is ok`, `reason`, `failure`; the result is an error unless completed) |
 | D10 | Children when the parent ends | **taken** (warn at check time; cancel with a reason at run time, 30 s grace; no `detach`) |
@@ -30,9 +30,9 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D17 | Tests | **taken** (real or stubbed children, virtual clock, a controlled executor, guard tests first, a mutation profile) |
 | D18 | The Java side | **taken** (children are `LoomRun`s; `#label` reaches them; a journal factory, no new `RunJournal` method) |
 | D19 | Names | **taken** (`start`, `wait`, `cancel`, `steer` as contextual keywords) |
-| D20 | What stays out | open |
+| D20 | What stays out | **taken** (and the scope: this phase is v1 and v2; v3 is a later phase) |
 | D21 | Where supervision is written | **taken** (the header names the handle) |
-| D22 | How a child exposes progress | open (the owner's view recorded) |
+| D22 | How a child exposes progress | runtime facts in this phase; B and C deferred to v3 (the owner wants all three) |
 | D23 | The counted conditions | **partly taken** (bare counters relative to the handle) |
 | D24 | Assertions in code | open |
 | D25 | Judged assertions | **partly taken** (a judge inside `supervise` is wanted) |
@@ -91,6 +91,8 @@ v2 = code assertions and judged assertions (D24, D25); v3 = declared progress, s
 - **v3:** declared progress (`report`), signals (`notify`), `wait any`. (`detach` was removed by the owner under D10: a child never outlives its parent.)
 
 The demo is built in this order: counted rules first (cancel an overspender, steer an idle child, survive a restart), the judged drift check as soon as v2 is in.
+
+**Scope (D20):** this phase is v1 and v2; v3 is a later phase.
 
 ## D2. What is a handle?
 
@@ -165,7 +167,7 @@ suspend or a restart, so the idea needs a durable form. Principle 5.
 **Recommendation: A**, because a payload ("the new instruction", "the budget is raised") is what a supervisor mostly wants to send, and B is a special case of A. The payload is
 untrusted data (principle 10).
 
-**Decision:** open.
+**Decision:** deferred to the later phase (v3, D1 and D20). Still open there.
 
 ## D7. Is the monitor a separate value, or part of the handle?
 
@@ -180,7 +182,7 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation: C.** A handle already identifies the one child to be signalled; B is only needed when two children must signal each other.
 
-**Decision:** open. **The owner's wording:** "pass a monitor which the sub workflow uses; the locked monitor is part of the handle", which is a mix of A and B. **Question for the owner, still unanswered:** which of A or B, and is sibling-to-sibling signalling a requirement? Staged to v3 by the simplification (D1), so not needed for the demo.
+**Decision:** deferred to the later phase (v3, D1 and D20). Still open there. **The owner's wording:** "pass a monitor which the sub workflow uses; the locked monitor is part of the handle", which is a mix of A and B. **Question for the owner, still unanswered:** which of A or B, and is sibling-to-sibling signalling a requirement? Staged to v3 by the simplification (D1), so not needed for the demo.
 
 ## D8. What does `wait` do?
 
@@ -406,7 +408,9 @@ tutorial, wiki, README census, release notes).
 - Children on other machines, a scheduler or queue of children, a visual builder, and any change to `call`.
 - Whether `weave generate` should be taught to produce supervisor workflows: after the language settles.
 
-**Decision:** open.
+**Decision (owner): accepted, and the scope of the phase is option C.**
+- **Out of this phase:** `detach` (not wanted, D10); children on other machines, and a scheduler or queue of children; a visual builder; any change to `call`; teaching `weave generate` to produce supervisor workflows (after the language settles); collections and a type system (their own phase; this one uses the existing keyed variable plus the two additions of D1); supervision across suspended runs through the trigger store and `weave daemon` (D29); starting a remote A2A agent as a child (a `remote` is a different mechanism; a child may still `delegate` to one).
+- **Scope (option C):** **phase 33 is v1 and v2**: `start`, `wait`, `cancel`, readable facts, `supervise` with counted rules, assertions in code and judged assertions. **v3 is a later phase**: declared progress (`report`), signals and `notify`, `wait any`. The ecosystem work of D16 covers everything shipped in the phase.
 
 ## D21. Where is supervision written? **Taken by the owner**
 
@@ -429,6 +433,8 @@ The same facts remain readable as plain values elsewhere in the script (`work[t.
 (progress is bounded in size and rate, journaled, restored by a rewind, readable only through the handle, Fabric and the live page).
 
 **Decision:** open. **The owner's view:** A, B and C are all wanted, with a simple syntax. Proposal: A in v1, B and C later.
+
+**Scope (D1, D20):** in this phase a child's progress is the runtime facts (A: `status`, `tokens`, `cost`, `calls`, `elapsed`, `idle`, `wakes`, D9 and D23); the declared progress (B) and the pushed events (C), which the owner wants too, are the later phase (v3).
 
 ## D23. Which counted conditions are in v1?
 
