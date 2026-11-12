@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 and D2 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -8,7 +8,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | | Decision | State |
 |---|---|---|
 | D1 | The scope and staging of this phase | **taken** (one phase, five sub-phases, a review gate after 34a) |
-| D2 | Which v1 gaps are carried into this phase | open |
+| D2 | Which v1 gaps are carried into this phase | **taken** (all of F1 to F11) |
 | D3 | The judge budget: reserved at `start` | open |
 | D4 | The judge's facts view | open |
 | D5 | A judge-driven demo test | open |
@@ -49,7 +49,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 
 **Recommendation:** carry all of F1 to F11 as sub-phase 34a (F10 and F11 in 34e), so nothing from phase 33 stays on a list.
 
-**Decision:** open.
+**Decision (owner): carry all eleven (F1 to F11).** F1 to F9 are in 34a (the reviewed foundation): **F1** `cancel ... rewind to`, **F2** the status error for an unfinished `wait -> r`, **F3** the wait timeout on the injected clock and the test of a timeout while a child still runs, **F4** the supervisor's worst-case cost, **F5** the stubbed child, **F6** `weave why` on a child folder, **F7** the runtime handle guard, **F8** the sleeping-child test, **F9** the two warnings. **F10** (the live page's JavaScript; an old console against a new process) and **F11** (the root README, the workflow-guide skill row, the VS Code parser-parity baseline, a tutorial chapter of its own) are in 34e with the ecosystem. Nothing from phase 33 stays on a list. F12 to F15 are decided in D3 to D5.
 
 ## D3. The judge budget: reserved at `start` (F12, 33-D27)
 
