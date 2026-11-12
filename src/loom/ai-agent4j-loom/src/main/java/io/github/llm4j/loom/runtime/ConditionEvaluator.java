@@ -123,6 +123,7 @@ public class ConditionEvaluator {
      */
     static boolean ok(String path, VariableContext context) {
         if (variable(path, context) instanceof ChildHandle handle) return handle.isOk();
+        if (variable(path, context) instanceof Unavailable) return false;
         int dot = path.indexOf('.');
         return Boolean.TRUE.equals(
                 context.getVariable("_ok:" + (dot < 0 ? path : path.substring(0, dot))));

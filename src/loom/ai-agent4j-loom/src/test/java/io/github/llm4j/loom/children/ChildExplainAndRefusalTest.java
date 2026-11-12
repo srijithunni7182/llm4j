@@ -61,6 +61,27 @@ class ChildExplainAndRefusalTest {
     }
 
     @Test
+    void theExplanationSaysWhatNotifyAndWaitSignalMean() {
+        String text =
+                ScriptExplainer.explain(
+                        StartParseTest.parse(
+                                """
+                                workflow Child(x) { wait signal "go" timeout 5m -> t  notify parent "done" "ok" }
+                                workflow Main(q) {
+                                    start Child(x = q) budget { tokens: 10 } -> work
+                                    notify work "approved" "yes" sticky
+                                    wait work signal "done" timeout 1m -> r
+                                }
+                                """),
+                        "w.loom",
+                        "Main");
+        String child = ScriptExplainer.explain(StartParseTest.parse("workflow Child(x) { wait signal \"go\" timeout 5m -> t  notify parent \"done\" \"ok\" }"), "w.loom", "Child");
+
+        assertThat(text).contains("sends work the signal \"approved\"").contains("a latch").contains("waits for the signal \"done\" from work").contains("at most 1 minute");
+        assertThat(child).contains("waits for the signal \"go\" from its parent").contains("holds no thread").contains("sends its parent the signal \"done\"");
+    }
+
+    @Test
     void theExplanationSaysWhatEachStatementDoes() {
         String text = ScriptExplainer.explain(StartParseTest.parse(SOURCE), "w.loom", "Main");
 

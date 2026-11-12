@@ -100,6 +100,85 @@ final class ChildAudit {
                     });
     }
 
+    /**
+     * LA30 (phase 34c, D14): a workflow that <em>reads</em> a signal (a {@code wait signal}, a
+     * {@code wait handle signal}, or a {@code when signal} rule) can have text from another run enter
+     * its variables. The finding names the signal and the side that can send it, in the shape of LA28.
+     * It is low when the text can reach a model's prompt or a task's argument, info otherwise. There
+     * is no rule for sending: the parent already gets the child's result, so the channel is not new.
+     */
+    static void signals(LoomScript script, List<Finding> findings) {
+        for (WorkflowDef w : script.getWorkflows()) {
+            Map<String, WorkflowDef> startedAs = new LinkedHashMap<>();
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof StartStmt st) startedAs.put(st.getTarget().name(), find(script, st.getWorkflow()));
+                    });
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof io.github.llm4j.loom.ast.SignalWaitStmt wait) {
+                            if (wait.getTarget() == null)
+                                signal(script, findings, w, wait.getLine(), wait.getName(), wait.getResultVariable(), parentsOf(script, w));
+                            else
+                                signal(script, findings, w, wait.getLine(), wait.getName(), wait.getResultVariable(),
+                                        childSide(startedAs.get(wait.getTarget().name())));
+                        } else if (s instanceof SuperviseStmt sv) {
+                            for (SuperviseStmt.SignalRule r : sv.getSignals())
+                                signal(script, findings, w, r.line(), r.name(), null, childSide(startedAs.get(sv.getTarget().name())));
+                        }
+                    });
+        }
+    }
+
+    private static String parentsOf(LoomScript script, WorkflowDef child) {
+        List<String> parents = new ArrayList<>();
+        for (WorkflowDef p : script.getWorkflows())
+            StatementWalker.walk(p.getStatements(), s -> {
+                if (s instanceof StartStmt st && st.getWorkflow().equals(child.getName()) && !parents.contains(p.getName()))
+                    parents.add(p.getName());
+            });
+        return parents.isEmpty()
+                ? "the parent that starts it (no workflow of this script does, so it is whatever starts it)"
+                : "its parent, the workflow " + String.join(" or ", parents);
+    }
+
+    private static String childSide(WorkflowDef child) {
+        return child == null ? "the child it started" : "the child, the workflow " + child.getName();
+    }
+
+    private static void signal(
+            LoomScript script, List<Finding> findings, WorkflowDef reader, int line, String name, String variable, String sender) {
+        boolean reaches = variable != null && reaches(reader, variable);
+        findings.add(
+                new Finding(
+                        "LA30",
+                        reaches ? Severity.LOW : Severity.INFO,
+                        List.of(Owasp.LLM01),
+                        reader.getName() + " / signal " + name,
+                        line,
+                        "A workflow reads a signal from another run",
+                        "The workflow " + reader.getName() + " reads the signal \"" + name + "\", which " + sender
+                                + " can send. Its text is written by another run and may carry instructions: it is read as unchecked"
+                                + (reaches ? ", and here it reaches a model's prompt or a task's argument" : "")
+                                + ". A signal causes nothing by itself and can never become a steer's text.",
+                        "Treat the text as untrusted: check it before it reaches an agent that can act, and prefer a signal's arrival (a rule or a branch) over its content."));
+    }
+
+    /** True when {@code {variable}} is written into a prompt, a payload or an argument of the workflow. */
+    private static boolean reaches(WorkflowDef w, String variable) {
+        boolean[] found = {false};
+        String needle = "{" + variable;
+        StatementWalker.walk(
+                w.getStatements(),
+                s -> {
+                    for (io.github.llm4j.loom.execution.SubstitutedText.Entry e : io.github.llm4j.loom.execution.SubstitutedText.entries(s))
+                        if (e.text().contains(needle)) found[0] = true;
+                });
+        return found[0];
+    }
+
     private static boolean steers(SuperviseStmt s) {
         List<List<SuperviseDef.Action>> all = new ArrayList<>();
         s.getCounted().forEach(r -> all.add(r.actions()));

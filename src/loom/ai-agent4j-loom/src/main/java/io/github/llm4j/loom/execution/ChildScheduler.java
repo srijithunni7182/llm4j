@@ -26,6 +26,15 @@ public interface ChildScheduler {
         boolean await(long timeoutMillis) throws InterruptedException;
     }
 
+    /**
+     * Called by a parent's {@code wait} when nothing it waits for can run: lets a scheduler that owns
+     * the clock (a test's controlled one) move time forward by up to {@code maxMillis}. Returns true
+     * when it did; the default does nothing, because real time passes by itself.
+     */
+    default boolean idle(long maxMillis) {
+        return false;
+    }
+
     /** Starts {@code body}, the whole run of the child named {@code name}. */
     Task submit(String name, Runnable body);
 

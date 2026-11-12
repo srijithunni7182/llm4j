@@ -104,6 +104,21 @@ public final class ChildHarness {
         };
     }
 
+    /**
+     * A controlled scheduler whose idle time is virtual: when a parent's wait has nothing to run, the
+     * test's clock moves forward by what the wait would have slept and the supervisor looks, so a wait
+     * with a timeout is a test of virtual time and never a real sleep.
+     */
+    public io.github.llm4j.loom.execution.ControlledChildScheduler controlled() {
+        var scheduler = new io.github.llm4j.loom.execution.ControlledChildScheduler();
+        scheduler.onIdle(
+                millis -> {
+                    clock.advance(Duration.ofMillis(millis));
+                    if (parent != null) parent.tickChildren();
+                });
+        return scheduler;
+    }
+
     /** A parent run named {@code p} over {@code source}, its children on {@code scheduler}. */
     public HarnessExecutor parent(String source, ChildScheduler scheduler) {
         return parent(source, scheduler, new io.github.llm4j.loom.eval.MockModels());

@@ -141,6 +141,24 @@ public final class SuperviseStmt extends LocatedStatement {
         }
     }
 
+    /**
+     * {@code when signal "name" { actions }} (phase 34c): fires once for each arrival of a signal of
+     * that name from the child. The actions' text stays fixed: the payload is not available to them,
+     * and a rule never fires on what a signal says, only on its arrival.
+     */
+    public record SignalRule(String name, boolean once, List<SuperviseDef.Action> actions, int line) {
+        public SignalRule {
+            actions = List.copyOf(actions);
+        }
+    }
+
+    private final List<SignalRule> signals = new ArrayList<>();
+
+    /** The rules that fire on a signal's arrival, in the order written. */
+    public List<SignalRule> getSignals() {
+        return signals;
+    }
+
     private final HandleRef target;
     private BudgetDef budget;
     private final List<Counted> counted = new ArrayList<>();

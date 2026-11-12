@@ -47,7 +47,7 @@ final class ChildChecks {
     static final Set<String> FACTS =
             Set.of(
                     "status", "result", "partial", "reason", "failure", "tokens", "cost", "calls",
-                    "elapsed", "idle", "wakes", "progress");
+                    "elapsed", "idle", "wakes", "progress", "waits");
 
     /** The shortest cadence of a judge, in milliseconds (D26). */
     static final long JUDGE_FLOOR_MILLIS = 30_000;
@@ -62,6 +62,7 @@ final class ChildChecks {
         LoomScript script = c.script();
         for (WorkflowDef w : script.getWorkflows()) workflow(c, script, w);
         ProgressChecks.run(c);
+        SignalChecks.run(c);
     }
 
     private static void workflow(ScriptValidator.Checker c, LoomScript script, WorkflowDef w) {
@@ -228,7 +229,7 @@ final class ChildChecks {
 
     // ---- handles must be started ----
 
-    private static void isHandle(
+    static void isHandle(
             ScriptValidator.Checker c, Set<String> known, HandleRef ref, int line, String verb) {
         if (!known.contains(ref.name()))
             c.error(

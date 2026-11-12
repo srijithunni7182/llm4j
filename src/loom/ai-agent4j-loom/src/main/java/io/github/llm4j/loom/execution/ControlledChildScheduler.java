@@ -40,6 +40,24 @@ public final class ControlledChildScheduler implements ChildScheduler {
         }
     }
 
+    private java.util.function.LongConsumer onIdle;
+
+    /**
+     * Sets what happens when a parent waits and nothing can run: a test advances its clock by the
+     * milliseconds given and lets the supervisor look, so a wait with a timeout is a test of virtual
+     * time and nothing sleeps.
+     */
+    public void onIdle(java.util.function.LongConsumer advance) {
+        this.onIdle = advance;
+    }
+
+    @Override
+    public boolean idle(long maxMillis) {
+        if (onIdle == null || maxMillis <= 0) return false;
+        onIdle.accept(maxMillis);
+        return true;
+    }
+
     @Override
     public Task submit(String name, Runnable body) {
         Queued task = new Queued(body);

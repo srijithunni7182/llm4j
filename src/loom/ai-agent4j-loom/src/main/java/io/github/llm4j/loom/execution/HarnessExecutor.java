@@ -3201,6 +3201,26 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private final ProgressLog progressLog = new ProgressLog();
+    private final SignalRunner signals = new SignalRunner(this);
+    private volatile Runnable parentSignalled = () -> {};
+
+    /**
+     * Signals a child this run started from outside the script (a host, or a test racing senders):
+     * what {@code notify} does, with {@code fromStep} naming the sender so a repeat sends once.
+     */
+    void signalChild(io.github.llm4j.loom.runtime.ChildHandle handle, String name, String text, boolean sticky, String fromStep) {
+        children.signalChild(handle, name, text, sticky, fromStep);
+    }
+
+    /** True when another run started this one, so there is a parent to signal and be signalled by. */
+    boolean hasParent() {
+        return parentRunId != null;
+    }
+
+    /** Tells the parent's launcher that this run wrote a signal for it, so a parked {@code wait} looks now. */
+    void signalParent() {
+        parentSignalled.run();
+    }
 
     /**
      * A scripted child's report (phase 34b): written as {@code report} writes it, checked against
@@ -3343,6 +3363,12 @@ public class HarnessExecutor implements LoomEngine {
             trace(TraceEvent.NOTE, null, noteText, null);
         } else if (stmt instanceof io.github.llm4j.loom.ast.HaltStmt halt) {
             executeHalt(halt);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.NotifyStmt notify) {
+            if (notify.toParent()) signals.notifyParent(notify);
+            else children.notifyChild(notify);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SignalWaitStmt wait) {
+            if (wait.getTarget() == null) signals.waitForParent(wait);
+            else children.awaitSignal(wait, signals);
         } else if (stmt instanceof io.github.llm4j.loom.ast.ReportStmt report) {
             executeReport(report);
         } else if (stmt instanceof io.github.llm4j.loom.ast.SetStmt set) {
@@ -4633,6 +4659,7 @@ public class HarnessExecutor implements LoomEngine {
         child.childLimits = childLimits;
         child.childDepth = childDepth + 1;
         child.parentRunId = runId;
+        child.parentSignalled = children::signalArrived;
         child.stepListener = stepListener; // a test that counts the steps a run reached counts the child's
         child.statementListener = statementListener;
         child.sinkOracle = sinkOracle; // a test that watches the exits of a run watches the child's too

@@ -47,6 +47,9 @@ final class ControlChecks {
                         if (s instanceof RunStmt r) runResults.add(head(r.getVariableName()));
                         if (s instanceof io.github.llm4j.loom.ast.StartStmt st)
                             runResults.add(st.getTarget().name());
+                        // a signal wait leaves a value that is ok only if a signal arrived (phase 34c)
+                        if (s instanceof io.github.llm4j.loom.ast.SignalWaitStmt sw && sw.getResultVariable() != null)
+                            runResults.add(sw.getResultVariable());
                     });
             StatementWalker.walk(
                     w.getStatements(),

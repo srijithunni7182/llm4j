@@ -29,6 +29,15 @@ final class ChildSentences {
             return "The agent " + x.getAgent() + " of " + x.getTarget().describe()
                     + " is told, in these words: \"" + x.getText() + "\"";
         if (s instanceof SuperviseStmt x) return supervise(x);
+        if (s instanceof io.github.llm4j.loom.ast.NotifyStmt x)
+            return "The workflow sends " + (x.toParent() ? "its parent" : x.getTarget().describe()) + " the signal \"" + x.getName() + "\""
+                    + (x.isSticky() ? ", a latch that stays set until it is replaced" : ", a message that is read once")
+                    + (x.getText() == null ? "" : ", with text that the receiver reads as untrusted")
+                    + ". A signal causes nothing by itself.";
+        if (s instanceof io.github.llm4j.loom.ast.SignalWaitStmt x)
+            return "The workflow waits for the signal \"" + x.getName() + "\" from " + (x.getTarget() == null ? "its parent" : x.getTarget().describe())
+                    + (x.getTimeoutMillis() == null ? "" : " for at most " + duration(x.getTimeoutMillis()))
+                    + ". While it waits it holds no thread, and what arrives is read as untrusted text.";
         if (s instanceof io.github.llm4j.loom.ast.ReportStmt x)
             return "The workflow reports where it is: " + String.join(", ", x.getValue().fields().keySet())
                     + ". Whoever started it can read the latest report, as text it cannot trust.";

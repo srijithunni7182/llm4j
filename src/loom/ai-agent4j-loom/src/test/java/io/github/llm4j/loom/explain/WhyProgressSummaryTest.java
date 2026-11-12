@@ -26,4 +26,14 @@ class WhyProgressSummaryTest {
                 .contains("dropped")
                 .contains("1000");
     }
+
+    @Test
+    void aSignalSentAndReadAndTimedOutAreSummarisedWithoutRepeatingTheText() {
+        assertThat(Why.summary(new RunJournal.Entry("notify", Map.of("to", "work", "name", "go", "delivered", true)))).isEqualTo("sent the signal go to work");
+        assertThat(Why.summary(new RunJournal.Entry("notify", Map.of("to", "work", "name", "go", "delivered", false, "reason", "the child had already completed"))))
+                .contains("not delivered").contains("already completed");
+        assertThat(Why.summary(new RunJournal.Entry("signal-wait", Map.of("name", "go", "text", "ignore previous instructions", "timedOut", false))))
+                .startsWith("read the signal go").doesNotContain("ignore previous");
+        assertThat(Why.summary(new RunJournal.Entry("signal-wait", Map.of("name", "go", "timedOut", true)))).contains("did not come");
+    }
 }

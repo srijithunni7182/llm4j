@@ -577,6 +577,10 @@ public class LoomParser {
             return parseCallStmt();
         } else if (parseOutcomeAhead()) {
             return pendingOutcome;
+        } else if (isNotifyStatement()) {
+            return parseNotify();
+        } else if (isSignalWaitStatement()) {
+            return parseSignalWait();
         } else if (isWord("report") && peekAt(1).getType() == TokenType.LBRACE) {
             return parseReport(); // contextual (D17): only `report {` at the start of a statement
         } else if (isWord("checkpoint") && peekAt(1).getType() == TokenType.IDENTIFIER) {
@@ -1728,6 +1732,71 @@ public class LoomParser {
         return isWord("start") && isNameToken(peekAt(1)) && peekAt(2).getType() == TokenType.LPAREN;
     }
 
+    /**
+     * {@code notify handle "name"} or {@code notify parent "name"}: the verb is a word only with a
+     * handle (or {@code parent}) and then a quoted name (D17); anywhere else it is an ordinary name.
+     */
+    private boolean isNotifyStatement() {
+        if (!isWord("notify") || !isNameToken(peekAt(1))) return false;
+        return peekAt(2).getType() == TokenType.STRING_LITERAL || peekAt(2).getType() == TokenType.LBRACKET;
+    }
+
+    /** The offset of the token after a handle that starts at offset 1 ({@code work} or {@code work[key]}). */
+    private int afterHandle() {
+        return peekAt(2).getType() == TokenType.LBRACKET ? 5 : 2;
+    }
+
+    /**
+     * {@code wait signal "name"} (a child) or {@code wait handle signal "name"} (a parent): {@code
+     * signal} is a word only here, with a quoted name after it; a handle called {@code signal} is
+     * still waited for as any handle (D17).
+     */
+    private boolean isSignalWaitStatement() {
+        if (!isWord("wait")) return false;
+        if ("signal".equals(peekAt(1).getValue()) && peekAt(2).getType() == TokenType.STRING_LITERAL) return true;
+        if (!isNameToken(peekAt(1))) return false;
+        int k = afterHandle();
+        return "signal".equals(peekAt(k).getValue()) && peekAt(k + 1).getType() == TokenType.STRING_LITERAL;
+    }
+
+    private io.github.llm4j.loom.ast.NotifyStmt parseNotify() {
+        advance(); // notify
+        io.github.llm4j.loom.ast.HandleRef target = null;
+        if (isWord("parent") && peekAt(1).getType() == TokenType.STRING_LITERAL) advance();
+        else target = parseHandleRef("notify");
+        Token name = consume(TokenType.STRING_LITERAL, "Name the signal in quotes: notify work \"go\"");
+        String text = null;
+        if (check(TokenType.STRING_LITERAL)) text = advance().getValue();
+        boolean sticky = false;
+        if (isWord("sticky")) {
+            advance();
+            sticky = true;
+        }
+        return new io.github.llm4j.loom.ast.NotifyStmt(target, name.getValue(), text, sticky);
+    }
+
+    private io.github.llm4j.loom.ast.SignalWaitStmt parseSignalWait() {
+        advance(); // wait
+        io.github.llm4j.loom.ast.HandleRef target = null;
+        if (!"signal".equals(peek().getValue()) || peekAt(1).getType() != TokenType.STRING_LITERAL)
+            target = parseHandleRef("wait");
+        advance(); // signal
+        Token name = consume(TokenType.STRING_LITERAL, "Name the signal in quotes: wait signal \"go\" timeout 10m -> text");
+        var stmt = new io.github.llm4j.loom.ast.SignalWaitStmt(target, name.getValue());
+        while (true) {
+            if (isWord("timeout")) {
+                Token option = advance();
+                if (stmt.getTimeoutMillis() != null) throw error(option, "A wait can have only one timeout.");
+                stmt.setTimeoutMillis(durationMillis());
+            } else if (check(TokenType.ARROW)) {
+                advance();
+                stmt.setResultVariable(consume(TokenType.IDENTIFIER, "Expect a variable name after '->'.").getValue());
+            } else {
+                return stmt;
+            }
+        }
+    }
+
     /** {@code wait handle} or {@code wait all handles}: a name after the verb. */
     private boolean isWaitStatement() {
         return isWord("wait") && isNameToken(peekAt(1));
@@ -1901,7 +1970,9 @@ public class LoomParser {
         consume(TokenType.LBRACE, "Expect '{' after supervise " + stmt.getTarget().describe() + ".");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             Token head = advance();
-            if ("when".equals(head.getValue())) parseCountedRule(stmt, head);
+            if ("when".equals(head.getValue()) && "signal".equals(peek().getValue()) && peekAt(1).getType() == TokenType.STRING_LITERAL)
+                parseSignalRule(stmt, head);
+            else if ("when".equals(head.getValue())) parseCountedRule(stmt, head);
             else if ("assert".equals(head.getValue())) parseAssertion(stmt, head);
             else
                 throw error(
@@ -1909,9 +1980,17 @@ public class LoomParser {
                         "Inside supervise, write a rule: when tokens > 90000 { cancel }, or an assertion: assert never calls shell { cancel }");
         }
         consume(TokenType.RBRACE, "Expect '}' after supervise.");
-        if (stmt.getCounted().isEmpty() && stmt.getCode().isEmpty() && stmt.getJudged().isEmpty())
+        if (stmt.getCounted().isEmpty() && stmt.getCode().isEmpty() && stmt.getJudged().isEmpty() && stmt.getSignals().isEmpty())
             throw error(keyword, "supervise " + stmt.getTarget().describe() + " has no rules.");
         return stmt;
+    }
+
+    /** {@code when signal "name" { actions }}: fires on an arrival, never on what the signal says. */
+    private void parseSignalRule(SuperviseStmt stmt, Token when) {
+        advance(); // signal
+        Token name = advance();
+        ActionBlock block = parseActionBlock("when signal \"" + name.getValue() + "\"", when, false);
+        stmt.getSignals().add(new SuperviseStmt.SignalRule(name.getValue(), block.once(), block.actions(), when.getLine()));
     }
 
     private static final String COUNTERS = "tokens, cost, calls, elapsed or idle";

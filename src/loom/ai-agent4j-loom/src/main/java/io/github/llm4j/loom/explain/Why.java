@@ -271,6 +271,8 @@ public final class Why {
             case "child-cancel" -> nodeKind.equals(Kinds.CHILD_CANCEL);
             case "child-steer", "supervise", "judge" -> nodeKind.equals(Kinds.CHILD_WATCH);
             case "progress", "progress-dropped" -> nodeKind.equals(Kinds.CHILD_REPORT);
+            case "notify" -> nodeKind.equals(Kinds.CHILD_NOTIFY);
+            case "signal-wait" -> nodeKind.equals(Kinds.CHILD_SIGNAL_WAIT);
             default -> true;
         };
     }
@@ -425,6 +427,12 @@ public final class Why {
             case "progress" -> v instanceof Map<?, ?> m && m.get("fields") instanceof Map<?, ?> f
                     ? "reported " + String.join(", ", f.keySet().stream().map(String::valueOf).toList())
                     : "reported its progress";
+            case "notify" -> v instanceof Map<?, ?> m
+                    ? ("sent the signal " + m.get("name") + " to " + m.get("to") + (Boolean.TRUE.equals(m.get("delivered")) ? "" : " (not delivered: " + m.get("reason") + ")"))
+                    : "sent a signal";
+            case "signal-wait" -> v instanceof Map<?, ?> m
+                    ? (Boolean.TRUE.equals(m.get("timedOut")) ? "waited for the signal " + m.get("name") + " and it did not come" : "read the signal " + m.get("name") + " (" + String.valueOf(m.get("text")).length() + " chars)")
+                    : "waited for a signal";
             case "progress-dropped" -> v instanceof Map<?, ?> m ? "a report was dropped: " + m.get("reason") : "a report was dropped";
             default -> e.kind();
         };

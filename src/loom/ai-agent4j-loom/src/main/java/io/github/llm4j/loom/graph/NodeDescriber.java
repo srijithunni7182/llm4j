@@ -207,6 +207,16 @@ final class NodeDescriber {
             return new Described(Kinds.CHILD_WATCH, "steer " + x.getTarget().describe())
                     .attrs(Attrs.create().text("handle", x.getTarget().describe()).text("what", "steer " + x.getAgent()));
         }
+        if (st instanceof io.github.llm4j.loom.ast.NotifyStmt x) {
+            String to = x.toParent() ? "parent" : x.getTarget().describe();
+            return new Described(Kinds.CHILD_NOTIFY, "notify " + to + " " + x.getName())
+                    .attrs(Attrs.create().text("to", to).text("signal", x.getName()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.SignalWaitStmt x) {
+            String from = x.getTarget() == null ? "parent" : x.getTarget().describe();
+            return new Described(Kinds.CHILD_SIGNAL_WAIT, "wait signal " + x.getName())
+                    .attrs(Attrs.create().text("from", from).text("signal", x.getName()));
+        }
         if (st instanceof io.github.llm4j.loom.ast.ReportStmt x) {
             return new Described(Kinds.CHILD_REPORT, "report " + String.join(", ", x.getValue().fields().keySet()))
                     .attrs(Attrs.create().text("fields", String.join(", ", x.getValue().fields().keySet())));

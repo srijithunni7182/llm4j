@@ -37,7 +37,13 @@ public class RunSuspended extends AgentInterrupt {
          * #resumeAt()}, the step's deadline, when the step fails.
          */
         REMOTE,
-        OPERATOR
+        OPERATOR,
+        /**
+         * A started workflow waits for a signal from the workflow that started it (phase 34c). It
+         * holds no thread; the parent's {@code notify} runs it again over its journal, or the
+         * launcher's tick does at {@link #resumeAt()}, the wait's deadline.
+         */
+        SIGNAL
     }
 
     private final String stepId;
@@ -88,6 +94,17 @@ public class RunSuspended extends AgentInterrupt {
      */
     public static RunSuspended remote(String stepId, Instant deadline, String detail) {
         return new RunSuspended(stepId, deadline, detail, Reason.REMOTE);
+    }
+
+    /**
+     * A {@code wait signal} with nothing to read yet.
+     *
+     * @param stepId the waiting step
+     * @param name the signal waited for
+     * @param deadline when the wait gives up; the run is run again then, to find the timeout
+     */
+    public static RunSuspended signal(String stepId, String name, Instant deadline) {
+        return new RunSuspended(stepId, deadline, name, Reason.SIGNAL);
     }
 
     private RunSuspended(String stepId, Instant resumeAt, String detail, Reason reason) {
