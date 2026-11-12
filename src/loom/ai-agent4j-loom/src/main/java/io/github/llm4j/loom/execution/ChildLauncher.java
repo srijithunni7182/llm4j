@@ -15,6 +15,7 @@ import io.github.llm4j.loom.ast.WaitStmt;
 import io.github.llm4j.loom.runtime.ChildHandle;
 import io.github.llm4j.loom.runtime.ChildStatus;
 import io.github.llm4j.loom.runtime.ConditionEvaluator;
+import io.github.llm4j.loom.runtime.Generations;
 import io.github.llm4j.loom.runtime.RunHalted;
 import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.loom.runtime.RunStopped;
@@ -402,28 +403,49 @@ final class ChildLauncher {
                 settleCancelled(child, handle, marker.get());
                 return null;
             }
+            applyPendingRewind(child.journal(), workflow); // a restart between the request and the rewind
             child.initialize();
             child.executeWorkflow(workflow, null, invoker);
             handle.complete(child.getContext().getVariable("result"));
+            lapseRewind(child.journal());
         } catch (RunSuspended paused) {
             handle.pause(
                     paused.resumeAt() != null ? ChildStatus.SLEEPING : ChildStatus.WAITING,
                     paused.resumeAt());
+            return rewindIfAsked(child, handle);
         } catch (RunStopped stopped) {
             Optional<RunJournal.Entry> marker = child.journal().get(CANCEL_MARKER);
-            if (marker.isPresent()) settleCancelled(child, handle, marker.get());
-            else handle.end(ChildStatus.STOPPED, stopped.getMessage());
+            if (marker.isPresent()) {
+                settleCancelled(child, handle, marker.get());
+                return null;
+            }
+            Runnable again = rewindIfAsked(child, handle); // stopped by a parent that wants it sent back
+            if (again != null) return again;
+            handle.end(ChildStatus.STOPPED, stopped.getMessage());
         } catch (RunHalted halted) {
             handle.end(ChildStatus.FAILED, "halted: " + halted.reason());
+            lapseRewind(child.journal());
         } catch (io.github.llm4j.budget.BudgetExceeded exhausted) {
             handle.end(ChildStatus.FAILED, "budget: " + exhausted.getMessage());
+            lapseRewind(child.journal());
         } catch (RuntimeException failed) {
             handle.end(ChildStatus.FAILED, String.valueOf(failed.getMessage()));
+            lapseRewind(child.journal());
         } catch (Error died) {
             handle.end(ChildStatus.FAILED, String.valueOf(died.getMessage()));
             throw died;
         }
         return null;
+    }
+
+    /** What to do after the body when a parent asked for the child to be sent back, or null. */
+    private Runnable rewindIfAsked(HarnessExecutor child, ChildHandle handle) {
+        if (pendingRewind(child.journal()) == null) return null;
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        return live == null ? null : () -> completeRewind(handle, live);
     }
 
     private Map<String, Object> argumentValues(StartStmt stmt) {
@@ -1013,10 +1035,6 @@ final class ChildLauncher {
     static final String CANCEL = "child-cancel";
 
     void cancel(CancelStmt stmt) {
-        if (stmt.getRewindCheckpoint() != null)
-            throw new IllegalStateException(
-                    "cancel " + stmt.getTarget().describe() + " rewind to " + stmt.getRewindCheckpoint()
-                            + " cannot run yet: sending a child back to a checkpoint is not available in this build.");
         String stepId = executor.currentStepId();
         ChildHandle handle = singleHandle(stmt.getTarget());
         Live live;
@@ -1030,6 +1048,10 @@ final class ChildLauncher {
                 stmt.getReason() != null
                         ? stmt.getReason()
                         : "cancelled by the parent script, line " + stmt.getLine();
+        if (stmt.getRewindCheckpoint() != null) {
+            rewindChild(stmt, stepId, handle, live, reason);
+            return;
+        }
         cancelChild(handle, live, stmt.getOutcome(), reason);
         if (executor.journal().get(stepId).isEmpty())
             executor.journal()
@@ -1037,6 +1059,149 @@ final class ChildLauncher {
                             stepId,
                             new RunJournal.Entry(
                                     CANCEL, Map.of("status", handle.status().word(), "reason", reason)));
+    }
+
+    // ---- cancel ... rewind to (F1) ----
+
+    /** Journal key, in the child's own journal, of a parent's request to send it back to a checkpoint. */
+    static final String REWIND_REQUEST = "#rewind-request";
+
+    /** Who a boundary written for a parent's cancel names as its author. */
+    private static final String REWOUND_BY = "parent";
+
+    /**
+     * Sends a child back to a checkpoint it declared and lets it go on (33-D13, F1). The child goes
+     * into a new generation of its steps, so what it did stays as history and nothing is deleted;
+     * a step identical to one that already ran is not repeated ({@code effects: keep}); and it is
+     * sent back to one checkpoint at most as many times as the statement says, counted in the
+     * child's own journal so a loop cannot get round it.
+     *
+     * <p>A child that is asleep or waiting has no thread, so it is re-run at once on the launch
+     * method. A running child is asked to stop, which it does at its next step (an effect under way
+     * finishes and is journaled first) and is re-run from there. The request is written to the
+     * child's journal first, so a restart between the two finishes the job and never repeats it.
+     */
+    private void rewindChild(CancelStmt stmt, String stepId, ChildHandle handle, Live live, String reason) {
+        if (executor.journal().get(stepId).isPresent()) return; // sent back before a restart: not again
+        String checkpoint = stmt.getRewindCheckpoint();
+        String outcome;
+        if (handle.status().isSettled()) {
+            outcome = "not sent back: the child had already " + handle.status().word();
+        } else if (!reached(live, checkpoint)) {
+            outcome = "not sent back: the child has not reached " + checkpoint + " yet";
+        } else {
+            int used = rewindsTo(live.journal(), checkpoint);
+            if (used >= stmt.getRewindAtMost())
+                throw new IllegalStateException(
+                        "cancel " + stmt.getTarget().describe() + " rewind to " + checkpoint + " at most "
+                                + stmt.getRewindAtMost() + " times: the child has already been sent back to " + checkpoint
+                                + " " + used + " times. Raise the limit, or cancel it with an outcome instead.");
+            Map<String, Object> request = new LinkedHashMap<>();
+            request.put("checkpoint", checkpoint);
+            request.put("reason", reason);
+            request.put("sequence", used + 1);
+            live.journal().put(REWIND_REQUEST, new RunJournal.Entry("rewind-request", request));
+            outcome = "sent back to " + checkpoint;
+            executor.journal()
+                    .put(
+                            stepId,
+                            new RunJournal.Entry(
+                                    CANCEL, Map.of("status", handle.status().word(), "reason", reason, "rewind", checkpoint)));
+            executor.audit("child_rewind", Map.of("child", live.launch().childRun(), "checkpoint", checkpoint, "reason", reason));
+            deliverRewind(handle, live);
+            return;
+        }
+        executor.journal()
+                .put(stepId, new RunJournal.Entry(CANCEL, Map.of("status", handle.status().word(), "reason", outcome)));
+        executor.audit("child_rewind", Map.of("child", live.launch().childRun(), "checkpoint", checkpoint, "outcome", outcome));
+    }
+
+    /** Whether the child's journal says it has passed {@code checkpoint}. */
+    private static boolean reached(Live live, String checkpoint) {
+        for (Map.Entry<String, RunJournal.Entry> e : live.journal().all().entrySet())
+            if (e.getKey().endsWith("#checkpoint")
+                    && e.getValue().value() instanceof Map<?, ?> m
+                    && checkpoint.equals(m.get("name"))) return true;
+        return false;
+    }
+
+    /** How many times the journal's boundaries record a parent sending the child back to {@code checkpoint}. */
+    private static int rewindsTo(RunJournal journal, String checkpoint) {
+        int n = 0;
+        for (Generations.Boundary b : new Generations(journal).all())
+            if (REWOUND_BY.equals(b.by()) && checkpoint.equals(b.name())) n++;
+        return n;
+    }
+
+    /**
+     * Acts on a request just written: a child with no thread is rewound and re-run now, one that is
+     * running is asked to stop and picks the request up when its body ends.
+     */
+    private void deliverRewind(ChildHandle handle, Live live) {
+        synchronized (tasks) {
+            if (handle.status() == ChildStatus.RUNNING) {
+                live.run().control().request(RunControl.Action.STOP, "parent: sent back to a checkpoint");
+                return;
+            }
+        }
+        completeRewind(handle, live);
+    }
+
+    /**
+     * The parent's request as it still stands, or null: absent, already carried out (the journal's
+     * boundaries have caught up with its sequence) or given up on because the child ended first.
+     */
+    private static Map<?, ?> pendingRewind(RunJournal journal) {
+        Optional<RunJournal.Entry> entry = journal.get(REWIND_REQUEST);
+        if (entry.isEmpty() || !(entry.get().value() instanceof Map<?, ?> m) || m.get("state") != null) return null;
+        int sequence = ((Number) m.get("sequence")).intValue();
+        return rewindsTo(journal, String.valueOf(m.get("checkpoint"))) >= sequence ? null : m;
+    }
+
+    /**
+     * Writes the boundary a pending request asks for, if it has not been written, and runs the
+     * child again over its journal. Idempotent and single flight: under one lock, and only for a
+     * child that is not settled and has not been cancelled (cancel wins).
+     */
+    private void completeRewind(ChildHandle handle, Live live) {
+        synchronized (tasks) {
+            if (handle.status().isSettled() || live.journal().get(CANCEL_MARKER).isPresent()) return;
+            if (!applyPendingRewind(live.journal(), live.launch().workflow())) return;
+            handle.resume();
+            launch(handle, live, live.run());
+        }
+        monitor.changed();
+    }
+
+    /** True when a request was pending and its boundary is now written. */
+    private static boolean applyPendingRewind(RunJournal journal, String workflow) {
+        Map<?, ?> request = pendingRewind(journal);
+        if (request == null) return false;
+        String checkpoint = String.valueOf(request.get("checkpoint"));
+        io.github.llm4j.loom.travel.RunTravel.Target target =
+                io.github.llm4j.loom.travel.RunTravel.resolve(journal, workflow, checkpoint);
+        new Generations(journal)
+                .start(
+                        target.block(),
+                        target.from(),
+                        checkpoint,
+                        REWOUND_BY,
+                        null,
+                        String.valueOf(request.get("reason")),
+                        Map.of(),
+                        io.github.llm4j.loom.ast.RewindStmt.Effects.KEEP.phrase(),
+                        false);
+        return true;
+    }
+
+    /** The child ended with a request still pending: it finished first, so the request lapses and is recorded so. */
+    private static void lapseRewind(RunJournal journal) {
+        Map<?, ?> request = pendingRewind(journal);
+        if (request == null) return;
+        Map<String, Object> done = new LinkedHashMap<>();
+        request.forEach((k, v) -> done.put(String.valueOf(k), v));
+        done.put("state", "lapsed: the child ended before it could be stopped");
+        journal.put(REWIND_REQUEST, new RunJournal.Entry("rewind-request", done));
     }
 
     /**

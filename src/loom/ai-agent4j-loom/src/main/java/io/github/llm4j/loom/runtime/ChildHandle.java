@@ -97,7 +97,10 @@ public final class ChildHandle {
 
     /** The child is running again after a pause. */
     public void resume() {
-        if (!status.isSettled()) this.status = ChildStatus.RUNNING;
+        if (!status.isSettled()) {
+            this.status = ChildStatus.RUNNING;
+            this.wakes = null; // it is no longer asleep until some time
+        }
     }
 
     /** What a settled child produced, or null. Read it through {@link #fact} so the status is checked. */

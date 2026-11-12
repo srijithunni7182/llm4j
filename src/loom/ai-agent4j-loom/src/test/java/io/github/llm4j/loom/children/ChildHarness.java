@@ -26,10 +26,10 @@ import java.util.function.Function;
  * moves, a task registry the test adds to, and a record of what the host was told about each
  * child. Nothing here sleeps or races: a test chooses the scheduler.
  */
-final class ChildHarness {
+public final class ChildHarness {
 
     /** A clock that moves only when the test says so. */
-    static final class MovingClock extends java.time.Clock {
+    public static final class MovingClock extends java.time.Clock {
         private volatile Instant now = Instant.parse("2026-01-01T00:00:00Z");
 
         @Override
@@ -47,19 +47,21 @@ final class ChildHarness {
             return now;
         }
 
-        void advance(Duration by) {
+        public void advance(Duration by) {
             now = now.plus(by);
         }
     }
 
-    final MovingClock clock = new MovingClock();
-    final Map<String, RunJournal> journals = new ConcurrentHashMap<>();
-    final List<String> settled = Collections.synchronizedList(new ArrayList<>());
-    final Map<String, String> parents = new ConcurrentHashMap<>();
-    final TaskRegistry tasks = new TaskRegistry();
-    HarnessExecutor parent;
+    public final MovingClock clock = new MovingClock();
+    public final Map<String, RunJournal> journals = new ConcurrentHashMap<>();
+    public final List<String> settled = Collections.synchronizedList(new ArrayList<>());
+    public final Map<String, String> parents = new ConcurrentHashMap<>();
+    public final TaskRegistry tasks = new TaskRegistry();
+    /** Each executor the launcher built for a child, in order: a re-run makes a new one. */
+    public final List<HarnessExecutor> attempts = Collections.synchronizedList(new ArrayList<>());
+    public HarnessExecutor parent;
 
-    ChildHarness() {
+    public ChildHarness() {
         task("Fine", ctx -> TaskResult.value("ok"));
         task(
                 "Explode",
@@ -69,13 +71,41 @@ final class ChildHarness {
     }
 
     /** Adds a task that changes nothing, so it is never held back by an effect policy. */
-    ChildHarness task(String name, Function<io.github.llm4j.agent.task.TaskContext, TaskResult> body) {
+    public ChildHarness task(String name, Function<io.github.llm4j.agent.task.TaskContext, TaskResult> body) {
         tasks.register(Task.of(name, TaskEffect.NONE, EffectPolicy.DEFAULT, body::apply));
         return this;
     }
 
+    /**
+     * A journal that says it is durable, so a sleep or a wait for a person suspends the run instead
+     * of being waited out in place, as it does under a host with persistence.
+     */
+    static RunJournal durable(RunJournal base) {
+        return new RunJournal() {
+            @Override
+            public java.util.Optional<Entry> get(String stepId) {
+                return base.get(stepId);
+            }
+
+            @Override
+            public void put(String stepId, Entry entry) {
+                base.put(stepId, entry);
+            }
+
+            @Override
+            public Map<String, Entry> all() {
+                return base.all();
+            }
+
+            @Override
+            public boolean isDurable() {
+                return true;
+            }
+        };
+    }
+
     /** A parent run named {@code p} over {@code source}, its children on {@code scheduler}. */
-    HarnessExecutor parent(String source, ChildScheduler scheduler) {
+    public HarnessExecutor parent(String source, ChildScheduler scheduler) {
         parent =
                 new HarnessExecutor(
                         StartParseTest.parse(source),
@@ -85,17 +115,22 @@ final class ChildHarness {
         parent.setClock(clock);
         parent.setSuperviseTick(Duration.ZERO);
         parent.setRunId("p");
-        parent.setJournal(journals.computeIfAbsent("p", k -> RunJournal.inMemory()));
+        parent.setJournal(journals.computeIfAbsent("p", k -> durable(RunJournal.inMemory())));
         parent.setChildRuns(
                 new ChildRuns() {
                     @Override
                     public RunJournal openJournal(String childRunId) {
-                        return journals.computeIfAbsent(childRunId, k -> RunJournal.inMemory());
+                        return journals.computeIfAbsent(childRunId, k -> durable(RunJournal.inMemory()));
                     }
 
                     @Override
                     public void record(String childRunId, String parentRunId, String workflow) {
                         parents.put(childRunId, parentRunId);
+                    }
+
+                    @Override
+                    public void prepared(String childRunId, HarnessExecutor child) {
+                        attempts.add(child);
                     }
 
                     @Override
@@ -109,7 +144,7 @@ final class ChildHarness {
     }
 
     /** The journal of the one child this parent started. */
-    RunJournal onlyChild() {
+    public RunJournal onlyChild() {
         return journals.entrySet().stream()
                 .filter(e -> !e.getKey().equals("p"))
                 .map(Map.Entry::getValue)

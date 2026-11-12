@@ -134,8 +134,15 @@ class ChildCheckDetailTest {
     }
 
     @Test
-    void aRewindOfAChildIsRefusedAndNamesTheCheckpointThatDoesNotExist() {
+    void aRewindOfAChildToACheckpointItDidNotDeclareIsRefusedAndListsTheOnesItHas() {
         var problems = main(START + "cancel work rewind to nowhere at most 2 times\nwait work timeout 1m");
-        assertThat(errors(problems)).anyMatch(e -> e.contains("not available yet")).anyMatch(e -> e.contains("\"nowhere\""));
+        assertThat(errors(problems)).anyMatch(e -> e.contains("\"nowhere\"") && e.contains("collected"));
+        assertThat(errors(problems)).noneMatch(e -> e.contains("not available yet"));
+    }
+
+    @Test
+    void aRewindOfAChildToACheckpointItDeclaredPassesTheCheck() {
+        assertThat(errors(main(START + "cancel work rewind to collected at most 2 times\nwait work timeout 1m")))
+                .noneMatch(e -> e.contains("rewind") || e.contains("collected") || e.contains("cancel"));
     }
 }
