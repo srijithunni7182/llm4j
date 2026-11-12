@@ -50,7 +50,7 @@ Read in the merged source:
 
 ### 4.2 Declared progress (34b; D6, D7)
 
-**Syntax.** `workflow W(params) progress { field: type, ... } { ... }` and `report { field: value, ... }`, contextual (D17): `report` only as `report {` at statement start, `progress` only after a workflow's `)`. Types are `string`, `number`, `boolean`, `enum[...]`, one flat level.
+**Syntax.** `workflow W(params) progress { field: type, ... } { ... }` and `report { field: value, ... }`, contextual (D17: the parser separates keyword, variable and text by position and shape, and each new word is tested in all three contexts, G30): `report` only as `report {` at statement start, `progress` only after a workflow's `)`. Types are `string`, `number`, `boolean`, `enum[...]`, one flat level.
 **Parse and check.** New AST pieces (`ProgressDecl` on `WorkflowDef`, `ReportStmt`); `weave check` refuses an undeclared field, a type mismatch it can see, a `report` in a workflow with no `progress` declaration, and reports **a workflow that declares progress but never reports**.
 **Runtime.** `report` writes `#progress.<n>` into the **child's own journal** (the step id's generation applying), validates the fields against the declaration (a mismatch fails the step), enforces the size and count bounds (dropped and recorded beyond them), and tags the value `unchecked`.
 **Reading.** `ChildHandle.fact("progress")` reads the child's journal for the latest entry of the latest generation, so it survives a restart and a rewind shows the value at the checkpoint; `h.progress.field` is an ordinary expression in the parent.

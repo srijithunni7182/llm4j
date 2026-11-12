@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D16 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D17 taken; D18 is open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -23,7 +23,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D14 | Security: signals as an input channel | **taken** (LA30 for reading only; no signal steers an agent; a child signals only its parent) |
 | D15 | Testing: signals, a stubbed child, time | **taken** (the vocabulary, a controlled wake, the kill-point extension; principle 22) |
 | D16 | Visibility: the ecosystem for v3 | **taken** (all of it, starter 18 extended, a tutorial chapter of its own) |
-| D17 | Names: `report`, `progress`, `notify`, `signal`, `any` | open |
+| D17 | Names: `report`, `progress`, `notify`, `signal`, `any` | **taken** (contextual; the parser separates keyword, variable and text by position and shape) |
 | D18 | What stays out of this phase | open |
 
 ## D1. The scope and staging of this phase
@@ -299,7 +299,11 @@ The whole ecosystem moves together (the rule of phase 33, D16): graph kinds (`ch
 
 **Recommendation:** `report`, `progress`, `notify`, `signal`, `any`, contextual.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed. The guiding rule: the parser tells a keyword, a variable and text apart by position and shape.**
+- **`report`** is a statement only as `report {` at the start of a statement; **`progress`** is a keyword only directly after a workflow's `)` and before `{`; **`notify`** only as `notify <handle|parent> "name"`; **`signal`** only after `wait`, or after `when` inside `supervise`; **`any`** only directly after `wait`; **`parent`** only as the first operand of `notify`. Everywhere else each stays what it is today.
+- **Three contexts, each tested for every new word:** (1) **keyword**: a statement position with the shape the construct needs; (2) **variable**: an assignment target (`set report = ...`), a result (`-> report`), a reference (`{report}`, `report.field`) and an operand; (3) **text**: a string literal, a prompt, a policy file, a note: never a keyword and never altered. A new word never turns a valid existing script into an error or changes what it means.
+- **Guard G30** names these cases (`-> report`, `set progress = ...`, `{report}` inside a prompt, `"report"` inside a string, a variable called `signal`, `parent` or `any`) and is broken on purpose once; `RepositoryScriptsTest` still loads every script; the VS Code grammar is updated for the same three contexts and the parser-parity baseline is regenerated (F11).
+- Alternatives (`status` for `report`, `send` for `notify`) were not taken.
 
 ## D18. What stays out of this phase
 

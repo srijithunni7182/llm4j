@@ -47,7 +47,7 @@ It continues [phase 33's strategy](../33-async-workflows/TEST_STRATEGY.md): the 
 | G33 | **A wake is idempotent and single flight** (D12) | A repeated or stale `notify` does nothing; two `notify`s while the child is waking start one run; a wake for a name the child is not waiting for does nothing. | Removing the claim or the name check. |
 | G34 | **A child waiting on a signal does not make the parent suspend** (D12 rule 6) | A parent in `wait` with its only child waiting for a signal parks until its own timeout and returns a timeout event; the process is not suspended. | Treating it as a pause for a person. |
 | G35 | **The trajectory survives an in-process wake** (D12 rule 7) | `assert calls A before B` and the judge's facts are unchanged across a wake. | Starting the new executor with an empty trajectory. |
-| G30 | **The new words stay ordinary words elsewhere** (D17) | `-> report`, `set progress = ...`, a variable named `signal`, `parent` or `any` all still parse and run. | Reserving a word. |
+| G30 | **The parser tells a keyword, a variable and text apart** (D17) | For every new word, all three contexts: as a keyword in its one shape; as a variable (`-> report`, `set progress = ...`, `{report}`, `report.field`, a variable named `signal`, `parent` or `any`); and as text (`"report"` inside a string, a prompt, a policy file, a note). Existing scripts still parse and run unchanged. | Reserving a word, or reading text as a keyword. |
 
 G7 and G13 of phase 33, which were not broken on purpose, are broken on purpose in 34a (F14).
 
