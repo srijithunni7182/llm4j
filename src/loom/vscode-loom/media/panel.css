@@ -61,6 +61,7 @@ button { font: inherit; color: inherit; }
 .k-outcome { --h: 40; --c: 0.08; }
 .k-observe { --h: 250; --c: 0.03; }
 .k-sleep { --h: 250; --c: 0.03; }
+.k-child { --h: 330; --c: 0.09; }
 .k-unknown { --h: 250; --c: 0.012; }
 [class^="k-"], [class*=" k-"] {
   --ink: oklch(var(--Li) var(--c) var(--h));

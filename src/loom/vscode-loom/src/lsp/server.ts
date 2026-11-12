@@ -140,6 +140,14 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**use** `: webhook | email | http | file | shell | sql | serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. `webhook` posts to Slack, Discord or Teams; `email` sends over SMTP; `http` calls a REST API; `file` reads and writes text files in one directory; `shell` runs named programs; `sql` runs read-only queries. Secret options (`url`, `password`, `api_key`, `auth_value`, and credential headers) must be `env.NAME` or `secret.NAME`; `auth_value` of `openapi` can also be `invoker.NAME`, a credential of the person running the workflow.',
     checkpoint:
         '**checkpoint** `Name [starting with name = "value", ...]`\n\nNames a point in a workflow that a later `rewind` can go back to. `start` is the point before the first statement.',
+    start:
+        '**start** `Workflow(arg = value) [timeout 20m] budget { tokens: N } -> handle`\n\nStarts a workflow as a child run of its own and goes on at once; `handle` (a variable, or `work[key]`) refers to the child. The budget is required and a child\'s spending counts against this run too. A handle is opaque: never write it into text or give it to a task. See `wait`, `cancel`, `steer`, `supervise`.',
+    wait:
+        '**wait** `handle timeout 5m -> result` or `wait all handles timeout 25m -> results`\n\nParks until the child (or every child of a keyed variable) settles or the timeout passes, then returns either way. The timeout is required. Read `handle.status`, `handle is ok`; `handle.result` only after that check.',
+    cancel:
+        '**cancel** `handle [use partial | skip | discard | conclude] [reason "..."]`\n\nStops a started workflow. An effect under way finishes and is journaled first; the child stops at its next step. `use partial` keeps what it had as `handle.partial`.',
+    steer:
+        '**steer** `handle Agent "text"`\n\nTells a `steerable` agent of a started workflow what to do next. The text is literal: a placeholder is a load error.',
     sleep:
         '**sleep** `30s | 5m | 2h | 1d`\n\nWaits a fixed time, then carries on. With a run journal the run pauses (no thread is held) and wakes at the recorded time; without one it waits in place. It costs no tokens and is not counted against `max_resumes`.',
     rewind:
@@ -301,7 +309,7 @@ const LOOM_KEYWORDS: Record<string, string> = {
     samples:
         '**samples** `: N`\n\nInside an `intentclassifier` on a chat model: ask N times and take the majority; the agreement is the confidence. No effect on Jev.',
     supervise:
-        '**supervise** `Agent { when looping(3) { steer "…" once }  when tool_failing(Tool, 3) { wrap_up }  when context > 90% { wrap_up }  when steps > 15 { cancel use partial } }`\n\nRules that watch an agent while it works and act without a person. Every signal is a count of what the agent did, never a model\'s opinion. A rule fires when its condition becomes true; `once` makes it fire at most once in the step.',
+        '**supervise** `Agent { when looping(3) { steer "…" once }  when tool_failing(Tool, 3) { wrap_up }  when context > 90% { wrap_up }  when steps > 15 { cancel use partial } }`\n\nRules that watch an agent while it works and act without a person. Every signal is a count of what the agent did, never a model\'s opinion. A rule fires when its condition becomes true; `once` makes it fire at most once in the step.\n\nOn a started workflow: `supervise handle [budget { }] { when tokens > 90000 { cancel use partial }  assert never calls shell { cancel }  assert "text" using Judge every 2m max 4 { steer "..." } }` watches the child with counted rules, assertions in code and judged assertions (one block for each handle).',
     looping:
         '**looping** `(N)`\n\nIn a `supervise` rule: the agent has made the same action (same tool, same input) N times in a row.',
     tool_failing:

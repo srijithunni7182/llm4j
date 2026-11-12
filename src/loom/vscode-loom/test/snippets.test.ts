@@ -70,6 +70,10 @@ function frame(name: string, text: string): string {
         return PRELUDE + 'agent_channel SupplierDesk { audience: staff }\nworkflow Main(topic_text) {\n' +
             text.split('\n').map((l) => '    ' + l).join('\n') + '\n    note "{currency_text.currency}"\n}\n';
     }
+    if (name === 'start-supervised') {
+        // the child is the frame's Analyze; the handle is read by its status, never written into text
+        return PRELUDE + 'workflow Main(topic_text) {\n' + text.split('\n').map((l) => '    ' + l).join('\n') + '\n    note "{findings}"\n}\n';
+    }
     if (name === 'extract') {
         // a statement that needs an extractor declared above it
         return PRELUDE + 'extractor Invoice { model: "ollama/llama3" fields { vendor: string, total: number } optional: [total] }\nworkflow Main(topic_text) {\n' +

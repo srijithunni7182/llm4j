@@ -331,6 +331,17 @@
     ],
     "description": "Run a block for each item of a list a model wrote, failing before any item starts when the list is longer than the bound."
   },
+  "start-supervised": {
+    "prefix": "start",
+    "description": "Start a workflow as a child with a budget, watch it with a rule, and wait for it",
+    "body": [
+      "start ${1:Analyze}(topic_text = topic_text) timeout 20m budget { tokens: ${2:100000} } -> ${3:work}",
+      "supervise ${3:work} {",
+      "    when tokens > ${4:90000} { cancel use partial }",
+      "}",
+      "wait ${3:work} timeout 25m -> ${5:findings}"
+    ]
+  },
   "remote": {
     "prefix": "remote",
     "body": [
