@@ -384,5 +384,37 @@
       "}"
     ],
     "description": "Lets other agents call a workflow over A2A: what it is for, the channel for its questions, the one parameter that takes text and the largest message accepted."
+  },
+  "progress-report": {
+    "prefix": "progress",
+    "description": "A workflow that declares what it reports (typed, flat) and reports it, for a parent to read as handle.progress.field",
+    "body": [
+      "workflow ${1:Research}(${2:topic_text}) progress { ${3:stage}: string, ${4:done}: number } {",
+      "    report { ${3:stage}: \"${5:starting}\", ${4:done}: 0 }",
+      "    note \"${6:working on it}\"",
+      "    report { ${3:stage}: \"${7:finished}\", ${4:done}: 1 }",
+      "}"
+    ]
+  },
+  "notify-child": {
+    "prefix": "notify",
+    "description": "Signal a child you started: a message is read once, in order; add sticky for a latch that stays set",
+    "body": [
+      "notify ${1:work} \"${2:go}\" \"${3:text for the child}\""
+    ]
+  },
+  "wait-signal": {
+    "prefix": "waitsignal",
+    "description": "In a child: wait for a signal from the workflow that started it (a timeout is required; it holds no thread while it waits)",
+    "body": [
+      "wait signal \"${1:go}\" timeout ${2:10m} -> ${3:instruction}"
+    ]
+  },
+  "wait-any": {
+    "prefix": "waitany",
+    "description": "Wait for whichever happens first among several children: a signal, a child finishing, or the timeout",
+    "body": [
+      "wait any ${1:work} timeout ${2:10m} -> ${3:event}"
+    ]
   }
 }

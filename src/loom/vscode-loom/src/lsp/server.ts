@@ -16,6 +16,7 @@
  *               5.1, 5.2, 5.3, 5.4, 21.1, 21.2, 21.3
  */
 
+import { contextualDoc } from './contextualWords';
 import { ladderCompletions } from './ladderCompletion';
 import { stopCompletions } from './stopCompletion';
 import {
@@ -421,6 +422,13 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
     if (!hit) return null;
 
     const { word } = hit;
+
+    // 0. The words of phase 34 are keywords only in the one shape each has (D17)
+    const lineText = doc.getText({ start: { line: params.position.line, character: 0 }, end: { line: params.position.line + 1, character: 0 } }).replace(/\r?\n$/, '');
+    const contextual = contextualDoc(word, lineText, params.position.character);
+    if (contextual) {
+        return { contents: { kind: MarkupKind.Markdown, value: contextual } };
+    }
 
     // 1. Keyword hover
     if (word in LOOM_KEYWORDS) {

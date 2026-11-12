@@ -119,3 +119,51 @@ test('P32: the words of a remote agent and an agent channel are highlighted', ()
     ];
     for (const [line, word] of lines) assert.equal(scopeOf(line, word), 'keyword.control.loom', `${word} in: ${line}`);
 });
+
+// ---- phase 34 (D17): report, progress, notify, signal, any, sticky, parent and changes are keywords only where their shape is, and ordinary words everywhere else ----
+
+const KEYWORD = 'keyword.control.loom';
+
+test('D17: the new words are keywords in the one shape each has', () => {
+    const lines: Array<[string, string]> = [
+        ['    report { stage: "reading", done: 1 }', 'report'],
+        ['workflow Research(topic) progress { stage: string } {', 'progress'],
+        ['    notify work "go" "text"', 'notify'],
+        ['    notify work["a"] "go"', 'notify'],
+        ['    notify parent "stuck" "no sources"', 'parent'],
+        ['    notify work "approved" "yes" sticky', 'sticky'],
+        ['    wait signal "go" timeout 10m -> text', 'signal'],
+        ['    wait work signal "stuck" timeout 5m -> text', 'signal'],
+        ['    supervise work { when signal "stuck" { wrap_up } }', 'signal'],
+        ['    wait any work timeout 2m -> event', 'any'],
+        ['    supervise work { assert progress.done changes within 5m { cancel } }', 'changes'],
+        ['    supervise work { assert progress.done changes within 5m { cancel } }', 'progress'],
+    ];
+    for (const [line, word] of lines) assert.equal(scopeOf(line, word), KEYWORD, `${word} in: ${line}`);
+});
+
+test('D17: as variables, parameters and handles the same words are ordinary names, not keywords', () => {
+    const lines: Array<[string, string]> = [
+        ['    delegate "go" to A -> report', 'report'],
+        ['    set progress = "half"', 'progress'],
+        ['    set copy = report.summary', 'report'],
+        ['workflow Main(progress, report) {', 'progress'],
+        ['    set notify = "a"', 'notify'],
+        ['    set signal = "b"', 'signal'],
+        ['    set parent = "c"', 'parent'],
+        ['    wait signal timeout 5m -> r', 'signal'],
+        ['    wait any timeout 5m -> r', 'any'],
+        ['    set any = "x"', 'any'],
+        ['    wait all any timeout 5m', 'any'],
+        ['    set sticky = "x"', 'sticky'],
+        ['    set changes = "x"', 'changes'],
+    ];
+    for (const [line, word] of lines) assert.notEqual(scopeOf(line, word), KEYWORD, `${word} in: ${line}`);
+});
+
+test('D17: inside a string the new words are text and are never scoped as keywords', () => {
+    for (const line of ['    note "report { stage: 1 }"', '    note "notify work \\"go\\" sticky"', '    note "wait any work timeout 1m and wait signal \\"x\\""', '    note "progress { a: string }"']) {
+        const tokens = tokenize(line);
+        assert.ok(!tokens.some(([t, s]) => s === KEYWORD && /^(report|progress|notify|signal|any|sticky|parent|changes)$/.test(t)), line);
+    }
+});
