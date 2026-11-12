@@ -750,7 +750,6 @@ public final class SecurityAudit {
         if (lower.contains("gemini")) return "Google (Gemini API)";
         if (lower.startsWith("anthropic/") || lower.startsWith("claude-"))
             return "Anthropic (Claude API)";
-        if (lower.startsWith("sarvam/")) return "Sarvam AI";
         return "the provider of " + model;
     }
 

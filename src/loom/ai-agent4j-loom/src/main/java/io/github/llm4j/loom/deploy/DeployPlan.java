@@ -90,11 +90,6 @@ public record DeployPlan(
             hosts.add("api.anthropic.com");
             return true;
         }
-        if (m.startsWith("sarvam/")) {
-            env.add("SARVAM_API_KEY");
-            hosts.add("api.sarvam.ai");
-            return true;
-        }
         var vendor = io.github.llm4j.provider.openai.Vendor.ofModel(name);
         if (vendor.isPresent()) {
             var v = vendor.get().vendor();

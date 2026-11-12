@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 54824fec07490d05d79b974295a2ea4db80afc8ee5fb2f9aeb10eba7a00d7a1a -->
+<!-- source-sha256: 43ed0ea15414220de1d11d7269c4c8444999671528c9d9bbe9f7b6feee1db07f -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -731,8 +731,8 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <td><code>OLLAMA_BASE_URL</code> (default <code>http://localhost:11434</code>)</td>
 </tr>
 <tr>
-<td><code>sarvam/sarvam-m</code></td>
-<td>Sarvam (Indian languages)</td>
+<td><code>sarvam/sarvam-105b</code>, <code>sarvam/glm5.3</code>, <code>sarvam/gemma4</code></td>
+<td>Sarvam (Indian languages, and the open-weight models of its Token Factory)</td>
 <td><code>SARVAM_API_KEY</code></td>
 </tr>
 <tr>
@@ -2077,7 +2077,7 @@ remote Supplier {
 <span class="tk-k">tool</span> Hindi { use: translate  target: <span class="tk-s">"hi-IN"</span> }
 
 <span class="tk-k">agent</span> Helper {
-    model: <span class="tk-s">"sarvam/sarvam-m"</span>
+    model: <span class="tk-s">"sarvam/sarvam-105b"</span>
     system: <span class="tk-s">"You help callers in their own language."</span>
     tools: [Hindi]
     voice { listen: <span class="tk-s">"sarvam/saarika:v2.5"</span>  speak: <span class="tk-s">"sarvam/bulbul:v2"</span>  language: <span class="tk-s">"hi-IN"</span> }
@@ -2591,7 +2591,7 @@ policy HouseRules: <span class="tk-s">"house-rules"</span> checked by Compliance
 <span class="tk-k">provider</span> Box { use: sarvam  api_key: secret.BOX_KEY  base_url: <span class="tk-s">"https://box.example.com"</span> }
 <span class="tk-k">tool</span> Search  { use: serpapi  api_key: secret.SERP_KEY }
 
-<span class="tk-k">agent</span> Indic { model: <span class="tk-s">"Box/sarvam-m"</span>  system: <span class="tk-s">"You answer briefly."</span>  tools: [Search] }
+<span class="tk-k">agent</span> Indic { model: <span class="tk-s">"Box/sarvam-105b"</span>  system: <span class="tk-s">"You answer briefly."</span>  tools: [Search] }
 
 <span class="tk-k">workflow</span> Main(q) {
     <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{q}</span>"</span> <span class="tk-k">to</span> Indic -&gt; answer

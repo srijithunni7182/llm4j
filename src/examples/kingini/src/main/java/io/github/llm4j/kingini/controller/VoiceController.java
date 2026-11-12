@@ -7,7 +7,8 @@ import io.github.llm4j.media.AudioPlayer;
 import io.github.llm4j.model.TextToSpeechRequest;
 import io.github.llm4j.model.TextToSpeechResponse;
 import io.github.llm4j.provider.sarvam.SarvamAudioProvider;
-import io.github.llm4j.provider.sarvam.SarvamChatProvider;
+import io.github.llm4j.provider.LLMProvider;
+import io.github.llm4j.provider.openai.OpenAiCompatibleProvider;
 import io.github.llm4j.provider.sarvam.SarvamTextToSpeechProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +33,7 @@ public class VoiceController {
     private ReActAgent agent;
     private SarvamAudioProvider audioProvider;
     private SarvamTextToSpeechProvider ttsProvider;
-    private SarvamChatProvider chatProvider;
+    private LLMProvider chatProvider;
 
     @PostConstruct
     public void init() {
@@ -47,7 +48,7 @@ public class VoiceController {
 
         LLMConfig config = LLMConfig.builder().apiKey(apiKey).build();
 
-        this.chatProvider = new SarvamChatProvider(config);
+        this.chatProvider = OpenAiCompatibleProvider.sarvam(config); // sarvam-105b on the V2 API
         this.audioProvider = new SarvamAudioProvider(config);
         this.ttsProvider = new SarvamTextToSpeechProvider(config);
 

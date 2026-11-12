@@ -8,7 +8,6 @@ import io.github.llm4j.provider.anthropic.AnthropicProvider;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.ollama.OllamaProvider;
 import io.github.llm4j.provider.openai.Vendor;
-import io.github.llm4j.provider.sarvam.SarvamChatProvider;
 import io.github.llm4j.ratelimit.Sleeper;
 import io.github.llm4j.secret.SecretRef;
 import io.github.llm4j.secret.SecretStore;
@@ -40,7 +39,7 @@ final class ClientFactory {
         String provider = c.provider().trim().toLowerCase(Locale.ROOT).replace('-', '_');
         Vendor vendor = Vendor.ofKind(provider).orElse(null);
         if (vendor == null
-                && !java.util.List.of("gemini", "anthropic", "ollama", "sarvam")
+                && !java.util.List.of("gemini", "anthropic", "ollama")
                         .contains(provider)) {
             throw new Llm4jConfigurationException(
                     where + ".provider=" + c.provider() + " is not known",
@@ -82,7 +81,6 @@ final class ClientFactory {
                             ? new AnthropicProvider(built)
                             : new AnthropicProvider(built, c.effort());
                     case "ollama" -> new OllamaProvider(built);
-                    case "sarvam" -> new SarvamChatProvider(built);
                     default -> vendor.create(built, java.util.Map.of());
                 };
         return new DefaultLLMClient(llm);
