@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **taken: D1 to D5, D8 to D21, D23 to D26, D28 and D29; deferred to the later phase: D6, D7 and B and C of D22; open: D27 and D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **taken: D1 to D5, D8 to D21, D23 to D29; deferred to the later phase: D6, D7 and B and C of D22; open: D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -37,7 +37,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D24 | Assertions in code | **taken** (four assertions; `never calls` is preventive) |
 | D25 | Judged assertions | **taken** (facts by default; a fixed verdict and fixed text; only `steer`, `wrap_up`, `cancel use partial`) |
 | D26 | Time: how long, how often | **taken** (a deadline on `start`; a 10 s tick; a judge cadence with a 30 s floor and a required `max`) |
-| D27 | Who pays for a judge | open |
+| D27 | Who pays for a judge | **taken** (its own budget on the `supervise` statement, charged to the parent, with reservation) |
 | D28 | What `elapsed` measures | **taken** (running time; `idle` excludes sleep and waiting; the `start` deadline is wall clock; `weave check` warns on a longer sleep) |
 | D29 | A suspended parent | **taken** (a waiting parent does not pause children; a parent suspended otherwise does) |
 | D30 | Overlap and testing time | open |
@@ -531,7 +531,12 @@ assert "searches only for the topic and reads at least two sources" using TopicJ
 
 **Recommendation: D**, with the `supervise` budget required when a judged assertion is present.
 
-**Decision:** open.
+**Decision (owner): option D.**
+- The judge gets **its own budget, written on the `supervise` statement** and **charged to the parent's total**, so the parent's `budget` stays the limit for the whole run: `supervise work[t.name] budget { tokens: 20000 } { assert "..." using TopicJudge every 2m max 4 { ... } }`.
+- A `supervise` block with a judged assertion **requires** that budget, and `weave check` refuses it without one (a block with only counted rules and code assertions does not need one).
+- **Reservation (D11):** the judge budget is reserved from the parent together with the child's budget, so a `start` is refused if the parent cannot cover both (in the demo, three children at 100,000 tokens each and 20,000 for each judge need about 360,000 set aside).
+- When the judge budget runs out, judged rules stop evaluating and "judge budget used up" is recorded, as when `max` is reached; counted rules and code assertions keep working and the child is not stopped.
+- The judge's model is declared on its `evaluator`; a budget in money needs a price table, as everywhere.
 
 ## D28. What does `elapsed` measure when the process was down?
 
