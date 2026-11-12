@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D17, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D18, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -13,7 +13,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 |---|---|---|
 | D1 | What is in the first version | **taken** (staged: v1 start/wait/cancel/supervise with counted rules; v2 assertions; v3 progress, signals, `wait any`; no `detach`) |
 | D2 | What a handle is | **taken** (opaque; keyed variables and `call` arguments allowed; returning refused) |
-| D3 | Where the child's journal lives | **taken** (a separate linked run, nested under the parent's folder) |
+| D3 | Where the child's journal lives | **taken** (a separate linked run, a sibling in today's flat layout; `fork` follows the links) |
 | D4 | Replay and the double start | **taken** (a deterministic id including the parent's attempt, journal first) |
 | D5 | Where the child runs | **taken** (in the same process in v1; the trigger store is not ruled out) |
 | D6 | What the monitor is | open (staged to v3 by D1; parked) |
@@ -28,7 +28,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D15 | Authority and security | **taken** (authority narrows; the audit counts the child; LA28 for steering; provenance across the boundary) |
 | D16 | Visibility | **taken** (the whole ecosystem in one scope; Fabric stays flat with a parent link) |
 | D17 | Tests | **taken** (real or stubbed children, virtual clock, a controlled executor, guard tests first, a mutation profile) |
-| D18 | The Java side | open |
+| D18 | The Java side | **taken** (children are `LoomRun`s; `#label` reaches them; a journal factory, no new `RunJournal` method) |
 | D19 | Names | **partly taken** (`wait`, `notify` are the owner's) |
 | D20 | What stays out | open |
 | D21 | Where supervision is written | **taken** (the header names the handle) |
@@ -118,8 +118,11 @@ It may live in a keyed variable (`work[t.name]`), and may be passed into a `call
 
 **Recommendation: B**, for the reason that every existing tool already understands "a run". Needs the check of how Fabric and `loom-inspect` identify a run (not yet read).
 
-**Decision (owner): option C, nested on disk.** Each child is a separate run with its own journal, linked to its parent: the parent's `start` entry holds the child's run id and a summary, and the child records its parent's id. For the file journal the child lives under the parent's run folder (`<run folder>/children/<child id>/`), so backup, deletion and `weave fork` take the whole tree; the tools that take a run folder (`timeline`, `why`, `rewind`, `resume`) work on a child folder as they are.
-For the JDBC journal the equivalent is rows keyed by the child's run id with the parent's id stored on each; the journal interface needs "open the journal of child X", with a file and a database implementation. How Fabric and `loom-inspect` show a child is left to D16.
+**Decision (owner): a separate linked run for each child, as a sibling run (amended after reading the storage code).**
+- **Today's storage** (`Persistence`: none, file, JDBC): the file layout is `<dir>/runs/<id>/` with `journal.json` and `run.json`, runs are flat siblings by id, and the JDBC journal is the table `loom_journal(run_id, step_id, kind, value_json)`, with the run registry, the answer book, the triggers and the ledgers in their own stores. `Persistence.journal(runId)` already opens a journal for any run id.
+- **A child is a sibling run** `runs/<childId>/` (file) or rows keyed by the child's run id (JDBC). Its **id is the deterministic one of D4**; its `run.json` (or registry row) records its **parent's id**; the parent's `start` entry records the child's id and a summary. Every existing lister (the registry, `weave questions`, `timeline`) works unchanged.
+- **`weave fork`** is taught to follow the parent links so that copying a run copies its children (the earlier "nested folder" benefit is replaced by this).
+- *(Replaces the first version of this decision, which assumed a nested layout that the code does not have.)*
 
 ## D4. How does replay avoid starting the child twice?
 
@@ -375,7 +378,13 @@ tutorial, wiki, README census, release notes).
 - Does `LoomRun` expose a run's children? Does `LiveRuns` list them, so `weave run --steer-via console` and a chat can reach a child?
 - **Recommendation:** yes to both; a child is reachable the way any run is. Details after D3 and D5.
 
-**Decision:** open.
+**Decision (owner): accepted, with point 5 revised after reading the storage code.**
+1. **A host can see and control children:** `LoomRun` gains a way to list a run's children, each a `LoomRun` of its own (D3), with the same controls (`steer`, `wrapUp`, `cancel`, `pause`, `resume`, `await`); steering from Java still needs a `steerable` agent (D12) and is journaled with its origin.
+2. **Consoles and chats reach children:** each child registers in `LiveRuns` under a hierarchical label such as `digest/work/Research`; `weave run --steer-via console` and the chat commands already select a run with a `#label` prefix, so a child is a longer label and no new command syntax is needed.
+3. **What a child inherits from its host:** the human interface, the secret store, the call and tool hooks and the persistence are inherited by children from the run that started them (D15).
+4. **Host settings:** the ceilings for D14 and D10 (maximum live children, maximum depth, settle grace period) are host settings; a script may only lower them or raise them up to the ceiling.
+5. **Journals (revised):** no new method on `RunJournal`. A child needs a **journal factory** on the executor: a host built on `Persistence` (file or JDBC) provides it; an executor handed one bare `RunJournal` cannot make a journal for a child, so `start` there fails closed with a clear message; with no persistence a child runs in memory like any run (nothing resumes after a restart, as today). The API stays additive and gets an entry in `docs/API_COMPATIBILITY.md`.
+6. **Typed bindings:** `weave bindgen` is unchanged; a workflow that starts children is called like any other, and handles are not exposed.
 
 ## D19. Names
 
