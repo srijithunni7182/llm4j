@@ -188,6 +188,16 @@ Commits on the branch, one concern each. `make test-core` passed after the sub-p
 
 **Where I read the design differently.** (1) `name` is the handle's key for every event kind, and a signal's own name is `event.signal` (D11 gives both the handle's key and the signal's own name the word `name`). (2) `remaining` counts the children whose finish has **not been reported yet** (D11 says "not yet finished"): with the first meaning a collecting loop ends as soon as the last child finishes and can leave a finished child unreported when several finish before the first `wait any`. (3) A `wait any` over children that are all asleep or waiting for a person suspends the tree, as `wait` does, rather than returning a timeout.
 
+### 34e, ecosystem and closure (built; mutation result below)
+
+| Item | What was built | Guard (broken on purpose once) | Tests | Level |
+|---|---|---|---|---|
+| Fabric and the live page (F10, D13) | trace events `signal` (op, peer run id, name, sticky; never the text) and `progress`, mapped to `loom.signal` and `loom.progress`; `RunState` counts; the children listing gains `signals` and a child's `progress`; the page shows text-only cells | G29 (text reaching the page) | `ChildSignalsAndProgressTest`, `ChildMappingTest`, `SignalTraceTest`, `children.page.test.js` (browser) | E2 |
+| VS Code (D16) | grammar rule that colours the new words only in their own shape, hover, four snippets checked by `weave check`, the parser-parity baseline regenerated | G30 (the three contexts: keyword, variable, text) | `grammar.test.ts`, `snippets.test.ts`, `contextualWords.test.ts`, `docs.test.ts` (793 tests) | E2 |
+| CTK, starter | four scenarios (`child_progress`, `signal_to_child`, `signal_to_parent`, `signal_sticky`); starter 18 has a `need_help` signal rule and tests | | CTK runner, `StartersTest` | E2 |
+| Tutorial chapter of its own (F11) | `docs/tutorial/14-supervising-and-talking.md` (the cookbook is now 15); every `loom` block loads without warnings; the web page is regenerated | | `TutorialExamplesTest`, `GuideTutorialPageTest` | E1 |
+| Documents (D16) | guide, prompt, guide chapter 6, wiki, skills (workflow-guide, patterns, run-debugging), llms.txt, README tables, release notes, `API_COMPATIBILITY.md` | | `docs-check` | E1 |
+
 ## 2. How the report is written
 
 At the end of the session the report states, for each row, the level reached and the evidence (the test names), **what was not run** (`make test-full`, the other `slow` tests, anything at E4), the risks of DESIGN §7 that turned out to be real, and any decision that was changed and why. A row is never marked at a higher level than its test.
