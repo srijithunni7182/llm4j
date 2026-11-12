@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D20, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D21, D23, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -33,7 +33,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D20 | What stays out | **taken** (and the scope: this phase is v1 and v2; v3 is a later phase) |
 | D21 | Where supervision is written | **taken** (the header names the handle) |
 | D22 | How a child exposes progress | runtime facts in this phase; B and C deferred to v3 (the owner wants all three) |
-| D23 | The counted conditions | **partly taken** (bare counters relative to the handle) |
+| D23 | The counted conditions | **taken** (`tokens`, `cost`, `calls`, `elapsed`, `idle`; `status` is a readable fact only) |
 | D24 | Assertions in code | open |
 | D25 | Judged assertions | **partly taken** (a judge inside `supervise` is wanted) |
 | D26 | Time: how long, how often | **partly taken** (time is in scope) |
@@ -447,7 +447,11 @@ The same facts remain readable as plain values elsewhere in the script (`work[t.
 
 **Recommendation:** `tokens`, `cost`, `calls`, `elapsed`, `idle`, `status` in v1. A condition on a child with several agents that names no agent applies to the child as a whole.
 
-**Decision:** partly taken. The owner confirmed (D21) that conditions are bare counters relative to the named handle. The list of counters is open.
+**Decision (owner): accepted as proposed.**
+- **Counters:** `tokens` (a number), `cost` (money, written like the existing budget, `"$0.50"`; needs a price table, so `weave check` flags a `cost` rule with none, as it does for a money budget), `calls` (a number), `elapsed` (a duration; running time, D28) and `idle` (a duration; time with work to do but no progress, D28).
+- **Comparisons:** `>`, `>=`, `<`, `<=`, `==`, against a number, a duration or a money value: `when tokens > 90000 { cancel use partial }`, `when cost > "$0.50" { ... }`, `when idle > 3m { steer "..." once }`.
+- **`status` is a readable fact only**, not a condition (a rule on `failed` or `cancelled` is what `wait` and `on_failure` are for). Not in v1: rates and growth, and counters on a child's individual agents. A child may still carry its own `supervise Agent { ... }` blocks (looping, `tool_failing`, `context`, `steps`); they run in the child, unchanged.
+- The existing behaviour holds: a rule fires when its condition **becomes** true, again only if it goes false and true again, and `once` limits it to one firing.
 
 ## D24. Assertions in code about a child's trajectory
 
