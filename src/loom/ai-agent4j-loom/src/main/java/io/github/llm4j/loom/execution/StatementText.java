@@ -50,6 +50,7 @@ public final class StatementText {
             return "steer " + x.getTarget().describe();
         if (s instanceof io.github.llm4j.loom.ast.SuperviseStmt x)
             return "supervise " + x.getTarget().describe();
+        if (s instanceof io.github.llm4j.loom.ast.ReportStmt) return "report";
         if (s instanceof NoteStmt) return "note";
         if (s instanceof SleepStmt) return "sleep";
         if (s instanceof ParallelStmt) return "parallel";

@@ -61,6 +61,7 @@ final class ChildChecks {
     static void run(ScriptValidator.Checker c) {
         LoomScript script = c.script();
         for (WorkflowDef w : script.getWorkflows()) workflow(c, script, w);
+        ProgressChecks.run(c);
     }
 
     private static void workflow(ScriptValidator.Checker c, LoomScript script, WorkflowDef w) {
@@ -317,6 +318,10 @@ final class ChildChecks {
             switch (a.kind()) {
                 case REACHES_WITHIN -> checkpointExists(c, script, child, a.name(), a.line(), construct);
                 case NEVER_CALLS, CALLS_AT_MOST -> callable(c, script, child, a.name(), a.line(), construct);
+                case CHANGES_WITHIN -> {
+                    String problem = ProgressChecks.assertionProblem(child, a.name());
+                    if (problem != null) c.error(a.line(), construct, "assert progress." + a.name() + " changes within: " + problem);
+                }
                 case CALLS_BEFORE -> {
                     callable(c, script, child, a.name(), a.line(), construct);
                     callable(c, script, child, a.other(), a.line(), construct);

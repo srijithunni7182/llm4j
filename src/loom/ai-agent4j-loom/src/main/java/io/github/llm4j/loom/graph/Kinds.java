@@ -91,6 +91,9 @@ public final class Kinds {
     /** A {@code steer} statement or a {@code supervise} block on a handle. */
     public static final String CHILD_WATCH = "child_watch";
 
+    /** A {@code report} statement: a workflow says where it is, for whoever started it (phase 34b). */
+    public static final String CHILD_REPORT = "child_report";
+
     public static final String UNKNOWN = "unknown";
 
     public static final List<String> ALL =
@@ -125,6 +128,7 @@ public final class Kinds {
                     CHILD_WAIT,
                     CHILD_CANCEL,
                     CHILD_WATCH,
+                    CHILD_REPORT,
                     OUTCOME,
                     UNKNOWN);
 

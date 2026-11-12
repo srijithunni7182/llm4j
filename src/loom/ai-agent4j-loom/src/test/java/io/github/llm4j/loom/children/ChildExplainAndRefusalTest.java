@@ -31,6 +31,36 @@ class ChildExplainAndRefusalTest {
             """;
 
     @Test
+    void theExplanationSaysWhatAReportAndAProgressAssertionMean() {
+        String text =
+                ScriptExplainer.explain(
+                        StartParseTest.parse(
+                                """
+                                workflow Research(topic) progress { stage: string, done: number } {
+                                    report { stage: "reading", done: 1 }
+                                }
+                                workflow Main(q) {
+                                    start Research(topic = q) budget { tokens: 10 } -> work
+                                    supervise work { assert progress.done changes within 5m { steer "move on" once } }
+                                    wait work timeout 10m -> result
+                                }
+                                """),
+                        "w.loom",
+                        "Main");
+        String child =
+                ScriptExplainer.explain(
+                        StartParseTest.parse(
+                                """
+                                workflow Research(topic) progress { stage: string } { report { stage: "reading" } }
+                                """),
+                        "w.loom",
+                        "Research");
+
+        assertThat(text).contains("the child's reported done must change at least every 5 minutes").contains("never what it says");
+        assertThat(child).contains("The workflow reports where it is: stage").contains("as text it cannot trust");
+    }
+
+    @Test
     void theExplanationSaysWhatEachStatementDoes() {
         String text = ScriptExplainer.explain(StartParseTest.parse(SOURCE), "w.loom", "Main");
 

@@ -231,4 +231,67 @@ class ChildCheckDetailTest {
         assertThat(warnings(check(source)))
                 .anyMatch(w -> w.contains("already running") && w.contains("unsupervised") && w.contains("same block"));
     }
+
+    // ---- phase 34b: declared progress ----
+
+    private static List<ScriptValidator.Problem> progress(String workflow, String main) {
+        return check(BASE + workflow + "\nworkflow Main(q) {\n" + main + "\n}");
+    }
+
+    private static final String DECLARED =
+            "workflow Worker(topic) progress { stage: string, done: number, phase: enum[\"a\", \"b\"] } {\n";
+
+    @Test
+    void aReportOfAFieldTheWorkflowDidNotDeclareIsAnErrorThatListsTheOnesItDid() {
+        var p = progress(DECLARED + "report { stagee: \"x\" }\n}", "set x = \"1\"");
+
+        assertThat(errors(p)).anyMatch(e -> e.contains("stagee") && e.contains("stage") && e.contains("done"));
+    }
+
+    @Test
+    void aReportInAWorkflowWithNoDeclarationIsAnError() {
+        var p = progress("workflow Plain(topic) { report { stage: \"x\" } }", "set x = \"1\"");
+
+        assertThat(errors(p)).anyMatch(e -> e.contains("progress {") && e.contains("report"));
+    }
+
+    @Test
+    void aValueOfATypeItCanSeeIsWrongIsAnError() {
+        assertThat(errors(progress(DECLARED + "report { done: \"many\" }\n}", "set x = \"1\"")))
+                .anyMatch(e -> e.contains("done") && e.contains("number"));
+        assertThat(errors(progress(DECLARED + "report { stage: 3 }\n}", "set x = \"1\"")))
+                .anyMatch(e -> e.contains("stage") && e.contains("text"));
+        assertThat(errors(progress(DECLARED + "report { phase: \"c\" }\n}", "set x = \"1\"")))
+                .anyMatch(e -> e.contains("phase") && e.contains("\"a\""));
+        assertThat(errors(progress(DECLARED + "report { stage: \"ok\", done: 2, phase: \"a\" }\n}", "set x = \"1\"")))
+                .noneMatch(e -> e.contains("report"));
+    }
+
+    @Test
+    void aWorkflowThatDeclaresProgressAndNeverReportsIsWarnedAbout() {
+        var p = progress(DECLARED + "note \"x\"\n}", "set x = \"1\"");
+
+        assertThat(warnings(p)).anyMatch(w -> w.contains("declares progress") && w.contains("never reports"));
+        assertThat(warnings(progress(DECLARED + "report { stage: \"x\" }\n}", "set x = \"1\""))).noneMatch(w -> w.contains("never reports"));
+    }
+
+    @Test
+    void aProgressAssertionNeedsTheChildToDeclareThatField() {
+        String start = "start Worker(topic = q) budget { tokens: 10 } -> work\n";
+        var good = progress(DECLARED + "report { stage: \"x\" }\n}", start + "supervise work { assert progress.done changes within 3m { cancel } }\nwait work timeout 1m");
+        var noField = progress(DECLARED + "report { stage: \"x\" }\n}", start + "supervise work { assert progress.nothing changes within 3m { cancel } }\nwait work timeout 1m");
+        var noDecl = progress("workflow Worker(topic) { note \"x\" }", start + "supervise work { assert progress.done changes within 3m { cancel } }\nwait work timeout 1m");
+
+        assertThat(errors(good)).noneMatch(e -> e.contains("progress"));
+        assertThat(errors(noField)).anyMatch(e -> e.contains("nothing") && e.contains("stage"));
+        assertThat(errors(noDecl)).anyMatch(e -> e.contains("declares no progress"));
+    }
+
+    @Test
+    void readingAChildsProgressFieldInTextIsNotTakenForWritingTheHandle() {
+        String start = "start Worker(topic = q) budget { tokens: 10 } -> work\n";
+        var p = progress(DECLARED + "report { stage: \"x\" }\n}", start + "wait work timeout 1m\nnote \"at {work.progress.stage}\"");
+
+        assertThat(errors(p)).noneMatch(e -> e.contains("handle"));
+    }
 }

@@ -755,6 +755,17 @@ public final class TestChecker {
                 String state = step.path("state").asText("");
                 if (!step.isObject() || !CHILD_STATES.contains(state))
                     problems.add(at + "state '" + state + "' is not one of " + String.join(", ", CHILD_STATES) + Suggest.hint(state, CHILD_STATES));
+                if (step.has("progress")) {
+                    var def = script.getWorkflows().stream().filter(x -> x.getName().equals(name)).findFirst().orElse(null);
+                    if (def != null && def.getProgress() == null)
+                        problems.add(at + "progress: the workflow " + name + " declares no progress. Declare it: workflow " + name + "(...) progress { stage: string } { ... }");
+                    else if (def != null && step.get("progress").isObject())
+                        for (Iterator<String> f = step.get("progress").fieldNames(); f.hasNext(); ) {
+                            String field = f.next();
+                            if (!def.getProgress().fields().containsKey(field))
+                                problems.add(at + "progress: " + field + " is not a progress field of " + name + ". It declares: " + String.join(", ", def.getProgress().fields().keySet()) + ".");
+                        }
+                }
                 if (step.has("after") && Durations.parse(step.get("after").asText()) == null)
                     problems.add(at + "after '" + step.get("after").asText() + "' is not a duration such as 30s, 5m or 2h");
             }

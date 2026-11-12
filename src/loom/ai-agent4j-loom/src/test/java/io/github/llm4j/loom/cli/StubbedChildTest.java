@@ -40,6 +40,19 @@ class StubbedChildTest {
                 set seen = work.status
                 return findings
             }
+            workflow Reader(topic) progress { stage: string, done: number } {
+                report { stage: "start", done: 0 }
+                delegate "Find {topic}" to Researcher -> notes
+                return notes
+            }
+            workflow Stalled(q) {
+                start Reader(topic = q) budget { tokens: 100000 } -> work
+                supervise work { assert progress.stage changes within 3m { cancel use partial } }
+                wait work timeout 20m -> findings
+                set stage = work.progress.stage
+                set seen = work.status
+                return seen
+            }
             workflow Idle(q) {
                 start Research(topic = q) budget { tokens: 100000 } -> work
                 supervise work { when idle > 3m { cancel use partial } }
@@ -182,6 +195,74 @@ class StubbedChildTest {
                                 """));
 
         assertThat(code).as(out + "\n" + err).isZero();
+    }
+
+    @Test
+    void aScriptedChildCanReportProgressAndTheParentReadsTheLatest() throws Exception {
+        int code =
+                run(
+                        cases(
+                                "Stalled",
+                                """
+                                  - name: the parent reads what the scripted child last reported
+                                    input: { q: "peru" }
+                                    children:
+                                      Reader:
+                                        - { state: working, progress: { stage: reading, done: 1 }, after: 1m }
+                                        - { state: completed, progress: { stage: writing, done: 2 }, result: "x", after: 1m }
+                                    expect:
+                                      result: { contains: "completed" }
+                                      children: { Reader: { status: completed } }
+                                """));
+
+        assertThat(code).as(out + "\n" + err).isZero();
+    }
+
+    @Test
+    void aProgressAssertionFiresWhenTheFieldStandsStillAndNotWhenItMoves() throws Exception {
+        int code =
+                run(
+                        cases(
+                                "Stalled",
+                                """
+                                  - name: a field that stops changing is caught
+                                    input: { q: "peru" }
+                                    children:
+                                      Reader:
+                                        - { state: working, progress: { stage: reading }, after: 1m }
+                                        - { state: working, after: 1m }
+                                        - { state: working, after: 1m }
+                                        - { state: working, after: 1m }
+                                        - { state: working, after: 1m }
+                                        - { state: working, after: 1m }
+                                        - { state: completed, result: "late", after: 1m }
+                                    expect:
+                                      result: { contains: "cancelled" }
+                                      children: { Reader: { status: cancelled } }
+                                  - name: a field that keeps moving is left alone
+                                    input: { q: "peru" }
+                                    children:
+                                      Reader:
+                                        - { state: working, progress: { stage: reading }, after: 2m }
+                                        - { state: working, progress: { stage: writing }, after: 2m }
+                                        - { state: working, progress: { stage: checking }, after: 2m }
+                                        - { state: completed, result: "in time", after: 1m }
+                                    expect:
+                                      result: { contains: "completed" }
+                                      children: { Reader: { status: completed } }
+                                """));
+
+        assertThat(code).as(out + "\n" + err).isZero();
+    }
+
+    @Test
+    void aProgressStepNeedsTheWorkflowToDeclareThatField() throws Exception {
+        assertThat(check("      Research:\n        - { state: completed, progress: { stage: x }, result: \"x\" }\n"))
+                .contains("progress")
+                .contains("declares no progress");
+        assertThat(check("      Reader:\n        - { state: completed, progress: { nothing: x }, result: \"x\" }\n"))
+                .contains("nothing")
+                .contains("stage");
     }
 
     // ---- the checker says what is wrong with children: ----

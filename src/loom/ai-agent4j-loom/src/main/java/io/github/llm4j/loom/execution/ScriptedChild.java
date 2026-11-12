@@ -34,11 +34,18 @@ public record ScriptedChild(List<Step> steps) {
      * @param after how long, on the injected sleeper, before it becomes that; zero for at once
      * @param result the result of a completed child, or null
      * @param reason the reason of a failed child, or null
+     * @param progress what the child reports on reaching this step (phase 34b), or empty for no report
      */
-    public record Step(State state, Duration after, Object result, String reason) {
+    public record Step(State state, Duration after, Object result, String reason, java.util.Map<String, Object> progress) {
         public Step {
             Objects.requireNonNull(state, "state");
             Objects.requireNonNull(after, "after");
+            progress = progress == null ? java.util.Map.of() : java.util.Map.copyOf(progress);
+        }
+
+        /** A step that reports no progress. */
+        public Step(State state, Duration after, Object result, String reason) {
+            this(state, after, result, reason, java.util.Map.of());
         }
     }
 

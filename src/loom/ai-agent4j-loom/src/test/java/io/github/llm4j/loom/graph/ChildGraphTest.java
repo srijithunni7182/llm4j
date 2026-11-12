@@ -43,4 +43,22 @@ class ChildGraphTest {
 
         assertThat(handleEdges).as("the supervise next to the start is joined by the plain edge already").isEqualTo(3);
     }
+
+    @Test
+    void aReportIsItsOwnKindWithTheFieldsItSets() {
+        WorkflowGraph graph =
+                graphOf(
+                        """
+                        workflow W(q) progress { stage: string, done: number } {
+                            report { stage: "a", done: 1 }
+                            set x = "1"
+                        }
+                        """,
+                        "W");
+
+        GraphNode report = graph.nodes().stream().filter(n -> Kinds.CHILD_REPORT.equals(n.kind())).findFirst().orElseThrow();
+        assertThat(report.label()).isEqualTo("report stage, done");
+        assertThat(Kinds.ALL).contains(Kinds.CHILD_REPORT);
+        assertThat(graph.nodes().stream().noneMatch(n -> Kinds.UNKNOWN.equals(n.kind()))).isTrue();
+    }
 }

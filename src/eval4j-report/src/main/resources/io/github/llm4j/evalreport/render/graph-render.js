@@ -54,6 +54,7 @@
     child_wait: { k: 'human', g: 'clock', shape: 'rect' },
     child_cancel: { k: 'misc', g: 'stop', shape: 'rect' },
     child_watch: { k: 'misc', g: 'eye', shape: 'rect', dashed: true },
+    child_report: { k: 'misc', g: 'note', shape: 'rect' },
     outcome: { k: 'misc', g: 'outcome', shape: 'rect' },
     unknown: { k: 'misc', g: 'unknown', shape: 'rect', dashed: true },
     statement: { k: 'misc', g: 'unknown', shape: 'rect', dashed: true }
@@ -224,6 +225,7 @@
       case 'child_start': return a.handle ? 'handle ' + a.handle : null;
       case 'child_wait':
       case 'child_cancel': return a.handle ? 'on ' + a.handle : null;
+      case 'child_report': return a.fields ? cut(a.fields, 40) : null;
       case 'child_watch': return a.handle ? (a.what || 'watch') + ' ' + a.handle : null;
       case 'rewind': return a.condition ? cut(a.condition, 40) : null;
       case 'task': return a.args ? plural(a.args, 'arg') : null;

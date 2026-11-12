@@ -200,6 +200,14 @@ final class CaseRunner {
      * instead of running (F5). Each key is a workflow, each value a list of steps {@code { state,
      * after, result, reason }}; the checker has already refused a malformed one.
      */
+    /** {@code progress: { stage: reading, done: 1 }} of a scripted step: numbers and booleans keep their type. */
+    private static Map<String, Object> progressOf(JsonNode node) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (node == null || !node.isObject()) return out;
+        node.fields().forEachRemaining(e -> out.put(e.getKey(), e.getValue().isNumber() ? (Object) e.getValue().numberValue() : e.getValue().isBoolean() ? (Object) e.getValue().booleanValue() : e.getValue().asText()));
+        return out;
+    }
+
     private static io.github.llm4j.loom.execution.ChildScripts scriptedChildren(JsonNode scripts) {
         Map<String, io.github.llm4j.loom.execution.ScriptedChild> byWorkflow = new LinkedHashMap<>();
         for (Map.Entry<String, JsonNode> e : fields(scripts).entrySet()) {
@@ -211,7 +219,8 @@ final class CaseRunner {
                                 io.github.llm4j.loom.execution.ScriptedChild.State.valueOf(step.path("state").asText().toUpperCase(java.util.Locale.ROOT)),
                                 after,
                                 step.has("result") ? step.get("result").asText() : null,
-                                step.has("reason") ? step.get("reason").asText() : null));
+                                step.has("reason") ? step.get("reason").asText() : null,
+                                progressOf(step.get("progress"))));
             }
             byWorkflow.put(e.getKey(), new io.github.llm4j.loom.execution.ScriptedChild(steps));
         }

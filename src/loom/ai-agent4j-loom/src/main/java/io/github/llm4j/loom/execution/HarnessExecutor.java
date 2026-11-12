@@ -3203,6 +3203,18 @@ public class HarnessExecutor implements LoomEngine {
     private final ProgressLog progressLog = new ProgressLog();
 
     /**
+     * A scripted child's report (phase 34b): written as {@code report} writes it, checked against
+     * the declaration of the workflow the child stands in for.
+     */
+    void reportScripted(String stepId, String workflow, Map<String, Object> fields) {
+        io.github.llm4j.loom.ast.WorkflowDef def =
+                script.getWorkflows().stream().filter(w -> w.getName().equals(workflow)).findFirst().orElse(null);
+        if (def == null || def.getProgress() == null)
+            throw new IllegalStateException("the scripted child " + workflow + " reports progress, but the workflow declares none");
+        progressLog.write(journal, stepId, def.getProgress(), new java.util.LinkedHashMap<>(fields), nowMillis());
+    }
+
+    /**
      * {@code report { ... }} (phase 34b): writes the fields, checked against the workflow's {@code
      * progress} declaration and the size and count bounds, into this run's own journal. A report
      * over a bound is dropped and recorded, never an error that stops the run.

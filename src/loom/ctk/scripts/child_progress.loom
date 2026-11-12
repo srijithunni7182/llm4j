@@ -1,0 +1,22 @@
+// Canonical CTK test: child_progress
+// A started workflow declares what it may report (progress) and reports it (report). The parent reads the child's
+// latest report as h.progress.<field>; it is the child's own words, so a runtime treats it as unchecked, keeps it in
+// the child's own journal (it survives a restart) and refuses a field or a type the workflow did not declare.
+// The task Lookup is code supplied by the runtime.
+
+workflow Child(topic) progress { stage: string, done: number } {
+    report { stage: "searching", done: 0 }
+    run Lookup(topic = topic) -> found
+    report { stage: "writing", done: 1 }
+    return found
+}
+
+workflow main() {
+    start Child(topic = "peru") budget { tokens: 1000 } -> work
+    wait work timeout 1m -> findings
+    alt (work.progress.stage == "writing") {
+        note "reported"
+    } else {
+        halt "the child's last report was not seen"
+    }
+}

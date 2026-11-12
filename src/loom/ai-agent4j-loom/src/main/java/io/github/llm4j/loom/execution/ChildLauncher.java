@@ -519,7 +519,9 @@ final class ChildLauncher {
             child.control().checkpoint("scripted child"); // a cancel reaches it here
             // reaching a step is something the child did: the supervisor's idle time and a judge's
             // skip-if-nothing-changed both read the journal's size
-            child.journal().put(SCRIPTED + index++, new RunJournal.Entry("scripted", step.state().name()));
+            child.journal().put(SCRIPTED + index, new RunJournal.Entry("scripted", step.state().name()));
+            if (!step.progress().isEmpty()) child.reportScripted(SCRIPTED + index, handle.workflow(), step.progress());
+            index++;
             switch (step.state()) {
                 case WORKING -> {}
                 case COMPLETED -> {
@@ -741,6 +743,10 @@ final class ChildLauncher {
         long runningMillis;
         long lastProgress = -1;
         long signature = -1;
+        /** The progress fields a {@code changes within} assertion watches, the last value seen and the running time it changed at. */
+        java.util.Set<String> progressFields = java.util.Set.of();
+        final Map<String, Object> progressSeen = new java.util.HashMap<>();
+        final Map<String, Long> progressChangedAt = new java.util.HashMap<>();
         List<JudgeSchedule> schedules = List.of();
         boolean[] judgedFiredOnce = new boolean[0];
         Budget judgeBudget;
@@ -790,6 +796,10 @@ final class ChildLauncher {
             if (a.kind() == SuperviseStmt.AssertionKind.NEVER_CALLS)
                 live.run().forbid(a.name()); // preventive: refused before it runs, narrowing the child
         Watch watch = new Watch(handle, live, new SuperviseEvaluator(stmt, before), stepId, count);
+        java.util.Set<String> watched = new java.util.LinkedHashSet<>();
+        for (SuperviseStmt.CodeAssertion a : stmt.getCode())
+            if (a.kind() == SuperviseStmt.AssertionKind.CHANGES_WITHIN) watched.add(a.name());
+        watch.progressFields = watched;
         watch.lastTick = executor.nowMillis(); // the child's time with this block begins now
         watch.lastProgress = watch.lastTick;
         watch.signature = signatureOf(live);
@@ -1017,7 +1027,28 @@ final class ChildLauncher {
         w.lastTick = now;
         return new SuperviseEvaluator.Facts(
                 tokens, calls, cost, w.runningMillis, running ? now - w.lastProgress : 0,
-                w.live.run().trajectory());
+                w.live.run().trajectory(), standingStill(w));
+    }
+
+    /**
+     * How long, in the child's running time, each watched progress field has stood still (D7). The
+     * clock starts when the block begins and starts again whenever the field's value is not what
+     * it was at the last look; only <em>whether</em> it moved is used, never what it says. Sleep
+     * does not count, because running time does not.
+     */
+    private Map<String, Long> standingStill(Watch w) {
+        if (w.progressFields.isEmpty()) return Map.of();
+        Map<String, Object> latest = ProgressLog.latest(w.live.journal());
+        Map<String, Long> out = new LinkedHashMap<>();
+        for (String field : w.progressFields) {
+            Object now = latest.get(field);
+            if (!java.util.Objects.equals(now, w.progressSeen.get(field))) {
+                w.progressSeen.put(field, now);
+                w.progressChangedAt.put(field, w.runningMillis);
+            }
+            out.put(field, w.runningMillis - w.progressChangedAt.getOrDefault(field, 0L));
+        }
+        return out;
     }
 
     /**

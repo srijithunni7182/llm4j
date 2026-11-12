@@ -270,6 +270,7 @@ public final class Why {
             case "child-wait" -> nodeKind.equals(Kinds.CHILD_WAIT);
             case "child-cancel" -> nodeKind.equals(Kinds.CHILD_CANCEL);
             case "child-steer", "supervise", "judge" -> nodeKind.equals(Kinds.CHILD_WATCH);
+            case "progress", "progress-dropped" -> nodeKind.equals(Kinds.CHILD_REPORT);
             default -> true;
         };
     }
@@ -420,6 +421,11 @@ public final class Why {
             case "child-steer" -> v instanceof Map<?, ?> m ? "steered " + m.get("agent") + deliveryOf(m.get("delivered")) : "steered a child";
             case "supervise" -> v instanceof Map<?, ?> m ? "a supervise rule " + m.get("rule") + ": " + m.get("detail") : "a supervise rule acted";
             case "judge" -> v instanceof Map<?, ?> m ? "a judge said " + m.get("verdict") : "a judge was asked";
+            // the child's own words are untrusted: the names of what it set, never their values
+            case "progress" -> v instanceof Map<?, ?> m && m.get("fields") instanceof Map<?, ?> f
+                    ? "reported " + String.join(", ", f.keySet().stream().map(String::valueOf).toList())
+                    : "reported its progress";
+            case "progress-dropped" -> v instanceof Map<?, ?> m ? "a report was dropped: " + m.get("reason") : "a report was dropped";
             default -> e.kind();
         };
     }
