@@ -45,7 +45,7 @@ Read in the merged source:
 | **F8** a sleeping child | A test that drives a sleeping child through `factsOf` (running time and idle exclude sleep). |
 | **F9** two warnings | A start that exceeds `max_children` where it can be proven; two steers to one agent in one block. |
 | **F12** judge reservation | `weave check` pairs a `start` with the `supervise` of the same handle in the same block; the reservation at `start` includes the paired judge budget (D3); an unpaired `supervise` reserves when it runs and may fail with a message. |
-| **F13** the facts view | No code: record `Trajectory` as the decision and close risk 7 of phase 33 (D4). |
+| **F13** the facts view | No code: `Trajectory` is the decision (D4, taken): risk 7 of phase 33 is closed as "not followed, by choice", because the evaluation's rendering describes a finished run and a supervisor needs a live one. |
 | **F14, F15** guards and demo | Break G7 and G13 on purpose once; an engine test for G2's resume half; a judge case in starter 18's tests (D5). |
 
 ### 4.2 Declared progress (34b; D6, D7)

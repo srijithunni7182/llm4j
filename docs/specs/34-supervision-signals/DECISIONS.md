@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D3 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D4 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -10,7 +10,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D1 | The scope and staging of this phase | **taken** (one phase, five sub-phases, a review gate after 34a) |
 | D2 | Which v1 gaps are carried into this phase | **taken** (all of F1 to F11) |
 | D3 | The judge budget: reserved at `start` | **taken** (paired statically; a warning for a supervise that cannot be paired) |
-| D4 | The judge's facts view | open |
+| D4 | The judge's facts view | **taken** (keep `Trajectory`; risk 7 closed as not followed, by choice) |
 | D5 | A judge-driven demo test | open |
 | D6 | Declared progress: the syntax and the typing | open |
 | D7 | Declared progress: what a script may do with it | open |
@@ -74,7 +74,8 @@ A `supervise` that cannot be paired (a handle started in one place and supervise
 
 **Recommendation: A.** It is already built, tested and facts-only; B and C add coupling to the eval module for no gain a user has asked for. Close risk 7 as "not followed, by choice".
 
-**Decision:** open.
+**Decision (owner): option A.** `Trajectory` stays the judge's facts view: the child's own trace (each tool, agent or task called with its count and the order first called, the checkpoints reached, the refused calls) plus the runtime counters; no tool argument or result, and content only with `seeing content` (limited to 4000 characters). It is live, needs no dataset and is already built and tested.
+Risk 7 of phase 33 is closed as **"not followed, by choice"**, with the reason recorded in the design: the evaluation's rendering describes a *finished* run, a supervisor needs a *live* one. A shared wording between a supervisor's assertion and an `expect:` line would be a deliberate later step, not added speculatively.
 
 ## D5. A judge-driven demo test (F15)
 
