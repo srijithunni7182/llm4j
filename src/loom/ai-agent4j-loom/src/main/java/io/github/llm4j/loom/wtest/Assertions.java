@@ -56,11 +56,108 @@ final class Assertions {
         if (expect.has("asked")) asked(expect.get("asked"), o, failures);
         if (expect.has("effects")) effects(expect.get("effects"), o, failures);
         if (expect.has("elapsed_virtual")) elapsed(expect.get("elapsed_virtual"), o, failures);
+        if (expect.has("starts")) starts(expect.get("starts"), o, failures);
+        if (expect.has("children")) children(expect.get("children"), o, failures);
+        if (expect.has("fired")) fired(expect.get("fired"), o, failures);
+        if (expect.has("steers")) steers(expect.get("steers"), o, failures);
         if (expect.has("tokens")) tokens(expect.get("tokens"), o, failures);
         if (expect.has("degraded") || expect.has("fallbacks")) degraded(expect, o, failures);
         if (expect.has("branches") && graph != null)
             branches(expect.get("branches"), o, graph, workflow, failures);
         return failures;
+    }
+
+    // ---- started workflows (phase 33, D17) ----
+
+    /** The journal entries of one kind, from the run's own journal, in key order. */
+    private static List<Map.Entry<String, io.github.llm4j.loom.runtime.RunJournal.Entry>> entriesOf(
+            CaseRunner.Outcome o, String kind) {
+        return new java.util.TreeMap<>(o.journal().all())
+                .entrySet().stream().filter(e -> kind.equals(e.getValue().kind())).toList();
+    }
+
+    /** {@code starts:} a number, or the workflows started, in order. */
+    private static void starts(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        List<String> started = new ArrayList<>();
+        for (var e : entriesOf(o, "child"))
+            if (e.getValue().value() instanceof Map<?, ?> m) started.add(String.valueOf(m.get("workflow")));
+        if (want.isArray()) {
+            List<String> wanted = new ArrayList<>();
+            want.forEach(n -> wanted.add(n.asText()));
+            if (!wanted.equals(started))
+                failures.add(new Failure("starts", "starts: expected " + wanted + ", the run started " + started));
+        } else {
+            String problem = Matchers.mismatch(want, started.size());
+            if (problem != null) failures.add(new Failure("starts", "starts: " + problem + " (started " + started + ")"));
+        }
+    }
+
+    /** The handles the run holds, whatever variable they are in, as workflow, status and reason. */
+    private static List<io.github.llm4j.loom.runtime.ChildHandle> handles(CaseRunner.Outcome o) {
+        List<io.github.llm4j.loom.runtime.ChildHandle> out = new ArrayList<>();
+        for (Object v : o.variables().values()) {
+            if (v instanceof io.github.llm4j.loom.runtime.ChildHandle h) out.add(h);
+            else if (v instanceof Map<?, ?> m)
+                for (Object x : m.values())
+                    if (x instanceof io.github.llm4j.loom.runtime.ChildHandle h) out.add(h);
+        }
+        return out;
+    }
+
+    /** {@code children: { Research: { status: cancelled, reason: "..." } }}: every child started from that workflow. */
+    private static void children(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        var all = handles(o);
+        for (var it = want.fields(); it.hasNext(); ) {
+            var e = it.next();
+            var mine = all.stream().filter(h -> h.workflow().equals(e.getKey())).toList();
+            if (mine.isEmpty()) {
+                failures.add(new Failure("children", "children." + e.getKey() + ": no child was started from it"));
+                continue;
+            }
+            for (var h : mine) {
+                if (e.getValue().has("status") && !h.status().word().equals(e.getValue().get("status").asText()))
+                    failures.add(new Failure("children", "children." + e.getKey() + ".status: expected "
+                            + e.getValue().get("status").asText() + ", it is " + h.status().word()));
+                if (e.getValue().has("reason")) {
+                    Object reason = h.fact("reason");
+                    if (reason == null || !String.valueOf(reason).contains(e.getValue().get("reason").asText()))
+                        failures.add(new Failure("children", "children." + e.getKey() + ".reason: expected it to contain '"
+                                + e.getValue().get("reason").asText() + "', it is " + reason));
+                }
+            }
+        }
+    }
+
+    /** {@code fired: [ { rule: 0, action: cancel } ]}: the supervise rules that acted, in order; an empty list means none did. */
+    private static void fired(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        List<String> acted = new ArrayList<>();
+        for (var e : entriesOf(o, "supervise"))
+            if (e.getValue().value() instanceof Map<?, ?> m && "fired".equals(m.get("outcome")))
+                acted.add(m.get("rule") + ":" + String.valueOf(m.get("action")).toLowerCase());
+        List<String> wanted = new ArrayList<>();
+        for (JsonNode n : want) wanted.add(n.path("rule").asText() + ":" + n.path("action").asText().toLowerCase());
+        if (!wanted.equals(acted))
+            failures.add(new Failure("fired", "fired: expected " + wanted + " (rule:action), the supervisor acted " + acted));
+    }
+
+    /** {@code steers: { delivered: 1, not_delivered: 0 }}: how the steers of the run ended. */
+    private static void steers(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        int delivered = 0;
+        int missed = 0;
+        for (var e : entriesOf(o, "child-steer"))
+            if (e.getValue().value() instanceof Map<?, ?> m) {
+                if (Integer.parseInt(String.valueOf(m.get("delivered"))) > 0) delivered++;
+                else missed++;
+            }
+        for (var e : entriesOf(o, "supervise"))
+            if (e.getValue().value() instanceof Map<?, ?> m && "STEER".equals(m.get("action")) && "fired".equals(m.get("outcome"))) {
+                if (Integer.parseInt(String.valueOf(m.get("delivered"))) > 0) delivered++;
+                else missed++;
+            }
+        if (want.has("delivered") && want.get("delivered").asInt() != delivered)
+            failures.add(new Failure("steers", "steers.delivered: expected " + want.get("delivered").asInt() + ", " + delivered + " were"));
+        if (want.has("not_delivered") && want.get("not_delivered").asInt() != missed)
+            failures.add(new Failure("steers", "steers.not_delivered: expected " + want.get("not_delivered").asInt() + ", " + missed + " were"));
     }
 
     /** {@code degraded:} and {@code fallbacks:}: whether and which steps took their on_failure. */

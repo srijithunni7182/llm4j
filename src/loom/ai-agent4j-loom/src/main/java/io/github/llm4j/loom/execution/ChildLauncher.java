@@ -43,7 +43,7 @@ final class ChildLauncher {
     private final HarnessExecutor executor;
     /** A child this launcher started: its task, its run and the most it may still spend. */
     private record Live(
-            ChildScheduler.Task task, HarnessExecutor run, RunJournal journal, Long capTokens, Long capCalls, BigDecimal capCost) {}
+            String stepId, ChildScheduler.Task task, HarnessExecutor run, RunJournal journal, Long deadlineMillis, long timeoutMillis, Long capTokens, Long capCalls, BigDecimal capCost) {}
 
     private final Map<ChildHandle, Live> tasks = new IdentityHashMap<>();
 
@@ -91,11 +91,17 @@ final class ChildLauncher {
                     "start " + stmt.getWorkflow() + " has no budget: a child's spending must be capped. Write budget { tokens: 100000 } on the start.");
         HarnessExecutor.Tracked<Map<String, Object>> args =
                 executor.tracked(() -> argumentValues(stmt));
+        long startedAt =
+                recorded.isPresent() && recorded.get().value() instanceof Map<?, ?> m && m.get("at") instanceof Number n
+                        ? n.longValue()
+                        : executor.nowMillis();
         if (recorded.isEmpty())
             journal.put(
                     stepId,
                     new RunJournal.Entry(
-                            START, Map.of("run", childRun, "workflow", stmt.getWorkflow())));
+                            START, Map.of("run", childRun, "workflow", stmt.getWorkflow(), "at", startedAt)));
+        long timeoutMillis = stmt.getTimeoutMillis() == null ? 0 : stmt.getTimeoutMillis();
+        Long deadline = timeoutMillis > 0 ? startedAt + timeoutMillis : null; // wall clock, from the first start
         runs.record(childRun, parentRun, stmt.getWorkflow());
 
         RunJournal childJournal = runs.openJournal(childRun);
@@ -109,6 +115,7 @@ final class ChildLauncher {
         var enclosing = executor.enclosingBudgets();
 
         ChildHandle handle = new ChildHandle(childRun, stmt.getWorkflow());
+        child.onProgress(this::tickSafely); // a counter changed: look at once, not only on the tick
         var invoker = executor.currentInvoker();
         String workflow = stmt.getWorkflow();
         ChildScheduler.Task task =
@@ -123,8 +130,9 @@ final class ChildLauncher {
                                         runs.settled(childRun, handle.status());
                                     }
                                 });
+        if (deadline != null) startTicking();
         synchronized (tasks) {
-            tasks.put(handle, new Live(task, child, childJournal, capTokens, capCalls, capCost));
+            tasks.put(handle, new Live(stepId, task, child, childJournal, deadline, timeoutMillis, capTokens, capCalls, capCost));
         }
         executor.bind(boundName(stmt.getTarget()), handle, Provenance.NOT_MODEL);
         log.info("Started child " + childRun + " (" + workflow + ")");
@@ -596,6 +604,7 @@ final class ChildLauncher {
      */
     void tick() {
         long now = executor.nowMillis();
+        checkDeadlines(now);
         for (Watch w : watches) {
             boolean settled = w.handle.status().isSettled();
             synchronized (w) {
@@ -610,7 +619,33 @@ final class ChildLauncher {
             }
             if (settled) watches.remove(w);
         }
-        if (watches.isEmpty()) stopTicking();
+        boolean deadlines;
+        synchronized (tasks) {
+            deadlines = tasks.entrySet().stream().anyMatch(e -> e.getValue().deadlineMillis() != null && !e.getKey().status().isSettled());
+        }
+        if (watches.isEmpty() && !deadlines) stopTicking();
+    }
+
+    /**
+     * A child still going after the deadline of its {@code start} is timed out (D26): the same
+     * stop as a cancel, so an effect under way finishes first, and a sleeping or waiting child
+     * settles at once. The deadline is wall clock and counts sleep.
+     */
+    private void checkDeadlines(long now) {
+        List<Map.Entry<ChildHandle, Live>> late = new ArrayList<>();
+        synchronized (tasks) {
+            for (Map.Entry<ChildHandle, Live> e : tasks.entrySet())
+                if (e.getValue().deadlineMillis() != null && !e.getKey().status().isSettled() && now >= e.getValue().deadlineMillis())
+                    late.add(e);
+        }
+        for (Map.Entry<ChildHandle, Live> e : late)
+            cancelChild(e.getKey(), e.getValue(), null, "timed out: it had " + describe(e.getValue().timeoutMillis()) + " from its start", true);
+    }
+
+    private static String describe(long millis) {
+        if (millis % 3_600_000 == 0) return millis / 3_600_000 + " hours";
+        if (millis % 60_000 == 0) return millis / 60_000 + " minutes";
+        return millis / 1000 + " seconds";
     }
 
     /** A number that changes whenever the child does something: spends, calls or records a step. */
@@ -770,16 +805,22 @@ final class ChildLauncher {
      */
     private void cancelChild(
             ChildHandle handle, Live live, io.github.llm4j.loom.ast.OutcomeStmt.Kind outcome, String reason) {
+        cancelChild(handle, live, outcome, reason, false);
+    }
+
+    private void cancelChild(
+            ChildHandle handle, Live live, io.github.llm4j.loom.ast.OutcomeStmt.Kind outcome, String reason, boolean timeout) {
         if (handle.status().isSettled()) return;
         live.journal()
                 .put(
                         CANCEL_MARKER,
                         new RunJournal.Entry(
                                 "cancel",
-                                Map.of("reason", reason, "outcome", outcome == null ? "" : outcome.phrase())));
+                                Map.of("reason", reason, "outcome", outcome == null ? "" : outcome.phrase(), "timeout", timeout)));
         if (handle.status() == ChildStatus.SLEEPING || handle.status() == ChildStatus.WAITING) {
-            handle.cancelled(reason, outcome == io.github.llm4j.loom.ast.OutcomeStmt.Kind.USE_PARTIAL ? partialOf(live.run()) : null);
-            executor.childRuns().settled(live.run().getRunId(), ChildStatus.CANCELLED);
+            if (timeout) handle.timedOut(reason);
+            else handle.cancelled(reason, outcome == io.github.llm4j.loom.ast.OutcomeStmt.Kind.USE_PARTIAL ? partialOf(live.run()) : null);
+            executor.childRuns().settled(live.run().getRunId(), timeout ? ChildStatus.TIMED_OUT : ChildStatus.CANCELLED);
             return;
         }
         live.run().control().request(RunControl.Action.STOP, "parent: " + reason);
@@ -797,11 +838,14 @@ final class ChildLauncher {
     private void settleCancelled(HarnessExecutor child, ChildHandle handle, RunJournal.Entry marker) {
         String reason = "cancelled";
         boolean keep = false;
+        boolean timeout = false;
         if (marker.value() instanceof Map<?, ?> m) {
             reason = String.valueOf(m.get("reason"));
+            timeout = Boolean.TRUE.equals(m.get("timeout"));
             keep = io.github.llm4j.loom.ast.OutcomeStmt.Kind.USE_PARTIAL.phrase().equals(m.get("outcome"));
         }
-        handle.cancelled(reason, keep ? partialOf(child) : null);
+        if (timeout) handle.timedOut(reason);
+        else handle.cancelled(reason, keep ? partialOf(child) : null);
     }
 
     /**
@@ -839,6 +883,32 @@ final class ChildLauncher {
         }
     }
 
+    /**
+     * The parent went back to a checkpoint: the children it started at or after that point in
+     * {@code block} belong to a generation that is over, so they are cancelled before the new
+     * generation starts its own (D10, D4).
+     */
+    void cancelSince(String block, int fromIndex, String reason) {
+        List<Map.Entry<ChildHandle, Live>> old = new ArrayList<>();
+        synchronized (tasks) {
+            for (Map.Entry<ChildHandle, Live> e : tasks.entrySet()) {
+                String id = e.getValue().stepId();
+                if (e.getKey().status().isSettled() || !id.startsWith(block)) continue;
+                int end = block.length();
+                while (end < id.length() && Character.isDigit(id.charAt(end))) end++;
+                if (end > block.length() && Integer.parseInt(id.substring(block.length(), end)) >= fromIndex) old.add(e);
+            }
+        }
+        for (Map.Entry<ChildHandle, Live> e : old) cancelChild(e.getKey(), e.getValue(), null, reason);
+        for (Map.Entry<ChildHandle, Live> e : old) {
+            try {
+                e.getValue().task().await(executor.childLimits().settleGrace().toMillis());
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
     /** The one handle {@code ref} names, for a statement that acts on a single child. */
     private ChildHandle singleHandle(HandleRef ref) {
         Object base = executor.view().getVariable(ref.name());
@@ -854,8 +924,22 @@ final class ChildLauncher {
 
     // ---- handles in variables ----
 
-    private static String boundName(HandleRef ref) {
-        return ref.isKeyed() ? ref.name() + "[" + ref.key() + "]" : ref.name();
+    /**
+     * The name a handle is bound under: a plain variable, or one key of a keyed variable. A key
+     * written as a path ({@code work[t.name]}) is read from the variable now, as it is for {@code
+     * -> results[task.name]}, and must be a plain word.
+     */
+    private String boundName(HandleRef ref) {
+        if (!ref.isKeyed()) return ref.name();
+        String key =
+                ref.keyIsLiteral()
+                        ? ref.key()
+                        : String.valueOf(ConditionEvaluator.resolvePath(ref.key(), executor.view()));
+        if (!key.matches("[A-Za-z0-9][A-Za-z0-9_-]{0,63}"))
+            throw new IllegalStateException(
+                    "the key " + ref.key() + " of " + ref.name() + " is \"" + key
+                            + "\", which is not a plain word (letters, digits, - and _), so no child was started under it");
+        return ref.name() + "[" + key + "]";
     }
 
     /** The handles a wait is about: the one it names, or every one in a keyed variable for {@code all}. */
@@ -863,6 +947,9 @@ final class ChildLauncher {
         HandleRef ref = stmt.getTarget();
         Object base = executor.view().getVariable(ref.name());
         Map<String, ChildHandle> out = new LinkedHashMap<>();
+        // nothing was started under this name (a loop over an empty list): waiting for all of none is waiting for nothing
+        if (stmt.isAll() && !ref.isKeyed() && (base == null || "".equals(base) || (base instanceof Map<?, ?> none && none.isEmpty())))
+            return out;
         if (ref.isKeyed()) {
             String key = ref.keyIsLiteral() ? ref.key() : String.valueOf(ConditionEvaluator.resolvePath(ref.key(), executor.view()));
             if (base instanceof Map<?, ?> map && map.get(key) instanceof ChildHandle h) out.put(key, h);
@@ -873,7 +960,7 @@ final class ChildLauncher {
                 if (v instanceof ChildHandle h) out.put(String.valueOf(k), h);
             });
         }
-        if (out.isEmpty())
+        if (out.isEmpty() && !(stmt.isAll() && !ref.isKeyed() && base instanceof Map<?, ?>))
             throw new IllegalStateException(
                     ref.describe() + " holds no handle at this point: start the child before waiting for it");
         return out;

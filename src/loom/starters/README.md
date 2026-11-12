@@ -1,6 +1,6 @@
 # Loom starter set
 
-Seventeen small, complete workflows, each one a step up from the one before. Every one **loads** (`weave check`), has **tests that need no key and cost nothing** (`weave test`), and carries a picture of itself drawn by `weave graph`. Copy a folder, change the prompts, and you have a project.
+Eighteen small, complete workflows, each one a step up from the one before. Every one **loads** (`weave check`), has **tests that need no key and cost nothing** (`weave test`), and carries a picture of itself drawn by `weave graph`. Copy a folder, change the prompts, and you have a project.
 
 New to Loom? Read the [tutorial](../../../docs/tutorial/README.md) alongside these: each starter links to the chapter that explains it.
 
@@ -37,6 +37,7 @@ The models are named `gemini-2.5-flash` in all of them. Change the `model:` line
 | 15 | [earned-autonomy](15-earned-autonomy/) | An agent earns the right to act alone | `decision`, `trust`, `decide` |
 | 16 | [step-by-step-agent](16-step-by-step-agent/) | A long job whose progress the script owns | bounded `loop`, `memory { transcript: none }`, an `extractor` that records progress |
 | 17 | [compliance-boundary](17-compliance-boundary/) | A reply is checked against house rules before it leaves | `policy`, `evaluator`, `check ... against`, `on_violation { rewrite with ... }` |
+| 18 | [supervise-workflows](18-supervise-workflows/) | Start three researchers at once and watch them | `start`, handles, `supervise` on a handle, `wait all`, judged assertions |
 
 ## What keeps these honest
 

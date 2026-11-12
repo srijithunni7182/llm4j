@@ -2525,6 +2525,7 @@ public class HarnessExecutor implements LoomEngine {
                     if (stopAt != null) stopPoint(step.get());
                 } catch (Rewinder.RewindSignal signal) {
                     if (!signal.block.equals(block)) throw signal;
+                    children.cancelSince(block, signal.from, "rewound");
                     rewinder.restore(frame, signal.checkpoint);
                     i = signal.from - 1; // the loop's increment lands on the first statement of the
                     // new generation
@@ -4459,6 +4460,13 @@ public class HarnessExecutor implements LoomEngine {
         return List.copyOf(all);
     }
 
+    private volatile Runnable onProgress = () -> {};
+
+    /** Told, on the thread of a child run, after each model call it makes: the parent's supervisor looks then. */
+    void onProgress(Runnable listener) {
+        this.onProgress = listener;
+    }
+
     /** The judge's own budget, built from the {@code supervise} statement's {@code budget { }}. */
     io.github.llm4j.budget.Budget newJudgeBudget(String name, io.github.llm4j.loom.ast.BudgetDef def) {
         return budgets.newBudget(name, def);
@@ -4547,7 +4555,14 @@ public class HarnessExecutor implements LoomEngine {
         child.childScheduler = childScheduler;
         child.childLimits = childLimits;
         child.childDepth = childDepth + 1;
+        child.stepListener = stepListener; // a test that counts the steps a run reached counts the child's
+        child.statementListener = statementListener;
+        child.sinkOracle = sinkOracle; // a test that watches the exits of a run watches the child's too
         child.addTraceListener(child.trajectory);
+        child.addTraceListener(
+                event -> {
+                    if (TraceEvent.MODEL_CALL.equals(event.type())) child.onProgress.run();
+                });
         return child;
     }
 

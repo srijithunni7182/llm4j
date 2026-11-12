@@ -83,6 +83,13 @@ public final class ChildHandle {
         }
     }
 
+    /** The child's deadline (the {@code timeout} of its {@code start}) passed before it settled. */
+    public void timedOut(String why) {
+        this.reason = why;
+        this.failure = null;
+        this.status = ChildStatus.TIMED_OUT;
+    }
+
     /** When a sleeping child wakes, or null. */
     public java.time.Instant wakes() {
         return wakes;

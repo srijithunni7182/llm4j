@@ -97,6 +97,11 @@ final class ChildChecks {
         for (CancelStmt s : cancels) {
             isHandle(c, known, s.getTarget(), s.getLine(), "cancel");
             if (s.getRewindCheckpoint() != null)
+                c.unsupported(
+                        s.getLine(),
+                        "cancel " + s.getTarget().describe(),
+                        "sending a child back to a checkpoint (cancel ... rewind to) is not available yet: cancel it, or let its own steps rewind it.");
+            if (s.getRewindCheckpoint() != null)
                 checkpointExists(c, script, childOf(script, starts, s.getTarget()), s.getRewindCheckpoint(), s.getLine(), "cancel");
         }
         for (SteerStmt s : steers) {

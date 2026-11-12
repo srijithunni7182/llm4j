@@ -49,7 +49,8 @@ public final class TestChecker {
                     "steer",
                     "stop",
                     "remotes",
-                    "channels");
+                    "channels",
+                    "judges");
 
     /** The keys of {@code expect}. */
     static final List<String> EXPECT_KEYS =
@@ -74,7 +75,11 @@ public final class TestChecker {
                     "fallbacks",
                     "branches",
                     "checks",
-                    "actions");
+                    "actions",
+                    "starts",
+                    "children",
+                    "fired",
+                    "steers");
 
     static final List<String> FINALS =
             List.of("completed", "failed", "suspended", "stopped", "budget", "halted");
@@ -219,6 +224,7 @@ public final class TestChecker {
         scripts(c, "tools", tools, problems);
         scripts(c, "tasks", tasks, problems);
         a2a(c, problems);
+        children(c, problems);
         real(c, problems);
         fail(c, problems);
         for (String key : List.of("humans", "resume"))
@@ -686,6 +692,34 @@ public final class TestChecker {
                         problems.add(where(c) + "channels: '" + name + "' is not an agent_channel of the script" + Suggest.hint(name, channelNames));
                     else if (!channelScripts.get(name).isArray())
                         problems.add(where(c) + "channels." + name + ": a list of answers, in the order they are asked");
+                }
+        }
+    }
+
+    /** {@code judges:} names evaluators of the script; {@code expect.children:} names workflows it starts. */
+    private void children(TestFile.Case c, List<String> problems) {
+        JsonNode judges = c.get("judges");
+        if (judges != null) {
+            if (!judges.isObject()) problems.add(where(c) + "judges: a map of evaluator names to a list of verdicts, such as TopicJudge: [pass, fail]");
+            else
+                for (Iterator<String> it = judges.fieldNames(); it.hasNext(); ) {
+                    String name = it.next();
+                    if (!evaluators.contains(name))
+                        problems.add(where(c) + "judges: '" + name + "' is not an evaluator of the script" + Suggest.hint(name, evaluators));
+                    else if (!judges.get(name).isArray())
+                        problems.add(where(c) + "judges." + name + ": a list of verdicts, pass or fail, one for each time the judge is asked");
+                }
+        }
+        JsonNode expect = c.get("expect");
+        if (expect != null && expect.has("children")) {
+            Set<String> names = new LinkedHashSet<>(workflowNames());
+            if (!expect.get("children").isObject())
+                problems.add(where(c) + "expect.children: a map of workflow names to { status, reason }");
+            else
+                for (Iterator<String> it = expect.get("children").fieldNames(); it.hasNext(); ) {
+                    String name = it.next();
+                    if (!names.contains(name))
+                        problems.add(where(c) + "expect.children: '" + name + "' is not a workflow of the script" + Suggest.hint(name, names));
                 }
         }
     }

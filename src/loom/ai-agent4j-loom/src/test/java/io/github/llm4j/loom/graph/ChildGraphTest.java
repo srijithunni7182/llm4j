@@ -1,0 +1,46 @@
+package io.github.llm4j.loom.graph;
+
+import static io.github.llm4j.loom.graph.GraphTestSupport.graphOf;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+
+/** Phase 33, D16: a started workflow in the graph, apart from the entry node called start. */
+class ChildGraphTest {
+
+    private static final String SOURCE =
+            """
+            agent R { model: "m" system: "s" steerable: true streaming: true }
+            workflow Research(t) { delegate "x" to R -> x  return x }
+            workflow W(q) {
+                start Research(t = q) budget { tokens: 10 } -> work
+                supervise work { when tokens > 5 { cancel } }
+                steer work R "Narrow."
+                wait work timeout 1m -> r
+                cancel work
+            }
+            """;
+
+    @Test
+    void theNewStatementsAreTheirOwnKindsAndTheEntryNodeKeepsItsName() {
+        WorkflowGraph graph = graphOf(SOURCE, "W");
+
+        assertThat(graph.nodes().stream().map(GraphNode::kind).toList())
+                .containsExactly(
+                        "start", "child_start", "child_watch", "child_watch", "child_wait", "child_cancel", "end");
+        assertThat(graph.nodes().stream().noneMatch(n -> Kinds.UNKNOWN.equals(n.kind()))).isTrue();
+        assertThat(Kinds.ALL).contains(Kinds.CHILD_START, Kinds.CHILD_WAIT, Kinds.CHILD_CANCEL, Kinds.CHILD_WATCH);
+    }
+
+    @Test
+    void aDottedEdgeJoinsTheStartToEveryStatementThatUsesItsHandle() {
+        WorkflowGraph graph = graphOf(SOURCE, "W");
+        String start =
+                graph.nodes().stream().filter(n -> Kinds.CHILD_START.equals(n.kind())).findFirst().orElseThrow().id();
+
+        long handleEdges =
+                graph.edges().stream().filter(e -> "handle".equals(e.label()) && e.from().equals(start)).count();
+
+        assertThat(handleEdges).as("the supervise next to the start is joined by the plain edge already").isEqualTo(3);
+    }
+}

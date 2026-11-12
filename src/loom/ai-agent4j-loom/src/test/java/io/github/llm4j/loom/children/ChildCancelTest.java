@@ -279,4 +279,34 @@ class ChildCancelTest {
         assertThat(String.valueOf(held.fact("reason"))).contains("did not settle within the grace period");
         releaseEffect.countDown(); // let the held thread go
     }
+
+    @Test
+    void aRewindCancelsTheChildrenOfThePreviousGenerationAndTheNewOneStartsAFreshChild() {
+        HarnessExecutor e =
+                executor(
+                        CHILD
+                                + """
+                                workflow Main(q) {
+                                    set n = "go"
+                                    checkpoint cp
+                                    start Child(x = q) budget { tokens: 1 } -> work
+                                    rewind to cp when (n == "go") at most 1 times carrying n = "stop"
+                                    wait work timeout 1m -> out
+                                    set seen = work.status
+                                }
+                                """);
+
+        e.executeWorkflow("Main", Map.of("q", "x"));
+
+        long childJournals = journals.keySet().stream().filter(k -> !k.equals("p")).count();
+        assertThat(childJournals).as("the first generation's child and a fresh one").isEqualTo(2);
+        long cancelled =
+                journals.entrySet().stream()
+                        .filter(en -> !en.getKey().equals("p"))
+                        .filter(en -> en.getValue().get("#cancel").isPresent())
+                        .count();
+        assertThat(cancelled).as("only the first generation's child was cancelled").isEqualTo(1);
+        assertThat(childJournalMarker()).contains("rewound");
+        assertThat(e.getContext().getVariable("seen")).isEqualTo("completed");
+    }
 }

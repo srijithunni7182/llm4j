@@ -171,4 +171,44 @@ class ChildSuperviseTest {
         assertThat(e.getContext().getVariable("seen")).isEqualTo("completed");
         assertThat(fires()).isZero();
     }
+
+    @Test
+    void aChildStillGoingWhenItsStartDeadlinePassesIsTimedOutNotCancelled() {
+        HarnessExecutor e =
+                executor(
+                        CHILD
+                                + """
+                                workflow Main(q) {
+                                    start Child(x = q) timeout 5m budget { tokens: 1 } -> work
+                                    run Later(minutes = 6) -> later
+                                    wait work timeout 1m
+                                    set seen = work.status
+                                    set why = work.reason
+                                }
+                                """);
+
+        e.executeWorkflow("Main", Map.of("q", "x"));
+
+        assertThat(e.getContext().getVariable("seen")).isEqualTo("timed out");
+        assertThat(String.valueOf(e.getContext().getVariable("why"))).contains("5 minutes");
+    }
+
+    @Test
+    void aChildThatFinishesBeforeItsDeadlineIsLeftAlone() {
+        HarnessExecutor e =
+                executor(
+                        CHILD
+                                + """
+                                workflow Main(q) {
+                                    start Child(x = q) timeout 5m budget { tokens: 1 } -> work
+                                    wait work timeout 1m -> out
+                                    run Later(minutes = 6) -> later
+                                    set seen = work.status
+                                }
+                                """);
+
+        e.executeWorkflow("Main", Map.of("q", "x"));
+
+        assertThat(e.getContext().getVariable("seen")).isEqualTo("completed");
+    }
 }

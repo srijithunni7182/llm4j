@@ -1,0 +1,10 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A question that splits into topics
+  input: "How do solar roofs work?"
+  expect:
+    - "Each topic was researched by a child run of its own"
+    - "No child ran without a budget"
+  rubric:
+    - "The report covers every topic that finished and says which are missing"
+    - "A child that overspends is cancelled and a child that drifts is steered, not left running"

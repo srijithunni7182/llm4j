@@ -162,6 +162,12 @@ class CanaryProvenanceOracleTest {
                             };
                     HarnessExecutor executor = new HarnessExecutor(script, tools, factory);
                     executor.setTaskRegistry(tasks);
+                    // a script that starts workflows is run with its children kept in memory, and
+                    // the children are watched at their exits like the parent (phase 33, D15)
+                    Map<String, io.github.llm4j.loom.runtime.RunJournal> childJournals = new java.util.concurrent.ConcurrentHashMap<>();
+                    executor.setRunId("oracle");
+                    executor.setChildRuns(id -> childJournals.computeIfAbsent(id, k -> io.github.llm4j.loom.runtime.RunJournal.inMemory()));
+                    executor.setChildScheduler(new io.github.llm4j.loom.execution.ControlledChildScheduler());
                     executor.setHumanInterface(
                             message -> {
                                 if (stops.get()) throw new IllegalStateException("oracle: out of time");

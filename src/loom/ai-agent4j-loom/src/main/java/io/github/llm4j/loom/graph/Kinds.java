@@ -79,6 +79,18 @@ public final class Kinds {
      */
     public static final String OUTCOME = "outcome";
 
+    /** A {@code start} statement: a workflow started as a child run of its own, a handle bound. */
+    public static final String CHILD_START = "child_start";
+
+    /** A {@code wait} statement: parks until a child, or every child of a keyed variable, settles. */
+    public static final String CHILD_WAIT = "child_wait";
+
+    /** A {@code cancel} statement: stops a started workflow. */
+    public static final String CHILD_CANCEL = "child_cancel";
+
+    /** A {@code steer} statement or a {@code supervise} block on a handle. */
+    public static final String CHILD_WATCH = "child_watch";
+
     public static final String UNKNOWN = "unknown";
 
     public static final List<String> ALL =
@@ -109,6 +121,10 @@ public final class Kinds {
                     SET,
                     RETURN,
                     SLEEP,
+                    CHILD_START,
+                    CHILD_WAIT,
+                    CHILD_CANCEL,
+                    CHILD_WATCH,
                     OUTCOME,
                     UNKNOWN);
 

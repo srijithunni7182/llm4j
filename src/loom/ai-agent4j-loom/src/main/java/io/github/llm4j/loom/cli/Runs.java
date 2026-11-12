@@ -190,6 +190,7 @@ final class Runs {
                         runId != null ? runId : runDir.toAbsolutePath().normalize().toString());
                 executor.setScriptRef(scriptFile.getAbsolutePath());
                 executor.setRunLocator(runDir.toAbsolutePath().normalize().toString());
+                executor.setChildRuns(new FolderChildRuns(runDir));
                 // a channel (a chat, a bridge) means the person is not at this console: the run
                 // asks, suspends, and carries on when the answer is recorded
                 Path questionStore = Path.of(spec.store());
