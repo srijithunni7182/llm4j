@@ -188,7 +188,7 @@ Commits on the branch, one concern each. `make test-core` passed after the sub-p
 
 **Where I read the design differently.** (1) `name` is the handle's key for every event kind, and a signal's own name is `event.signal` (D11 gives both the handle's key and the signal's own name the word `name`). (2) `remaining` counts the children whose finish has **not been reported yet** (D11 says "not yet finished"): with the first meaning a collecting loop ends as soon as the last child finishes and can leave a finished child unreported when several finish before the first `wait any`. (3) A `wait any` over children that are all asleep or waiting for a person suspends the tree, as `wait` does, rather than returning a timeout.
 
-### 34e, ecosystem and closure (built; mutation result below)
+### 34e, ecosystem and closure (built)
 
 | Item | What was built | Guard (broken on purpose once) | Tests | Level |
 |---|---|---|---|---|
@@ -197,6 +197,16 @@ Commits on the branch, one concern each. `make test-core` passed after the sub-p
 | CTK, starter | four scenarios (`child_progress`, `signal_to_child`, `signal_to_parent`, `signal_sticky`); starter 18 has a `need_help` signal rule and tests | | CTK runner, `StartersTest` | E2 |
 | Tutorial chapter of its own (F11) | `docs/tutorial/14-supervising-and-talking.md` (the cookbook is now 15); every `loom` block loads without warnings; the web page is regenerated | | `TutorialExamplesTest`, `GuideTutorialPageTest` | E1 |
 | Documents (D16) | guide, prompt, guide chapter 6, wiki, skills (workflow-guide, patterns, run-debugging), llms.txt, README tables, release notes, `API_COMPATIBILITY.md` | | `docs-check` | E1 |
+
+**Mutation (A19).** `mutation-children` now also targets `Mailbox`, `SignalRunner`, `SignalChecks`, `ProgressLog`, `ProgressChecks` and `ChildMonitor`, and runs the tests of signals, progress, `wait any`, the stubbed child and the monitor. First run: 80% (below the 85% threshold; the profile had not been given the tests that cover scripted children and the monitor). After adding those tests and new ones that pin the edges (types and bounds of a report, the mailbox's total limit for a latch and for a message, run id length, a supervise rule at its boundary, the audit and journal trail of a signal, where a reservation stops), the run is **85% (1095 of 1293 killed), test strength 87%**, build success, nothing excluded. `ChildLauncher` alone is at about 74%: it is the largest class and most of what survives there is in code older than this phase (judge scheduling, cancel, the tick) or timing mutants that time out.
+
+**Found by the new tests.** `ProgressLog` wrote 99 dropped-report records, not the documented 100 (the counter was read after it was incremented); fixed. Two signal concurrency tests advanced the virtual clock a minute for every 20 ms of real time, so a slow run let the parent's own timeout fire first; they no longer move the clock.
+
+**Tiers run for the phase.** `make test-core` after each of 34a to 34d; `make docs-check` after 34e (nothing stale); `make test-fast` on the Loom module (with the coverage gates), `loom-inspect-core` and `loom-inspect`; the VS Code extension's `npm test` (793); `make test-oracle` (passes). **Not run:** `make test-full` and the other `slow` tests (left to CI), anything at E4.
+
+**Outside this phase, seen and left alone.** `make test-fast` stops in the Spring starter at `PackagingTest.oneJacksonVersionIsOnTheClassPath` (the local classpath resolves Jackson 2.22.3 against 2.23.0 in the pom; no file of the starter or the root pom was changed here), and `make format-check` names `A2AServerWireTest` in `ai-agent4j` (not touched here). A `loom-inspect` test about a down server (`ServerLinkTest`) failed once under load and passed three times on its own.
+
+**A20 (the demo).** Starter 18's tests pass, including the `need_help` signal rule. **The extended demo still has to be run by hand, with a real key, by the owner (E4).** I have not run it and have not run `make test-live`.
 
 ## 2. How the report is written
 
