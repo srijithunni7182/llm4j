@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D14, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D15, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -25,7 +25,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D12 | What `steer` targets | **taken** (only `steerable` agents; literal text; named outside `supervise`) |
 | D13 | What `cancel` means | **taken** (existing outcomes; effects finish first; `h.partial`; rewind to a declared checkpoint) |
 | D14 | Limits on the tree | **taken** (`max_children`, `max_depth`, bounded starts in loops; a start over a limit fails) |
-| D15 | Authority and security | open |
+| D15 | Authority and security | **taken** (authority narrows; the audit counts the child; LA28 for steering; provenance across the boundary) |
 | D16 | Visibility | open |
 | D17 | Tests | open |
 | D18 | The Java side | open |
@@ -316,7 +316,14 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation:** as listed. The audit rules and the oracle cases are written before the runtime, as for A2A.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed.**
+1. **Authority only narrows:** a child runs with the invoker credentials of its parent or less; secrets still resolve through the secret store and stay bound to their hosts.
+2. **The trifecta counts the child as part of the parent:** because the child's script is known, `weave audit` computes what a `start` adds (the union of what the child can read, know and send) and flags the parent as one workflow. A change to the existing analysis, not a new rule.
+3. **A new audit rule (proposed LA28, after the A2A rules):** a script that can **steer** a started workflow is an input channel (as LA18 is for `steerable` agents), and it names the steerable agents it can reach. Cancelling is not an input channel and gets no rule.
+4. **Provenance crosses the boundary as it does for `call`:** `start` arguments are resolved with provenance tags; a child's result and `h.partial` come back `unchecked`. The provenance oracle gets canary cases for both directions.
+5. **A child's questions** (`human_prompt`, `approve`) go through the same channel as its parent's, are listed under the child's own run id with a link to the parent, and are answered by run as `weave answer` does today (how they show is D16).
+6. **Multi-tenancy:** as for A2A, a workflow is tenant-agnostic; a child inherits the invoker identity of the run that started it, and isolation between tenants is the host's job.
+- The audit rules and the oracle cases are written **before the runtime**, as for A2A. The judge's access, cost and authority are D25 (v2); signal payloads are D6 and D7 (v3).
 
 ## D16. How is it made visible?
 
