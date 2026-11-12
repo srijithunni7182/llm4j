@@ -59,6 +59,7 @@ final class Assertions {
         if (expect.has("starts")) starts(expect.get("starts"), o, failures);
         if (expect.has("children")) children(expect.get("children"), o, failures);
         if (expect.has("signals")) signals(expect.get("signals"), o, failures);
+        if (expect.has("events")) events(expect.get("events"), o, failures);
         if (expect.has("fired")) fired(expect.get("fired"), o, failures);
         if (expect.has("steers")) steers(expect.get("steers"), o, failures);
         if (expect.has("tokens")) tokens(expect.get("tokens"), o, failures);
@@ -145,6 +146,20 @@ final class Assertions {
         compare("sent", want, sent, failures);
         compare("received", want, received, failures);
         compare("timed_out", want, timedOut, failures);
+    }
+
+    /** {@code events: [ { kind: signal, name: a }, { kind: finished, name: a } ]}: what each {@code wait any} returned, in the order they came. */
+    private static void events(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        List<Map.Entry<Long, String>> got = new ArrayList<>();
+        for (var e : entriesOf(o, "wait-any"))
+            if (e.getValue().value() instanceof Map<?, ?> m && m.get("event") instanceof Map<?, ?> ev)
+                got.add(Map.entry(m.get("n") instanceof Number n ? n.longValue() : 0L, ev.get("kind") + (String.valueOf(ev.get("name")).isEmpty() ? "" : ":" + ev.get("name"))));
+        got.sort(java.util.Map.Entry.comparingByKey());
+        List<String> actual = got.stream().map(Map.Entry::getValue).toList();
+        List<String> expected = new ArrayList<>();
+        want.forEach(n -> expected.add(n.path("kind").asText() + (n.has("name") ? ":" + n.get("name").asText() : "")));
+        if (!expected.equals(actual))
+            failures.add(new Failure("events", "events: expected " + expected + " (kind:name), the run had " + actual));
     }
 
     private static void compare(String key, JsonNode want, List<String> actual, List<Failure> failures) {

@@ -82,6 +82,24 @@ class ChildExplainAndRefusalTest {
     }
 
     @Test
+    void theExplanationSaysWhatWaitAnyDoes() {
+        String text =
+                ScriptExplainer.explain(
+                        StartParseTest.parse(
+                                """
+                                workflow Child(x) { return x }
+                                workflow Main(q) {
+                                    start Child(x = q) budget { tokens: 10 } -> work["a"]
+                                    wait any work timeout 5m -> event
+                                }
+                                """),
+                        "w.loom",
+                        "Main");
+
+        assertThat(text).contains("whichever happens first among work").contains("5 minutes").contains("same event").contains("taken once");
+    }
+
+    @Test
     void theExplanationSaysWhatEachStatementDoes() {
         String text = ScriptExplainer.explain(StartParseTest.parse(SOURCE), "w.loom", "Main");
 

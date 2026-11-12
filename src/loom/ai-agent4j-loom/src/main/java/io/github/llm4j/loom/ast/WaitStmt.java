@@ -11,6 +11,7 @@ import java.util.List;
 public final class WaitStmt extends LocatedStatement {
     private final HandleRef target;
     private final boolean all;
+    private boolean any;
     private Long timeoutMillis;
     private String resultVariable;
     private final List<Statement> onTimeout = new ArrayList<>();
@@ -28,6 +29,18 @@ public final class WaitStmt extends LocatedStatement {
     /** True for {@code wait all}, which waits for every handle of a keyed variable. */
     public boolean isAll() {
         return all;
+    }
+
+    /**
+     * True for {@code wait any handles timeout T -> event} (phase 34d): returns on the first of a
+     * signal from any handle, a handle settling, or the timeout, as an event value.
+     */
+    public boolean isAny() {
+        return any;
+    }
+
+    public void setAny(boolean any) {
+        this.any = any;
     }
 
     public Long getTimeoutMillis() {

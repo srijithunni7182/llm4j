@@ -195,6 +195,10 @@ final class NodeDescriber {
             return new Described(Kinds.CHILD_START, "start " + x.getWorkflow())
                     .attrs(Attrs.create().text("workflow", x.getWorkflow()).text("handle", x.getTarget().describe()));
         }
+        if (st instanceof io.github.llm4j.loom.ast.WaitStmt x && x.isAny()) {
+            return new Described(Kinds.CHILD_WAIT_ANY, "wait any " + x.getTarget().describe())
+                    .attrs(Attrs.create().text("handle", x.getTarget().describe()));
+        }
         if (st instanceof io.github.llm4j.loom.ast.WaitStmt x) {
             return new Described(Kinds.CHILD_WAIT, "wait " + (x.isAll() ? "all " : "") + x.getTarget().describe())
                     .attrs(Attrs.create().text("handle", x.getTarget().describe()));

@@ -23,7 +23,7 @@ final class ChildSentences {
     /** The sentence for a child statement, or null when the statement is not one. */
     static String of(Statement s) {
         if (s instanceof StartStmt x) return start(x);
-        if (s instanceof WaitStmt x) return wait(x);
+        if (s instanceof WaitStmt x) return x.isAny() ? waitAny(x) : wait(x);
         if (s instanceof CancelStmt x) return cancel(x);
         if (s instanceof SteerStmt x)
             return "The agent " + x.getAgent() + " of " + x.getTarget().describe()
@@ -53,6 +53,13 @@ final class ChildSentences {
             b.append(", with ").append(duration(x.getTimeoutMillis())).append(" to finish");
         if (x.getBudget() != null) b.append(", spending at most ").append(budget(x.getBudget()));
         return b.append("; the handle is kept as ").append(x.getTarget().describe()).toString();
+    }
+
+    private static String waitAny(WaitStmt x) {
+        return "The script waits for whichever happens first among " + x.getTarget().describe() + ": a signal from a child, a child finishing, or "
+                + (x.getTimeoutMillis() == null ? "the timeout" : duration(x.getTimeoutMillis()) + " passing")
+                + ". The first return is recorded, so a replay returns the same event; a signal is taken once and a finished child is reported once."
+                + (x.getResultVariable() == null ? "" : " The event goes to " + x.getResultVariable() + ", as untrusted text.");
     }
 
     private static String wait(WaitStmt x) {

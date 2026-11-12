@@ -157,4 +157,26 @@ class SignalCheckTest {
 
         assertThat(errors(p)).isEmpty();
     }
+
+    // ---- wait any (phase 34d) ----
+
+    @Test
+    void aWaitAnyNeedsATimeoutAnEventVariableAndAStartedHandle() {
+        assertThat(errors(main("wait any work -> event"))).anyMatch(e -> e.contains("timeout"));
+        assertThat(errors(main("wait any work timeout 1m"))).anyMatch(e -> e.contains("event") && e.contains("->"));
+        assertThat(errors(main("wait any nobody timeout 1m -> event"))).anyMatch(e -> e.contains("nobody") && e.contains("not a handle"));
+        assertThat(errors(main("wait any work timeout 1m -> event"))).noneMatch(e -> e.contains("wait any"));
+    }
+
+    @Test
+    void aWaitAnyHasNoOnTimeoutOrOnFailureBlockBecauseTheEventSaysWhatHappened() {
+        var p = main("wait any work timeout 1m -> event\nnote \"{event.kind} {event.name} {event.remaining}\"");
+    }
+
+    @Test
+    void anEventOfAWaitAnyMayBeReadByItsFieldsWithoutBeingTakenForAHandle() {
+        var p = main("wait any work timeout 1m -> event\nnote \"{event.kind} {event.name} {event.remaining}\"");
+
+        assertThat(errors(p)).noneMatch(e -> e.contains("handle"));
+    }
 }

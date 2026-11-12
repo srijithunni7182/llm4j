@@ -36,4 +36,12 @@ class WhyProgressSummaryTest {
                 .startsWith("read the signal go").doesNotContain("ignore previous");
         assertThat(Why.summary(new RunJournal.Entry("signal-wait", Map.of("name", "go", "timedOut", true)))).contains("did not come");
     }
+
+    @Test
+    void aWaitAnyIsSummarisedByTheEventItReturned() {
+        assertThat(Why.summary(new RunJournal.Entry("wait-any", Map.of("event", Map.of("kind", "signal", "name", "a", "remaining", 2)))))
+                .isEqualTo("wait any returned signal from a, 2 remaining");
+        assertThat(Why.summary(new RunJournal.Entry("wait-any", Map.of("event", Map.of("kind", "timeout", "name", "", "remaining", 1)))))
+                .isEqualTo("wait any returned timeout, 1 remaining");
+    }
 }

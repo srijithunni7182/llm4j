@@ -272,6 +272,7 @@ public final class Why {
             case "child-steer", "supervise", "judge" -> nodeKind.equals(Kinds.CHILD_WATCH);
             case "progress", "progress-dropped" -> nodeKind.equals(Kinds.CHILD_REPORT);
             case "notify" -> nodeKind.equals(Kinds.CHILD_NOTIFY);
+            case "wait-any" -> nodeKind.equals(Kinds.CHILD_WAIT_ANY);
             case "signal-wait" -> nodeKind.equals(Kinds.CHILD_SIGNAL_WAIT);
             default -> true;
         };
@@ -427,6 +428,9 @@ public final class Why {
             case "progress" -> v instanceof Map<?, ?> m && m.get("fields") instanceof Map<?, ?> f
                     ? "reported " + String.join(", ", f.keySet().stream().map(String::valueOf).toList())
                     : "reported its progress";
+            case "wait-any" -> v instanceof Map<?, ?> m && m.get("event") instanceof Map<?, ?> ev
+                    ? "wait any returned " + ev.get("kind") + (String.valueOf(ev.get("name")).isEmpty() ? "" : " from " + ev.get("name")) + ", " + ev.get("remaining") + " remaining"
+                    : "wait any returned";
             case "notify" -> v instanceof Map<?, ?> m
                     ? ("sent the signal " + m.get("name") + " to " + m.get("to") + (Boolean.TRUE.equals(m.get("delivered")) ? "" : " (not delivered: " + m.get("reason") + ")"))
                     : "sent a signal";

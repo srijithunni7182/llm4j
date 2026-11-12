@@ -40,6 +40,17 @@ class SignalTestVocabularyTest {
                 wait work timeout 20m -> findings
                 return seen
             }
+            workflow Gather(q) {
+                start Research(topic = q) budget { tokens: 100000 } -> work["a"]
+                start Research(topic = q) budget { tokens: 100000 } -> work["b"]
+                set seen = ""
+                set e = "start"
+                loop until (e.remaining == 0) max 8 {
+                    wait any work timeout 10m -> e
+                    set seen = "{seen}{e.kind}:{e.name} "
+                }
+                return seen
+            }
             workflow Tell(q) {
                 start Research(topic = q) budget { tokens: 100000 } -> work
                 notify work "go" "use the 2025 data"
@@ -151,6 +162,48 @@ class SignalTestVocabularyTest {
 
         assertThat(code).as("the second case must fail").isNotZero();
         assertThat(out + "\n" + err).contains("signals.sent");
+    }
+
+    @Test
+    void waitAnyEventsComeInTheOrderTheRuleSaysAndTheCaseChecksThem() throws Exception {
+        int code =
+                run(
+                        cases(
+                                "Gather",
+                                """
+                                  - name: signals come before a finish, then the order the children were started
+                                    input: { q: "peru" }
+                                    children:
+                                      Research:
+                                        - { signal: stuck, text: "x", after: 1m }
+                                        - { state: completed, result: "r", after: 1m }
+                                    expect:
+                                      result: { contains: "signal:a finished:a signal:b finished:b" }
+                                      events:
+                                        - { kind: signal, name: a }
+                                        - { kind: finished, name: a }
+                                        - { kind: signal, name: b }
+                                        - { kind: finished, name: b }
+                                  - name: a wrong order fails the case
+                                    input: { q: "peru" }
+                                    children:
+                                      Research:
+                                        - { signal: stuck, text: "x", after: 1m }
+                                        - { state: completed, result: "r", after: 1m }
+                                    expect:
+                                      events:
+                                        - { kind: finished, name: a }
+                                """));
+
+        assertThat(code).as("the second case must fail").isNotZero();
+        assertThat(out + "\n" + err).contains("events: expected").contains("signal:a");
+        assertThat(out + "\n" + err).contains("1 passed, 1 failed");
+    }
+
+    @Test
+    void theCheckerRefusesABadEventsExpectation() throws Exception {
+        assertThat(check("", "      events: { kind: signal }\n")).contains("events");
+        assertThat(check("", "      events:\n        - { kind: dancing }\n")).contains("kind is one of");
     }
 
     private String check(String extra, String expect) throws Exception {

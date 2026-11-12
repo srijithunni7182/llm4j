@@ -37,7 +37,8 @@ A child never outlives the run that started it: when the parent ends, children s
 - `weave review` adds each started child's budget, and each judged `supervise`'s budget, to the worst case of the parent.
 - A child can **declare and report progress** (`workflow Research(t) progress { stage: string, done: number } { report { stage: "reading", done: 1 } }`); the parent reads `work.progress.stage` (unchecked, from the child's own journal, so it survives a restart), and `assert progress.done changes within 5m { ... }` watches whether it moves, never what it says.
 - A parent and a child can **signal each other**: `notify work "go" "text"`, `notify parent "found" "text"`, `wait signal "go" timeout 10m -> text` (a waiting child holds no thread and is woken by the parent's `notify`), `wait work signal "found" timeout 10m -> notes`, and `when signal "need_help" { ... }` in a `supervise` block. A signal is a journal entry in the receiver's run (not lost, never delivered twice), what arrives is unchecked, and `weave audit` lists each workflow that reads one (LA30). `weave test` scripts arrivals with `signals:` and a scripted child's `signal:` step. Starter 18 shows a child that asks for help and a supervisor that steers it.
-- Not there yet: `wait any` (phase 34d, not yet built).
+- **`wait any work timeout 10m -> event`** returns whichever happens first among several children: a signal, a child finishing, or the timeout. `event.kind`, `event.name`, `event.remaining`, and `event.text` or `event.result`; signals before finished children, each reported once, the first return journaled (a replay gets the same event). `weave test` checks it with `expect: events:`.
+- Not there yet: a signal from outside a run (a person, a host), signals between siblings, and a timer that wakes a sleeping child in the process.
 
 [VERIFICATION.md](../docs/specs/33-async-workflows/VERIFICATION.md) lists exactly what is built and what is not.
 

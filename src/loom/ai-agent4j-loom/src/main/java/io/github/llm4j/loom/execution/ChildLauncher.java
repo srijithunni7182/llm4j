@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -620,6 +621,217 @@ final class ChildLauncher {
         monitor.changed();
     }
 
+    // ---- wait any (phase 34d, D11) ----
+
+    /** Journal kind of a {@code wait any}: the event it returned and the messages it took. */
+    static final String WAIT_ANY = "wait-any";
+
+    /**
+     * {@code wait any handles timeout T -> event}: returns the first of a <b>signal</b> from any handle,
+     * a handle <b>finishing</b>, or the <b>timeout</b>. When several are ready the order is fixed:
+     * signals before finished children, then the order the handles were started. A message is taken
+     * (so no later wait or rule sees it) and a latch is reported once until it is set again; a
+     * finished child is reported once. The first return is journaled with the messages it took, so
+     * a replay returns the same event and never decides again.
+     */
+    private void awaitAny(WaitStmt stmt, String stepId, Map<String, ChildHandle> handles) {
+        RunJournal journal = executor.journal();
+        Optional<RunJournal.Entry> recorded = journal.get(stepId);
+        if (recorded.isPresent() && WAIT_ANY.equals(recorded.get().kind())) {
+            applyRecordedAny(stmt, recorded.get().value(), handles);
+            return;
+        }
+        if (handles.size() > effectiveMaxChildren())
+            throw new IllegalStateException(
+                    "wait any " + stmt.getTarget().describe() + " names " + handles.size() + " handles, past max_children: " + effectiveMaxChildren()
+                            + ". Wait for fewer at once, or raise max_children.");
+        long deadline = executor.nowMillis() + stmt.getTimeoutMillis();
+        while (true) {
+            long seen = monitor.version();
+            Map<String, Object> done = decideAny(stepId, handles);
+            if (done != null) {
+                finishAny(stmt, stepId, done, handles);
+                return;
+            }
+            long left = deadline - executor.nowMillis();
+            Live running = firstActive(handles);
+            if (left <= 0 || (running == null && !anySignalWaiting(handles) && nothingCanRun(handles))) {
+                finishAny(stmt, stepId, timeoutEvent(handles), handles);
+                return;
+            }
+            if (running == null && !anySignalWaiting(handles)) suspendIfNothingCanRun(stepId, handles); // asleep, or waiting for a person
+            try {
+                parkOnce(running, seen, left);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("interrupted while waiting for children", e);
+            }
+        }
+    }
+
+    /** True when no handle is left that could still produce an event. */
+    private boolean nothingCanRun(Map<String, ChildHandle> handles) {
+        Set<String> reported = reportedFinished();
+        for (ChildHandle h : handles.values()) if (!reported.contains(h.runId())) return false;
+        return true;
+    }
+
+    private int effectiveMaxChildren() {
+        ChildLimits ceiling = executor.childLimits();
+        Integer scripted = executor.loomScript().getMaxChildren();
+        return scripted != null ? scripted : Math.min(ChildLimits.DEFAULT_MAX_CHILDREN, ceiling.ceilingChildren());
+    }
+
+    /** The child runs whose finish an earlier {@code wait any} of this run already reported. */
+    private Set<String> reportedFinished() {
+        Set<String> out = new java.util.HashSet<>();
+        for (RunJournal.Entry e : executor.journal().all().values())
+            if (WAIT_ANY.equals(e.kind()) && e.value() instanceof Map<?, ?> m && m.get("event") instanceof Map<?, ?> ev && "finished".equals(ev.get("kind")))
+                out.add(String.valueOf(m.get("child")));
+        return out;
+    }
+
+    /** The highest sticky sequence of each (child, name) an earlier {@code wait any} reported. */
+    private Map<String, Long> reportedLatches() {
+        Map<String, Long> out = new java.util.HashMap<>();
+        for (RunJournal.Entry e : executor.journal().all().values())
+            if (WAIT_ANY.equals(e.kind()) && e.value() instanceof Map<?, ?> m && m.get("taken") instanceof List<?> taken)
+                for (Object t : taken)
+                    if (t instanceof Map<?, ?> tm && Boolean.TRUE.equals(tm.get("sticky")))
+                        out.merge(tm.get("child") + "/" + tm.get("name"), ((Number) tm.get("seq")).longValue(), Math::max);
+        return out;
+    }
+
+    /**
+     * What is ready now, or null: a signal from a handle (the oldest message, or a latch not yet
+     * reported) in start order, else a settled handle not yet reported in start order.
+     */
+    private Map<String, Object> decideAny(String stepId, Map<String, ChildHandle> handles) {
+        Set<String> reported = reportedFinished();
+        Map<String, Long> latches = reportedLatches();
+        for (Map.Entry<String, ChildHandle> e : handles.entrySet()) {
+            Live live;
+            synchronized (tasks) {
+                live = tasks.get(e.getValue());
+            }
+            if (live == null) continue;
+            Mailbox.Signal oldest = null;
+            for (Mailbox.Signal s : Mailbox.all(live.journal(), Mailbox.Direction.OUT)) {
+                if (s.epoch() != Mailbox.epoch(live.journal())) continue;
+                if (s.sticky()) {
+                    boolean newest = Mailbox.next(live.journal(), Mailbox.Direction.OUT, s.name()).map(n -> n.seq() == s.seq()).orElse(false);
+                    if (!newest || s.seq() <= latches.getOrDefault(live.launch().childRun() + "/" + s.name(), 0L)) continue;
+                } else if (Mailbox.next(live.journal(), Mailbox.Direction.OUT, s.name()).map(n -> n.seq() != s.seq()).orElse(true)) {
+                    continue; // not the oldest unread of its name
+                }
+                if (oldest == null || s.seq() < oldest.seq()) oldest = s;
+            }
+            if (oldest != null) {
+                Map<String, Object> event = baseEvent("signal", e.getKey());
+                event.put("signal", oldest.name());
+                event.put("text", oldest.text());
+                Map<String, Object> done = new LinkedHashMap<>();
+                done.put("event", event);
+                done.put("child", live.launch().childRun());
+                done.put("take", oldest);
+                done.put("live", live);
+                return done;
+            }
+        }
+        for (Map.Entry<String, ChildHandle> e : handles.entrySet()) {
+            ChildHandle h = e.getValue();
+            Live live;
+            synchronized (tasks) {
+                live = tasks.get(h);
+            }
+            if (!h.status().isSettled() || reported.contains(h.runId()) || (live != null && live.active())) continue;
+            Map<String, Object> event = baseEvent("finished", e.getKey());
+            event.put("status", h.status().word());
+            if (h.status() == ChildStatus.COMPLETED) event.put("result", h.fact("result"));
+            if (h.fact("reason") != null) event.put("reason", h.fact("reason"));
+            if (h.fact("failure") != null) event.put("failure", h.fact("failure"));
+            Map<String, Object> done = new LinkedHashMap<>();
+            done.put("event", event);
+            done.put("child", h.runId());
+            return done;
+        }
+        return null;
+    }
+
+    private Map<String, Object> baseEvent(String kind, String name) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("kind", kind);
+        event.put("name", name);
+        return event;
+    }
+
+    private Map<String, Object> timeoutEvent(Map<String, ChildHandle> handles) {
+        Map<String, Object> done = new LinkedHashMap<>();
+        done.put("event", baseEvent("timeout", ""));
+        done.put("child", "");
+        return done;
+    }
+
+    /** Journals the event with what it took, takes the message, binds the event and counts what remains. */
+    @SuppressWarnings("unchecked")
+    private void finishAny(WaitStmt stmt, String stepId, Map<String, Object> done, Map<String, ChildHandle> handles) {
+        Map<String, Object> event = (Map<String, Object>) done.get("event");
+        Set<String> reported = reportedFinished();
+        if ("finished".equals(event.get("kind"))) reported.add(String.valueOf(done.get("child")));
+        long remaining = handles.values().stream().filter(h -> !reported.contains(h.runId())).count();
+        event.put("remaining", remaining);
+        List<Map<String, Object>> taken = new ArrayList<>();
+        Mailbox.Signal signal = (Mailbox.Signal) done.get("take");
+        if (signal != null) {
+            Live live = (Live) done.get("live");
+            Map<String, Object> t = new LinkedHashMap<>();
+            t.put("child", live.launch().childRun());
+            t.put("name", signal.name());
+            t.put("seq", signal.seq());
+            t.put("sticky", signal.sticky());
+            taken.add(t);
+        }
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("event", event);
+        value.put("child", done.get("child"));
+        value.put("taken", taken);
+        value.put("n", executor.journal().all().values().stream().filter(e -> WAIT_ANY.equals(e.kind())).count() + 1); // the order they came in
+        executor.journal().put(stepId, new RunJournal.Entry(WAIT_ANY, value));
+        if (signal != null) Mailbox.take(((Live) done.get("live")).journal(), Mailbox.Direction.OUT, signal);
+        bindEvent(stmt, event, handles);
+        executor.audit("wait_any", Map.of("kind", String.valueOf(event.get("kind"))));
+    }
+
+    /** A replayed {@code wait any}: the recorded event, and the taken marker put back if a crash lost it. */
+    @SuppressWarnings("unchecked")
+    private void applyRecordedAny(WaitStmt stmt, Object recorded, Map<String, ChildHandle> handles) {
+        if (!(recorded instanceof Map<?, ?> m) || !(m.get("event") instanceof Map<?, ?> ev)) return;
+        if (m.get("taken") instanceof List<?> taken)
+            for (Object t : taken)
+                if (t instanceof Map<?, ?> tm)
+                    for (ChildHandle h : handles.values()) {
+                        Live live;
+                        synchronized (tasks) {
+                            live = tasks.get(h);
+                        }
+                        if (live != null && live.launch().childRun().equals(String.valueOf(tm.get("child"))))
+                            Mailbox.take(live.journal(), Mailbox.Direction.OUT,
+                                    new Mailbox.Signal(String.valueOf(tm.get("name")), "", ((Number) tm.get("seq")).longValue(), Boolean.TRUE.equals(tm.get("sticky")), 0, ""));
+                    }
+        bindEvent(stmt, new LinkedHashMap<>((Map<String, Object>) ev), handles);
+    }
+
+    /** Binds the event: unchecked, because it carries a child's result or a signal's text; a result exists only for a completed child. */
+    private void bindEvent(WaitStmt stmt, Map<String, Object> event, Map<String, ChildHandle> handles) {
+        if (stmt.getResultVariable() == null) return;
+        Map<String, Object> bound = new LinkedHashMap<>(event);
+        if ("finished".equals(event.get("kind")) && !"completed".equals(event.get("status"))) {
+            ChildHandle h = handles.get(String.valueOf(event.get("name")));
+            bound.put("result", io.github.llm4j.loom.runtime.Unavailable.of(h == null ? "the child" : h.workflow(), String.valueOf(event.get("status"))));
+        }
+        executor.bind(stmt.getResultVariable(), bound, Provenance.UNCHECKED);
+    }
+
     /** The send and the wake of a {@code notify}, for a caller that is not a statement. */
     void signalChild(ChildHandle handle, String name, String text, boolean sticky, String fromStep) {
         Live live;
@@ -795,6 +1007,10 @@ final class ChildLauncher {
             throw new IllegalStateException("wait needs a timeout: " + stmt.getTarget().describe());
         String stepId = executor.currentStepId();
         Map<String, ChildHandle> handles = handlesOf(stmt);
+        if (stmt.isAny()) {
+            awaitAny(stmt, stepId, handles);
+            return;
+        }
 
         Optional<RunJournal.Entry> recorded = executor.journal().get(stepId);
         if (recorded.isPresent() && WAIT.equals(recorded.get().kind())) {
@@ -1792,19 +2008,19 @@ final class ChildLauncher {
         Object base = executor.view().getVariable(ref.name());
         Map<String, ChildHandle> out = new LinkedHashMap<>();
         // nothing was started under this name (a loop over an empty list): waiting for all of none is waiting for nothing
-        if (stmt.isAll() && !ref.isKeyed() && (base == null || "".equals(base) || (base instanceof Map<?, ?> none && none.isEmpty())))
+        if ((stmt.isAll() || stmt.isAny()) && !ref.isKeyed() && (base == null || "".equals(base) || (base instanceof Map<?, ?> none && none.isEmpty())))
             return out;
         if (ref.isKeyed()) {
             String key = ref.keyIsLiteral() ? ref.key() : String.valueOf(ConditionEvaluator.resolvePath(ref.key(), executor.view()));
             if (base instanceof Map<?, ?> map && map.get(key) instanceof ChildHandle h) out.put(key, h);
         } else if (base instanceof ChildHandle h) {
             out.put(ref.name(), h);
-        } else if (stmt.isAll() && base instanceof Map<?, ?> map) {
+        } else if ((stmt.isAll() || stmt.isAny()) && base instanceof Map<?, ?> map) {
             map.forEach((k, v) -> {
                 if (v instanceof ChildHandle h) out.put(String.valueOf(k), h);
             });
         }
-        if (out.isEmpty() && !(stmt.isAll() && !ref.isKeyed() && base instanceof Map<?, ?>))
+        if (out.isEmpty() && !((stmt.isAll() || stmt.isAny()) && !ref.isKeyed() && base instanceof Map<?, ?>))
             throw new IllegalStateException(
                     ref.describe() + " holds no handle at this point: start the child before waiting for it");
         return out;

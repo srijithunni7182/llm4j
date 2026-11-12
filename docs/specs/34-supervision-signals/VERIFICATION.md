@@ -171,6 +171,23 @@ Commits on the branch, one concern each. `make test-core` passed after the sub-p
 
 **Not in 34c:** `wait any` (34d); Fabric's Children section, the live page, the VS Code grammar and parity baseline, the tutorial chapter, the skills and the root README (34e); the mutation profile (34e).
 
+### 34d, `wait any` (built)
+
+`make test-core` and `make docs-check` passed after the sub-phase; the kill-point test (`slow`) was run explicitly and passes. Not run: `make test-fast`, the mutation profile, `make format-check` (end of the phase), `make test-full`.
+
+| Item | What was built | Guard (broken on purpose once) | Tests | Level |
+|---|---|---|---|---|
+| Syntax (D17) | `wait any handles timeout T -> event`, with `any` contextual (a handle called `any` is still waited for) | G30 | `WaitAnyParseTest` (4) | E1 |
+| Checks | a timeout, an event variable and a started handle are required; no `on_timeout`/`on_failure`; reading event fields is not taken for a handle | | `SignalCheckTest` (3 new) | E1 |
+| Engine (D11) | signals before finished children, then start order; a message taken once; a latch reported once; a finished child reported once; `remaining` counts the children not yet reported; a timeout event leaves the children running; empty handles return a timeout at once; asleep children suspend the tree; more than `max_children` handles fail naming it; the event is `unchecked`; the winner is journaled with the messages it took, and a replay returns the same event | G18: winner not journaled, message not taken, finish reported twice (each seen to fail) | `WaitAnyEngineTest` (13) | E2 |
+| Kill-point (D15) | the tree killed before every non-effect write of a two-child `wait any` loop: the same four events in the same order, each signal taken once, each effect once | G18 | `SignalKillPointTest` (second test, `slow`) | E3 |
+| Persistence | a mailbox read back from a file journal keeps its order, its taken markers and its limits | | `MailboxTest` | E1 |
+| D15, D16 | `expect: events:` (in the order they came, from an ordinal in the journal entry); graph kind `child_wait_any` (renderer synced); `weave explain`; `weave why`/`timeline` | | `SignalTestVocabularyTest` (2 new), `ChildGraphTest`, `ChildExplainAndRefusalTest`, `WhyProgressSummaryTest` | E2 |
+
+**Acceptance rows.** A11 (`wait any` returns signal, finished and timeout events; the winner and the cursor are journaled and a replay returns the same): E2 and E3. A1: `any` at E1; every new word of D17 is now contextual and tested in its three contexts. A14: `events:` done.
+
+**Where I read the design differently.** (1) `name` is the handle's key for every event kind, and a signal's own name is `event.signal` (D11 gives both the handle's key and the signal's own name the word `name`). (2) `remaining` counts the children whose finish has **not been reported yet** (D11 says "not yet finished"): with the first meaning a collecting loop ends as soon as the last child finishes and can leave a finished child unreported when several finish before the first `wait any`. (3) A `wait any` over children that are all asleep or waiting for a person suspends the tree, as `wait` does, rather than returning a timeout.
+
 ## 2. How the report is written
 
 At the end of the session the report states, for each row, the level reached and the evidence (the test names), **what was not run** (`make test-full`, the other `slow` tests, anything at E4), the risks of DESIGN §7 that turned out to be real, and any decision that was changed and why. A row is never marked at a higher level than its test.

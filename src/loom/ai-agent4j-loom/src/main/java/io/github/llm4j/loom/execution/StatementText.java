@@ -43,7 +43,7 @@ public final class StatementText {
         if (s instanceof io.github.llm4j.loom.ast.StartStmt x)
             return "start " + x.getWorkflow();
         if (s instanceof io.github.llm4j.loom.ast.WaitStmt x)
-            return "wait " + (x.isAll() ? "all " : "") + x.getTarget().describe();
+            return "wait " + (x.isAll() ? "all " : x.isAny() ? "any " : "") + x.getTarget().describe();
         if (s instanceof io.github.llm4j.loom.ast.CancelStmt x)
             return "cancel " + x.getTarget().describe();
         if (s instanceof io.github.llm4j.loom.ast.SteerStmt x)

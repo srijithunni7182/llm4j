@@ -247,4 +247,28 @@ class MailboxTest {
 
         assertThat(millis).as("2000 reads of a full mailbox").isLessThan(2000);
     }
+
+    // ---- persistence: the mailbox is the same after the journal is read back from a file ----
+
+    @Test
+    void aMailboxSurvivesAFileJournalBeingReadBackWithItsOrderItsTakenMarkersAndItsLimits() throws Exception {
+        java.nio.file.Path file = java.nio.file.Files.createTempDirectory("mailbox").resolve("journal.json");
+        try {
+            RunJournal first = new io.github.llm4j.loom.runtime.FileRunJournal(file);
+            Mailbox.send(first, Mailbox.Direction.IN, "go", "one", false, "Main/s1");
+            Mailbox.send(first, Mailbox.Direction.IN, "go", "two", false, "Main/s2");
+            Mailbox.send(first, Mailbox.Direction.IN, "approved", "yes", true, "Main/s3");
+            Mailbox.take(first, Mailbox.Direction.IN, Mailbox.next(first, Mailbox.Direction.IN, "go").orElseThrow());
+
+            RunJournal second = new io.github.llm4j.loom.runtime.FileRunJournal(file); // a restart
+            assertThat(Mailbox.next(second, Mailbox.Direction.IN, "go").orElseThrow().text()).isEqualTo("two");
+            assertThat(Mailbox.next(second, Mailbox.Direction.IN, "approved").orElseThrow().text()).isEqualTo("yes");
+            assertThat(Mailbox.pending(second, Mailbox.Direction.IN, "go")).isEqualTo(1);
+            assertThat(Mailbox.send(second, Mailbox.Direction.IN, "go", "one", false, "Main/s1").text()).as("a replayed send is the one already there").isEqualTo("one");
+            assertThat(Mailbox.all(second, Mailbox.Direction.IN)).hasSize(3);
+        } finally {
+            java.nio.file.Files.deleteIfExists(file);
+            java.nio.file.Files.deleteIfExists(file.getParent());
+        }
+    }
 }

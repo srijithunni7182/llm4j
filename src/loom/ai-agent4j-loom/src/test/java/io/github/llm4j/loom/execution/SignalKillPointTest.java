@@ -50,6 +50,26 @@ class SignalKillPointTest {
             }
             """;
 
+    private static final String ANY_SOURCE =
+            """
+            workflow Chatty(x) {
+                notify parent "hello" "hi {x}"
+                run Work() -> w
+                return "done {x}"
+            }
+            workflow Main(q) {
+                start Chatty(x = "a") budget { tokens: 100 } -> work["a"]
+                start Chatty(x = "b") budget { tokens: 100 } -> work["b"]
+                set seen = ""
+                set e = "start"
+                loop until (e.remaining == 0) max 8 {
+                    wait any work timeout 5m -> e
+                    set seen = "{seen}{e.kind}:{e.name} "
+                }
+                return seen
+            }
+            """;
+
     private static final class Crash extends Error {
         Crash() {
             super("simulated crash", null, false, false);
@@ -100,6 +120,11 @@ class SignalKillPointTest {
     }
 
     private Object run(World world) {
+        return run(world, SOURCE, "got", 1);
+    }
+
+    /** One run of {@code source} over the world's journals; {@code result} is the variable read at the end. */
+    private Object run(World world, String source, String result, int ignored) {
         ControlledChildScheduler scheduler = new ControlledChildScheduler();
         TaskRegistry tasks = new TaskRegistry();
         tasks.register(Task.of("Work", TaskEffect.CHANGES, EffectPolicy.DEFAULT, ctx -> {
@@ -110,7 +135,7 @@ class SignalKillPointTest {
             scheduler.runNext();
             return TaskResult.value("ran");
         }));
-        HarnessExecutor parent = new HarnessExecutor(StartParseTestAccess.parse(SOURCE), new ToolRegistry(), model -> null);
+        HarnessExecutor parent = new HarnessExecutor(StartParseTestAccess.parse(source), new ToolRegistry(), model -> null);
         parent.setTaskRegistry(tasks);
         parent.setRunId("run-1");
         parent.setJournal(world.journal("run-1"));
@@ -128,7 +153,7 @@ class SignalKillPointTest {
         parent.setChildScheduler(scheduler);
         parent.initialize();
         parent.executeWorkflow("Main", Map.of("q", "x"));
-        return parent.getContext().getVariable("out") == null ? parent.getContext().getVariable("got") : parent.getContext().getVariable("got");
+        return parent.getContext().getVariable(result);
     }
 
     @Test
@@ -177,5 +202,35 @@ class SignalKillPointTest {
             assertThat(child.all().values().stream().filter(e -> "signal-wait".equals(e.kind())).count()).as("one read " + at).isEqualTo(1);
         }
         assertThat(skipped).as("only the effect's own markers were left out").isLessThanOrEqualTo(4);
+    }
+
+    @Test
+    void killingTheTreeBeforeEveryWriteOfAWaitAnyLoopReportsEachEventOnceInTheSameOrder() {
+        World baseline = new World();
+        Object expected = run(baseline, ANY_SOURCE, "seen", 1);
+        assertThat(expected).isEqualTo("signal:a finished:a signal:b finished:b ");
+        int writes = baseline.writes;
+
+        for (int point = 0; point < writes; point++) {
+            if (baseline.keys.get(point).contains("#effect")) continue; // the effect rule's, as above
+            World world = new World();
+            world.crashBefore = point;
+            try {
+                run(world, ANY_SOURCE, "seen", 1);
+            } catch (Crash | RuntimeException expectedCrash) {
+                // the process died here
+            }
+            world.dead = false;
+            world.crashBefore = -1;
+            String at = "after a crash before write " + point + " of " + writes;
+
+            assertThat(run(world, ANY_SOURCE, "seen", 1)).as("the same events in the same order " + at).isEqualTo(expected);
+            assertThat(world.work).as("each child's effect once " + at).hasValue(2);
+            assertThat(world.startedChildren).as("two children " + at).hasSize(2);
+            long takes = world.stores.entrySet().stream().filter(x -> !x.getKey().equals("run-1")).flatMap(x -> x.getValue().all().keySet().stream()).filter(k -> k.startsWith("#sig.take.out.hello")).count();
+            assertThat(takes).as("each signal taken once " + at).isEqualTo(2);
+            long events = world.stores.get("run-1").all().values().stream().filter(e -> "wait-any".equals(e.kind())).count();
+            assertThat(events).as("four events were decided, never more " + at).isEqualTo(4);
+        }
     }
 }

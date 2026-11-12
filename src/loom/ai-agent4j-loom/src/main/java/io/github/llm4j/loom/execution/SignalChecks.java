@@ -59,6 +59,13 @@ final class SignalChecks {
                         if (wait.getTimeoutMillis() == null)
                             c.error(wait.getLine(), "wait signal \"" + wait.getName() + "\"",
                                     "a wait needs a timeout, so nothing waits for ever: wait signal \"" + wait.getName() + "\" timeout 10m -> text");
+                    } else if (s instanceof io.github.llm4j.loom.ast.WaitStmt any && any.isAny()) {
+                        if (any.getResultVariable() == null)
+                            c.error(any.getLine(), "wait any " + any.getTarget().describe(),
+                                    "wait any returns an event, so say where it goes: wait any " + any.getTarget().describe() + " timeout 5m -> event");
+                        if (!any.getOnTimeout().isEmpty() || !any.getOnFailure().isEmpty())
+                            c.error(any.getLine(), "wait any " + any.getTarget().describe(),
+                                    "wait any has no on_timeout or on_failure block: the event says what happened, so branch on it: alt (event.kind == \"timeout\") { ... }");
                     } else if (s instanceof SuperviseStmt sv) {
                         for (SuperviseStmt.SignalRule r : sv.getSignals()) name(c, r.line(), "when signal", r.name());
                     } else if (s instanceof ParallelStmt p) {

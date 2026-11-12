@@ -3025,9 +3025,40 @@ workflow Main(question) {
 - **Limits, all failing loudly when passed:** 16 unread messages per name and 64 in all, a name of at most 40 characters (letters, digits and `_`), 2000 characters of text. A `notify` to a child that has settled is a recorded no-op; to one that was cancelled it is written and never read. A rewound child starts with an empty mailbox (what was sent before is history, so send a sticky signal again). A `notify parent` in a run that has no parent is a recorded no-op, and a `wait signal` there **fails** with a message, because it would wait for ever; `weave check` warns about a workflow that does either and that nothing in the script starts. Two waits for the same name that can be active at once (in different branches of one `parallel`, or inside a `parallel for each`) are an error.
 - **Testing it.** `weave test` scripts a signal's arrival on the virtual clock with `signals: { work: [ { at: 2m, name: stuck, text: "no sources" } ] }` (the key is the handle's variable, `work_a` for `work["a"]`), a scripted child sends one with a step `{ signal: stuck, text: "...", after: 1m }`, and `expect: signals: { sent: [go], received: [stuck], timed_out: [other] }` says what the run sent, read and waited for in vain. Nothing sleeps: a wait with nothing to run moves the virtual clock to the next thing that can happen.
 
+**`wait any`.** `wait all` joins every child. A supervisor that wants to react to *whichever child needs it first* uses `wait any`, which returns on the first of a signal from any handle, a handle finishing, or the timeout, as an **event**:
+
+```loom
+agent Researcher { model: "gemini-2.5-flash" system: "Research the topic." }
+
+workflow Research(topic) {
+    delegate "Research {topic}" to Researcher -> notes
+    notify parent "found" "{notes}"
+    return notes
+}
+
+workflow Main(question) {
+    start Research(topic = "panels") budget { tokens: 100000 } -> work["panels"]
+    start Research(topic = "costs") budget { tokens: 100000 } -> work["costs"]
+    set report = ""
+    set event = "start"
+    loop until (event.remaining == 0) max 8 {
+        wait any work timeout 10m -> event
+        alt (event.kind == "signal") { set report = "{report}{event.name}: {event.text}\n" }
+        alt (event.kind == "finished") { set report = "{report}{event.name} finished: {event.status}\n" }
+        alt (event.kind == "timeout") { set report = "{report}timed out\n" }
+    }
+    return report
+}
+```
+
+- **The event** is a keyed value: `kind` (`finished`, `signal` or `timeout`), `name` (the handle's key, such as `panels`), `remaining`, and by kind: for `finished`, `status` and `result` (readable only for a completed child, like `h.result`); for `signal`, `signal` (the signal's own name) and `text`. The whole event is `unchecked`. `remaining` counts the children whose finish has not been reported yet, so `loop until (event.remaining == 0)` collects every child, even one that finished before the first `wait any`.
+- **Order when several are ready:** signals before finished children, then the order the handles were started. A **message is taken once** (so no later `wait any`, `wait h signal` or `when signal` rule sees it), a **sticky** signal is reported once until it is set again, and a **finished** child is reported once. Unread messages stay for the next wait.
+- **A timeout is required** and returns a `timeout` event with the children still running, as `wait` does. There is no `on_timeout` block: branch on `event.kind`. At most `max_children` handles in one `wait any`; a loop that reads events is bounded by its own `max`. If every child asleep or waiting for a person makes the tree suspend, it suspends as for `wait`.
+- **The first return is journaled** with the messages it took, so a replay returns the same event and never decides again, and a crash at any point of the loop reports each event once, in the same order. `weave test` checks it with `expect: events: [ { kind: signal, name: a }, { kind: finished, name: a } ]`, in the order the events came.
+
 **Time.** A `wait`'s timeout counts the injected clock (the run's clock; a test's virtual one), so a wait that times out while a child still runs is a test on virtual time, not a real minute.
 
-**What is not there yet.** `wait any` is phase 34d and not yet built. A signal cannot come from outside a run (a person, a host) and siblings cannot signal each other. A sleeping child is still woken only when its parent is run again or by `weave daemon`.
+**What is not there yet.** A signal cannot come from outside a run (a person, a host) and siblings cannot signal each other. A sleeping child is still woken only when its parent is run again or by `weave daemon`.
 
 ### Workflow Composition & Modularity
 Loom supports building complex multi-agent systems by composing workflows from multiple files. This is achieved using the `import` statement and the `call` statement.

@@ -81,6 +81,7 @@ public final class TestChecker {
                     "starts",
                     "children",
                     "signals",
+                    "events",
                     "fired",
                     "steers");
 
@@ -809,6 +810,15 @@ public final class TestChecker {
                             problems.add(at + "name '" + a.get("name").asText() + "' is not a plain word (letters, digits and _) of at most 40 characters");
                     }
                 }
+        }
+        JsonNode expectEvents = c.get("expect");
+        if (expectEvents != null && expectEvents.has("events")) {
+            JsonNode ev = expectEvents.get("events");
+            if (!ev.isArray()) problems.add(where(c) + "expect.events: a list such as [ { kind: signal, name: a }, { kind: finished, name: a } ]");
+            else
+                for (int i = 0; i < ev.size(); i++)
+                    if (!List.of("signal", "finished", "timeout").contains(ev.get(i).path("kind").asText()))
+                        problems.add(where(c) + "expect.events[" + (i + 1) + "]: kind is one of signal, finished or timeout");
         }
         JsonNode expect = c.get("expect");
         if (expect != null && expect.has("signals")) {

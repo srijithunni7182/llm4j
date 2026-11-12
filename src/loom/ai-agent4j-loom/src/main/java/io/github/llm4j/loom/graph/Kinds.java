@@ -91,6 +91,9 @@ public final class Kinds {
     /** A {@code steer} statement or a {@code supervise} block on a handle. */
     public static final String CHILD_WATCH = "child_watch";
 
+    /** A {@code wait any} statement: returns on the first signal, finish or timeout of several children (phase 34d). */
+    public static final String CHILD_WAIT_ANY = "child_wait_any";
+
     /** A {@code notify} statement: a signal to a child or to the parent (phase 34c). */
     public static final String CHILD_NOTIFY = "child_notify";
 
@@ -135,6 +138,7 @@ public final class Kinds {
                     CHILD_CANCEL,
                     CHILD_WATCH,
                     CHILD_REPORT,
+                    CHILD_WAIT_ANY,
                     CHILD_NOTIFY,
                     CHILD_SIGNAL_WAIT,
                     OUTCOME,

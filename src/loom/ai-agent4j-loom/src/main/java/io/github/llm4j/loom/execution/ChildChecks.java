@@ -266,7 +266,7 @@ final class ChildChecks {
         StatementWalker.walk(
                 w.getStatements(),
                 s -> {
-                    if (s instanceof WaitStmt x && !x.isAll() && x.getResultVariable() != null)
+                    if (s instanceof WaitStmt x && !x.isAll() && !x.isAny() && x.getResultVariable() != null)
                         outcomes.put(x.getResultVariable(), x.getTarget().name());
                     String condition =
                             s instanceof AltStmt a ? a.getCondition() : s instanceof LoopStmt l ? l.getCondition() : null;

@@ -1875,11 +1875,16 @@ public class LoomParser {
     private WaitStmt parseWait() {
         advance();
         boolean all = false;
+        boolean any = false;
         if (isWord("all") && isNameToken(peekAt(1))) {
             advance();
             all = true;
+        } else if (isWord("any") && isNameToken(peekAt(1)) && !"timeout".equals(peekAt(1).getValue())) {
+            advance(); // contextual (D17): `any` is a keyword only directly after wait, with a handle after it
+            any = true;
         }
         WaitStmt stmt = new WaitStmt(parseHandleRef("wait"), all);
+        stmt.setAny(any);
         while (true) {
             if (isWord("timeout")) {
                 Token option = advance();
