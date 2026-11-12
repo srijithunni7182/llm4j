@@ -106,6 +106,45 @@ Every row is `not built`. "How" says what proves it; the level is the minimum ac
 | A27 | **The 60-second demo** runs: three researchers started, one steered, one cancelled, a restart in the middle, and `weave audit` and Fabric show the children and who may steer them | the starter's tests, plus the owner running it | E2 then **E4** |
 | A28 | The provenance oracle passes with the new canary cases | `make test-oracle` | E2 |
 
+## 1b. What the build reached (written at the end of the build session)
+
+Levels: E0 read, E1 unit test, E2 engine test on scripted models, E3 kill-and-resume or concurrency test, E4 by hand. **Nothing here is at E4.** `make test-full` and the other `slow` tests were not run (CI runs them); the `slow` tests of this phase (`KillPointTest`, `ChildPauseTest`, `ChildJudgeTest`, and two in `ChildCancelTest` and `ChildSteerTest`) were run by name while building.
+
+| # | Level reached | Evidence (tests in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/`) |
+|---|---|---|
+| A1 | E1 | `children/StartParseTest` (17), including `theNewWordsStayOrdinaryWordsEverywhereElse`; `RepositoryScriptsTest` runs in the fast tier |
+| A2 | E1, partly | `children/ChildCheckTest` (19). **Not built:** the warning for a start that exceeds `max_children` where it can be proven, a conflict between two steers (D30) |
+| A3 | E2 for `LoomHost` file and JDBC; **not built** for the CLI sibling layout | `host/LoomHostChildrenTest`, `children/StartWaitEngineTest` |
+| A4 | **E3** | `children/KillPointTest` (`@Tag("slow")`): kills before every journal write of the tree. Broken on purpose (child id from `UUID.randomUUID()`): the test fails. Writes inside an effect (`effect_run`, `effect_done`) are not kill points, as D4 says |
+| A5 | E1 only | `children/ChildIdsTest` (a new generation gives another id). **Not built:** an engine test of a real rewind past a `start`, and cancelling the previous generation's children |
+| A6 | E2, partly | `StartWaitEngineTest`, `ChildCancelTest`; statuses `running`, `sleeping`, `completed`, `failed`, `cancelled`, `stopped` exist. **`timed out` is not built** (the `start` deadline is parsed, not enforced). A `wait -> r` on a child that did not complete binds nothing, so `{r}` reads empty; only `h.result` is the error D9 asks for |
+| A7 | E2, partly | tree suspension and restart: `StartWaitEngineTest.aParentWaitingOnASleepingChild...`; `wait all` records every outcome; parking with real threads in `ChildPauseTest`/`ChildSteerTest`. **Not tested:** a `wait` that times out while a child still runs, and the timeout uses wall time, not the injected clock |
+| A8 | E2 for finish, halt, fail and the grace period; a stop was not tested; **rewind not built** | `children/ChildCancelTest`. Broken on purpose (cancel-on-end removed): 3 tests fail |
+| A9 | E2 and E3 | `children/ChildBudgetTest` (25 rounds of parallel starts). Broken on purpose (reservation ignores other children): fails. The judge budget is **not** reserved at `start` (D27): only charged |
+| A10 | E2 | `children/ChildLimitsTest`; broken on purpose (ceiling ignored): fails |
+| A11 | E2 | `execution/ChildSteerTest` (real threads, delivered; and not delivered); the static refusal in `ChildCheckTest`; the runtime refusal of a non-steerable agent is code only, untested (the validator stops the script first) |
+| A12 | E2, partly | `ChildCancelTest.aCancelNeverCutsAnEffectInHalf...` (`slow`), `use partial` keeps `h.partial`. `skip`, `discard` and `conclude` are all just `cancelled`; **`rewind to` is refused at run time** |
+| A13 | E1, static only | `ChildCheckTest`; `ChildHandle.toString` prints a fixed word. **There is no runtime check** that stops `{h}` reaching a prompt if the static check were bypassed |
+| A14 | E2 for LA28 and the child in `A2AAudit.reach` | `security/ChildAuditTest`. **Not built:** the oracle canary cases for `start` arguments and results (G9), so provenance across the boundary is implemented (arguments carry their tag, results come back `unchecked`, `StartWaitEngineTest.aChildsResultComesBackUnchecked...`) but **not proven by the oracle** |
+| A15 | E1 and E2 | `children/SuperviseEvaluatorTest` (18), `children/ChildSuperviseTest`; G15 broken on purpose: 2 tests fail |
+| A16 | E0/E1 | the counters are built from running time (`factsOf`), but no test drives a sleeping child; the sleep-versus-deadline warning is tested (`ChildCheckTest`) |
+| A17 | E2 | `children/ChildAssertionTest`, `execution/ForbiddenCallsTest`; G10 broken on purpose (check removed): fails. A forbidden agent or task fails the step with a message; a forbidden tool is rejected by a hook on every agent of the child |
+| A18 | E1 and E2 | `execution/JudgeTest`, `children/JudgeScheduleTest`, `children/ChildJudgeTest` (`slow`); G11 and G12 broken on purpose: fail. The facts view is built from the child's own trace (`Trajectory`), **not** from the evaluation dataset's rendering (risk 7 was not followed) |
+| A19 | E2 | `children/ChildPauseTest` (`slow`); broken on purpose: fails |
+| A20 | **not built** | `weave test` has no `children:`, `judges:`, `fired:` or `starts:` yet; tests drive the executor directly |
+| A21 | **not built** | the graph (blocked, finding 1), `timeline`, `why`, `fork`, `review` worst case |
+| A22 | **not built** | Fabric, `loom-inspect-core` and the live page (P6 was not read) |
+| A23 | partly | the host ceilings exist (`LoomHost.Builder.childLimits`). **Not built:** `LoomRun` children, `LiveRuns` labels |
+| A24 | **not built** | VS Code, CTK, starter 18, the tutorial |
+| A25 | partly | done: the guide section (with `children/ChildDocsTest`), the prompt, the README table of the Loom module, `llms.txt`, the release notes, `docs/API_COMPATIBILITY.md`, the audit page and the OWASP map. **Not done:** the wiki page, the root README, `docs/guide` chapter 6, the tutorial, the workflow guide and the two skills' rows |
+| A26 | **not built** | no `mutation-children` profile was written or run; the coverage gates are reported below |
+| A27 | **not built** | starter 18, the 60-second demo, is **not built. The phase is not done**, and the owner's hand run has nothing to run yet |
+| A28 | **not built** | the oracle cases were not written; `make test-oracle` was not run |
+
+**Risks of DESIGN section 8:** 1 did not need a core change (the reservation is computed from the children's own budgets, so `Budget` is untouched); 2 was real and only half answered (`LoomHost` yes, the CLI layout no); 3 was real and done (column and migration, `LoomHostChildrenTest`); 4 was real: a parking `wait` is its own mechanism, and building it found a race (a child's record was written after its handle settled, so a parent could finish first; `wait` now always awaits the child's task); 5 held: a `ToolHook` per agent plus a guard before a task, a `use` step and a delegate, with no reordering of the policy hook; 6 was not read; 7 was not followed (see A18); 8 held (the key rule did not change); 9 was real: a tick and a controlled scheduler were new, and the wait and `start` deadlines still use wall time.
+
+**What was stopped on:** only finding 1 (the graph node kind `start`), above. No decision was changed.
+
 ## 2. How the report is written
 
 At the end of the session the report states, for each row, the level actually reached and the evidence (the test names), **what was not run** (`make test-full` and the other `slow` tests, anything at E4), the risks of §8 of DESIGN that turned out to be real, and any decision that was changed and why. A row is never marked verified at a higher level than its test.

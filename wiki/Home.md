@@ -53,6 +53,7 @@ Each module answers the question the previous one raises.
 - [Your first run](Your-First-Run.md): `weave try` on demo models, `weave doctor`, and the guided path
 - [Working with a coding agent](Working-with-a-Coding-Agent.md): one click teaches Claude Code, Copilot, Cursor or any agent that reads AGENTS.md to build with Loom; it looks commands up with `weave man`
 - [Command reference](../docs/COMMAND_REFERENCE.md): every `weave` command, its options, examples and exit codes (in a terminal: `weave man`)
+- [Starting and supervising workflows](Starting-and-Supervising-Workflows.md): start a workflow as a child run, wait for it, cancel it, steer it and watch it with rules, and what a restart does
 - [Debugging a workflow](Debugging-a-Workflow.md): why a run did what it did, what it would have done, stepping through it and back, and the run drawn on the graph
 - [Observability: watching runs live](Observability.md) · [Deployment guide](../docs/OBSERVABILITY_DEPLOYMENT.md) · [Fabric server](Fabric-Server.md) · [Deployer skill](Deployer-Skill.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) · [Security signals](Observability-Security-Signals.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
 - [Loom CTK (conformance)](../src/loom/ctk/README.md) · [VS Code extension](../src/loom/vscode-loom/README.md)
