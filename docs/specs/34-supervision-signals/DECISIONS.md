@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 and D2 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D3 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -9,7 +9,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 |---|---|---|
 | D1 | The scope and staging of this phase | **taken** (one phase, five sub-phases, a review gate after 34a) |
 | D2 | Which v1 gaps are carried into this phase | **taken** (all of F1 to F11) |
-| D3 | The judge budget: reserved at `start` | open |
+| D3 | The judge budget: reserved at `start` | **taken** (paired statically; a warning for a supervise that cannot be paired) |
 | D4 | The judge's facts view | open |
 | D5 | A judge-driven demo test | open |
 | D6 | Declared progress: the syntax and the typing | open |
@@ -61,7 +61,8 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 
 **Recommendation: A.** It matches what was accepted, adds no syntax, and uses the fact that the script is known.
 
-**Decision:** open.
+**Decision (owner): option A, with the warning.** `weave check` pairs a `start` with the `supervise` of the same handle in the same block (matched by the handle's written form, for example `work[t.name]` inside one `for each` body); the reservation at `start` includes that `supervise`'s judge budget, so a `start` is refused when the parent cannot cover the child and its judge (33-D27, as accepted).
+A `supervise` that cannot be paired (a handle started in one place and supervised elsewhere, for example through a `call`ed helper) reserves when it runs and may fail then with a message that says the child is already running and now unsupervised; the child still has its own budget and the parent's limit still holds. **`weave check` warns about a `supervise` it cannot pair**, so the author sees it before a run.
 
 ## D4. The judge's facts view (F13, risk 7 of phase 33)
 
