@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D15 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D16 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -22,7 +22,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D13 | Limits and edge cases of signals | **taken** (limits fail loudly; no-ops for settled children and a missing parent; a clean mailbox after a rewind) |
 | D14 | Security: signals as an input channel | **taken** (LA30 for reading only; no signal steers an agent; a child signals only its parent) |
 | D15 | Testing: signals, a stubbed child, time | **taken** (the vocabulary, a controlled wake, the kill-point extension; principle 22) |
-| D16 | Visibility: the ecosystem for v3 | open |
+| D16 | Visibility: the ecosystem for v3 | **taken** (all of it, starter 18 extended, a tutorial chapter of its own) |
 | D17 | Names: `report`, `progress`, `notify`, `signal`, `any` | open |
 | D18 | What stays out of this phase | open |
 
@@ -286,7 +286,9 @@ The whole ecosystem moves together (the rule of phase 33, D16): graph kinds (`ch
 
 **Recommendation:** as listed, nothing held back; the closure of F10 and F11 happens here.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed; the whole ecosystem moves together, nothing held back, and starter 18 is extended** (a child that asks for help and a supervisor that reacts) instead of adding a starter 19.
+- Parser, AST and the 17 statement consumers; `weave graph` and the shared renderer (`child_notify`, `child_signal_wait`, `child_wait_any`, with `sync-graph-render.sh`); `weave explain`, `check`, `review`, `audit` (LA30), `generate` and the supervisor worst case (F4); `weave timeline`, `why` (also on a child folder, F6) and `fork` (copying the mailbox entries with the journal); Fabric, `loom-inspect-core` and the live page (pending signals and the latest progress in the Children section as additive attributes, and **the old-console compatibility test phase 33 left undone**, F10); VS Code (grammar, snippets, hover, the parser-parity baseline, the `CHANGELOG`); the compatibility kit (a woken child across a restart); **a tutorial chapter of its own** and the regenerated tutorial page; `LOOM_GUIDE.md` and both README tables, `LOOM_PROMPT.md`, the wiki, `llms.txt`, the release notes, `docs/API_COMPATIBILITY.md`, the audit page and the OWASP map; **the workflow-guide skill row and the root README** (F11), `llm4j-workflow-patterns` (a pattern for a supervisor that hears from its children) and `llm4j-run-debugging` (rows for signals and progress).
+- **When:** each sub-phase updates the surfaces it touches (so 34b does the graph and `explain` for progress), and 34e closes what is left (Fabric, VS Code, the tutorial chapter, the skills, the root README), as in phase 33.
 
 ## D17. Names: `report`, `progress`, `notify`, `signal`, `any`
 
