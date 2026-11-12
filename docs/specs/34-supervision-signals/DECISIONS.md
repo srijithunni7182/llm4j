@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D6 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D7 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -13,7 +13,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D4 | The judge's facts view | **taken** (keep `Trajectory`; risk 7 closed as not followed, by choice) |
 | D5 | A judge-driven demo test | **taken** (a case in starter 18's tests where the judge fires on virtual time) |
 | D6 | Declared progress: the syntax and the typing | **taken** (flat typed shape, enum and mixed allowed; contextual `report {` and `progress`) |
-| D7 | Declared progress: what a script may do with it | open |
+| D7 | Declared progress: what a script may do with it | **taken** (readable; one assertion `progress.<field> changes within`; no rule on content) |
 | D8 | The signal model | open |
 | D9 | `notify`: forms, payload, provenance | open |
 | D10 | How a signal is received | open |
@@ -125,7 +125,10 @@ workflow Research(topic) progress { stage: string, done: number, of: number } {
 
 **Recommendation: A in this phase, C as the one supervise-side use** (it is the progress analogue of `reaches "<checkpoint>" within`, and it never trusts the value, only that it changed). B is not proposed.
 
-**Decision:** open.
+**Decision (owner): A plus C, with `changes` instead of `increases`.**
+- **Readable only (A):** `h.progress.stage`, `h.progress.done` and so on, in ordinary script expressions (`alt`, a loop, after a `wait any` timeout). It is **not** a `supervise` condition on its content (B is not taken): a rule that cancels or steers never rests on a value the child wrote (principle 17).
+- **One code assertion about movement (C):** `assert progress.<field> changes within <duration> { actions }`. It fires when the field has not changed within the duration, and never reads what the value says. `changes` works for every type D6 allows (the spec's earlier `increases` only fits numbers; a script that needs a number to go up adds its own check, since progress is readable).
+- **Behaviour:** the clock starts when the `supervise` begins and resets each time the field changes; it counts running time, not sleeping (as `idle` and `elapsed`); `weave check` refuses the assertion when the child declares no progress or no such field; the block uses the same actions as `when` (`steer`, `wrap_up`, `cancel`) and the same ordering as the other code assertions (D30 of phase 33).
 
 ## D8. The signal model
 

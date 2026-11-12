@@ -47,7 +47,7 @@ Every row is `not built`.
 | A4 | The judge's budget is reserved at `start` when the `supervise` can be paired, and an unpaired one fails with a message (G26) | engine tests | E2 |
 | A5 | G7 and G13 of phase 33 were broken on purpose and fail; G2's resume half has an engine test | the guard checks | E2 |
 | A6 | Declared progress: validated against the declaration, bounded (dropped and recorded beyond the bounds), `unchecked`, journaled in the child, readable after a restart, restored by a rewind (G21) | tests | E2 and E3 |
-| A7 | `assert progress.<field> increases within <duration>` fires when the field has not changed, and never reads its meaning | tests on the virtual clock | E2 |
+| A7 | `assert progress.<field> changes within <duration>` fires when the field has not changed, and never reads its meaning | tests on the virtual clock | E2 |
 | A8 | A signal is received **exactly once** across a crash at every journal write (G16) and one sent before the wait is not lost (G17) | the kill-point test extended; a unit test | E3 |
 | A9 | A `notify` wakes a waiting child; one run of a child at a time under a racing `notify` (G19) | engine and concurrency tests | E2 and E3 |
 | A10 | A `notify` to a settled child is a recorded no-op; an old generation's signal is not delivered to a new one (G20); the limits fail loudly (G24) | tests | E2 |

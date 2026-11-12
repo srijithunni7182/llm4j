@@ -54,7 +54,7 @@ Read in the merged source:
 **Parse and check.** New AST pieces (`ProgressDecl` on `WorkflowDef`, `ReportStmt`); `weave check` refuses an undeclared field, a type mismatch it can see, a `report` in a workflow with no `progress` declaration, and reports **a workflow that declares progress but never reports**.
 **Runtime.** `report` writes `#progress.<n>` into the **child's own journal** (the step id's generation applying), validates the fields against the declaration (a mismatch fails the step), enforces the size and count bounds (dropped and recorded beyond them), and tags the value `unchecked`.
 **Reading.** `ChildHandle.fact("progress")` reads the child's journal for the latest entry of the latest generation, so it survives a restart and a rewind shows the value at the checkpoint; `h.progress.field` is an ordinary expression in the parent.
-**Use in supervision (D7).** Readable only, plus one code assertion `assert progress.<field> increases within <duration> { ... }` (it triggers when the field has not changed within the duration; it never reads the value's meaning). Not a `supervise` condition on content.
+**Use in supervision (D7).** Readable only, plus one code assertion `assert progress.<field> changes within <duration> { ... }` (it triggers when the field has not changed within the duration; it never reads the value's meaning). Not a `supervise` condition on content.
 
 ### 4.3 Signals (34c; D8 to D10, D12, D13)
 

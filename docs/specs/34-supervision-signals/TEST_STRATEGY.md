@@ -15,7 +15,7 @@ It continues [phase 33's strategy](../33-async-workflows/TEST_STRATEGY.md): the 
 
 | Layer | What | Where |
 |---|---|---|
-| **Parse and load** | `progress { }`, `report { }`, `notify`, `wait signal`, `wait any`, `when signal`, `assert progress ... increases within`; each load error (an undeclared or mistyped progress field, a `report` with no declaration, `notify` to a handle this run did not start, a `wait any` with no timeout, more handles than `max_children`); **the words that stay ordinary** (`-> report`, `set progress = ...`, a variable named `signal` or `parent`); `RepositoryScriptsTest` loads every script. | core tier |
+| **Parse and load** | `progress { }`, `report { }`, `notify`, `wait signal`, `wait any`, `when signal`, `assert progress ... changes within`; each load error (an undeclared or mistyped progress field, a `report` with no declaration, `notify` to a handle this run did not start, a `wait any` with no timeout, more handles than `max_children`); **the words that stay ordinary** (`-> report`, `set progress = ...`, a variable named `signal` or `parent`); `RepositoryScriptsTest` loads every script. | core tier |
 | **Check** | A declared progress never reported; `notify parent` in the entry workflow; a `start` and `supervise` pairing and the reservation it implies; the warnings of F9. | core tier |
 | **Engine, scripted** | Progress end to end (a child reports, the parent reads the latest; a rewind shows the value at the checkpoint; the bounds drop and record); signals both ways with a woken child; `wait any` with every event kind; supervise `when signal`; the closure items (F1 to F9). | core tier |
 | **Replay and kill-point** | G16, G17, G18. | `slow` tag |
