@@ -1,6 +1,6 @@
 # Phase 33 test strategy: starting and supervising workflows
 
-Status: **draft for review.** Companion to [DESIGN.md](DESIGN.md); the decisions behind it are D17 and D30 in [DECISIONS.md](DECISIONS.md). Nothing is built, so every test below is to be written, and **the guard tests are written before the code they guard**.
+Status: **final for phase 33; the strategy was followed and what was built is recorded in [VERIFICATION.md](VERIFICATION.md) §1b.** Companion to [DESIGN.md](DESIGN.md); the decisions behind it are D17 and D30 in [DECISIONS.md](DECISIONS.md). Not everything below was built: a stubbed child (`children:` as a script of states) is not, and guards G7 and G13 were not broken on purpose (§3 of VERIFICATION lists the gaps).
 
 ## 1. Principles for these tests
 
