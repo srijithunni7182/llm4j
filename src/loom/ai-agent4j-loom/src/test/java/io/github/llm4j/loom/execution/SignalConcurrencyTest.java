@@ -52,10 +52,7 @@ class SignalConcurrencyTest {
         t.setDaemon(true);
         t.start();
         long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
-        while (t.isAlive() && System.nanoTime() < end) {
-            h.clock.advance(java.time.Duration.ofSeconds(1));
-            t.join(20);
-        }
+        while (t.isAlive() && System.nanoTime() < end) t.join(20); // the virtual clock stays still: see the next test
 
         assertThat(t.isAlive()).as("the parent finished").isFalse();
         assertThat(parent.getContext().getVariable("seen")).isEqualTo("completed");
@@ -97,10 +94,9 @@ class SignalConcurrencyTest {
         pool.shutdown();
         assertThat(pool.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
         long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-        while (run.isAlive() && System.nanoTime() < end) {
-            h.clock.advance(java.time.Duration.ofMinutes(1));
-            run.join(20);
-        }
+        // the virtual clock stays still: nothing here needs time to pass, and moving it against real time would let
+        // the parent's own timeout fire on a slow machine
+        while (run.isAlive() && System.nanoTime() < end) run.join(20);
 
         assertThat(run.isAlive()).isFalse();
         // four senders, two reads: the child consumed the first two of the mailbox, in its order, and finished;
