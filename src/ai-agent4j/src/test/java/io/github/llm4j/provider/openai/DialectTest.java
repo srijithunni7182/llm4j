@@ -24,7 +24,8 @@ class DialectTest {
 
     @Test
     void everyPresetNamesItsKeyBaseUrlAndHosts() {
-        for (Dialect d : List.of(Dialect.OPENAI, Dialect.XAI, Dialect.KIMI, Dialect.QWEN)) {
+        for (Dialect d :
+                List.of(Dialect.OPENAI, Dialect.XAI, Dialect.KIMI, Dialect.QWEN, Dialect.SARVAM)) {
             assertThat(d.name()).isNotBlank();
             assertThat(d.defaultBaseUrl()).startsWith("https://");
             assertThat(d.keyEnv()).endsWith("_API_KEY");
@@ -61,7 +62,13 @@ class DialectTest {
     @Test
     void anUnrecognisedModelAtAnyVendorGetsTheSafeDefaults() {
         for (Dialect d :
-                List.of(Dialect.OPENAI, Dialect.XAI, Dialect.KIMI, Dialect.QWEN, Dialect.GENERIC)) {
+                List.of(
+                        Dialect.OPENAI,
+                        Dialect.XAI,
+                        Dialect.KIMI,
+                        Dialect.QWEN,
+                        Dialect.SARVAM,
+                        Dialect.GENERIC)) {
             ModelTraits t = d.traits("some-model-nobody-has-heard-of");
             assertThat(t).isNotNull();
             assertThat(t.reasoningOn()).isEmpty();
@@ -89,6 +96,68 @@ class DialectTest {
         assertThat(ModelTraits.kimi("kimi-k2.6").reasoningOff()).containsKey("thinking");
         assertThat(ModelTraits.kimi("kimi-k3").reasoningOff()).isEmpty();
         assertThat(ModelTraits.kimi("kimi-k2.7-code").reasoningOff()).isEmpty();
+    }
+
+    @Test
+    void sarvamCallsTheV2PathsAndSendsTheSubscriptionKeyBare() {
+        assertThat(Dialect.SARVAM.defaultBaseUrl()).isEqualTo("https://api.sarvam.ai");
+        assertThat(Dialect.SARVAM.chatPath()).isEqualTo("/v2/chat/completions");
+        assertThat(Dialect.SARVAM.modelsPath()).isEqualTo("/v2/models");
+        assertThat(Dialect.SARVAM.authHeader()).isEqualTo("api-subscription-key");
+        assertThat(Dialect.SARVAM.authScheme()).isEmpty();
+        assertThat(Dialect.SARVAM.maxTokensField()).isEqualTo("max_tokens");
+        assertThat(Dialect.SARVAM.fallbackModel()).isEqualTo("sarvam-105b");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "sarvam-105b,none,",
+        "deepseekv4.1-flash-1017,none,",
+        "deepseekv4.1-flash-1017-interactive,none,",
+        "deepseekv4-pro,none,",
+        "qwen38-27b,none,",
+        "gemma4,,low",
+        "glm5.3,,",
+        "glm5.3-flash,,",
+        "kimi-k3.1-pro,,",
+        "sarvam-105b-conversations,,",
+        "SARVAM-105B,none,"
+    })
+    void sarvamModelsSwitchThinkingTheirOwnWay(String model, String off, String on) {
+        ModelTraits t = ModelTraits.sarvam(model);
+        if (off == null) assertThat(t.reasoningOff()).isEmpty();
+        else assertThat(t.reasoningOff()).containsExactly(Map.entry("reasoning_effort", off));
+        if (on == null) assertThat(t.reasoningOn()).isEmpty();
+        else assertThat(t.reasoningOn()).containsExactly(Map.entry("reasoning_effort", on));
+        assertThat(t.acceptsTemperature()).isTrue();
+        assertThat(t.acceptsStop()).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "sarvam-105b,true,false",
+        "glm5.3,true,false",
+        "glm5.3-flash,true,true",
+        "gemma4,true,true",
+        "deepseekv4.1-flash-1017,true,true",
+        "deepseekv4-pro,true,false",
+        "kimi-k3.1-pro,true,true",
+        "qwen38-27b,true,true",
+        "clef,false,false",
+        "embeddinggemma-2,false,false"
+    })
+    void sarvamRecordsWhichModelsTakeASchemaAndWhichSeePictures(
+            String model, boolean schema, boolean sees) {
+        assertThat(Dialect.SARVAM.structuredOutput(model))
+                .isEqualTo(
+                        schema
+                                ? io.github.llm4j.model.StructuredOutput.JSON_SCHEMA
+                                : io.github.llm4j.model.StructuredOutput.NONE);
+        assertThat(
+                        Dialect.SARVAM
+                                .mediaCapabilities(model)
+                                .accepts(io.github.llm4j.model.MediaKind.IMAGE))
+                .isEqualTo(sees);
     }
 
     @Test

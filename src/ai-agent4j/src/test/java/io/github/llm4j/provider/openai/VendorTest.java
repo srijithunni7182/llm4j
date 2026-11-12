@@ -32,6 +32,7 @@ class VendorTest {
                         "xai",
                         "kimi",
                         "qwen",
+                        "sarvam",
                         "perplexity",
                         "perplexity_router",
                         "openai_compatible");
@@ -45,6 +46,8 @@ class VendorTest {
         "xai/grok-4,XAI,grok-4",
         "kimi/kimi-k3,KIMI,kimi-k3",
         "qwen/qwen3-max,QWEN,qwen3-max",
+        "sarvam/sarvam-105b,SARVAM,sarvam-105b",
+        "sarvam/glm5.3,SARVAM,glm5.3",
         "perplexity/openai/gpt-5.6-sol,PERPLEXITY,openai/gpt-5.6-sol",
         "perplexity/preset:medium,PERPLEXITY,preset:medium",
         "gpt-5-mini,OPENAI,gpt-5-mini",
@@ -81,7 +84,8 @@ class VendorTest {
         "ollama",
         "o1x2",
         "some-model",
-        "sarvam/sarvam-m"
+        "sarvam-105b",
+        "glm5.3"
     })
     void ambiguousOrOtherNamesStayUnresolved(String model) {
         assertThat(Vendor.ofModel(model)).isEmpty();
@@ -99,6 +103,11 @@ class VendorTest {
         assertThat(Vendor.OPENAI_COMPATIBLE.hosts()).isEmpty();
         assertThat(Vendor.KIMI.preview()).isTrue();
         assertThat(Vendor.QWEN.preview()).isTrue();
+        assertThat(Vendor.SARVAM.keyEnv()).isEqualTo("SARVAM_API_KEY");
+        assertThat(Vendor.SARVAM.baseUrlEnv()).isEqualTo("SARVAM_BASE_URL");
+        assertThat(Vendor.SARVAM.hosts()).containsExactly("api.sarvam.ai");
+        assertThat(Vendor.SARVAM.preview()).isFalse();
+        assertThat(Vendor.hostsOfKey("SARVAM_API_KEY")).containsExactly("api.sarvam.ai");
         assertThat(Vendor.PERPLEXITY_ROUTER.preview()).isTrue();
         assertThat(Vendor.OPENAI.preview()).isFalse();
     }
@@ -109,6 +118,7 @@ class VendorTest {
         assertThat(Vendor.XAI.create(config(), Map.of()).getProviderName()).isEqualTo("xai");
         assertThat(Vendor.KIMI.create(config(), Map.of()).getProviderName()).isEqualTo("kimi");
         assertThat(Vendor.QWEN.create(config(), Map.of()).getProviderName()).isEqualTo("qwen");
+        assertThat(Vendor.SARVAM.create(config(), Map.of()).getProviderName()).isEqualTo("sarvam");
         LLMProvider perplexity = Vendor.PERPLEXITY.create(config(), Map.of());
         assertThat(perplexity).isInstanceOf(OpenAiResponsesProvider.class);
         assertThat(perplexity.getProviderName()).isEqualTo("perplexity");

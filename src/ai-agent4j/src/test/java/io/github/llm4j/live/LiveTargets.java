@@ -9,7 +9,6 @@ import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.anthropic.AnthropicProvider;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.ollama.OllamaProvider;
-import io.github.llm4j.provider.sarvam.SarvamChatProvider;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.ArrayList;
@@ -26,7 +25,8 @@ import java.util.function.Function;
  *   <li>Anthropic: {@code ANTHROPIC_API_KEY}; models {@code ANTHROPIC_TEST_MODELS} (default
  *       claude-opus-5-5,claude-haiku-4-5)
  *   <li>Gemini: {@code GEMINI_API_KEY}; {@code GEMINI_TEST_MODELS} (default gemini-2.5-flash)
- *   <li>Sarvam: {@code SARVAM_API_KEY}; {@code SARVAM_TEST_MODELS} (default sarvam-m)
+ *   <li>Sarvam (V2 chat, with the Token Factory models): {@code SARVAM_API_KEY}; {@code
+ *       SARVAM_TEST_MODELS} (default sarvam-105b)
  *   <li>Ollama: {@code OLLAMA_BASE_URL} reachable; {@code OLLAMA_TEST_MODELS} (default llama3.2)
  * </ul>
  *
@@ -108,17 +108,18 @@ public final class LiveTargets {
         }
         String sarvam = env("SARVAM_API_KEY");
         if (sarvam != null) {
-            for (String m : models("SARVAM_TEST_MODELS", "sarvam-m")) {
+            for (String m : models("SARVAM_TEST_MODELS", "sarvam-105b")) {
                 out.add(
                         new Target(
                                 "sarvam",
                                 m,
                                 key ->
-                                        new SarvamChatProvider(
-                                                config(
-                                                        key != null ? key : sarvam,
-                                                        env("SARVAM_BASE_URL"),
-                                                        m))));
+                                        io.github.llm4j.provider.openai.OpenAiCompatibleProvider
+                                                .sarvam(
+                                                        config(
+                                                                key != null ? key : sarvam,
+                                                                env("SARVAM_BASE_URL"),
+                                                                m))));
             }
         }
         String ollama = env("OLLAMA_BASE_URL");
