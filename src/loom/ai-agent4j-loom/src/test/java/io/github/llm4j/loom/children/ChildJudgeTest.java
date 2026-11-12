@@ -58,6 +58,9 @@ class ChildJudgeTest {
     private final Map<String, RunJournal> journals = new ConcurrentHashMap<>();
     private final List<String> judgeRequests = new ArrayList<>();
     private final List<String> answers = new ArrayList<>(List.of("fail", "pass", "pass"));
+    /** Counted down by the parent once the supervise block is attached: the child makes no progress before it. */
+    private final CountDownLatch attached = new CountDownLatch(1);
+
     private final CountDownLatch inBlocked = new CountDownLatch(1);
     private final CountDownLatch release = new CountDownLatch(1);
     private HarnessExecutor parent;
@@ -83,6 +86,19 @@ class ChildJudgeTest {
 
     private HarnessExecutor executor(String source) {
         TaskRegistry tasks = new TaskRegistry();
+        tasks.register(
+                Task.of(
+                        "Gate",
+                        TaskEffect.NONE,
+                        EffectPolicy.DEFAULT,
+                        ctx -> {
+                            try {
+                                attached.await(10, TimeUnit.SECONDS);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                            return TaskResult.value("open");
+                        }));
         tasks.register(Task.of("Search", TaskEffect.NONE, EffectPolicy.DEFAULT, ctx -> TaskResult.value("found")));
         tasks.register(
                 Task.of(
@@ -104,6 +120,7 @@ class ChildJudgeTest {
                         TaskEffect.NONE,
                         EffectPolicy.DEFAULT,
                         ctx -> {
+                            attached.countDown();
                             try {
                                 inBlocked.await(10, TimeUnit.SECONDS);
                             } catch (InterruptedException e) {
@@ -145,7 +162,7 @@ class ChildJudgeTest {
     private static final String SCRIPT =
             """
             evaluator J { model: "judge" }
-            workflow Child(x) { run Search() -> a  run Blocked() -> b  return b }
+            workflow Child(x) { run Gate() -> g  run Search() -> a  run Blocked() -> b  return b }
             workflow Main(q) {
                 start Child(x = q) budget { tokens: 100000 } -> work
                 supervise work budget { tokens: 5000 } {
