@@ -2,7 +2,7 @@
 
 Status: **draft for review.** Every decision in [DECISIONS.md](DECISIONS.md) was taken by the owner in discussion (D6, D7 and the declared-progress and pushed-event halves of D22 are deferred to a later phase). The facts about the current code
 were read in the source on the days this design was written; what was not read is listed in §8 and in [VERIFICATION.md](VERIFICATION.md). Nothing is built.
-Companion documents: [PRINCIPLES.md](PRINCIPLES.md) (**every choice here is checked against it, and a conflict is settled there first**), [DECISIONS.md](DECISIONS.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md).
+Companion documents: [PRINCIPLES.md](PRINCIPLES.md) (**every choice here is checked against it, and a conflict is settled there first**), [DECISIONS.md](DECISIONS.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), [EXAMPLE_HARNESS.md](EXAMPLE_HARNESS.md) (a coding-agent harness sketched in Loom, for the documentation), [roadmap](../README.md).
 Builds on the run journal and its generations, `LoomHost` and `Persistence`, the budgets, `supervise`, `steerable` agents and `InterventionCoordinator`, `LiveRuns`, the provenance tags and the audit.
 
 ## 1. Problem
