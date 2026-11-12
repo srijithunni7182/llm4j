@@ -294,6 +294,30 @@ public final class GraphBuilder {
                     kind, kind, label, null, null, null, null, false, null, null, Map.of());
         }
 
+        /** Where each handle was started, so a later use of it can be joined to it. */
+        private final Map<String, String> startedAt = new java.util.HashMap<>();
+
+        /**
+         * A dotted edge from the {@code start} that bound a handle to the {@code wait}, {@code
+         * cancel}, {@code steer} or {@code supervise} that uses it (D16).
+         */
+        private void handleEdges(Statement statement, String id) {
+            if (statement instanceof io.github.llm4j.loom.ast.StartStmt s) {
+                startedAt.put(s.getTarget().name(), id);
+                return;
+            }
+            io.github.llm4j.loom.ast.HandleRef ref =
+                    statement instanceof io.github.llm4j.loom.ast.WaitStmt w ? w.getTarget()
+                    : statement instanceof io.github.llm4j.loom.ast.CancelStmt c ? c.getTarget()
+                    : statement instanceof io.github.llm4j.loom.ast.SteerStmt t ? t.getTarget()
+                    : statement instanceof io.github.llm4j.loom.ast.SuperviseStmt v ? v.getTarget()
+                    : null;
+            String from = ref == null ? null : startedAt.get(ref.name());
+            // next to its start the plain edge already says it
+            if (from != null && edges.stream().noneMatch(e -> e.from().equals(from) && e.to().equals(id)))
+                edges.add(new GraphEdge(from, id, "handle"));
+        }
+
         /** Lays out a statement list; returns where control leaves it. */
         private List<Exit> block(
                 List<Statement> statements, List<Exit> entries, String parent, String branch) {
@@ -304,6 +328,7 @@ public final class GraphBuilder {
                 for (Exit from : current) {
                     edges.add(new GraphEdge(from.from(), id, from.label()));
                 }
+                handleEdges(statement, id);
                 current = leave(statement, id);
             }
             return current;

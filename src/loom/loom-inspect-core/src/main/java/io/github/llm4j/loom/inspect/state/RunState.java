@@ -124,6 +124,7 @@ public final class RunState {
     private final String client;
     private final String traceId;
     private String runId;
+    private String parentRunId;
     private String workflow;
     private Status status = Status.RUNNING;
     private long startedNanos;
@@ -330,6 +331,11 @@ public final class RunState {
         this.graph = graph;
     }
 
+    /** The run that started this one, or null for a run nobody started. */
+    public synchronized String parentRunId() {
+        return parentRunId;
+    }
+
     public synchronized String runId() {
         return runId;
     }
@@ -449,6 +455,7 @@ public final class RunState {
     private void runStart(LogRec r) {
         if (r.text(Semconv.LOOM_RUN_ID) != null) runId = r.text(Semconv.LOOM_RUN_ID);
         if (r.text(Semconv.LOOM_WORKFLOW) != null) workflow = r.text(Semconv.LOOM_WORKFLOW);
+        if (r.text(Semconv.LOOM_PARENT_RUN_ID) != null) parentRunId = r.text(Semconv.LOOM_PARENT_RUN_ID);
         if (startedNanos == 0) startedNanos = r.timeNanos();
         if ("false".equals(r.text(Semconv.LOOM_EVALUATED))) evaluated = false;
         if (Boolean.TRUE.equals(r.attr(Semconv.LOOM_SERVED))) security.onServedRun();
@@ -1407,6 +1414,7 @@ public final class RunState {
         v.put("client", client);
         v.put("traceId", traceId);
         v.put("runId", runId);
+        if (parentRunId != null) v.put("parent", parentRunId);
         v.put("workflow", workflow);
         v.put("status", status.name().toLowerCase(java.util.Locale.ROOT));
         if (startedNanos > 0) v.put("startedAt", OtlpJson.instant(startedNanos).toString());

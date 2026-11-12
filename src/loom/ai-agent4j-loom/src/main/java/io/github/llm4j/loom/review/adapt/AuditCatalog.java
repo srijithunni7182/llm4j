@@ -145,6 +145,16 @@ public final class AuditCatalog {
             "An exposed workflow has no spend cap",
             "An expose with neither a budget of its own nor a run budget leaves the cost to whoever can call it. Add a budget."
         },
+        {
+            "LA28",
+            "A script can steer a started workflow",
+            "A steer statement, or a supervise rule that steers, puts words written in the script in front of a steerable agent of a started workflow while it works: an input channel, as a steerable agent is for a person (LA18). Names the agents it can reach; medium when one of them also reaches private data and can send or act. Cancelling is not an input channel and gets no rule."
+        },
+        {
+            "LA29",
+            "A model judges a started workflow",
+            "A judged assertion in a supervise block asks an evaluator, on a cadence and at most max times, whether a sentence holds of a started workflow. Lists what the judge sees (facts only, or content with seeing content: low, because content may carry instructions) and what a fail can cause: only steer, wrap_up or cancel use partial, with text fixed in the script. It is a model's opinion and is not under the earned-autonomy ladder."
+        },
     };
 
     /** One entry per audit rule. The severity varies with the situation, so none is given. */

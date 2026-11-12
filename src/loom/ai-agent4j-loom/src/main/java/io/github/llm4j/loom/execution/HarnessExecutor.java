@@ -396,6 +396,11 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
+                        public void requireAllowed(String name) {
+                            HarnessExecutor.this.requireAllowed(name);
+                        }
+
+                        @Override
                         public String resolveResultName(String name) {
                             return HarnessExecutor.this.resolveResultName(name);
                         }
@@ -2520,6 +2525,7 @@ public class HarnessExecutor implements LoomEngine {
                     if (stopAt != null) stopPoint(step.get());
                 } catch (Rewinder.RewindSignal signal) {
                     if (!signal.block.equals(block)) throw signal;
+                    children.cancelSince(block, signal.from, "rewound");
                     rewinder.restore(frame, signal.checkpoint);
                     i = signal.from - 1; // the loop's increment lands on the first statement of the
                     // new generation
@@ -2802,6 +2808,7 @@ public class HarnessExecutor implements LoomEngine {
                     agentBuilder.addToolHook(
                             new PolicyToolHook(
                                     this, agentDef, changing, !agentDef.getMcpServers().isEmpty()));
+                agentBuilder.addToolHook(forbidden.hook());
             }
             if (agentDef.isApproveAll() || !agentDef.getApprove().isEmpty()) {
                 String agentName = agentDef.getName();
@@ -3037,11 +3044,13 @@ public class HarnessExecutor implements LoomEngine {
         }
         step.set(topLevel ? workflowName : parent + ">" + workflowName);
         String ended = "completed";
+        boolean cancelChildren = topLevel; // a suspension is not an end, and neither is a crash
         Map<String, Object> endData = new java.util.LinkedHashMap<>();
         if (topLevel) {
             Map<String, Object> startData = new java.util.LinkedHashMap<>();
             startData.put("workflow", workflowName);
             if (runId != null) startData.put("run", runId);
+            if (parentRunId != null) startData.put("parent", parentRunId); // a child says whose it is
             startData.put("resumed", String.valueOf(resumedFromPause));
             if (servedFromOutside) startData.put("served", "true");
             // the page never reads the dataset itself: the host that ran the check says so here
@@ -3066,6 +3075,8 @@ public class HarnessExecutor implements LoomEngine {
             throw halted;
         } catch (RunSuspended paused) {
             ended = "suspended";
+            cancelChildren = false; // the tree suspends with it and a resume re-attaches
+            if (topLevel) children.onParentSuspended(paused);
             endData.put("reason", paused.reason().name());
             if (paused.resumeAt() != null) endData.put("resumeAt", paused.resumeAt().toString());
             if (topLevel && paused.resumeAt() != null) recordSuspension(paused);
@@ -3076,6 +3087,7 @@ public class HarnessExecutor implements LoomEngine {
             throw stopped;
         } catch (RuntimeException | Error failure) {
             ended = failure instanceof io.github.llm4j.budget.BudgetExceeded ? "budget" : "failed";
+            if (failure instanceof Error) cancelChildren = false; // a process death cancels nothing
             endData.put("error", String.valueOf(failure.getMessage()));
             Map<String, Object> culprit = unhandledFailure.get();
             if (culprit != null) {
@@ -3087,6 +3099,7 @@ public class HarnessExecutor implements LoomEngine {
             throw failure;
         } finally {
             step.set(parent);
+            if (cancelChildren) endChildren();
             if (topLevel) {
                 endData.put("workflow", workflowName);
                 if (runId != null) endData.put("run", runId);
@@ -3272,6 +3285,16 @@ public class HarnessExecutor implements LoomEngine {
             rewinder.rewind(rewind, frames.get());
         } else if (stmt instanceof io.github.llm4j.loom.ast.DecideStmt decide) {
             decider.decide(decide);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.StartStmt start) {
+            children.start(start);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.WaitStmt wait) {
+            children.await(wait);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.CancelStmt cancel) {
+            children.cancel(cancel);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SteerStmt steer) {
+            children.steer(steer);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SuperviseStmt supervise) {
+            children.supervise(supervise);
         } else if (stmt instanceof NoteStmt note) {
             String noteText = resolvePayload(note.getMessage());
             lastNote = noteText;
@@ -4343,6 +4366,215 @@ public class HarnessExecutor implements LoomEngine {
                 log.warning("Suspension listener failed: " + e.getMessage());
             }
         }
+    }
+
+    // ── Child runs (phase 33) ────────────────────────────────────────────
+    private ChildRuns childRuns;
+    private ChildScheduler childScheduler = ChildScheduler.threads();
+    private final ChildLauncher children = new ChildLauncher(this);
+
+    /**
+     * Where the runs of started workflows are kept. Without it {@code start} fails closed. A host
+     * built on persistence gives one; see {@link ChildRuns}.
+     */
+    public void setChildRuns(ChildRuns childRuns) {
+        this.childRuns = childRuns;
+    }
+
+    /** Runs the started workflows; the default uses daemon threads. Tests inject a controlled one. */
+    public void setChildScheduler(ChildScheduler scheduler) {
+        this.childScheduler =
+                java.util.Objects.requireNonNull(scheduler, "scheduler");
+    }
+
+    private final Trajectory trajectory = new Trajectory();
+    private final ForbiddenCalls forbidden = new ForbiddenCalls(trajectory);
+
+    /** What this run has done, as facts (for the supervisor that watches it). */
+    Trajectory.Snapshot trajectory() {
+        return trajectory.snapshot();
+    }
+
+    /** Refuses, before it runs, any later call of {@code name} (a supervisor's {@code never calls}). */
+    void forbid(String name) {
+        forbidden.forbid(name);
+    }
+
+    /** Fails the step if {@code name} is forbidden; called before a task, tool or agent runs. */
+    void requireAllowed(String name) {
+        forbidden.require(name);
+    }
+
+    private java.time.Duration superviseTick = java.time.Duration.ofSeconds(10);
+
+    /**
+     * How often the counters of supervised children are looked at (about every 10 seconds). A
+     * runtime setting, not script text. {@link java.time.Duration#ZERO} turns the supervisor's own
+     * thread off, for a test that calls {@link #tickChildren()} itself.
+     */
+    public void setSuperviseTick(java.time.Duration every) {
+        this.superviseTick = java.util.Objects.requireNonNull(every, "every");
+    }
+
+    java.time.Duration superviseTick() {
+        return superviseTick;
+    }
+
+    /** One look at every supervised child now, as the supervisor's tick does. */
+    public void tickChildren() {
+        children.tick();
+    }
+
+    private ChildLimits childLimits = ChildLimits.HOST_DEFAULT;
+    private int childDepth;
+    private String parentRunId;
+
+    /** The ceilings a script's {@code max_children} and {@code max_depth} may not pass. */
+    public void setChildLimits(ChildLimits limits) {
+        this.childLimits = java.util.Objects.requireNonNull(limits, "limits");
+    }
+
+    ChildLimits childLimits() {
+        return childLimits;
+    }
+
+    /** How many levels below the top workflow this run is: 0 for a run nobody started. */
+    int childDepth() {
+        return childDepth;
+    }
+
+    LoomScript loomScript() {
+        return script;
+    }
+
+    ChildRuns childRuns() {
+        return childRuns;
+    }
+
+    /**
+     * The budgets whatever this run starts also spends from: the run budget and the loop or step
+     * budgets in scope on this thread. A child is charged to every one of them.
+     */
+    List<io.github.llm4j.budget.Budget> enclosingBudgets() {
+        List<io.github.llm4j.budget.Budget> all = new java.util.ArrayList<>();
+        if (budgets.runBudget() != null) all.add(budgets.runBudget());
+        all.addAll(scopes.get());
+        return List.copyOf(all);
+    }
+
+    private volatile Runnable onProgress = () -> {};
+
+    /** Told, on the thread of a child run, after each model call it makes: the parent's supervisor looks then. */
+    void onProgress(Runnable listener) {
+        this.onProgress = listener;
+    }
+
+    /** A child this run started: its handle and the executor that runs it. */
+    record ChildView(io.github.llm4j.loom.runtime.ChildHandle handle, HarnessExecutor executor) {}
+
+    /** The children this run started that have not settled. */
+    List<ChildView> startedChildren() {
+        return children.going();
+    }
+
+    /** The judge's own budget, built from the {@code supervise} statement's {@code budget { }}. */
+    io.github.llm4j.budget.Budget newJudgeBudget(String name, io.github.llm4j.loom.ast.BudgetDef def) {
+        return budgets.newBudget(name, def);
+    }
+
+    /**
+     * The model of an {@code evaluator}, charged to the judge's own budget and, so the run total
+     * holds, to the budgets that enclose it (decision D27). The judge's budget is enforced whether
+     * or not the script has a run budget.
+     */
+    io.github.llm4j.LLMClient judgeClient(
+            io.github.llm4j.loom.ast.EvaluatorDef def,
+            io.github.llm4j.budget.Budget judgeBudget,
+            List<io.github.llm4j.budget.Budget> enclosing) {
+        List<io.github.llm4j.budget.Budget> all = new java.util.ArrayList<>(enclosing);
+        all.add(judgeBudget);
+        return io.github.llm4j.budget.BudgetedLLMClient.builder(clientFor(def.getModel()))
+                .budgets(() -> io.github.llm4j.budget.BudgetSet.of(all))
+                .model(def.getModel())
+                .build();
+    }
+
+    /** Called on the thread that runs a child: what it spends is also charged to these. */
+    void installOuterBudgets(List<io.github.llm4j.budget.Budget> outer) {
+        scopes.set(List.copyOf(outer));
+    }
+
+    ChildScheduler childScheduler() {
+        return childScheduler;
+    }
+
+    String currentStepId() {
+        return step.get();
+    }
+
+    io.github.llm4j.secret.InvokerCredentials currentInvoker() {
+        return threadScope.invoker.get();
+    }
+
+    /**
+     * The run has ended: cancel the children still going. A failure to do so is logged, not thrown,
+     * so it never hides why the run ended.
+     */
+    private void endChildren() {
+        try {
+            children.cancelAll("parent ended");
+        } catch (RuntimeException e) {
+            log.log(
+                    java.util.logging.Level.WARNING,
+                    "could not cancel the children of a run that ended: " + e.getMessage(),
+                    e);
+        }
+    }
+
+    long nowMillis() {
+        return clock.millis();
+    }
+
+    /** Runs a handler block of the current statement under its own step ids. */
+    void runBlockAt(List<Statement> statements, String key) {
+        runBlock(statements, key);
+    }
+
+    /**
+     * An executor for a child run: the same script and the parts a child inherits (decisions D15
+     * and D18: the credentials' store, the human interface, the audit logger, the clock and the
+     * sleeper) with its own journal, its own variables and its own run id.
+     */
+    HarnessExecutor deriveChild(String childRunId, RunJournal childJournal) {
+        HarnessExecutor child = new HarnessExecutor(script, toolRegistry, llmClientFactory);
+        child.setRunId(childRunId);
+        child.setJournal(childJournal);
+        child.taskRegistry = taskRegistry;
+        child.humanInterface = humanInterface;
+        child.auditLogger = auditLogger;
+        child.promptCatalog = promptCatalog;
+        child.clock = clock;
+        child.sleeper = sleeper;
+        child.secretStore = secretStore;
+        child.envLookup = envLookup;
+        child.baseDir = baseDir;
+        child.scriptRef = scriptRef;
+        child.lenient = lenient;
+        child.classifierFactory = classifierFactory;
+        child.childRuns = childRuns;
+        child.childScheduler = childScheduler;
+        child.childLimits = childLimits;
+        child.childDepth = childDepth + 1;
+        child.parentRunId = runId;
+        child.stepListener = stepListener; // a test that counts the steps a run reached counts the child's
+        child.statementListener = statementListener;
+        child.sinkOracle = sinkOracle; // a test that watches the exits of a run watches the child's too
+        child.addTraceListener(child.trajectory);
+        child.addTraceListener(
+                event -> {
+                    if (TraceEvent.MODEL_CALL.equals(event.type())) child.onProgress.run();
+                });
+        return child;
     }
 
     private void executeCall(CallStmt call) {

@@ -136,3 +136,7 @@ and `scripts/media/pixel.png` the file it reads. `traces/attach_basic.json` list
 attachment's type, `image/png`), a path that climbs out of the root and a file that does not exist (both `outcome: refused`, **no model call is made**). A runtime must refuse
 before the call and must not record the bytes. `mocks/attach_basic.json` maps the agent's name and task to its answer. The Java runtime runs it in `AttachCtkConformanceTest`
 (module `ai-agent4j-loom`).
+
+## Started workflows (`start`, `wait`, `cancel`)
+
+`start Child(args) budget { ... } -> handle` runs a workflow as a child run of its own and `wait handle timeout D -> result` returns when it settles. A child has its own journal and a run id worked out from its parent's run and the step that started it, so a parent that is killed and run again finds the same child and repeats no effect. Its status is a value: `completed`, `failed`, `cancelled`, `timed out`, `stopped`, `running`, `sleeping` or `waiting`, and `handle is ok` is true only for `completed`. `scripts/child_start_wait.loom`, `scripts/child_cancel.loom` and `scripts/child_restart.loom` are the canonical scenarios (the task `Lookup` is code the runtime supplies); the Java runtime runs them in `ChildCtkConformanceTest` (module `ai-agent4j-loom`), including the restart in the middle.

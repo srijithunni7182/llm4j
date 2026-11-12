@@ -942,6 +942,31 @@
     });
   }
 
+  /** The Children section of a run that started others: each child's status, tokens and time, and the cost with them. */
+  function renderChildren(v) {
+    var box = $('children');
+    if (!box) { return; }
+    var kids = v.children || [];
+    box.hidden = kids.length === 0;
+    if (!kids.length) { return; }
+    var body = $('childrows');
+    body.textContent = '';
+    var total = Number(v.totals.cost || 0);
+    kids.forEach(function (c) {
+      total += Number((c.totals && c.totals.cost) || 0);
+      var tr = el('tr', 'rl');
+      cell(tr, c.workflow || 'run', 'mono');
+      var st = cell(tr, '', 'st');
+      st.appendChild(el('span', 'dot ' + tabState(c.status)));
+      st.appendChild(document.createTextNode(' ' + c.status));
+      cell(tr, num((c.totals && c.totals.tokens) || 0), 'r mono');
+      cell(tr, c.startedAt ? hms(c.startedAt) : '\u2013', 'mono');
+      tr.addEventListener('click', function () { openRunTab(c.traceId, runTab); });
+      body.appendChild(tr);
+    });
+    $('childtotal').textContent = 'Cost with its children: ' + money(total);
+  }
+
   var rlFilter = 'all', rlHold = {};
   var RL_STATUS = [['all', 'all'], ['live', 'live'], ['finished', 'finished'], ['failed', 'failed']];
   function renderRunsList(runs) {
@@ -957,6 +982,20 @@
       var a = (x.client || '') + '/' + (x.workflow || ''), b = (y.client || '') + '/' + (y.workflow || '');
       return a < b ? -1 : a > b ? 1 : String(y.startedAt || '').localeCompare(String(x.startedAt || ''));
     });
+    // children follow the run that started them, one step in
+    var byRun = {};
+    shown.forEach(function (r) { if (r.runId) { byRun[(r.client || '') + '/' + r.runId] = r; } });
+    var kids = {};
+    shown.forEach(function (r) { if (r.parent && byRun[(r.client || '') + '/' + r.parent]) { (kids[(r.client || '') + '/' + r.parent] = kids[(r.client || '') + '/' + r.parent] || []).push(r); } });
+    var ordered = [];
+    (function place(list, depth) {
+      list.forEach(function (r) {
+        r.depth = depth;
+        ordered.push(r);
+        place(kids[(r.client || '') + '/' + r.runId] || [], depth + 1);
+      });
+    })(shown.filter(function (r) { return !(r.parent && byRun[(r.client || '') + '/' + r.parent]); }), 0);
+    shown = ordered;
     $('rlsub').textContent = plural(runs.length, 'run') + ' this server knows' + (shown.length !== runs.length ? ' · ' + shown.length + ' shown' : '');
     var body = $('rlrows');
     body.textContent = '';
@@ -982,14 +1021,17 @@
       tr.tabIndex = 0;
       tr.setAttribute('data-fk', 'rl:' + r.traceId);
       cell(tr, r.client || '', 'mono');
-      cell(tr, r.workflow || 'run', 'mono');
+      var wf = (r.depth ? '\u21b3 ' : '') + (r.workflow || 'run');
+      if (r.children) { wf += ' \u00b7 ' + Object.keys(r.children).map(function (k) { return r.children[k] + ' ' + k; }).join(', '); }
+      var wc = cell(tr, wf, 'mono');
+      if (r.depth) { wc.style.paddingLeft = (r.depth * 18) + 'px'; wc.setAttribute('data-child', 'true'); }
       var st = cell(tr, '', 'st');
       st.appendChild(el('span', 'dot ' + tabState(r.status)));
       st.appendChild(document.createTextNode(' ' + r.status));
       cell(tr, r.startedAt ? new Date(r.startedAt).toLocaleString() : '–', 'mono');
       var inc = cell(tr, '');
       if (r.incidents > 0) { inc.appendChild(el('span', 'sev ' + (r.worstIncident || 'warn') + ' inc', String(r.incidents))); } else { inc.textContent = '–'; }
-      cell(tr, '$' + Number((r.totals && r.totals.cost) || 0).toFixed(3), 'r mono');
+      cell(tr, '$' + Number((r.totals && (r.totals.costWithChildren || r.totals.cost)) || 0).toFixed(3), 'r mono');
       function open() { openRunTab(r.traceId, runTab); }
       tr.addEventListener('click', open);
       tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
@@ -1797,6 +1839,7 @@
     $('tokensfoot').textContent = num(v.totals.calls) + ' model calls';
     $('cost').textContent = money(v.totals.cost);
     $('costfoot').textContent = v.totals.calls ? money(Number(v.totals.cost) / v.totals.calls) + ' per call' : '';
+    renderChildren(v);
     var running = v.agents.filter(function (a) { return a.status === 'running'; });
     $('running').textContent = running.length;
     $('runningof').textContent = 'of ' + v.agents.length + ' agents';

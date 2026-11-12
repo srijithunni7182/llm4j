@@ -50,6 +50,10 @@
     set: { k: 'misc', g: 'note', shape: 'rect' },
     return: { k: 'misc', g: 'flag', shape: 'rect' },
     sleep: { k: 'misc', g: 'clock', shape: 'rect' },
+    child_start: { k: 'call', g: 'call', shape: 'dbl' },
+    child_wait: { k: 'human', g: 'clock', shape: 'rect' },
+    child_cancel: { k: 'misc', g: 'stop', shape: 'rect' },
+    child_watch: { k: 'misc', g: 'eye', shape: 'rect', dashed: true },
     outcome: { k: 'misc', g: 'outcome', shape: 'rect' },
     unknown: { k: 'misc', g: 'unknown', shape: 'rect', dashed: true },
     statement: { k: 'misc', g: 'unknown', shape: 'rect', dashed: true }
@@ -217,6 +221,10 @@
       case 'note': return a.text ? cut(a.text, 40) : null;
       case 'observe': return a.text ? cut(a.text, 40) : null;
       case 'sleep': return a.duration || null;
+      case 'child_start': return a.handle ? 'handle ' + a.handle : null;
+      case 'child_wait':
+      case 'child_cancel': return a.handle ? 'on ' + a.handle : null;
+      case 'child_watch': return a.handle ? (a.what || 'watch') + ' ' + a.handle : null;
       case 'rewind': return a.condition ? cut(a.condition, 40) : null;
       case 'task': return a.args ? plural(a.args, 'arg') : null;
       case 'use': return a.tool ? (a.approve ? 'asks a person, then calls ' : 'calls ') + cut(a.tool, 30) : null;
@@ -548,7 +556,8 @@
   /** The kinds of intervention line a set of routes has, in a fixed order. */
   var LINES = [
     { label: 'stopped', cls: 'lg-e-stopped', name: 'Stopped: to its handler (dotted)' },
-    { label: 'rewind', cls: 'lg-e-rewind', name: 'Sent back: to a checkpoint (dashed)' }
+    { label: 'rewind', cls: 'lg-e-rewind', name: 'Sent back: to a checkpoint (dashed)' },
+    { label: 'handle', cls: 'lg-e-handle', name: 'Handle: from a start to what uses it (dotted)' }
   ];
   var KEY_ROW = 18, KEY_PAD = 14, KEY_W = 280;
   function lineKinds(routes) {
@@ -595,6 +604,7 @@
     '.lg-edge{fill:none;stroke:var(--lg-edge,#68708c);stroke-width:1.5;stroke-linejoin:round}',
     '.lg-edge.lg-dash{stroke-dasharray:5 4}',
     '.lg-edge.lg-e-rewind,.lg-key .lg-e-rewind{stroke:var(--lg-rewind,#6a3fb5);stroke-dasharray:8 4}',
+    '.lg-edge.lg-e-handle,.lg-key .lg-e-handle{stroke:var(--lg-edge,#68708c);stroke-width:1.2;stroke-dasharray:1.5 4;stroke-linecap:round}',
     '.lg-edge.lg-e-stopped,.lg-key .lg-e-stopped{stroke:var(--lg-stopped,#b24a14);stroke-width:2.2;stroke-dasharray:1.5 5;stroke-linecap:round}',
     '.lg-key text{fill:var(--lg-muted,#5a6177);font:11px var(--lg-mono,ui-monospace,Menlo,monospace)}',
     '.lg-key path{fill:none;stroke-width:2}',
@@ -703,7 +713,7 @@
     var travSet = {}; if (opts.overlay) { opts.overlay.traversed.forEach(function (t) { travSet[t[0] + '\u0000' + t[1]] = 1; }); }
     var out = '';
     lay.routes.forEach(function (r) {
-      var cls = 'lg-edge' + (r.label === 'rewind' ? ' lg-dash lg-e-rewind' : r.label === 'stopped' ? ' lg-e-stopped' : '') + (opts.overlay ? (travSet[r.from + '\u0000' + r.to] ? ' lg-trav' : ' lg-untrav') : '');
+      var cls = 'lg-edge' + (r.label === 'rewind' ? ' lg-dash lg-e-rewind' : r.label === 'stopped' ? ' lg-e-stopped' : r.label === 'handle' ? ' lg-e-handle' : '') + (opts.overlay ? (travSet[r.from + '\u0000' + r.to] ? ' lg-trav' : ' lg-untrav') : '');
       out += '<path class="' + cls + '" d="' + path(r.pts) + '" marker-end="url(#lg-arrow)" data-from="' + esc(r.from) + '" data-to="' + esc(r.to) + '"/>';
       if (r.label) { var w = r.label.length * 6.4 + 12; out += '<g class="lg-elabel"><rect x="' + (r.lx - w / 2) + '" y="' + (r.ly - 9) + '" width="' + w + '" height="18" rx="9"/><text x="' + r.lx + '" y="' + (r.ly + 3.8) + '">' + esc(r.label) + '</text></g>'; }
     });

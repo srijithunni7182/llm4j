@@ -65,6 +65,11 @@ final class CaseRunner {
         try {
             Map<String, JsonNode> models = fields(c.get("models"));
             models.putAll(Evaluators.scripted(c.get("evaluators")));
+            // a judge of a supervise block answers one word a look, in the order it is asked
+            models.putAll(fields(c.get("judges")));
+            Map<String, RunJournal> childJournals = new java.util.concurrent.ConcurrentHashMap<>();
+            io.github.llm4j.loom.execution.ControlledChildScheduler childScheduler =
+                    new io.github.llm4j.loom.execution.ControlledChildScheduler();
             Failures failures = new Failures(c.get("fail"));
             boolean repeatLast = c.has("repeat") && "last".equals(c.get("repeat").asText());
             boolean lenient = c.has("lenient") && c.get("lenient").asBoolean();
@@ -117,6 +122,12 @@ final class CaseRunner {
                 if (!fresh.getRemotes().isEmpty()) executor.setA2ATransport(remotes);
                 channels.forEach(executor::setAgentChannel);
                 executor.setJournal(journal);
+                executor.setRunId("case");
+                executor.setChildRuns(id -> childJournals.computeIfAbsent(id, k -> RunJournal.inMemory()));
+                executor.setChildScheduler(childScheduler); // children run one at a time, when waited for
+                executor.setSuperviseTick(Duration.ZERO); // the virtual clock is the tick
+                final HarnessExecutor ticked = executor;
+                clock.afterAdvance(ticked::tickChildren);
                 executor.setClock(clock);
                 executor.setSleeper(clock);
                 executor.setBaseDir(script.toAbsolutePath().getParent());

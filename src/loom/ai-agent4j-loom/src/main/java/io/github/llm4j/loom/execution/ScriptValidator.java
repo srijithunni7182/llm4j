@@ -524,6 +524,7 @@ public class ScriptValidator {
         for (WorkflowDef w : c.script().getWorkflows()) walk(w.getStatements(), c);
         TaskChecks.run(c);
         ControlChecks.run(c);
+        ChildChecks.run(c);
         RewindChecks.run(c);
         DecisionChecks.run(c);
         ClassifierChecks.run(c);

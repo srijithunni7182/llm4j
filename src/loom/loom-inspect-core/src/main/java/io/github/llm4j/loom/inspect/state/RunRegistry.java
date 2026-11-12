@@ -299,11 +299,74 @@ public final class RunRegistry {
     public List<Map<String, Object>> summaries() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (RunState r : runs.values()) out.add(r.summary());
+        linkChildren(out);
         out.sort(
                 (x, y) ->
                         String.valueOf(y.get("lastEventAt"))
                                 .compareTo(String.valueOf(x.get("lastEventAt"))));
         return out;
+    }
+
+    /**
+     * The children a run has started, as short summaries (status, tokens, elapsed), for its page
+     * (decision D16). Empty for a run that started none.
+     */
+    public List<Map<String, Object>> childrenOf(RunState run) {
+        String id = run.runId();
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (id == null) return out;
+        for (RunState r : runs.values())
+            if (id.equals(r.parentRunId()) && r.client().equals(run.client())) out.add(r.summary());
+        out.sort((x, y) -> String.valueOf(x.get("startedAt")).compareTo(String.valueOf(y.get("startedAt"))));
+        return out;
+    }
+
+    /**
+     * A parent's summary says how many children it has in each status ({@code children}) and what
+     * it cost with them ({@code costWithChildren}): the parent's budget is the limit for the whole
+     * tree, so its cost view is the total.
+     */
+    @SuppressWarnings("unchecked")
+    private static void linkChildren(List<Map<String, Object>> summaries) {
+        Map<String, Map<String, Object>> byRun = new java.util.HashMap<>();
+        for (Map<String, Object> s : summaries)
+            if (s.get("runId") != null) byRun.put(s.get("client") + "/" + s.get("runId"), s);
+        Map<String, java.math.BigDecimal> total = new java.util.HashMap<>();
+        for (Map<String, Object> s : summaries) {
+            String parent = (String) s.get("parent");
+            if (parent == null) continue;
+            Map<String, Object> p = byRun.get(s.get("client") + "/" + parent);
+            if (p == null) continue;
+            Map<String, Object> counts = (Map<String, Object>) p.computeIfAbsent("children", k -> new java.util.LinkedHashMap<String, Object>());
+            counts.merge(String.valueOf(s.get("status")), 1, (a, b) -> (Integer) a + (Integer) b);
+        }
+        for (Map<String, Object> s : summaries) {
+            java.math.BigDecimal sum = cost(s);
+            // a child's own children are already in its cost, so walk up: add this run to every ancestor
+            Map<String, Object> up = s;
+            int hops = 0;
+            while (up.get("parent") != null && hops++ < 16) {
+                Map<String, Object> p = byRun.get(up.get("client") + "/" + up.get("parent"));
+                if (p == null) break;
+                total.merge(p.get("client") + "/" + p.get("runId"), sum, java.math.BigDecimal::add);
+                up = p;
+            }
+        }
+        for (Map<String, Object> s : summaries)
+            if (s.containsKey("children")) {
+                java.math.BigDecimal sum = cost(s).add(total.getOrDefault(s.get("client") + "/" + s.get("runId"), java.math.BigDecimal.ZERO));
+                ((Map<String, Object>) s.get("totals")).put("costWithChildren", sum.toPlainString());
+            }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.math.BigDecimal cost(Map<String, Object> summary) {
+        Object c = ((Map<String, Object>) summary.get("totals")).get("cost");
+        try {
+            return new java.math.BigDecimal(String.valueOf(c));
+        } catch (NumberFormatException e) {
+            return java.math.BigDecimal.ZERO;
+        }
     }
 
     /** One view per run, in no particular order. */

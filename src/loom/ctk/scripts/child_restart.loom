@@ -1,0 +1,15 @@
+// Canonical CTK test: child_restart
+// A parent that waits for a child that is asleep suspends with it. Run again after the wake time, it finds the same
+// child by its run id and carries on: the task Lookup, after the sleep, runs exactly once across the restart.
+
+workflow Child(topic) {
+    sleep 1h
+    run Lookup(topic = topic) -> found
+    return found
+}
+
+workflow main() {
+    start Child(topic = "peru") budget { tokens: 1000 } -> work
+    wait work timeout 5h -> findings
+    note "done"
+}

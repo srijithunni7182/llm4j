@@ -40,6 +40,16 @@ public final class StatementText {
         if (s instanceof SetStmt s2) return "set " + s2.getName();
         if (s instanceof ReturnStmt) return "return";
         if (s instanceof HaltStmt) return "halt";
+        if (s instanceof io.github.llm4j.loom.ast.StartStmt x)
+            return "start " + x.getWorkflow();
+        if (s instanceof io.github.llm4j.loom.ast.WaitStmt x)
+            return "wait " + (x.isAll() ? "all " : "") + x.getTarget().describe();
+        if (s instanceof io.github.llm4j.loom.ast.CancelStmt x)
+            return "cancel " + x.getTarget().describe();
+        if (s instanceof io.github.llm4j.loom.ast.SteerStmt x)
+            return "steer " + x.getTarget().describe();
+        if (s instanceof io.github.llm4j.loom.ast.SuperviseStmt x)
+            return "supervise " + x.getTarget().describe();
         if (s instanceof NoteStmt) return "note";
         if (s instanceof SleepStmt) return "sleep";
         if (s instanceof ParallelStmt) return "parallel";

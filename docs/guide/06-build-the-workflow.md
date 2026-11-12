@@ -490,3 +490,7 @@ What to know before you cut (each of these has caught people out):
 If an agent loops on tools: it has a `context` block, or you decided with the user that it does not need one ([chapter 14](14-context-and-compaction.md)). Every `run` and `delegate` whose failure matters has a `retry`, an `on_failure`, or a written decision to let the run fail.
 
 `weave check your.loom` passes (next chapter), and the script uses the prompts and temperatures you tested, unchanged.
+
+## When the work splits into pieces that run at once
+
+`call` runs a workflow to the end. When pieces can run at the same time and you want to watch them, use `start`, `wait`, `cancel` and `supervise` (the guide's [Starting workflows and supervising them](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise); pattern 12 of the patterns skill, and the starter set's number 18). Every `start` carries a budget, a handle is never given to a model, and a child's outcome is a value the script reads (`work is ok`). Test it with `weave test`: `starts:`, `children:`, `fired:` and `judges:`.

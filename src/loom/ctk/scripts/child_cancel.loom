@@ -1,0 +1,17 @@
+// Canonical CTK test: child_cancel
+// A child cancelled before it runs never runs: the cancel is recorded with its reason, the child's status is
+// "cancelled", and the task it would have run is never called.
+
+workflow Child(topic) {
+    run Lookup(topic = topic) -> found
+    return found
+}
+
+workflow main() {
+    start Child(topic = "peru") budget { tokens: 1000 } -> work
+    cancel work reason "not needed"
+    wait work timeout 1m
+    alt (work is ok) {
+        halt "a cancelled child must not be ok"
+    }
+}

@@ -36,6 +36,7 @@
     outcome: { name: 'Stop outcome', glyph: 'stop', shape: 'sharp', h: 40, c: 0.08 },
     observe: { name: 'Observe', glyph: 'eye', shape: 'sharp', h: 250, c: 0.03 },
     sleep: { name: 'Sleep', glyph: 'eyeclosed', shape: 'sharp', h: 250, c: 0.03 },
+    child: { name: 'Started workflow', glyph: 'callout', shape: 'double', h: 330, c: 0.09 },
     unknown: { name: 'Step', glyph: 'unknown', shape: 'sharp', h: 250, c: 0.012 }
   };
 
@@ -46,6 +47,7 @@
     delegate: 'agent', handoff: 'agent', broadcast: 'agent', task: 'task', loop: 'loop', foreach: 'loop',
     human_prompt: 'human', note: 'note', start: 'term', end: 'term', parallel: 'parallel', call: 'call',
     guardrail: 'guardrail', decide: 'decide', checkpoint: 'checkpoint', rewind: 'rewind', observe: 'observe', sleep: 'sleep', outcome: 'outcome',
+    child_start: 'child', child_wait: 'human', child_cancel: 'exit', child_watch: 'observe',
     halt: 'exit', set: 'note', return: 'term'
   };
 

@@ -62,6 +62,9 @@ final class A2AAudit {
                             targets.addAll(b.getTargetAgents());
                         } else if (s instanceof CallStmt c) {
                             collect(script, c.getWorkflowName(), agents, seen);
+                        } else if (s instanceof io.github.llm4j.loom.ast.StartStmt st) {
+                            // a started workflow is part of the one that starts it (phase 33, D15)
+                            collect(script, st.getWorkflow(), agents, seen);
                         }
                         for (String t : targets) if (known.contains(t)) agents.add(t);
                     });

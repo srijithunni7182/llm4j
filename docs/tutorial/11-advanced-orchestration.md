@@ -352,6 +352,46 @@ workflow Main(goal) {
 
 The progress is now typed, **journaled** (a resumed run continues from it, as starter [16-step-by-step-agent](../../src/loom/starters/16-step-by-step-agent/) proves), **bounded** by `max`, drawn in the graph, and testable, and compaction cannot remove it. No new construct was needed.
 
+## Starting a workflow and watching it
+
+`call` runs a workflow to the end before the next line. Sometimes you want the opposite: start several workflows at once, keep an eye on them, step in when one goes wrong, and wait for the rest. `start` does that. It gives the workflow a **run of its own** (a *child*), hands you a **handle** at once, and the script carries on.
+
+```loom
+substitution: braces
+
+budget { tokens: 300000 }
+
+agent Researcher { model: "gemini-2.5-flash" system: "Research the topic in a short paragraph." }
+
+workflow Research(topic) {
+    delegate "Research: {topic}" to Researcher -> notes
+    return notes
+}
+
+workflow Main(topic) {
+    start Research(topic = topic) timeout 10m budget { tokens: 100000 } -> work
+    supervise work {
+        when tokens > 90000 { cancel use partial }
+    }
+    wait work timeout 12m -> findings
+    alt (work is ok) {
+        return findings
+    }
+    halt "the research did not finish: {work.status}"
+}
+```
+
+Read it top to bottom:
+
+- **`start`** needs a `budget`: the child can never spend more than that, and what it spends also counts against yours, so your own `budget` is still the limit for the whole run. A `start` is refused, with a message, if you could not pay for it.
+- **`supervise work { ... }`** watches the child while it runs. Here one rule: if it has used more than 90,000 tokens, cancel it and keep what it had. A rule is a count, not an opinion. You can also write checks in code (`assert never calls shell { cancel }`) and, when only a model can tell, ask a judge (`assert "stays on topic" using TopicJudge every 2m max 4 { steer "Go back to the topic." }`), which sees facts about what the child did and not what it wrote.
+- **`wait work timeout 12m -> findings`** waits for the child. It always has a timeout, and it returns when the child is done or the time is up.
+- **`work is ok`** is true only if the child finished with a result. A child that failed, was cancelled or timed out is a *value* you can read (`work.status`), not an exception that stops your script.
+
+Two promises are worth knowing. If your run is killed and started again, it finds the **same child** by its run id and no step happens twice. And a child never outlives the run that started it: when yours ends, the children still going are cancelled first.
+
+Starter [18-supervise-workflows](../../src/loom/starters/18-supervise-workflows/) starts one researcher for each topic of a plan, with rules and a judge, and `weave test` runs it with scripted models and a virtual clock. The full reference is [the guide](../../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise).
+
 ## Putting a workflow under control from outside
 
 A running workflow can be reached by other programs and people:
@@ -369,5 +409,6 @@ A running workflow can be reached by other programs and people:
 1. In starter [13-rewind-and-retry](../../src/loom/starters/13-rewind-and-retry/), change `side effects: keep` to `ask first` and add a `webhook` tool to the Writer. What does `weave check` warn about?
 2. Run `weave autonomy status` against a store where you ran starter 15 a few times by hand.
 3. Add a second schedule to starter 11 with `every: 6h`.
+4. In starter [18-supervise-workflows](../../src/loom/starters/18-supervise-workflows/), lower the first rule to `when tokens > 50000` and run `weave test`. Which case now fails, and why?
 
 Next: [Running it for real](12-running-for-real.md).

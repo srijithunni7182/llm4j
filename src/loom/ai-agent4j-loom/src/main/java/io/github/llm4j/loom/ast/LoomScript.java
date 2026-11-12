@@ -158,6 +158,8 @@ public class LoomScript implements Node {
     private String mediaRoot;
     private Long mediaMaxBytes;
     private Integer mediaMaxItems;
+    private Integer maxChildren;
+    private Integer maxDepth;
 
     /**
      * The folder attached files must be under ({@code media_root: "./assets"}), as written; null
@@ -187,6 +189,24 @@ public class LoomScript implements Node {
 
     public void setMediaMaxItems(Integer mediaMaxItems) {
         this.mediaMaxItems = mediaMaxItems;
+    }
+
+    /** {@code max_children: N}: the most children this script may have running, or null. */
+    public Integer getMaxChildren() {
+        return maxChildren;
+    }
+
+    public void setMaxChildren(Integer maxChildren) {
+        this.maxChildren = maxChildren;
+    }
+
+    /** {@code max_depth: N}: how many levels of started workflows this script allows, or null. */
+    public Integer getMaxDepth() {
+        return maxDepth;
+    }
+
+    public void setMaxDepth(Integer maxDepth) {
+        this.maxDepth = maxDepth;
     }
 
     /**

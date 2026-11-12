@@ -39,9 +39,18 @@ final class VirtualClock extends Clock implements Sleeper {
         return start.plusMillis(elapsedMillis.get());
     }
 
+    private volatile Runnable afterAdvance = () -> {};
+
+    /** Called after every move of the clock: how a supervisor of started workflows takes its look. */
+    void afterAdvance(Runnable listener) {
+        this.afterAdvance = listener;
+    }
+
     @Override
     public void sleep(Duration duration) {
-        if (!duration.isNegative()) elapsedMillis.addAndGet(duration.toMillis());
+        if (duration.isNegative()) return;
+        elapsedMillis.addAndGet(duration.toMillis());
+        afterAdvance.run();
     }
 
     /** How long the case has waited, in virtual time. */

@@ -1,0 +1,19 @@
+// Canonical CTK test: child_start_wait
+// A workflow started as a child run of its own: the parent goes on at once, waits, and reads the outcome as a value.
+// A runtime keeps the child's run apart from the parent's (its own journal, found again by a deterministic id) and
+// reports status "completed" only for a child that ended with a result. The task Lookup is code supplied by the runtime.
+
+workflow Child(topic) {
+    run Lookup(topic = topic) -> found
+    return found
+}
+
+workflow main() {
+    start Child(topic = "peru") budget { tokens: 1000 } -> work
+    wait work timeout 1m -> findings
+    alt (work is ok) {
+        note "completed"
+    } else {
+        halt "the child did not complete"
+    }
+}

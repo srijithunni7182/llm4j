@@ -3,6 +3,7 @@ package io.github.llm4j.loom.execution;
 import io.github.llm4j.loom.runtime.RunStopped;
 import io.github.llm4j.loom.runtime.RunSuspended;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,7 @@ public final class LoomRun {
     private volatile Status status = Status.RUNNING;
     private volatile Throwable failure;
     private final Runnable body;
+    private final io.github.llm4j.loom.runtime.ChildHandle attachedTo;
 
     private LoomRun(
             HarnessExecutor executor,
@@ -54,6 +56,7 @@ public final class LoomRun {
             java.util.function.Consumer<LoomRun> onDone) {
         this.executor = executor;
         this.origin = origin;
+        this.attachedTo = null;
         this.body =
                 () -> {
                     try (AutoCloseable registered = LiveRuns.shared().register(label, executor)) {
@@ -76,6 +79,27 @@ public final class LoomRun {
                         }
                     }
                 };
+    }
+
+    /** A view of a child run started by a script: its state is the handle's, its controls are the executor's. */
+    private LoomRun(HarnessExecutor executor, String origin, io.github.llm4j.loom.runtime.ChildHandle handle) {
+        this.executor = executor;
+        this.origin = origin;
+        this.attachedTo = handle;
+        this.body = () -> {};
+    }
+
+    /**
+     * The runs the script of this one has started and not yet ended, each a run of its own with
+     * the same controls ({@code steer}, {@code wrapUp}, {@code cancel}, {@code pause}, {@code
+     * resume}, {@link #await}). Steering still needs a {@code steerable} agent and is journaled
+     * with its origin (decision D18).
+     */
+    public List<LoomRun> children() {
+        List<LoomRun> out = new java.util.ArrayList<>();
+        for (HarnessExecutor.ChildView c : executor.startedChildren())
+            out.add(new LoomRun(c.executor(), origin, c.handle()));
+        return out;
     }
 
     /**
@@ -125,16 +149,36 @@ public final class LoomRun {
     }
 
     public Status status() {
+        if (attachedTo != null)
+            return switch (attachedTo.status()) {
+                case RUNNING -> Status.RUNNING;
+                case SLEEPING, WAITING -> Status.SUSPENDED;
+                case COMPLETED -> Status.COMPLETED;
+                case FAILED -> Status.FAILED;
+                case STOPPED, CANCELLED, TIMED_OUT -> Status.STOPPED;
+            };
         return status;
     }
 
     /** Why the run did not complete (the suspension, the stop, or the error), or null. */
     public Throwable failure() {
+        if (attachedTo != null) {
+            Object why = attachedTo.fact("failure") != null ? attachedTo.fact("failure") : attachedTo.fact("reason");
+            return why == null ? null : new IllegalStateException(String.valueOf(why));
+        }
         return failure;
     }
 
     /** Waits for the run to end; false if it is still going after {@code timeout}. */
     public boolean await(Duration timeout) throws InterruptedException {
+        if (attachedTo != null) {
+            long deadline = System.nanoTime() + timeout.toNanos();
+            while (!attachedTo.status().isSettled()) {
+                if (System.nanoTime() >= deadline) return false;
+                Thread.sleep(10);
+            }
+            return true;
+        }
         return done.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 

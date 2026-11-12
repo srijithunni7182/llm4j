@@ -643,6 +643,66 @@ public final class LoomHost implements AutoCloseable {
         return assemble(runId, true);
     }
 
+    /** Where started workflows keep their runs: a sibling run in the host's persistence (D3). */
+    private io.github.llm4j.loom.execution.ChildRuns childRuns() {
+        return new io.github.llm4j.loom.execution.ChildRuns() {
+            @Override
+            public io.github.llm4j.loom.runtime.RunJournal openJournal(String childRunId) {
+                return persistence.journal(childRunId);
+            }
+
+            @Override
+            public void prepared(String childRunId, HarnessExecutor child) {
+                // a child is watched like any run the host starts
+                if (o.observe != null) {
+                    if (o.scriptFile != null) o.observe.attach(child.observable(), o.scriptFile);
+                    else o.observe.attach(child.observable());
+                }
+            }
+
+            @Override
+            public void record(String childRunId, String parentRunId, String workflow) {
+                if (registry.find(childRunId).isPresent()) return;
+                Instant now = clock.instant();
+                registry.save(
+                        new RunRecord(
+                                childRunId,
+                                workflow,
+                                Map.of(),
+                                "child of " + parentRunId,
+                                RunRecord.Status.RUNNING,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                now,
+                                now,
+                                parentRunId));
+            }
+
+            @Override
+            public void settled(
+                    String childRunId, io.github.llm4j.loom.runtime.ChildStatus status) {
+                RunRecord.Status mapped =
+                        switch (status) {
+                            case COMPLETED -> RunRecord.Status.COMPLETED;
+                            case FAILED -> RunRecord.Status.FAILED;
+                            case STOPPED, CANCELLED, TIMED_OUT -> RunRecord.Status.STOPPED;
+                            case SLEEPING, WAITING -> RunRecord.Status.SUSPENDED;
+                            case RUNNING -> RunRecord.Status.RUNNING;
+                        };
+                registry.find(childRunId)
+                        .ifPresent(
+                                r ->
+                                        registry.save(
+                                                r.with(
+                                                        mapped, null, null, null, null,
+                                                        status.word(), clock.instant())));
+            }
+        };
+    }
+
     private HarnessExecutor assemble(String runId, boolean forRun) {
         HarnessExecutor ex = new HarnessExecutor(script, tools, models);
         if (o.baseDir != null) ex.setBaseDir(o.baseDir);
@@ -654,6 +714,7 @@ public final class LoomHost implements AutoCloseable {
         ex.setLenient(o.lenient);
         if (!o.toolReach.isEmpty()) ex.setToolReach(o.toolReach);
         if (o.taskRegistry != null) ex.setTaskRegistry(o.taskRegistry);
+        if (o.childLimits != null) ex.setChildLimits(o.childLimits);
         if (o.promptRegistry != null) ex.setPromptRegistry(o.promptRegistry);
         if (o.priceTable != null) ex.setPriceTable(o.priceTable);
         if (o.maxTokens != null || o.maxCalls != null || o.maxCost != null)
@@ -669,6 +730,7 @@ public final class LoomHost implements AutoCloseable {
                 ex.setRunId(runId);
                 ex.setRunLocator(persistence.locator(runId));
                 ex.setTriggerStore(persistence.triggers());
+                ex.setChildRuns(childRuns());
                 if (human == null)
                     human = new HostHumanInterface(runId, answers, o.listeners, clock);
             } else {
@@ -807,6 +869,7 @@ public final class LoomHost implements AutoCloseable {
         private final ToolRegistry tools;
         private final LLMClientFactory models;
         private Persistence persistence = Persistence.none();
+        private io.github.llm4j.loom.execution.ChildLimits childLimits;
         private Path baseDir;
         private String scriptRef;
         private Path scriptFile;
@@ -839,6 +902,16 @@ public final class LoomHost implements AutoCloseable {
             this.script = java.util.Objects.requireNonNull(script, "script");
             this.tools = java.util.Objects.requireNonNull(tools, "tools");
             this.models = java.util.Objects.requireNonNull(models, "models");
+        }
+
+        /**
+         * The ceilings a script's {@code max_children} and {@code max_depth} may not pass, and so
+         * how large a tree of started workflows can get under this host. The default allows a
+         * script four times the defaults of 8 children and 2 levels.
+         */
+        public Builder childLimits(io.github.llm4j.loom.execution.ChildLimits limits) {
+            this.childLimits = java.util.Objects.requireNonNull(limits, "limits");
+            return this;
         }
 
         public Builder persistence(Persistence p) {

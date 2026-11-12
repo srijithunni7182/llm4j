@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+
+- **Starting and supervising workflows.** `start`, `wait`, `cancel`, `steer`, `supervise` on a handle and `assert` are highlighted and have hover help, with a `start` snippet that passes `weave check`. The graph draws a started workflow, a wait, a cancel and the rules that watch it, with a dotted line from the `start` to what uses its handle. Needs the engine's child runs (phase 33).
+
 ## 1.4.0
 
 - **Remote agents (A2A).** `remote`, `agent_channel` and `ask`, with their settings `card`, `auth`, `require_signed_card`, `audience` and `max_questions`, are highlighted and have hover help; three snippets (`remote`, `agent-channel`, `ask`) that pass `weave check`. The graph draws a call to a remote agent and an `ask`, with its card host and timeout on the node. Go to definition, references and rename follow a remote's name. Needs the engine's A2A support (phase 32c). `expose` (with `text_input` and `max_input`) is highlighted and has hover help, with an `expose` snippet; `weave card` prints what an exposed workflow shows outsiders. Needs the engine's `expose` and `weave card` (phase 32d).

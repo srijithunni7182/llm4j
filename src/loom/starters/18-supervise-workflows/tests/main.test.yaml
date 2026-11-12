@@ -1,0 +1,56 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: three researchers run as children, none is steered or cancelled, and the editor combines them
+    input: { question: "How do solar roofs work?" }
+    judges: { TopicJudge: [pass, pass, pass] }
+    models:
+      Planner:
+        topics:
+          - { name: panels, topic: "How panels make power" }
+          - { name: cost, topic: "What they cost" }
+          - { name: roofs, topic: "Which roofs suit them" }
+      Researcher: ["Panels turn light into current.", "They cost about as much as a car.", "South facing roofs suit them."]
+      Editor: "One report."
+    expect:
+      result: { contains: "One report" }
+      starts: [ Research, Research, Research ]
+      children: { Research: { status: completed } }
+      fired: []
+      calls: { Planner: 1, Researcher: 3, Editor: 1 }
+  - name: a researcher that spends past its rule is cancelled and the others finish
+    input: { question: "How do solar roofs work?" }
+    models:
+      Planner:
+        topics:
+          - { name: panels, topic: "How panels make power" }
+      Researcher: "A very long answer."
+      Editor: "A report with a gap."
+    usage:
+      Researcher: { in: 60000, out: 40000 }
+    expect:
+      result: { contains: "gap" }
+      children: { Research: { status: cancelled, reason: "supervise rule 0" } }
+      fired: [ { rule: 0, action: cancel } ]
+  - name: a researcher that fails is a value, and the editor still runs
+    input: { question: "How do solar roofs work?" }
+    models:
+      Planner:
+        topics:
+          - { name: panels, topic: "How panels make power" }
+      Researcher: "x"
+      Editor: "A report without the panels."
+    fail:
+      Researcher: { always: true, category: server_error }
+    expect:
+      result: { contains: "without the panels" }
+      children: { Research: { status: failed } }
+      calls: { Editor: 1 }
+  - name: an empty plan starts nothing and still ends cleanly
+    input: { question: "Nothing to research" }
+    models:
+      Planner: { topics: [] }
+      Editor: "Nothing to report."
+    expect:
+      starts: 0
+      calls: { Researcher: 0, Editor: 1 }

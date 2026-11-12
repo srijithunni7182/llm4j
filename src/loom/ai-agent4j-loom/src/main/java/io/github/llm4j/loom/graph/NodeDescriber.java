@@ -191,6 +191,26 @@ final class NodeDescriber {
             return new Described(Kinds.OBSERVE, "observe " + o.getLabel())
                     .attrs(Attrs.create().text("text", o.getExpression()));
         }
+        if (st instanceof io.github.llm4j.loom.ast.StartStmt x) {
+            return new Described(Kinds.CHILD_START, "start " + x.getWorkflow())
+                    .attrs(Attrs.create().text("workflow", x.getWorkflow()).text("handle", x.getTarget().describe()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.WaitStmt x) {
+            return new Described(Kinds.CHILD_WAIT, "wait " + (x.isAll() ? "all " : "") + x.getTarget().describe())
+                    .attrs(Attrs.create().text("handle", x.getTarget().describe()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.CancelStmt x) {
+            return new Described(Kinds.CHILD_CANCEL, "cancel " + x.getTarget().describe())
+                    .attrs(Attrs.create().text("handle", x.getTarget().describe()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.SteerStmt x) {
+            return new Described(Kinds.CHILD_WATCH, "steer " + x.getTarget().describe())
+                    .attrs(Attrs.create().text("handle", x.getTarget().describe()).text("what", "steer " + x.getAgent()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.SuperviseStmt x) {
+            return new Described(Kinds.CHILD_WATCH, "supervise " + x.getTarget().describe())
+                    .attrs(Attrs.create().text("handle", x.getTarget().describe()).text("what", "supervise"));
+        }
         if (st instanceof SleepStmt z) {
             return new Described(Kinds.SLEEP, "sleep " + z.getText())
                     .attrs(Attrs.create().text("duration", z.getText()));

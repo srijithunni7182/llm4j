@@ -31,6 +31,11 @@ public final class LiveRuns {
         return () -> runs.remove(entry);
     }
 
+    /** The label a run is registered under, if it is. */
+    public java.util.Optional<String> labelOf(HarnessExecutor executor) {
+        return runs.stream().filter(e -> e.executor() == executor).map(Entry::label).findFirst();
+    }
+
     public List<Entry> all() {
         return new ArrayList<>(runs);
     }

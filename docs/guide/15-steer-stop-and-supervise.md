@@ -144,3 +144,7 @@ The same controls are in the library, without Loom:
 - Every rewind names a declared checkpoint and a limit.
 - An agent that can loop has a `supervise` rule, or the user decided it does not need one.
 - `weave check` and `weave audit` pass, and the user knows how a person reaches the run (console, chat or application) and who is allowed to.
+
+## Supervising a whole started workflow
+
+Everything above watches one agent. To watch a *workflow* you started with `start`, put a `supervise <handle> { ... }` block after it: counted rules (`when tokens > 90000 { cancel use partial }`), assertions in code (`assert never calls shell { cancel }`) and judged assertions that see facts and not content. See [Starting workflows and supervising them](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise).

@@ -175,3 +175,17 @@ test('remote and ask have their own look: a remote is drawn dashed, apart from a
   assert.equal(G.kinds.remote.dashed, true);
   assert.equal(G.kinds.ask.k, 'human');
 });
+
+test('a started workflow, its wait and the dotted handle edge are drawn, not shown as unknown steps', () => {
+  const g = { nodes: [
+    { id: 'start', kind: 'start', label: 'Start' },
+    { id: 'n1', kind: 'child_start', label: 'start Research', attrs: { workflow: 'Research', handle: 'work' } },
+    { id: 'n2', kind: 'child_wait', label: 'wait work', attrs: { handle: 'work' } },
+    { id: 'end', kind: 'end', label: 'End' }],
+    edges: [{ from: 'start', to: 'n1' }, { from: 'n1', to: 'n2' }, { from: 'n1', to: 'n2', label: 'handle' }, { from: 'n2', to: 'end' }] };
+  const svg = G.svgText(g, {});
+  assert.ok(svg.includes('start Research') && svg.includes('wait work'));
+  assert.ok(svg.includes('>handle work<'), 'the handle is the subtitle of the start');
+  assert.ok(svg.includes('lg-e-handle'), 'the handle edge is drawn dotted');
+  assert.ok(svg.includes('Handle: from a start'), 'and the key explains it');
+});
