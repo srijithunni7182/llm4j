@@ -264,9 +264,12 @@ final class ChildChecks {
 
     private static void resultReads(ScriptValidator.Checker c, WorkflowDef w, Set<String> handles) {
         Set<String> guarded = new HashSet<>();
+        Map<String, String> outcomes = new LinkedHashMap<>(); // the variable a single wait fills -> its handle
         StatementWalker.walk(
                 w.getStatements(),
                 s -> {
+                    if (s instanceof WaitStmt x && !x.isAll() && x.getResultVariable() != null)
+                        outcomes.put(x.getResultVariable(), x.getTarget().name());
                     String condition =
                             s instanceof AltStmt a ? a.getCondition() : s instanceof LoopStmt l ? l.getCondition() : null;
                     if (condition == null) return;
@@ -280,6 +283,12 @@ final class ChildChecks {
                     for (SubstitutedText.Entry e : SubstitutedText.entries(s)) {
                         Matcher m = PLACEHOLDER.matcher(e.text());
                         while (m.find()) {
+                            if (outcomes.containsKey(m.group(1)) && !guarded.contains(outcomes.get(m.group(1))))
+                                c.warn(
+                                        s.getLine(),
+                                        e.position(),
+                                        m.group(1) + " is read without checking the child finished: it holds no result unless the child completed, and reading it then is an error. Guard it: alt ("
+                                                + outcomes.get(m.group(1)) + " is ok) { ... }.");
                             if (handles.contains(m.group(1))
                                     && m.group(3) != null
                                     && (m.group(3).equals(".result") || m.group(3).equals(".partial"))

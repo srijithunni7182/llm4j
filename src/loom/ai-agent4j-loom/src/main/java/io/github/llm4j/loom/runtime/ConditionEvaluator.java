@@ -189,6 +189,7 @@ public class ConditionEvaluator {
     }
 
     private static Object getProperty(Object obj, String field) {
+        if (obj instanceof Unavailable gone) throw new IllegalStateException(gone.message());
         if (obj instanceof ChildHandle handle) {
             return handle.fact(field);
         }

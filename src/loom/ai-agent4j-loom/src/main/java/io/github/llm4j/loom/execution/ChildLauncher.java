@@ -422,6 +422,11 @@ final class ChildLauncher {
             ChildHandle only = handles.values().iterator().next();
             if (only.status() == ChildStatus.COMPLETED)
                 executor.bind(stmt.getResultVariable(), only.fact("result"), unchecked);
+            else // not nothing: a value that raises the status error when it is read (33-D9, F2)
+                executor.bind(
+                        stmt.getResultVariable(),
+                        io.github.llm4j.loom.runtime.Unavailable.of(only.workflow(), only.status().word()),
+                        Provenance.NOT_MODEL);
         }
     }
 

@@ -111,7 +111,8 @@ class StartWaitEngineTest {
                                 }
                                 """);
 
-        assertThat(String.valueOf(e.getContext().getVariable("outcome"))).isIn("", "null");
+        // not an empty string that reads like an answer: a value that raises the status error when read (F2)
+        assertThat(e.getContext().getVariable("outcome")).isInstanceOf(io.github.llm4j.loom.runtime.Unavailable.class);
         assertThat(e.getContext().getVariable("verdict")).isEqualTo("not ok");
         assertThat(e.getContext().getVariable("seen")).isEqualTo("failed");
         assertThat(e.getContext().getVariable("handled")).isEqualTo("yes");
