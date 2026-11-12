@@ -15,7 +15,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D6 | Declared progress: the syntax and the typing | **taken** (flat typed shape, enum and mixed allowed; contextual `report {` and `progress`) |
 | D7 | Declared progress: what a script may do with it | **taken** (readable; one assertion `progress.<field> changes within`; no rule on content) |
 | D8 | The signal model | **taken** (a mailbox as journal entries, plus `sticky` for state-like signals; no siblings; no explicit monitor; a check for same-name waits in parallel) |
-| D9 | `notify`: forms, payload, provenance | open |
+| D9 | `notify`: forms, payload, provenance | **taken** (placeholders allowed; always `unchecked` on receipt) |
 | D10 | How a signal is received | open |
 | D11 | `wait any`: events and the journaled winner | open |
 | D12 | Waking a suspended child | open |
@@ -164,7 +164,11 @@ notify parent "stuck" "no reliable sources for {topic}"     // child to its star
 - **Placeholders.** A steer's text is literal because it goes into an agent's context as an instruction. A signal's payload goes into a **variable**, so it can carry values with their **provenance** (`unchecked` if model-written), which `weave audit` follows. **Recommendation:** allow placeholders in a signal's payload, forbid them in nothing else; the receiving side reads it as `unchecked`.
 - **A signal never causes an action by itself.** Receiving one binds a value or fires a `supervise` rule; what then happens is written in the script.
 
-**Decision:** open.
+**Decision (owner): option A, placeholders allowed.**
+- **Forms:** `notify <handle> "name" ["text"] [sticky]` (parent to a child) and `notify parent "name" ["text"] [sticky]` (child to its starter). A name is a plain word of up to 40 characters; a payload is optional text of up to 2000 characters (the size of a steer).
+- **Placeholders** in the payload are resolved as `start` arguments are, with a provenance tag. The **receiver always reads the payload as `unchecked`**, even if the sender's values were checked, because it cannot verify what the sender did. A sticky signal's payload follows the same rules, and a later `notify` of the same name replaces the payload too.
+- **A signal never causes an action by itself:** receiving one binds a value or fires a `supervise` rule; what happens next is written in the script.
+- **A signal's payload can never become a steer's text** (a load error, D14): that keeps the injection path closed, since a steer's text stays literal.
 
 ## D10. How a signal is received
 
