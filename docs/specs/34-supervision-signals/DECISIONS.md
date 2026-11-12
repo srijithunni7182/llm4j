@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D11 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D12 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -18,7 +18,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D9 | `notify`: forms, payload, provenance | **taken** (placeholders allowed; always `unchecked` on receipt) |
 | D10 | How a signal is received | **taken** (a child's `wait signal`; in a parent `wait any`, `when signal` and `wait <handle> signal`) |
 | D11 | `wait any`: events and the journaled winner | **taken** (three event kinds; `remaining`; the first return journaled) |
-| D12 | Waking a suspended child | open |
+| D12 | Waking a suspended child | **taken** (a durable wake in two steps: the launch factor and `cancel ... rewind` in 34a, the mailbox wake in 34c) |
 | D13 | Limits and edge cases of signals | open |
 | D14 | Security: signals as an input channel | open |
 | D15 | Testing: signals, a stubbed child, time | open |
@@ -215,7 +215,13 @@ alt (event.kind == "finished") { set results[event.name] = event.result }
 
 **Recommendation: A**, and C is **not** proposed here: a sleeping child's wake-by-timer is a separate gap (read: not present today) and the trigger store and `weave daemon` are the designed route for it; this phase must not widen it. State this plainly in the documentation.
 
-**Decision:** open. **Risk to size first:** the re-run path and its single-flight rule, with the controlled scheduler used in tests (D15).
+**Decision (owner): option A, a durable wake, built in two steps ("durability is important").** Option D (park the child's thread) was weighed and not taken: it would hold a thread per waiting child and stop the process from exiting, against the principle that a started workflow is a run and not a thread.
+**What was read to decide (E0):** the wake pattern already exists for top-level runs: `LoomHost.answer` writes the answer, then `resume` **claims** the run (a second claim is refused), builds a **new executor over the same journal** and re-runs the workflow with the run's recorded inputs; `RemoteTasks.taskChanged` is an **idempotent event wake** (a repeat or stale event does nothing; a wake happens only when the run is suspended for that task). A replayed `start` already does a re-run: `startLocked` builds a new child executor over the child's journal (`deriveChild`) and runs the workflow, which replays what was recorded. `RunSuspended` has the reasons `HUMAN`, `RATE_LIMIT`, `BUDGET_WINDOW`, `SLEEP`, `REMOTE` and `OPERATOR`; a signal wait needs its own.
+- **Step 1, in 34a (reviewed at the gate):** factor the child-launch code out of `startLocked` into one method used by `start` and by a wake; add a **launcher-level monitor** (a condition variable) so the parent's `wait` can wait on child state changes, arrivals and timeouts, not only on a child's task ending; build **`cancel ... rewind to`** (F1) on that, reusing `Rewinder` (the engine behind `weave rewind`) where a child is suspended. This exercises re-running a child with no signals, so the risky machinery is proven before signals use it. *(Correction: DESIGN said F1 needs the re-run path; that is plausible and not yet verified end to end, since a running child may rewind through its own `on_stopped` machinery.)*
+- **Step 2, in 34c:** the mailbox (D8), a new `RunSuspended` reason for a signal wait (about ten files mention the enum, mostly mechanical), and the wake.
+- **Protocol rules:** (1) the wake is **idempotent**, like `taskChanged`: a repeat or stale event does nothing; (2) **single flight**: a wake happens only when the child is `waiting` for that name, claimed under one lock; a `notify` to a running child only writes its entry; (3) **no lost wake-up**: the entry is written first, and after the child records `WAITING` it re-checks its mailbox and wakes itself if an entry is there, so one side always sees it; (4) a signal wait's **timeout** is enforced by the launcher's tick waking the child at its deadline, as `start` deadlines are enforced today; (5) **cancel wins**, through the marker the child already checks before it runs; (6) a child waiting on a signal does **not** make the parent suspend when every child is paused (nothing will wake it but the parent's own timeout): the parent parks until its `wait` times out; (7) the old `Trajectory` is **carried into the new executor** for an in-process wake (after a restart that history is rebuilt only as far as replay allows: not yet read); (8) a `wait signal` in a run with no parent fails with a message.
+- **Not in this phase:** a timer that wakes a *sleeping* child in-process; a sleeping child is still resumed by a replay or `weave daemon`.
+- **Still to confirm by reading before trusting it (P8 to P10 in VERIFICATION):** that a re-run over a child suspended mid-journal behaves as a top-level resume does; that spend is restored for a re-derived child executor; how trace events behave during replay, for the trajectory.
 
 ## D13. Limits and edge cases of signals
 

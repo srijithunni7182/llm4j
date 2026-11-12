@@ -44,6 +44,9 @@ It continues [phase 33's strategy](../33-async-workflows/TEST_STRATEGY.md): the 
 | G29 | **A handle never reaches a prompt, even if the static check is bypassed** (F7) | A runtime assembly path given a handle fails closed. | Removing the guard. |
 | G31 | **A sticky signal is read without being consumed; a message is consumed once, FIFO per name** (D8) | Two waits for one sticky signal both return; two waits for one message name consume two messages in order; a replay reads the same. | Consuming a sticky signal; consuming out of order. |
 | G32 | **Two same-name waits that can be active at once are refused** (D8) | A script with the same `wait signal` name in two branches of one `parallel` fails `weave check`; the same name in sequence or in a loop is accepted. | Dropping the check. |
+| G33 | **A wake is idempotent and single flight** (D12) | A repeated or stale `notify` does nothing; two `notify`s while the child is waking start one run; a wake for a name the child is not waiting for does nothing. | Removing the claim or the name check. |
+| G34 | **A child waiting on a signal does not make the parent suspend** (D12 rule 6) | A parent in `wait` with its only child waiting for a signal parks until its own timeout and returns a timeout event; the process is not suspended. | Treating it as a pause for a person. |
+| G35 | **The trajectory survives an in-process wake** (D12 rule 7) | `assert calls A before B` and the judge's facts are unchanged across a wake. | Starting the new executor with an empty trajectory. |
 | G30 | **The new words stay ordinary words elsewhere** (D17) | `-> report`, `set progress = ...`, a variable named `signal`, `parent` or `any` all still parse and run. | Reserving a word. |
 
 G7 and G13 of phase 33, which were not broken on purpose, are broken on purpose in 34a (F14).

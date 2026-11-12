@@ -33,6 +33,9 @@ Status: **draft for review. Nothing is built; every row is `not built`.** Sectio
 | P4 | How the child's trace reaches `Trajectory`, and what else the trace carries that a progress fact could ride on. | D6, D4. |
 | P5 | `wtest/CaseRunner` child handling beyond the scheduler line: how a case drives a child today and where a stub fits. | F5, D15. |
 | P6 | Fabric: `loom-inspect-core` `Snapshot` and the `loom.run.start` record where the parent attribute was added; what an older console does with an unknown attribute. | F10, D16. |
+| P8 | Whether a re-run over a child **suspended mid-journal** behaves as a top-level resume does (`LoomHost.resume`, `executeWorkflow` over a journal with a missing step entry), and whether `Rewinder` can rewind a suspended child. | D12, F1. |
+| P9 | That **spend is restored** for a re-derived child executor (`BudgetCoordinator.spendRestored`, the `#usage:` journal entries) and that the outer budgets re-installed by `installOuterBudgets` charge correctly after a wake. | D12 rule 7, A9. |
+| P10 | How **trace events behave during a replay** (whether replayed steps emit model-call and tool events), for the `Trajectory` after a restart. | D12 rule 7, G35. |
 | P7 | `HumanInterface` and `RunJournal.answer`: the nearest precedent for a durable external input reaching a suspended run. | D8: the mailbox should follow it. |
 
 ## 1. Acceptance: what must be true when the phase is built
@@ -51,6 +54,7 @@ Every row is `not built`.
 | A8 | A signal is received **exactly once** across a crash at every journal write (G16) and one sent before the wait is not lost (G17) | the kill-point test extended; a unit test | E3 |
 | A9 | A `notify` wakes a waiting child; one run of a child at a time under a racing `notify` (G19) | engine and concurrency tests | E2 and E3 |
 | A9b | A `sticky` signal is read by every wait without being consumed and a message is consumed once, FIFO per name (G31); `weave check` refuses two same-name waits that can be active at once (G32) | tests | E2 |
+| A9c | A wake is idempotent and single flight (G33); a child waiting on a signal does not make the parent suspend (G34); the trajectory survives an in-process wake (G35) | tests | E2 and E3 |
 | A10 | A `notify` to a settled child is a recorded no-op; an old generation's signal is not delivered to a new one (G20); the limits fail loudly (G24) | tests | E2 |
 | A11 | `wait any` returns signal, finished and timeout events; the winner and the cursor are journaled and a replay returns the same (G18) | tests; the kill-point test | E2 and E3 |
 | A12 | `supervise ... when signal "name"` fires on arrival, and its actions' text stays literal (G23) | tests | E2 |
