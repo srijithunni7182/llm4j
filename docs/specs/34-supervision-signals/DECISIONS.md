@@ -1,0 +1,249 @@
+# Phase 34: decisions
+
+Status: **all open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
+
+## Decision log
+
+| | Decision | State |
+|---|---|---|
+| D1 | The scope and staging of this phase | open |
+| D2 | Which v1 gaps are carried into this phase | open |
+| D3 | The judge budget: reserved at `start` | open |
+| D4 | The judge's facts view | open |
+| D5 | A judge-driven demo test | open |
+| D6 | Declared progress: the syntax and the typing | open |
+| D7 | Declared progress: what a script may do with it | open |
+| D8 | The signal model | open |
+| D9 | `notify`: forms, payload, provenance | open |
+| D10 | How a signal is received | open |
+| D11 | `wait any`: events and the journaled winner | open |
+| D12 | Waking a suspended child | open |
+| D13 | Limits and edge cases of signals | open |
+| D14 | Security: signals as an input channel | open |
+| D15 | Testing: signals, a stubbed child, time | open |
+| D16 | Visibility: the ecosystem for v3 | open |
+| D17 | Names: `report`, `progress`, `notify`, `signal`, `any` | open |
+| D18 | What stays out of this phase | open |
+
+## D1. The scope and staging of this phase
+
+**Why.** Three kinds of work are mixed: closing gaps, a first-time feature (progress), and two features that change the runtime (signals, `wait any`). The riskiest part of v3 is waking a suspended child (D12).
+
+- **A. One phase, five sub-phases:** 34a closure of the gaps; 34b declared progress; 34c signals; 34d `wait any`; 34e the ecosystem and closure (the same one-scope rule as phase 33, D16).
+- **B. Two phases:** the closure first and alone (a small phase), then v3.
+- **C. v3 only;** the gaps stay as a list.
+
+**Recommendation: A, with a review gate after 34a.** The closure fixes departures from decisions already taken, so it should land and be looked at before signals are built on top of the same launcher. The ecosystem moves together at the end, as in phase 33.
+
+**Decision:** open.
+
+## D2. Which v1 gaps are carried into this phase
+
+**Why.** The owner asked for the v2 gaps and v3, but eleven v1 gaps are in [phase 33 VERIFICATION §3](../33-async-workflows/VERIFICATION.md): F1 to F11. Four depart from accepted decisions and touch the code v3 builds on.
+
+- **Must carry (they depart from a decision and sit in the launcher):** F1 `cancel ... rewind to` (33-D13); F2 `wait -> r` on an unfinished child binds nothing, so `{r}` reads empty, where 33-D9 asks for an error; F3 the wait timeout on wall time instead of the injected clock, plus the missing test of a wait that times out while a child still runs (33-D8); F5 a stubbed child in `weave test` (33-D17), because D15 here needs it.
+- **Should carry (small and in the same files):** F4 the supervisor's worst-case cost in `weave review` and `generate` (more important once judges and signals add cost); F6 `weave why` on a child folder; F7 a runtime guard that stops a handle reaching a prompt; F8 a test that drives a sleeping child; F9 the two warnings.
+- **Carry with the ecosystem (34e):** F10 the live page's JavaScript and an old console against a new process; F11 the root README, the workflow-guide skill row, the parser-parity baseline and the tutorial chapter.
+
+**Recommendation:** carry all of F1 to F11 as sub-phase 34a (F10 and F11 in 34e), so nothing from phase 33 stays on a list.
+
+**Decision:** open.
+
+## D3. The judge budget: reserved at `start` (F12, 33-D27)
+
+**Why.** 33-D27 said the judge's budget is reserved from the parent together with the child's, so a `start` is refused if the parent cannot cover both. The build charges the judge budget but does not reserve it at `start` (read: `ChildLauncher.supervise` builds the judge budget when the `supervise` statement runs, after the `start`).
+
+- **A. Pair statically.** `weave check` pairs a `start` with the `supervise` of the same handle in the same block; the reservation at `start` includes that `supervise`'s judge budget. A `supervise` it cannot pair (a handle supervised elsewhere) reserves at its own execution and may fail then, with a message.
+- **B. Reserve at the `supervise` only** (the present behaviour, made explicit): a parent can start children it cannot afford to supervise.
+- **C. Require the budget on the `start`** (`start ... budget { ... } judge { tokens: 20000 }`): explicit, but a second place to write the same number.
+
+**Recommendation: A.** It matches what was accepted, adds no syntax, and uses the fact that the script is known.
+
+**Decision:** open.
+
+## D4. The judge's facts view (F13, risk 7 of phase 33)
+
+**Why.** The design expected the judge's facts to come from the evaluation dataset's rendering of "what the run did". The build instead reads the child's own trace (`Trajectory`: calls by name and count, the order each was first called, checkpoints reached, refused calls) plus the counters (read: `Judge.facts`). It is live, needs no dataset, and holds no tool argument or result.
+
+- **A. Keep `Trajectory` and record it as the decision.** The evaluation's rendering is for finished runs under test; a supervisor needs a live view.
+- **B. Add the evaluation's rendering as a second source** so a judged assertion and an `expect:` line describe a run in the same words.
+- **C. Replace `Trajectory` with the evaluation's rendering.**
+
+**Recommendation: A.** It is already built, tested and facts-only; B and C add coupling to the eval module for no gain a user has asked for. Close risk 7 as "not followed, by choice".
+
+**Decision:** open.
+
+## D5. A judge-driven demo test (F15)
+
+**Why.** In starter 18 "steer one that drifts" is shown with a token rule, because the judge needs time to pass; the headline of the 60-second demo uses a judge.
+
+- **A. Add a case to starter 18's tests in which the virtual clock advances and the judge fires** (`judges: { TopicJudge: [ pass, fail ] }`, a `clock:`), so the demo's headline is tested, not just built.
+- **B. Leave as is** and say so.
+
+**Recommendation: A.** E4, running starter 18 by hand with a real key, stays the owner's.
+
+**Decision:** open.
+
+## D6. Declared progress: the syntax and the typing
+
+**Why.** A child can say what it is doing, typed, so a parent (or a person) can read it. It must not break the 37 scripts that use `report` as a variable and the two that use `progress`.
+
+```loom
+workflow Research(topic) progress { stage: string, done: number, of: number } {
+    report { stage: "searching", done: 0, of: 3 }
+    ...
+}
+```
+
+- **The declaration** `progress { field: type, ... }` after the parameter list, with the same types as `output_schema` (`string`, `number`, `boolean`, `enum[...]`); one flat level in v3 (no lists or nested objects).
+- **The statement** `report { field: value, ... }`: recognised only as `report` followed by `{` at the start of a statement; `report` stays an ordinary word everywhere else (`-> report`), and `progress` is only a keyword directly after a workflow's `)`.
+- **Storage.** Each `report` is a journal entry in the child's own journal (`#progress.<n>`, the step id's generation applying), last value wins for reading, earlier values kept as history; so it survives a restart and a rewind shows the value as of the checkpoint.
+- **Bounds.** A report's fields may not exceed 2000 characters in all, and a run may make at most 1000 reports (proposed); a report beyond either bound is **dropped and recorded**, not silently ignored and not an error that stops the child.
+- **Provenance:** `unchecked`. Fields are checked against the declared types at the statement (a mismatch is a failed step), and an undeclared field is a load error.
+
+**Recommendation:** as above. **Open sub-question:** is a flat shape enough, or do you want an `enum` stage only (`progress { stage: enum[...] }`) so a parent can compare with `==`?
+
+**Decision:** open.
+
+## D7. Declared progress: what a script may do with it
+
+**Why.** In phase 33 `supervise` conditions are a closed set of runtime counters (33-D23), which is what makes a rule checkable and free. Progress is written by the child, so it is not a counter.
+
+- **A. Readable only:** `h.progress.stage`, `h.progress.done`, in ordinary expressions (`alt`), after a `wait any` or inside a loop; **not** a `supervise` condition.
+- **B. Also a `supervise` condition**, `when progress.done == 0 for 5m { ... }`: convenient, but a rule would rest on a model-written value (principle 17).
+- **C. A code assertion over progress:** `assert progress.done increases within 5m { steer "..." once }`: no model, a rule over *whether it moves*, not over its content.
+
+**Recommendation: A in this phase, C as the one supervise-side use** (it is the progress analogue of `reaches "<checkpoint>" within`, and it never trusts the value, only that it changed). B is not proposed.
+
+**Decision:** open.
+
+## D8. The signal model
+
+**Why.** 33-D6 and 33-D7 were deferred: what the "monitor" is and whether it is a value or part of the handle. The code answer is already visible: `RunJournal.answer(stepId, value)` is how a person's reply reaches a suspended run, so **a signal can be an entry written into the receiver's journal.**
+
+- **A. A named mailbox per child, in journal entries.** Parent to child: `#sig.in.<name>.<n>` written into the child's journal; child to parent: `#sig.out.<name>.<n>` written into the child's journal and read by the parent through the handle. Consumption is journaled where it happens. Addressed through the handle and the word `parent`.
+- **B. An explicit monitor value** created by the parent and passed to the child (the owner's first wording, 33-D7 B): needed only for sibling-to-sibling signals.
+- **C. A for this phase; B only if siblings must signal each other.**
+
+**Recommendation: C.** One address (principle 18), no new value type, and the journal gives replay and crash safety (principle 16) for free.
+
+**Decision:** open. (**Question for the owner, still standing from 33-D7:** is sibling-to-sibling signalling a requirement? If not, B is out for good.)
+
+## D9. `notify`: forms, payload, provenance
+
+```loom
+notify work["a"] "go"                   // parent to a child
+notify work["a"] "go" "use the 2025 data"
+notify parent "stuck" "no reliable sources for {topic}"     // child to its starter
+```
+
+- **Name:** a plain word (letters, digits, `_`), up to 40 characters. **Payload:** optional text, up to 2000 characters (the size of a steer, `InterventionCoordinator.MAX_STEER_CHARS`).
+- **Placeholders.** A steer's text is literal because it goes into an agent's context as an instruction. A signal's payload goes into a **variable**, so it can carry values with their **provenance** (`unchecked` if model-written), which `weave audit` follows. **Recommendation:** allow placeholders in a signal's payload, forbid them in nothing else; the receiving side reads it as `unchecked`.
+- **A signal never causes an action by itself.** Receiving one binds a value or fires a `supervise` rule; what then happens is written in the script.
+
+**Decision:** open.
+
+## D10. How a signal is received
+
+- **In a child:** `wait signal "go" timeout 10m -> text` (a timeout is required, as for every wait); the child is `waiting` (not `sleeping`) and its status carries `h.waits == "signal go"`.
+- **In a parent, three ways:** (1) **`wait any`** returns an event of kind `signal` (D11); (2) a **`supervise` rule** `when signal "stuck" { steer "..." once }` (declarative, matches the simplification the owner asked for in phase 33; **the payload is not available to the rule's actions**, which stay fixed text); (3) `wait h signal "stuck" timeout T -> text` for one named signal from one child.
+
+**Recommendation:** all three, because they serve different scripts: (2) for a supervisor that reacts, (1) for one that collects, (3) for a simple handshake. Each is small once the mailbox exists.
+
+**Decision:** open.
+
+## D11. `wait any`: events and the journaled winner
+
+```loom
+wait any work timeout 2m -> event
+alt (event.kind == "signal") { ... event.text ... }
+alt (event.kind == "finished") { set results[event.name] = event.result }
+```
+
+- **An event** is a keyed value: `kind` (`finished`, `signal`, `timeout`), `name` (the handle's key), and for `finished` the `status` and `result` (readable only when completed, as 33-D9), for `signal` the signal's `name` and `text`.
+- **Which one wins** when several are ready is not deterministic across runs, so **the first return is journaled** (the winner, and the consumption cursor of every mailbox it read) in the same way `wait` journals its outcome (`ChildLauncher.await`), and a replay returns the recorded event.
+- **Order when several are ready at once:** a fixed rule: signals before finished, then the order the handles were started; recorded either way.
+- **Unconsumed signals stay pending** for the next `wait any` or a `wait signal`; a **finished** child is reported once.
+- **A `timeout` event** returns with the children still running (as `wait`, 33-D8), and is required on every `wait any`.
+- **Limit:** at most `max_children` handles in one `wait any`.
+
+**Recommendation:** as above.
+
+**Decision:** open.
+
+## D12. Waking a suspended child
+
+**Why.** A child that is waiting for a signal has **no thread**: `runChild` catches `RunSuspended` and records `WAITING`, and nothing in the code read resumes it in the same process (read: `ChildHandle.resume()` is called only from `InterventionCoordinator`, for a run-control pause, a different thing). For a signal to reach a waiting child the parent must be able to run it again.
+
+- **A. A resume path in `ChildLauncher`:** a `notify` to a `waiting` child writes the entry (D8) and then **re-runs the child over its journal** on the scheduler, as `weave resume` does for a run, with a single-flight rule (one run of a child at a time, a state machine on the handle: `waiting` to `running` to `waiting` or settled).
+- **B. Only when the parent next waits or replays:** the entry is written and the child resumes at the parent's next `wait`. Simpler, but a `notify` to a waiting child has no effect until then, which defeats the point.
+- **C. A, and also a timer to wake a sleeping child at its wake time in-process** (today a sleeping child is only resumed by the parent's replay).
+
+**Recommendation: A**, and C is **not** proposed here: a sleeping child's wake-by-timer is a separate gap (read: not present today) and the trigger store and `weave daemon` are the designed route for it; this phase must not widen it. State this plainly in the documentation.
+
+**Decision:** open. **Risk to size first:** the re-run path and its single-flight rule, with the controlled scheduler used in tests (D15).
+
+## D13. Limits and edge cases of signals
+
+- **Pending signals per child:** at most 16 per name and 64 in all (proposed); a `notify` beyond the limit **fails** with a message naming the limit (not dropped silently).
+- **`notify` to a settled child:** a **recorded no-op** (not an error), as a cancel of a settled child is (33-D13).
+- **`notify parent` in a workflow that was not started by a parent** (run directly): the script cannot know at load. **Recommendation:** a **recorded no-op at run time**, and a `weave check` warning when a workflow contains `notify parent` and is also the script's entry workflow.
+- **`wait signal` with a name nobody sends:** it times out like any wait.
+- **Signals and a rewind:** the mailbox follows the step id's generation, so a rewind does not replay an old generation's signals into the new one.
+- **Parent ends:** the child is cancelled (33-D10), so unread signals are moot; they stay in the journal as history.
+
+**Recommendation:** as above.
+
+**Decision:** open.
+
+## D14. Security: signals as an input channel
+
+- **An input channel in the audit.** A workflow that reads a signal (`wait signal`, `when signal`, `wait any` with a signal) can have text from another run enter its variables: a new audit rule (proposed **LA30**, after LA28 and LA29), and the oracle gets canary cases in both directions.
+- **Provenance:** a signal's text is `unchecked` on the receiving side; the oracle must show that a parent's model-written text sent to a child is treated as untrusted there, and the reverse.
+- **No signal steers an agent:** a signal's payload cannot become a steer's text (a steer's text stays literal); a rule fires on the *arrival* of a named signal, not on its content.
+- **Authority only narrows:** a child cannot signal anything but its own parent; a parent can signal only handles it started (checked statically and at run time).
+- Declared progress is read-only for the parent and carries `unchecked`; it adds no channel into the child.
+
+**Recommendation:** as above, written before the runtime (the rule and the oracle cases first).
+
+**Decision:** open.
+
+## D15. Testing: signals, a stubbed child, time
+
+- **`weave test` gains `signals:`**, scripting a signal's arrival on the virtual clock (`signals: { work_a: [ { at: 2m, name: stuck, text: "no sources" } ] }`), and **`expect:`** keys for signals sent and received; the stubbed child (F5) scripts `progress` and `signal` steps in the same style as `remotes:`: `children: { Research: [ { state: working, progress: { stage: reading, done: 1, of: 3 }, after: 1m }, { signal: stuck, text: "..." }, { state: completed, result: "..." } ] }`.
+- **Replay and kill-point:** the existing kill-point test is extended to the new journal writes (`#sig.*`, `#progress.*`, the `wait any` entry): kill before every one, resume, and check each signal is received **exactly once** and the winner of a `wait any` is the same.
+- **The controlled scheduler** (`ControlledChildScheduler`, read: children run one at a time when waited for) is extended so a woken child re-runs deterministically.
+
+**Recommendation:** as above.
+
+**Decision:** open.
+
+## D16. Visibility: the ecosystem for v3
+
+The whole ecosystem moves together (the rule of phase 33, D16): graph kinds (`child_notify`, `child_signal_wait`, `child_wait_any`, following the `child_*` naming the owner settled), `weave explain` sentences, `weave timeline` and `why` (signals and progress as events of the child's run), Fabric and the live page (pending signal count and the latest progress in the Children section; an additive attribute, with the old-console compatibility test that phase 33 did not do, F10), VS Code (grammar, snippets, hover, the parity baseline, `CHANGELOG`), the compatibility kit, starter 18 extended (a child that asks for help and a supervisor that reacts) or a starter 19, the tutorial (a chapter of its own this time, F11), `LOOM_GUIDE.md` and both README tables, `LOOM_PROMPT.md`, the wiki, `llms.txt`, release notes, `docs/API_COMPATIBILITY.md`, the audit page and the OWASP map, the workflow-guide skill (F11), `llm4j-workflow-patterns` and `llm4j-run-debugging`.
+
+**Recommendation:** as listed, nothing held back; the closure of F10 and F11 happens here.
+
+**Decision:** open.
+
+## D17. Names: `report`, `progress`, `notify`, `signal`, `any`
+
+**Read:** `report` appears as a word in 37 repository scripts, almost always as a variable (`-> report`); `progress` in two (starter 16: `set progress = ...`, `-> progress`); `notify`, `signal` and `event` once each; `any` in 17 (mostly prose); `parent` in 5.
+
+- **`report`** is a statement only as `report {` at the start of a statement; **`progress`** is a keyword only directly after a workflow's `)` and before `{`; **`notify`** only as `notify <handle|parent> "name"`; **`signal`** only after `wait` or inside `supervise` after `when`; **`any`** only after `wait`; **`parent`** only as the first operand of `notify`. All contextual, as `start` and `wait` were (33-D19); `RepositoryScriptsTest` guards every script, and a new test names the cases that must stay ordinary words (`-> report`, `set progress`).
+- **Alternative spellings** if the owner prefers: `status` for `report`; `signal` for `notify`; `send` for `notify`.
+
+**Recommendation:** `report`, `progress`, `notify`, `signal`, `any`, contextual.
+
+**Decision:** open.
+
+## D18. What stays out of this phase
+
+- Signalling between siblings and an explicit monitor value (D8 option B).
+- Waking a *sleeping* child by a timer in-process (D12 option C); the trigger store and `weave daemon` remain the route.
+- `detach` (not wanted), children on other machines, a scheduler or queue of children, a visual builder, collections and a type system (their own phase), a `remote` agent as a child, and `weave generate` for supervisors.
+- Progress as a `supervise` condition on its content (D7 option B).
+- Streaming progress to Fabric as a time series (a refinement of the Children section).
+
+**Decision:** open.
