@@ -626,9 +626,18 @@
                                 <param>io.github.llm4j.loom.execution.Judge</param>
                                 <param>io.github.llm4j.loom.execution.ChildChecks</param>
                                 <param>io.github.llm4j.loom.runtime.ChildHandle</param>
+                                <param>io.github.llm4j.loom.execution.Mailbox</param>
+                                <param>io.github.llm4j.loom.execution.SignalRunner</param>
+                                <param>io.github.llm4j.loom.execution.SignalChecks</param>
+                                <param>io.github.llm4j.loom.execution.ProgressLog</param>
+                                <param>io.github.llm4j.loom.execution.ProgressChecks</param>
+                                <param>io.github.llm4j.loom.execution.ChildMonitor</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.loom.children.*Test</param>
+                                <param>io.github.llm4j.loom.execution.Mailbox*Test</param>
+                                <param>io.github.llm4j.loom.execution.Signal*Test</param>
+                                <param>io.github.llm4j.loom.execution.WaitAny*Test</param>
                                 <param>io.github.llm4j.loom.execution.JudgeTest</param>
                                 <param>io.github.llm4j.loom.execution.ForbiddenCallsTest</param>
                                 <param>io.github.llm4j.loom.execution.ChildSteerTest</param>

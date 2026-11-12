@@ -4,7 +4,7 @@
 
 Loom is a **Neuro-Symbolic Domain Specific Language (DSL)** designed to bridge the gap between the probabilistic world of LLMs (**Neural**) and the deterministic world of business logic (**Symbolic**). 
 
-This guide provides a comprehensive technical reference for setting up, writing, and executing Loom-based agentic workflows. **New to Loom?** Start with the [tutorial](../../../docs/tutorial/README.md) (fourteen chapters with diagrams, from a first workflow to production) and the [starter set](../starters/README.md) (fifteen small, tested workflows to copy). This page is the reference you come back to for every option.
+This guide provides a comprehensive technical reference for setting up, writing, and executing Loom-based agentic workflows. **New to Loom?** Start with the [tutorial](../../../docs/tutorial/README.md) (fifteen chapters with diagrams, from a first workflow to production) and the [starter set](../starters/README.md) (fifteen small, tested workflows to copy). This page is the reference you come back to for every option.
 
 ### ⚒️ The 'weave' CLI Utility
 Loom comes with a built-in CLI called `weave` to simplify the developer experience.

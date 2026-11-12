@@ -49,7 +49,7 @@ Click **👋 Try a demo** and a real workflow runs in front of you: a classifier
 Then make one of your own. 👇
 
 > [!TIP]
-> 🎓 **Want to understand what you are generating, or write a workflow yourself?** The **[Loom tutorial](docs/tutorial/README.md)** teaches the language in fourteen chapters with diagrams, from a first workflow to production, and the **[starter set](src/loom/starters/README.md)** has fifteen small, tested workflows to copy (a router, a review loop, an approval, a daily digest, an agent that earns the right to act alone, and more).
+> 🎓 **Want to understand what you are generating, or write a workflow yourself?** The **[Loom tutorial](docs/tutorial/README.md)** teaches the language in fifteen chapters with diagrams, from a first workflow to production, and the **[starter set](src/loom/starters/README.md)** has fifteen small, tested workflows to copy (a router, a review loop, an approval, a daily digest, an agent that earns the right to act alone, and more).
 
 ---
 

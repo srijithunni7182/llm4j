@@ -64,7 +64,8 @@ You write one text file. A handful of commands check it, test it, review it, run
 | 11 | [Advanced orchestration](11-advanced-orchestration.md) | Checkpoints and rewind, earned autonomy and ladders, schedules, context and compaction, keeping progress in the workflow | [11](../../src/loom/starters/11-daily-digest/), [13](../../src/loom/starters/13-rewind-and-retry/), [15](../../src/loom/starters/15-earned-autonomy/), [16](../../src/loom/starters/16-step-by-step-agent/) |
 | 12 | [Running it for real](12-running-for-real.md) | `weave run`, journals, packaging, deploying, watching, Fabric | [11](../../src/loom/starters/11-daily-digest/), [12](../../src/loom/starters/12-wait-for-a-person/) |
 | 13 | [Plain Java](13-java.md) | Use the agent library directly, embed Loom, write your own tasks and tools, test from JUnit | |
-| 14 | [Cookbook and cheat sheet](14-cookbook.md) | Recipes, mistakes and their fixes, one page of syntax | |
+| 14 | [Supervising: progress, signals and `wait any`](14-supervising-and-talking.md) | `progress` and `report`, `notify`, `wait signal`, `when signal`, `wait any`, scripted children and signals in `weave test` | [18](../../src/loom/starters/18-supervise-workflows/) |
+| 15 | [Cookbook and cheat sheet](15-cookbook.md) | Recipes, mistakes and their fixes, one page of syntax | |
 
 ## The starter set
 

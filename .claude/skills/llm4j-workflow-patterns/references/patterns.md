@@ -631,9 +631,11 @@ workflow Main(question) {
 
 - `start` needs somewhere to keep each child's run: use `--journal` with `weave run`, or a `LoomHost` with persistence. Kill the parent and run it again and it finds the same children.
 - A handle is never written into a prompt and never given to a task; read `work.status` or `work is ok` instead.
+- To know where a child is, have it declare `progress { stage: string }` and `report { }` as it goes; the parent reads `work.progress.stage` (unchecked text) and may assert that a field `changes within` a time.
+- A child that may need its supervisor says so with `notify parent "need_help" "..."`; the parent answers with `when signal "need_help" { steer "..." once }` (the steer's text is fixed in the script; a signal's text can never become it) or `notify work "go"` to a child that did `wait signal "go" timeout 10m`. To react to whichever child needs you first, `wait any work timeout 10m -> event` in a bounded loop and branch on `event.kind`.
 - `never calls` refuses the call before it runs; a steer needs an agent marked `steerable`. `weave audit` lists who may steer a child (LA28) and each judged rule (LA29).
 
-Stages that matter: 5 (cost per child, the reservation), 7 (audit), 8 (trajectory tests with `children:` and `fired:`), 15 (stop and supervise).
+Stages that matter: 5 (cost per child, the reservation), 7 (audit, rule LA30 for a signal read), 8 (trajectory tests with `children:`, `signals:`, `events:` and `fired:`), 15 (stop and supervise).
 
 ## Shapes that are not a pattern of their own
 

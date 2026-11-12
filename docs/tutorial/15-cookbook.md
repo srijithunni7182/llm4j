@@ -1,4 +1,4 @@
-# 14. Cookbook and cheat sheet
+# 15. Cookbook and cheat sheet
 
 Recipes for common jobs, the mistakes people make and what Loom says about them, and one page of syntax to keep open while you write.
 

@@ -235,7 +235,7 @@ workflow Main(facts) {
 | [8. People in the loop](../../tutorial/08-people-in-the-loop.md) | "Approvals on tools" becomes **"Where to ask: at the edge, not in the middle"**: the three shapes in a table and a diagram, why asking mid-loop in an unattended workflow costs momentum and context (LH05), and the rewritten starter 07 walked through. |
 | [11. Advanced orchestration](../../tutorial/11-advanced-orchestration.md) | Earned autonomy introduced as the optional extra for a decision that should earn trust, beside the plain `approve` (D20). |
 | [9. Safety and cost](../../tutorial/09-safety-and-cost.md) | The safe-by-default checklist: "approve once, at the edge, on the step that acts". |
-| [14. Cookbook](../../tutorial/14-cookbook.md) | Recipes **"Approve once, at the edge"** and **"Check a hand-off before it acts"**; the cheat sheet gains `effect:`, `effects:`, `use` and `approve` on a step; "mistakes and their fixes" gains LH05, LR11 and the LH03 counting. |
+| [14. Cookbook](../../tutorial/15-cookbook.md) | Recipes **"Approve once, at the edge"** and **"Check a hand-off before it acts"**; the cheat sheet gains `effect:`, `effects:`, `use` and `approve` on a step; "mistakes and their fixes" gains LH05, LR11 and the LH03 counting. |
 | [README](../../tutorial/README.md) | Chapter 6's row names `use`; chapter 8's row says "where to ask". |
 
 Every new `loom` block is checked by `TutorialExamplesTest`; the page is regenerated with `bash scripts/make-tutorial-html.sh`.

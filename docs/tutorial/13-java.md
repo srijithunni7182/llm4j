@@ -285,4 +285,4 @@ A rule of thumb that holds up well:
 2. Write a `Task` for something in one of your workflows that must be exact, and unit test it with no model.
 3. Write the `LoomTest` equivalent of one case from a starter's YAML and compare.
 
-Next: [Cookbook and cheat sheet](14-cookbook.md).
+Next: [Workflows that report, signal and wait for each other](14-supervising-and-talking.md).
