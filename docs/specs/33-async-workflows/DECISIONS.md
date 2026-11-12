@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D16, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D17, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -27,7 +27,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D14 | Limits on the tree | **taken** (`max_children`, `max_depth`, bounded starts in loops; a start over a limit fails) |
 | D15 | Authority and security | **taken** (authority narrows; the audit counts the child; LA28 for steering; provenance across the boundary) |
 | D16 | Visibility | **taken** (the whole ecosystem in one scope; Fabric stays flat with a parent link) |
-| D17 | Tests | open |
+| D17 | Tests | **taken** (real or stubbed children, virtual clock, a controlled executor, guard tests first, a mutation profile) |
 | D18 | The Java side | open |
 | D19 | Names | **partly taken** (`wait`, `notify` are the owner's) |
 | D20 | What stays out | open |
@@ -360,7 +360,13 @@ tutorial, wiki, README census, release notes).
 
 **Recommendation:** as listed, decided before the runtime is written.
 
-**Decision:** open.
+**Decision (owner): accepted as proposed.**
+1. **Two ways to test a child:** a **real child with scripted models** (the default, as `call` works), and a **stubbed child** scripted in the style of `remotes:` (`children: { Research: [ { state: working, tokens: 40000, after: 1m }, { state: completed, result: "..." } ] }`) to test the parent's rules without running the child's script.
+2. **Deterministic time and scheduling:** in tests children run on a controlled executor driven by the virtual clock (`clock:`), so no threads race; production uses real threads; the clock and the executor are injected.
+3. **New `expect:` keys:** `children: { Research: { status, reason } }`, `fired:` (supervise rules, with the virtual time each fired), `starts:`, steers `delivered` or `not delivered`, and the existing `elapsed_virtual`.
+4. **Guard tests, written before the code:** the kill-point test (D4; exhaustive, so `@Tag("slow")`, and the guard is broken on purpose once to see it fail); a rewind starts a fresh child and cancels the old attempt's first; a parent ending cancels its children within the grace period (D10); reservation (D11); limits (D14); a non-steerable agent cannot be named (D12); a cancel never interrupts an effect (D13); every status transition (D9), including `sleeping`; each `weave check` error and warning has its own test.
+5. **Security and ecosystem:** new canary cases in the provenance oracle for `start` arguments and returned results (D15); `RepositoryScriptsTest` covers the new starter; compatibility-kit scenarios, including restart and replay (D16).
+6. **Mutation and coverage:** a new `mutation-children` profile (the supervise rule evaluator, the child-id derivation, the reservation, the limits) at 85% or more; new classes meet the per-class coverage gates; the fast tier stays about two minutes, with only the exhaustive kill-point test slow.
 
 ## D18. The Java side
 
