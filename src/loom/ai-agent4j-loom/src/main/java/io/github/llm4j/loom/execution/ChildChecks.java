@@ -187,7 +187,9 @@ final class ChildChecks {
                     List<RunStmt.Arg> args =
                             s instanceof RunStmt r ? r.getArgs() : s instanceof UseStmt u ? u.getArgs() : List.of();
                     for (RunStmt.Arg a : args)
-                        if (a.kind() == RunStmt.Kind.REFERENCE && handles.contains(baseOf(a.text())))
+                        if (a.kind() == RunStmt.Kind.REFERENCE
+                                && handles.contains(baseOf(a.text()))
+                                && !isFact(a.text()))
                             c.error(
                                     s.getLine(),
                                     s instanceof RunStmt ? "run" : "use",
@@ -452,6 +454,12 @@ final class ChildChecks {
     private static WorkflowDef find(LoomScript script, String name) {
         for (WorkflowDef w : script.getWorkflows()) if (w.getName().equals(name)) return w;
         return null;
+    }
+
+    /** {@code handle.status} and the other facts may be passed on; the handle itself may not. */
+    private static boolean isFact(String reference) {
+        int dot = reference.indexOf('.');
+        return dot > 0 && !reference.substring(0, dot).contains("[") && FACTS.contains(head(reference.substring(dot + 1)));
     }
 
     private static String head(String path) {
