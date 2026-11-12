@@ -174,4 +174,96 @@ class ChildClosureTest {
         assertThat(e.getContext().getVariable("seen")).isEqualTo("running");
         assertThat(e.getContext().getVariable("timedOut")).isEqualTo("yes");
     }
+
+    // ---- F12, guard G26: a start reserves its paired judge's budget ----
+
+    private static final String JUDGED_SCRIPT =
+            """
+            budget { tokens: 100 }
+            evaluator J { model: "m" }
+            workflow Child(x) { run Fine() -> r  return r }
+            """;
+
+    private static final String JUDGE = "assert \"on topic\" using J every 2m max 2 { wrap_up }";
+
+    @Test
+    void aStartThatCannotCoverTheChildAndItsPairedJudgeIsRefusedAndSaysSo() {
+        assertThatThrownBy(
+                        () ->
+                                h.parent(
+                                                JUDGED_SCRIPT
+                                                        + """
+                                                        workflow Main(q) {
+                                                            start Child(x = q) budget { tokens: 60 } -> work
+                                                            supervise work budget { tokens: 50 } { %s }
+                                                            wait work timeout 1m
+                                                        }
+                                                        """.formatted(JUDGE),
+                                                new ControlledChildScheduler())
+                                        .executeWorkflow("Main", java.util.Map.of("q", "x")))
+                .hasMessageContaining("start Child cannot reserve")
+                .hasMessageContaining("judge")
+                .hasMessageContaining("110");
+    }
+
+    @Test
+    void theSameStartWithNoJudgeIsAccepted() {
+        HarnessExecutor e =
+                h.parent(
+                        JUDGED_SCRIPT
+                                + """
+                                workflow Main(q) {
+                                    start Child(x = q) budget { tokens: 60 } -> work
+                                    wait work timeout 1m
+                                }
+                                """,
+                        new ControlledChildScheduler());
+
+        e.executeWorkflow("Main", java.util.Map.of("q", "x"));
+
+        assertThat(e.getContext().getVariable("work")).isNotNull();
+    }
+
+    @Test
+    void aLiveChildHoldsBackItsJudgeToo() {
+        assertThatThrownBy(
+                        () ->
+                                h.parent(
+                                                JUDGED_SCRIPT
+                                                        + """
+                                                        workflow Main(q) {
+                                                            start Child(x = q) budget { tokens: 40 } -> a
+                                                            supervise a budget { tokens: 30 } { %s }
+                                                            start Child(x = q) budget { tokens: 40 } -> b
+                                                            supervise b budget { tokens: 30 } { %s }
+                                                            wait all a timeout 1m
+                                                        }
+                                                        """.formatted(JUDGE, JUDGE),
+                                                new ControlledChildScheduler())
+                                        .executeWorkflow("Main", java.util.Map.of("q", "x")))
+                .hasMessageContaining("start Child cannot reserve")
+                .hasMessageContaining("could still spend 70");
+    }
+
+    @Test
+    void aSuperviseThatCouldNotBePairedReservesWhenItRunsAndFailsSayingTheChildIsUnsupervised() {
+        assertThatThrownBy(
+                        () ->
+                                h.parent(
+                                                JUDGED_SCRIPT
+                                                        + """
+                                                        workflow Main(q) {
+                                                            start Child(x = q) budget { tokens: 60 } -> work
+                                                            alt (q == "x") {
+                                                                supervise work budget { tokens: 50 } { %s }
+                                                            }
+                                                            wait work timeout 1m
+                                                        }
+                                                        """.formatted(JUDGE),
+                                                new ControlledChildScheduler())
+                                        .executeWorkflow("Main", java.util.Map.of("q", "x")))
+                .hasMessageContaining("already running")
+                .hasMessageContaining("unsupervised")
+                .hasMessageContaining("50");
+    }
 }

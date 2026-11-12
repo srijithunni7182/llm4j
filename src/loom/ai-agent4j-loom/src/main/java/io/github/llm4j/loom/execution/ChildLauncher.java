@@ -91,6 +91,7 @@ final class ChildLauncher {
         private final Long capTokens;
         private final Long capCalls;
         private final BigDecimal capCost;
+        private final BudgetDef judge;
         private final Launch launch;
         private volatile Attempt attempt;
 
@@ -102,6 +103,7 @@ final class ChildLauncher {
                 Long capTokens,
                 Long capCalls,
                 BigDecimal capCost,
+                BudgetDef judge,
                 Launch launch) {
             this.stepId = stepId;
             this.journal = journal;
@@ -110,7 +112,13 @@ final class ChildLauncher {
             this.capTokens = capTokens;
             this.capCalls = capCalls;
             this.capCost = capCost;
+            this.judge = judge;
             this.launch = launch;
+        }
+
+        /** The budget of the judge paired with this start, reserved with the child's, or null. */
+        BudgetDef judge() {
+            return judge;
         }
 
         String stepId() {
@@ -194,7 +202,9 @@ final class ChildLauncher {
             throw new IllegalStateException(
                     "start " + stmt.getWorkflow() + " has no budget: a child's spending must be capped. Write budget { tokens: 100000 } on the start.");
         checkLimits(stmt);
-        reserve(stmt);
+        SuperviseStmt paired = ChildPairing.superviseOf(executor.loomScript(), stmt);
+        BudgetDef pairedJudge = paired != null && !paired.getJudged().isEmpty() ? paired.getBudget() : null;
+        reserve(stmt, pairedJudge);
         String bound = boundName(stmt.getTarget()); // a key that is not a plain word is refused before anything starts
         String parentRun = executor.getRunId();
         if (parentRun == null)
@@ -246,6 +256,7 @@ final class ChildLauncher {
                         capTokens,
                         capCalls,
                         capCost,
+                        pairedJudge,
                         new Launch(
                                 childRun,
                                 workflow,
@@ -344,45 +355,87 @@ final class ChildLauncher {
     }
 
     /**
-     * Refuses a start the parent could not pay for (D11): the child's cap, with what the other live
-     * children could still spend, must fit in what the parent has left. A child's spending is
-     * already in the parent's budget, so a live child holds back only what it has not yet spent.
-     * Nothing is journaled for a refused start.
+     * Refuses a start the parent could not pay for (D11): the child's cap and, when its supervise
+     * is paired with it, that judge's budget (D3, 33-D27), together with what the other live
+     * children and their judges could still spend, must fit in what the parent has left. A child's
+     * spending is already in the parent's budget, so a live child holds back only what it has not
+     * yet spent. Nothing is journaled for a refused start.
      */
-    private void reserve(StartStmt stmt) {
+    private void reserve(StartStmt stmt, BudgetDef judge) {
         BudgetDef cap = stmt.getBudget();
+        refuseIfShort("start " + stmt.getWorkflow(), cap, judge, null, "");
+    }
+
+    /**
+     * The check behind a reservation: {@code cap} plus {@code judge} (either may be null) against
+     * what each enclosing budget has left after the live children hold back their own. {@code
+     * except} is a child already counted by the caller. {@code hint} ends the message.
+     */
+    private void refuseIfShort(String what, BudgetDef cap, BudgetDef judge, Live except, String hint) {
+        long wantTokens = sum(cap == null ? null : cap.getTokens(), judge == null ? null : judge.getTokens());
+        long wantCalls = sum(cap == null ? null : cap.getCalls(), judge == null ? null : judge.getCalls());
+        BigDecimal wantCost =
+                (cap == null || cap.getCost() == null ? BigDecimal.ZERO : cap.getCost())
+                        .add(judge == null || judge.getCost() == null ? BigDecimal.ZERO : judge.getCost());
+        boolean tokens = (cap != null && cap.getTokens() != null) || (judge != null && judge.getTokens() != null);
+        boolean calls = (cap != null && cap.getCalls() != null) || (judge != null && judge.getCalls() != null);
+        boolean cost = (cap != null && cap.getCost() != null) || (judge != null && judge.getCost() != null);
         long heldTokens = 0;
         long heldCalls = 0;
         BigDecimal heldCost = BigDecimal.ZERO;
-        for (Map.Entry<ChildHandle, Live> e : tasks.entrySet()) {
-            if (e.getKey().status().isSettled()) continue;
-            Live live = e.getValue();
-            var own = live.run().getRunBudget();
-            var spent = own == null ? null : own.spent();
-            if (live.capTokens() != null)
-                heldTokens += Math.max(0, live.capTokens() - (spent == null ? 0 : spent.tokens()));
-            if (live.capCalls() != null)
-                heldCalls += Math.max(0, live.capCalls() - (spent == null ? 0 : spent.calls()));
-            if (live.capCost() != null)
-                heldCost = heldCost.add(live.capCost().subtract(spent == null ? BigDecimal.ZERO : spent.cost()).max(BigDecimal.ZERO));
+        synchronized (tasks) {
+            for (Map.Entry<ChildHandle, Live> e : tasks.entrySet()) {
+                if (e.getKey().status().isSettled() || e.getValue() == except) continue;
+                Live live = e.getValue();
+                var own = live.run().getRunBudget();
+                var spent = own == null ? null : own.spent();
+                if (live.capTokens() != null)
+                    heldTokens += Math.max(0, live.capTokens() - (spent == null ? 0 : spent.tokens()));
+                if (live.capCalls() != null)
+                    heldCalls += Math.max(0, live.capCalls() - (spent == null ? 0 : spent.calls()));
+                if (live.capCost() != null)
+                    heldCost = heldCost.add(live.capCost().subtract(spent == null ? BigDecimal.ZERO : spent.cost()).max(BigDecimal.ZERO));
+                if (live.judge() != null) {
+                    var judged = judgeSpent(live);
+                    if (live.judge().getTokens() != null)
+                        heldTokens += Math.max(0, live.judge().getTokens() - (judged == null ? 0 : judged.tokens()));
+                    if (live.judge().getCalls() != null)
+                        heldCalls += Math.max(0, live.judge().getCalls() - (judged == null ? 0 : judged.calls()));
+                    if (live.judge().getCost() != null)
+                        heldCost = heldCost.add(live.judge().getCost().subtract(judged == null ? BigDecimal.ZERO : judged.cost()).max(BigDecimal.ZERO));
+                }
+            }
         }
+        String part = judge == null ? "" : " (the child's cap and its judge's)";
         for (var budget : executor.enclosingBudgets()) {
             var left = budget.remaining();
             String who = "the budget " + budget.name();
-            if (cap.getTokens() != null && left.tokens().isPresent() && cap.getTokens() > left.tokens().getAsLong() - heldTokens)
-                refuseReservation(stmt, who, cap.getTokens() + " tokens", left.tokens().getAsLong(), heldTokens);
-            if (cap.getCalls() != null && left.calls().isPresent() && cap.getCalls() > left.calls().getAsLong() - heldCalls)
-                refuseReservation(stmt, who, cap.getCalls() + " calls", left.calls().getAsLong(), heldCalls);
-            if (cap.getCost() != null && left.cost().isPresent() && cap.getCost().compareTo(left.cost().get().subtract(heldCost)) > 0)
-                refuseReservation(stmt, who, "$" + cap.getCost().toPlainString(), left.cost().get().longValue(), heldCost.longValue());
+            if (tokens && left.tokens().isPresent() && wantTokens > left.tokens().getAsLong() - heldTokens)
+                refuseReservation(what, who, wantTokens + " tokens" + part, left.tokens().getAsLong(), heldTokens, hint);
+            if (calls && left.calls().isPresent() && wantCalls > left.calls().getAsLong() - heldCalls)
+                refuseReservation(what, who, wantCalls + " calls" + part, left.calls().getAsLong(), heldCalls, hint);
+            if (cost && left.cost().isPresent() && wantCost.compareTo(left.cost().get().subtract(heldCost)) > 0)
+                refuseReservation(what, who, "$" + wantCost.toPlainString() + part, left.cost().get().longValue(), heldCost.longValue(), hint);
         }
     }
 
-    private static void refuseReservation(StartStmt stmt, String who, String wanted, long left, long held) {
+    /** What the judge of a watched child has spent so far, or null before its supervise has run. */
+    private io.github.llm4j.budget.Spent judgeSpent(Live live) {
+        for (Watch w : watches) if (w.live == live && w.judgeBudget != null) return w.judgeBudget.spent();
+        return null;
+    }
+
+    private static long sum(Long a, Long b) {
+        return (a == null ? 0 : a) + (b == null ? 0 : b);
+    }
+
+    private static void refuseReservation(String what, String who, String wanted, long left, long held, String hint) {
         throw new IllegalStateException(
-                "start " + stmt.getWorkflow() + " cannot reserve " + wanted + ": " + who + " has " + left
-                        + " left and the other live children could still spend " + held
-                        + ". Start fewer children, give each a smaller budget, or wait for one to finish first.");
+                what + " cannot reserve " + wanted + ": " + who + " has " + left
+                        + " left and the other live children could still spend " + held + ". "
+                        + (hint.isEmpty()
+                                ? "Start fewer children, give each a smaller budget, or wait for one to finish first."
+                                : hint));
     }
 
     private static <T extends Comparable<T>> T smaller(T a, T b) {
@@ -698,6 +751,14 @@ final class ChildLauncher {
                 throw new IllegalStateException(
                         "supervise " + stmt.getTarget().describe() + " has a judged assertion and no budget to pay for the judge: write supervise "
                                 + stmt.getTarget().describe() + " budget { tokens: 20000 } { ... }");
+            if (live.judge() == null) // not reserved by its start: it is paid for now, if there is room
+                refuseIfShort(
+                        "supervise " + stmt.getTarget().describe(),
+                        null,
+                        stmt.getBudget(),
+                        null,
+                        "The child is already running and is now unsupervised. Start and supervise it in the same block, so the start"
+                                + " reserves the judge's budget, or give the parent budget enough for both.");
             watch.judgeBudget = executor.newJudgeBudget("judge of " + stmt.getTarget().describe(), stmt.getBudget());
             watch.enclosing = executor.enclosingBudgets();
             List<JudgeSchedule> schedules = new ArrayList<>();

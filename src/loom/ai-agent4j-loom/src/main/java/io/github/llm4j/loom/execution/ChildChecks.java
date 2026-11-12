@@ -120,6 +120,7 @@ final class ChildChecks {
         unwaited(c, handles, waits, cancels, supervises, starts);
         handleUse(c, w, handles);
         resultReads(c, w, handles);
+        ChildLimitChecks.workflow(c, script, w);
     }
 
     // ---- start ----
