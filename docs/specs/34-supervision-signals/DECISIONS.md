@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D7 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D8 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -14,7 +14,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D5 | A judge-driven demo test | **taken** (a case in starter 18's tests where the judge fires on virtual time) |
 | D6 | Declared progress: the syntax and the typing | **taken** (flat typed shape, enum and mixed allowed; contextual `report {` and `progress`) |
 | D7 | Declared progress: what a script may do with it | **taken** (readable; one assertion `progress.<field> changes within`; no rule on content) |
-| D8 | The signal model | open |
+| D8 | The signal model | **taken** (a mailbox as journal entries; no sibling signalling; no explicit monitor) |
 | D9 | `notify`: forms, payload, provenance | open |
 | D10 | How a signal is received | open |
 | D11 | `wait any`: events and the journaled winner | open |
@@ -140,7 +140,10 @@ workflow Research(topic) progress { stage: string, done: number, of: number } {
 
 **Recommendation: C.** One address (principle 18), no new value type, and the journal gives replay and crash safety (principle 16) for free.
 
-**Decision:** open. (**Question for the owner, still standing from 33-D7:** is sibling-to-sibling signalling a requirement? If not, B is out for good.)
+**Decision (owner): option C: the mailbox of option A, and no signalling between siblings.**
+- A signal is a **named entry in the receiver's journal**: parent to child, an entry in the child's journal; child to parent, an entry in the child's journal that the parent reads through the handle. Consumption is journaled where it happens. A parent addresses a child through its handle; a child addresses its starter by the fixed word `parent`. There is no registry and no discovery.
+- **Siblings do not signal each other** (the owner's answer to the question standing from 33-D7). A child that needs another child to know something tells its parent, and the parent decides whether to signal the other: one extra hop, visible in the script and checkable by the audit.
+- **An explicit monitor value (option B) is not taken.** The owner noted that B is the more elegant construct; without a need for sibling signals its extra generality buys nothing now, and it can be revisited if a requirement appears (for example more than two parties on one channel). The precedent to confirm when building is `RunJournal.answer` and the human-answer machinery (P7 in VERIFICATION).
 
 ## D9. `notify`: forms, payload, provenance
 
