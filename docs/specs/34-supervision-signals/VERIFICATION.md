@@ -124,7 +124,27 @@ Commits on the branch, one concern each. `make test-core` passed after the sub-p
 
 **Risks of DESIGN §7 that turned out to be real in 34a.** Risk 1 (waking) was sized with the controlled scheduler on the rewind path: the real ones were an `Attempt` that must be marked done only after the child has let go of the console and the host (or a waiter returns early), a stale `Watch` that held the old executor (fixed by keeping `Live` stable and swapping the attempt), and a `forbid` that a new executor would have lost. Risk 2 (reading `startLocked`) was real and is answered by P1. Risk 3 (`wait any` ordering) and risk 4 (the contextual words) are for 34b and 34d. Risk 5 (Fabric) is for 34e. Risk 7 (what was not read): P2 in full, P6 and P7 remain.
 
-**Not done in 34a, by design:** the wake by a signal, a mailbox, `wait any`, progress, the audit rule and the oracle cases (all later sub-phases); F10 and F11 (34e); `ChildRuns` does not yet tell a host that a re-run child is running again (a host's record says what it last heard, until the child ends).
+**Not done in 34a, by design:** the wake by a signal, a mailbox, `wait any`, progress (done in 34b), the audit rule and the oracle cases (all later sub-phases); F10 and F11 (34e); `ChildRuns` does not yet tell a host that a re-run child is running again (a host's record says what it last heard, until the child ends).
+
+### 34b, declared progress (built)
+
+`make test-core` and `make docs-check` passed after the sub-phase. Not run: `make test-fast`, `make test-oracle`, the mutation profile and `make format-check` (end of the phase), `make test-full`.
+
+| Item | What was built | Guard (broken on purpose once) | Tests | Level |
+|---|---|---|---|---|
+| Syntax (D6, D17) | `progress { field: type }` after a workflow's `)`, `report { field: value }` at a statement start, `assert progress.<f> changes within <d> { }`; `ProgressDecl`, `ReportStmt`, `AssertionKind.CHANGES_WITHIN`; flat types only | G30 (the word `report` reserved as a name: seen to fail) | `ProgressParseTest` (9: keyword, variable and text contexts; the load errors), `RepositoryScriptsTest`, `StartersTest` | E1 |
+| Checks (D6) | undeclared field, a type that can be seen wrong, a `report` with no declaration (errors); declared and never reported (warning); a progress assertion needs the child to declare the field | | `ChildCheckDetailTest` (6 new) | E1 |
+| Runtime (D6) | `report` validated and bounded, written to the child's journal under `<step>#progress`; dropped and recorded beyond 2000 characters or 1000 reports; read through `h.progress.<field>` from the journal | G21: no validation, no size bound, tag not unchecked (each seen to fail) | `ChildProgressTest` (8), `ChildProgressProvenanceTest` | E2 |
+| Restart and rewind | a restarted parent reads the same progress and nothing is reported twice; after `cancel ... rewind to` the parent reads the value as of the checkpoint | | `ChildProgressTest`, `ChildCtkConformanceTest.childProgress...` | E2 |
+| D7 assertion | the watch keeps, per field, the running time since it last changed (sleep does not count; the clock starts with the block); movement only | seen to fail with the clock stuck | `StubbedChildTest` (4 new) | E2 |
+| D15 | a scripted child step takes `progress:`, checked against the declaration | | `StubbedChildTest` | E2 |
+| D16 for progress | graph kind `child_report` (renderer synced), `weave explain`, `weave why`/`timeline` (names of the fields, never their values), the CTK scenario `child_progress.loom` | | `ChildGraphTest`, `ChildExplainAndRefusalTest`, `WhyProgressSummaryTest`, `ChildCtkConformanceTest` | E2 |
+
+**Acceptance rows.** A1 (the new words are contextual): `report` and `progress` at E1; `notify`, `signal`, `any` and `parent` are 34c and 34d. A6 (declared progress): E2 (the restart case runs the parent again over its journals; there is no kill-point extension yet). A7 (the assertion): E2.
+
+**Where I read the design differently.** (1) The key is `<step>#progress` (one entry for each execution of the statement, with a `seq` inside), not `#progress.<n>`: the step id carries the generation and makes the write idempotent over a replay; the latest report is the highest `seq` among the steps that are still the current generation, which is what makes a rewind show the value at the checkpoint. (2) A value is read at each supervise tick, so a change between two ticks is seen at the second (the "still" clock has the granularity of the tick). (3) A dropped report is written down for the first 100 only; later ones are counted in the audit (`progress_dropped`) so the journal stays bounded. (4) Found while building: the legacy bare-name substitution replaces the letter of a one-letter variable inside any text (`"reading"` with a variable `a`); it is the existing behaviour of scripts without `substitution: braces` and was not changed.
+
+**Not in 34b:** Fabric's Children section and the live page (34e), the VS Code grammar and parity baseline (34e), the kill-point extension for the progress writes (34c, with the signal writes), the mutation profile (34e).
 
 ## 2. How the report is written
 

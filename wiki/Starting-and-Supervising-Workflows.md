@@ -35,7 +35,8 @@ A child never outlives the run that started it: when the parent ends, children s
 - `weave test` can also **script a child instead of running it** (`children: { Research: [ { state: working, after: 2m }, { state: completed, result: "..." } ] }`): no workflow, no model, on the virtual clock, so a supervisor's rules and a judge's looks are tested without a real clock.
 - `cancel h rewind to <checkpoint> at most N times` sends a child back to a checkpoint it declared and lets it go on (a new generation; the old one stays as history).
 - `weave review` adds each started child's budget, and each judged `supervise`'s budget, to the worst case of the parent.
-- Not there yet: declared progress, signals and `wait any` (phase 34, not yet built).
+- A child can **declare and report progress** (`workflow Research(t) progress { stage: string, done: number } { report { stage: "reading", done: 1 } }`); the parent reads `work.progress.stage` (unchecked, from the child's own journal, so it survives a restart), and `assert progress.done changes within 5m { ... }` watches whether it moves, never what it says.
+- Not there yet: signals and `wait any` (phase 34, not yet built).
 
 [VERIFICATION.md](../docs/specs/33-async-workflows/VERIFICATION.md) lists exactly what is built and what is not.
 

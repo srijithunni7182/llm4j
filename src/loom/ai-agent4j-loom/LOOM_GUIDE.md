@@ -2965,11 +2965,35 @@ A `cancel` or `wrap_up` ends the evaluation of that tick, and at most one steer 
 
 **Testing it.** `weave test` runs a child for real under scripted models and the virtual clock, one child at a time when the parent waits, and a model call of a child makes the supervisor look. A case can script a judge with `judges: { TopicJudge: [pass, fail] }` and expect `starts: [Research]`, `children: { Research: { status: cancelled, reason: "..." } }`, `fired: [ { rule: 0, action: cancel } ]` and `steers: { delivered: 1 }`. Starter 18 shows all of it.
 
-A child can also be **scripted instead of run**, with `children:` (in the style of `remotes:`): `children: { Research: [ { state: working, after: 2m }, { state: completed, result: "Lima.", after: 1m } ] }`. The child has no workflow and calls no model; each step waits its `after` on the virtual clock (so the supervisor's ticks and a judge's looks happen as time passes) and then becomes the step's state, and the last step settles the child or pauses it. The states are `working`, `completed` (with `result:`), `failed` (with `reason:`) and `waiting` (for a person). Each step the child reaches counts as work it did, so `idle` and a judge's skip-when-nothing-changed behave as for a real child. A stub has no agent running, so a steer to it is recorded as not delivered. A supervisor's rules, judge looks and timeouts are then tested with no model, no real clock and nothing racing.
+A child can also be **scripted instead of run**, with `children:` (in the style of `remotes:`): `children: { Research: [ { state: working, after: 2m }, { state: completed, result: "Lima.", after: 1m } ] }`. The child has no workflow and calls no model; each step waits its `after` on the virtual clock (so the supervisor's ticks and a judge's looks happen as time passes) and then becomes the step's state, and the last step settles the child or pauses it. The states are `working`, `completed` (with `result:`), `failed` (with `reason:`) and `waiting` (for a person). A step may also report progress on the way (`progress: { stage: reading, done: 1 }`, for a workflow that declares those fields), so the parent's reads and a progress assertion are tested the same way. Each step the child reaches counts as work it did, so `idle` and a judge's skip-when-nothing-changed behave as for a real child. A stub has no agent running, so a steer to it is recorded as not delivered. A supervisor's rules, judge looks and timeouts are then tested with no model, no real clock and nothing racing.
+
+**Declared progress (`progress`, `report`).** A child can say where it is, typed, so its parent (or a person) can read it. A workflow declares what it may report after its parameters, and reports with a statement:
+
+```loom
+agent Researcher { model: "gemini-2.5-flash" system: "Research the topic." }
+
+workflow Research(topic) progress { stage: string, done: number, of: number } {
+    report { stage: "searching", done: 0, of: 3 }
+    delegate "Find sources on {topic}" to Researcher -> notes
+    report { stage: "writing", done: 2, of: 3 }
+    return notes
+}
+
+workflow Main(question) {
+    start Research(topic = question) budget { tokens: 100000 } -> work
+    supervise work { assert progress.done changes within 5m { steer "Say what you are doing." once } }
+    wait work timeout 20m -> findings
+    set where = work.progress.stage
+}
+```
+
+The types are `string`, `number`, `boolean` and `enum["a", "b"]`, one flat level (no lists or objects). `report` and `progress` are words only in these two places (`report` as `report {` at the start of a statement, `progress` right after a workflow's `)`): everywhere else they are ordinary names, so `-> report` and `set progress = ...` keep working. `weave check` refuses a field the workflow did not declare, a value it can see is the wrong type, and a `report` in a workflow that declares no progress, and warns about progress that is never reported; a value that is a variable is checked when it runs, and a wrong one fails the step. Each report is an entry in the **child's own journal**, so it survives a restart and a rewind shows the value as of the checkpoint; a report holds at most 2000 characters and a run keeps 1000 reports, and one beyond either bound is **dropped and recorded** (`weave why` says so), not an error that stops the child.
+
+The parent reads the latest report as `work.progress.stage`, `work.progress.done` and so on (empty before the first report). It is the child's own words, so it is `unchecked` like any model-written text. It is **data, not control**: `assert progress.<field> changes within <duration> { ... }` fires when the field has not changed within the duration of the child's running time (sleep does not count) and never reads what the value says; there is no `when progress.done > 3` rule, because a rule that cancels or steers never rests on a value the child wrote. The assertion uses the same actions as `when`.
 
 **Time.** A `wait`'s timeout counts the injected clock (the run's clock; a test's virtual one), so a wait that times out while a child still runs is a test on virtual time, not a real minute.
 
-**What is not there yet.** Declared progress, signals between a parent and a child, and `wait any` are phase 34 and not yet built. A sleeping child is still woken only when its parent is run again or by `weave daemon`.
+**What is not there yet.** Signals between a parent and a child and `wait any` are phase 34 and not yet built. A sleeping child is still woken only when its parent is run again or by `weave daemon`.
 
 ### Workflow Composition & Modularity
 Loom supports building complex multi-agent systems by composing workflows from multiple files. This is achieved using the `import` statement and the `call` statement.
