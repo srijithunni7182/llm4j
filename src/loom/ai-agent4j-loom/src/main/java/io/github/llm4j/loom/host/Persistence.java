@@ -138,6 +138,7 @@ public final class Persistence {
         try (Connection c = ds.getConnection();
                 Statement st = c.createStatement()) {
             st.execute(RunRegistry.Jdbc.DDL);
+            RunRegistry.Jdbc.migrate(c);
             st.execute(AnswerBook.Jdbc.DDL);
         } catch (SQLException e) {
             throw new IllegalStateException("Cannot create the host's tables", e);

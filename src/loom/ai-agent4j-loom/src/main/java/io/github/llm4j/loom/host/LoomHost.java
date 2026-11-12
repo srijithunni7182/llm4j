@@ -643,6 +643,57 @@ public final class LoomHost implements AutoCloseable {
         return assemble(runId, true);
     }
 
+    /** Where started workflows keep their runs: a sibling run in the host's persistence (D3). */
+    private io.github.llm4j.loom.execution.ChildRuns childRuns() {
+        return new io.github.llm4j.loom.execution.ChildRuns() {
+            @Override
+            public io.github.llm4j.loom.runtime.RunJournal openJournal(String childRunId) {
+                return persistence.journal(childRunId);
+            }
+
+            @Override
+            public void record(String childRunId, String parentRunId, String workflow) {
+                if (registry.find(childRunId).isPresent()) return;
+                Instant now = clock.instant();
+                registry.save(
+                        new RunRecord(
+                                childRunId,
+                                workflow,
+                                Map.of(),
+                                "child of " + parentRunId,
+                                RunRecord.Status.RUNNING,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                now,
+                                now,
+                                parentRunId));
+            }
+
+            @Override
+            public void settled(
+                    String childRunId, io.github.llm4j.loom.runtime.ChildStatus status) {
+                RunRecord.Status mapped =
+                        switch (status) {
+                            case COMPLETED -> RunRecord.Status.COMPLETED;
+                            case FAILED -> RunRecord.Status.FAILED;
+                            case STOPPED, CANCELLED, TIMED_OUT -> RunRecord.Status.STOPPED;
+                            case SLEEPING, WAITING -> RunRecord.Status.SUSPENDED;
+                            case RUNNING -> RunRecord.Status.RUNNING;
+                        };
+                registry.find(childRunId)
+                        .ifPresent(
+                                r ->
+                                        registry.save(
+                                                r.with(
+                                                        mapped, null, null, null, null,
+                                                        status.word(), clock.instant())));
+            }
+        };
+    }
+
     private HarnessExecutor assemble(String runId, boolean forRun) {
         HarnessExecutor ex = new HarnessExecutor(script, tools, models);
         if (o.baseDir != null) ex.setBaseDir(o.baseDir);
@@ -669,6 +720,7 @@ public final class LoomHost implements AutoCloseable {
                 ex.setRunId(runId);
                 ex.setRunLocator(persistence.locator(runId));
                 ex.setTriggerStore(persistence.triggers());
+                ex.setChildRuns(childRuns());
                 if (human == null)
                     human = new HostHumanInterface(runId, answers, o.listeners, clock);
             } else {

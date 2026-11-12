@@ -9,7 +9,7 @@ import io.github.llm4j.loom.execution.ToolRegistry;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** Phase 33a: the plain sentences of {@code weave explain}, and the refusal until 33b. */
+/** Phase 33: the plain sentences of {@code weave explain}, and a start with no ChildRuns failing closed (D18). */
 class ChildExplainAndRefusalTest {
 
     private static final String SOURCE =
@@ -50,7 +50,7 @@ class ChildExplainAndRefusalTest {
     }
 
     @Test
-    void untilTheChildRunsOfPhase33bExistAStartFailsClosedAndNeverRunsLikeACall() {
+    void anExecutorWithNoPlaceToKeepAChildRunRefusesToStartOne() {
         HarnessExecutor executor =
                 new HarnessExecutor(
                         StartParseTest.parse(
@@ -60,8 +60,8 @@ class ChildExplainAndRefusalTest {
         executor.initialize();
 
         assertThatThrownBy(() -> executor.executeWorkflow("Main", Map.of("q", "x")))
-                .hasMessageContaining("start Main")
-                .hasMessageContaining("cannot run yet")
+                .hasMessageContaining("start needs somewhere to keep the child's run")
+                .hasMessageContaining("ChildRuns")
                 .hasMessageContaining("call");
     }
 }

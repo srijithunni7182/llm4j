@@ -87,6 +87,7 @@ interface RunRegistry {
             m.put("detail", r.detail());
             m.put("created", r.created().toString());
             m.put("updated", r.updated().toString());
+            if (r.parentRunId() != null) m.put("parentRunId", r.parentRunId());
             try {
                 Path run = runDir(r.runId());
                 Files.createDirectories(run);
@@ -144,7 +145,8 @@ interface RunRegistry {
                                 (String) m.get("prompt"),
                                 (String) m.get("detail"),
                                 Instant.parse((String) m.get("created")),
-                                Instant.parse((String) m.get("updated"))));
+                                Instant.parse((String) m.get("updated")),
+                                (String) m.get("parentRunId")));
             } catch (IOException e) {
                 throw new UncheckedIOException("Cannot read " + file, e);
             }
@@ -167,8 +169,23 @@ interface RunRegistry {
                     prompt      TEXT,
                     detail      TEXT,
                     created     BIGINT NOT NULL,
-                    updated     BIGINT NOT NULL
+                    updated     BIGINT NOT NULL,
+                    parent_run_id VARCHAR(200)
                 )""";
+
+        /**
+         * Adds the parent column to a table made before children existed. Run after {@link #DDL},
+         * on every start: a database that already has the column says so and nothing changes.
+         */
+        static void migrate(Connection c) throws SQLException {
+            try (java.sql.Statement probe = c.createStatement()) {
+                probe.executeQuery("SELECT parent_run_id FROM llm4j_loom_runs WHERE 1 = 0").close();
+            } catch (SQLException missing) {
+                try (java.sql.Statement alter = c.createStatement()) {
+                    alter.execute("ALTER TABLE llm4j_loom_runs ADD COLUMN parent_run_id VARCHAR(200)");
+                }
+            }
+        }
         private static final ObjectMapper JSON = new ObjectMapper();
         private final DataSource ds;
 
@@ -188,7 +205,7 @@ interface RunRegistry {
                 try (PreparedStatement up =
                         c.prepareStatement(
                                 "UPDATE llm4j_loom_runs SET workflow=?, inputs_json=?, origin=?, status=?, reason=?, resume_at=?, "
-                                        + "step_id=?, prompt=?, detail=?, updated=? WHERE run_id=?")) {
+                                        + "step_id=?, prompt=?, detail=?, updated=?, parent_run_id=? WHERE run_id=?")) {
                     up.setString(1, r.workflow());
                     up.setString(2, inputs);
                     up.setString(3, r.origin());
@@ -199,13 +216,14 @@ interface RunRegistry {
                     up.setString(8, r.prompt());
                     up.setString(9, r.detail());
                     up.setLong(10, r.updated().toEpochMilli());
-                    up.setString(11, r.runId());
+                    up.setString(11, r.parentRunId());
+                    up.setString(12, r.runId());
                     if (up.executeUpdate() > 0) return;
                 }
                 try (PreparedStatement in =
                         c.prepareStatement(
                                 "INSERT INTO llm4j_loom_runs (run_id, workflow, inputs_json, origin, status, reason, resume_at, "
-                                        + "step_id, prompt, detail, created, updated) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")) {
+                                        + "step_id, prompt, detail, created, updated, parent_run_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
                     in.setString(1, r.runId());
                     in.setString(2, r.workflow());
                     in.setString(3, inputs);
@@ -218,6 +236,7 @@ interface RunRegistry {
                     in.setString(10, r.detail());
                     in.setLong(11, r.created().toEpochMilli());
                     in.setLong(12, r.updated().toEpochMilli());
+                    in.setString(13, r.parentRunId());
                     in.executeUpdate();
                 }
             } catch (SQLException e) {
@@ -267,7 +286,8 @@ interface RunRegistry {
                                         rs.getString("prompt"),
                                         rs.getString("detail"),
                                         Instant.ofEpochMilli(rs.getLong("created")),
-                                        Instant.ofEpochMilli(rs.getLong("updated"))));
+                                        Instant.ofEpochMilli(rs.getLong("updated")),
+                                        rs.getString("parent_run_id")));
                     }
                 }
             } catch (SQLException | IOException e) {

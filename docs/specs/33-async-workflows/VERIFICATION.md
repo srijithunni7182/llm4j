@@ -66,6 +66,7 @@ Depth is stated per note. "Read" means the code named was opened; "grep only" me
 
 | Sub-phase | State | Notes |
 |---|---|---|
+| 33b Child runs | **partly built** (see below) | `ChildRuns` SPI, `ChildIds`, `ChildHandle`/`ChildStatus`, `ChildScheduler` and the controlled one, `ChildLauncher` (journal-first `start`, parking `wait`, tree suspension when a child sleeps or waits for a person), `LoomHost`'s `ChildRuns`, `RunRecord.parentRunId` with the old constructor kept, the JDBC column and its migration. **Not built in 33b yet:** the CLI sibling-folder `ChildRuns` for `weave run --journal`, `weave fork` following links, `LiveRuns` labels, `LoomRun` children and the `LoomRun.Status` mapping, a `wait` timeout on the injected clock (it uses wall time), a read of `-> r` after a non-completed `wait` is empty, not an error (only `h.result` errors). |
 | 33a The language | **built, except the graph kinds (finding 1), the keyed-variable additions and the fact reads in conditions, which need the runtime (33b)** | Parser, AST, walker, `StatementText`, `SubstitutedText`, explain, the checks (`ChildChecks`), a fail-closed refusal in the executor. |
 
 ## 1. Acceptance: what must be true when the phase is built

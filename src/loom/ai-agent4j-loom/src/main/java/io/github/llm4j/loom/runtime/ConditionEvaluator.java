@@ -122,6 +122,7 @@ public class ConditionEvaluator {
      * ok, or that was only described in a simulated run.
      */
     static boolean ok(String path, VariableContext context) {
+        if (variable(path, context) instanceof ChildHandle handle) return handle.isOk();
         int dot = path.indexOf('.');
         return Boolean.TRUE.equals(
                 context.getVariable("_ok:" + (dot < 0 ? path : path.substring(0, dot))));
@@ -161,11 +162,11 @@ public class ConditionEvaluator {
      */
     public static Object resolvePath(String path, VariableContext context) {
         if (!path.contains(".")) {
-            return context.getVariable(path);
+            return variable(path, context);
         }
 
         String[] parts = path.split("\\.");
-        Object current = context.getVariable(parts[0]);
+        Object current = variable(parts[0], context);
 
         for (int i = 1; i < parts.length; i++) {
             if (current == null) return null;
@@ -174,7 +175,23 @@ public class ConditionEvaluator {
         return current;
     }
 
+    /**
+     * A variable, or one key of a keyed variable written {@code name[key]}: the map form that
+     * {@code -> results[key]} fills, and where a handle started under a key lives.
+     */
+    private static Object variable(String name, VariableContext context) {
+        int open = name.indexOf('[');
+        if (open <= 0 || !name.endsWith("]")) return context.getVariable(name);
+        Object base = context.getVariable(name.substring(0, open));
+        return base instanceof java.util.Map<?, ?> map
+                ? map.get(name.substring(open + 1, name.length() - 1))
+                : null;
+    }
+
     private static Object getProperty(Object obj, String field) {
+        if (obj instanceof ChildHandle handle) {
+            return handle.fact(field);
+        }
         if (obj instanceof java.util.Map<?, ?> map) {
             return map.get(field);
         }

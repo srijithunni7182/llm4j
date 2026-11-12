@@ -3272,20 +3272,21 @@ public class HarnessExecutor implements LoomEngine {
             rewinder.rewind(rewind, frames.get());
         } else if (stmt instanceof io.github.llm4j.loom.ast.DecideStmt decide) {
             decider.decide(decide);
-        } else if (stmt instanceof io.github.llm4j.loom.ast.StartStmt
-                || stmt instanceof io.github.llm4j.loom.ast.WaitStmt
-                || stmt instanceof io.github.llm4j.loom.ast.CancelStmt
+        } else if (stmt instanceof io.github.llm4j.loom.ast.StartStmt start) {
+            children.start(start);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.WaitStmt wait) {
+            children.await(wait);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.CancelStmt
                 || stmt instanceof io.github.llm4j.loom.ast.SteerStmt
                 || stmt instanceof io.github.llm4j.loom.ast.SuperviseStmt) {
-            // Fails closed until the child runs of phase 33b exist: a script that starts a
-            // workflow must never run as though it had waited for it.
+            // Fails closed until the control of a child exists: a script that cancels, steers or
+            // supervises a child must never run as though it had.
             throw new IllegalStateException(
                     StatementText.of(stmt)
                             + " (line "
                             + stmt.getLine()
-                            + ") cannot run yet: starting workflows as children of their own is"
-                            + " not available in this build. Use call to run a workflow to"
-                            + " completion.");
+                            + ") cannot run yet: controlling a started workflow is not available in"
+                            + " this build.");
         } else if (stmt instanceof NoteStmt note) {
             String noteText = resolvePayload(note.getMessage());
             lastNote = noteText;
@@ -4357,6 +4358,76 @@ public class HarnessExecutor implements LoomEngine {
                 log.warning("Suspension listener failed: " + e.getMessage());
             }
         }
+    }
+
+    // ── Child runs (phase 33) ────────────────────────────────────────────
+    private ChildRuns childRuns;
+    private ChildScheduler childScheduler = ChildScheduler.threads();
+    private final ChildLauncher children = new ChildLauncher(this);
+
+    /**
+     * Where the runs of started workflows are kept. Without it {@code start} fails closed. A host
+     * built on persistence gives one; see {@link ChildRuns}.
+     */
+    public void setChildRuns(ChildRuns childRuns) {
+        this.childRuns = childRuns;
+    }
+
+    /** Runs the started workflows; the default uses daemon threads. Tests inject a controlled one. */
+    public void setChildScheduler(ChildScheduler scheduler) {
+        this.childScheduler =
+                java.util.Objects.requireNonNull(scheduler, "scheduler");
+    }
+
+    ChildRuns childRuns() {
+        return childRuns;
+    }
+
+    ChildScheduler childScheduler() {
+        return childScheduler;
+    }
+
+    String currentStepId() {
+        return step.get();
+    }
+
+    io.github.llm4j.secret.InvokerCredentials currentInvoker() {
+        return threadScope.invoker.get();
+    }
+
+    long nowMillis() {
+        return clock.millis();
+    }
+
+    /** Runs a handler block of the current statement under its own step ids. */
+    void runBlockAt(List<Statement> statements, String key) {
+        runBlock(statements, key);
+    }
+
+    /**
+     * An executor for a child run: the same script and the parts a child inherits (decisions D15
+     * and D18: the credentials' store, the human interface, the audit logger, the clock and the
+     * sleeper) with its own journal, its own variables and its own run id.
+     */
+    HarnessExecutor deriveChild(String childRunId, RunJournal childJournal) {
+        HarnessExecutor child = new HarnessExecutor(script, toolRegistry, llmClientFactory);
+        child.setRunId(childRunId);
+        child.setJournal(childJournal);
+        child.taskRegistry = taskRegistry;
+        child.humanInterface = humanInterface;
+        child.auditLogger = auditLogger;
+        child.promptCatalog = promptCatalog;
+        child.clock = clock;
+        child.sleeper = sleeper;
+        child.secretStore = secretStore;
+        child.envLookup = envLookup;
+        child.baseDir = baseDir;
+        child.scriptRef = scriptRef;
+        child.lenient = lenient;
+        child.classifierFactory = classifierFactory;
+        child.childRuns = childRuns;
+        child.childScheduler = childScheduler;
+        return child;
     }
 
     private void executeCall(CallStmt call) {
