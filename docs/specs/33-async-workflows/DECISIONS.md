@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **taken: D1 to D5, D8 to D21, D23 to D25, D28 and D29; partly taken: D26; deferred to the later phase: D6, D7 and B and C of D22; open: D27 and D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **taken: D1 to D5, D8 to D21, D23 to D26, D28 and D29; deferred to the later phase: D6, D7 and B and C of D22; open: D27 and D30** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -36,7 +36,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D23 | The counted conditions | **taken** (`tokens`, `cost`, `calls`, `elapsed`, `idle`; `status` is a readable fact only) |
 | D24 | Assertions in code | **taken** (four assertions; `never calls` is preventive) |
 | D25 | Judged assertions | **taken** (facts by default; a fixed verdict and fixed text; only `steer`, `wrap_up`, `cancel use partial`) |
-| D26 | Time: how long, how often | **partly taken** (time is in scope) |
+| D26 | Time: how long, how often | **taken** (a deadline on `start`; a 10 s tick; a judge cadence with a 30 s floor and a required `max`) |
 | D27 | Who pays for a judge | open |
 | D28 | What `elapsed` measures | **taken** (running time; `idle` excludes sleep and waiting; the `start` deadline is wall clock; `weave check` warns on a longer sleep) |
 | D29 | A suspended parent | **taken** (a waiting parent does not pause children; a parent suspended otherwise does) |
@@ -515,7 +515,14 @@ assert "searches only for the topic and reads at least two sources" using TopicJ
 - **Replay.** A tick and its verdict are journaled with the child's position, as `sleep` journals its wake time, so a replay returns what was recorded.
 - **Later, not v1:** back-off (`every 1m, then 3m`).
 
-**Decision:** partly taken. **The owner said time has to be factored in** (how long to supervise, how often). Open: every specific in the table (the deadline spelling, the tick, the cadence unit, the floor, the default).
+**Decision (owner): accepted as proposed.**
+1. **The deadline:** `start Research(...) timeout 20m ...`, spelled like the `timeout` of `delegate`; when it passes the child is cancelled with the status `timed out` (D9).
+2. **Supervision lasts as long as the child runs**; it ends when the child settles; there is no separate lifetime.
+3. **Counted rules and code assertions** are checked when a counter changes or the child does something; time-based ones (`elapsed`, `idle`, `reaches ... within`) are checked on a runtime **tick of about 10 seconds** (a local comparison, no model call; a runtime setting, not script text), so a rule can fire up to about 10 seconds late.
+4. **A judge's cadence** is written in the script as **either** a duration (`every 2m`, running time, D28) **or** a number of steps (`every 3 steps`, a step being a journaled step of the child), one unit per assertion; the first judgement comes after the first interval; **`max N` is required**, with no default; **`weave check` rejects a cadence below 30 seconds**; a judgement is **skipped if the child has done nothing since the last one**; when `max` is used up the rule stops evaluating and "judge limit reached" is recorded.
+5. **Replay:** each tick and verdict is journaled with the child's position, as `sleep` journals its wake time.
+6. **Cost shown:** the worst-case estimate adds, for each judged rule, `max` judgements times the live child cap (D14).
+7. **Not in v1:** back-off (`every 1m, then 3m`). The guidance of about 5 to 10 judgements over a child's expected life goes in the documentation as a heuristic, not a rule.
 
 ## D27. Who pays for a judge?
 
