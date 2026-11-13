@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 and D2 are taken, twenty decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D3 are taken, nineteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -8,7 +8,7 @@ Status: **draft; D1 and D2 are taken, twenty decisions are open.** Each gives th
 |---|---|---|
 | D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, review gates after 35a and 35c) |
 | D2 | How a tool kind describes itself | **taken** (a `profile` method on `ToolKind`; built-ins move their profiles into the kinds; a characterization test first) |
-| D3 | Registering and discovering kinds | open |
+| D3 | Registering and discovering kinds | **taken** (explicit for the built-ins, `ServiceLoader` for optional modules, four rules) |
 | D4 | The weight rule and the module layout | open |
 | D5 | Isolation as an honest, audited fact | open |
 | D6 | The sandbox contract | open |
@@ -66,7 +66,12 @@ Status: **draft; D1 and D2 are taken, twenty decisions are open.** Each gives th
 
 **Recommendation: B.** `ServiceLoader` is a JDK feature with no scanning and no reflection beyond instantiating a listed class, so it fits principle 8 of the repository. The built-ins stay explicit so the core set is visible in one place. An optional kind that fails to load is a load error naming the module, never a silent absence.
 
-**Decision (owner):** open.
+**Decision (owner): option B, with four rules.** The built-ins stay in the explicit list in `ToolFactory`; kinds from optional modules are found with `ServiceLoader` when their jar is on the classpath.
+1. A kind that fails to load is an error naming the module and the reason, never a silent absence.
+2. A name already registered is an error, not a quiet override: a jar cannot replace `file` or `shell` by carrying the same name.
+3. `weave check` lists the kinds it found and which jar supplied each, so the audit report says where a kind came from.
+4. The weave CLI and the Maven plugin load kinds the same way. A script that uses a kind whose jar is absent fails at load with a message naming the module to add.
+**Read while taking this decision:** every built-in kind a script can name is already a `ToolKind` (the tools module's six, Loom's `openapi` and `knowledge_graph`, the anonymous ones built by `simple(...)`, and `LanguageTools`), so `profile` (D2) goes on all of them and no separate registration interface is needed. Plain `Tool` classes in the core without a kind (`DelegateTaskTool`, `ScheduledActionTool`, `MemoryManagementTool`) were not examined; whether the audit treats them separately is a 35a question.
 
 ## D4. The weight rule and the module layout
 
