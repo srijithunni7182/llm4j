@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 is taken, D23 is deferred, eight decisions are open (D15 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 and D15 are taken, D23 is deferred, seven decisions are open (D16 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -20,7 +20,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D12 | Evidence: the `check` kind and provenance | **taken** (a minimal `check`: JUnit XML and JSON Schema; the typed-counts and untrusted-text rules) |
 | D13 | Pure computation: `compute` | **taken** (one `compute` kind: `calc`, `date`, `json`, `csv`; built first) |
 | D14 | Finding secrets and personal data: `scan` | **taken** (a pure `scan` kind that reports a rule and a place, never the match; no `redact` action) |
-| D15 | Testing: fakes, contract tests, guards, the oracle | open |
+| D15 | Testing: fakes, contract tests, guards, the oracle | **taken** (all six parts, with two additions: a hermetic test of the D9 pattern, and the proxy spike in the integration tier) |
 | D16 | The browser | open |
 | D17 | eval4j enhancements | open |
 | D18 | Other tools: now, later, never | open |
@@ -343,7 +343,15 @@ Proposed:
 
 **Recommendation: all six.** The two real backends are exercised in CI only where a runtime exists, and the report says which ran.
 
-**Decision (owner):** open.
+**Decision (owner): all six parts, with two additions.**
+1. **Every kind ships a fake and a `weave test` vocabulary** (scripted answers, recorded calls); the fake plugs in through the kind, which D2 makes possible (`ScriptedTools` no longer keeps its own list of kinds).
+2. **A contract test per kind** runs the same cases against the fake and, tagged `@Tag("integration")`, against the real backend (a container runtime, a browser); the report says which ran.
+3. **Guards are tested by breaking them once:** the sandbox's program allow-list, the workspace path jail and the no-symlink rule, protected paths and the built-in deny list, the patch's exact-once rule, the isolation fail-closed rule (remove the runtime), the proxy's refusal of private and metadata addresses, and `scan` never echoing a match.
+4. **Mutation profiles** for the decision-making classes (the isolation check, the patch applier, the path guard, the `check` parsers, the `scan` rules); a score cannot drop.
+5. **The audit characterization test** of D2.
+6. **The provenance oracle gets new canaries** through a `sandbox` result, a `check` record and a `scan` finding; the browser adds a page.
+**Additions.** (a) **The D9 pattern has a hermetic test:** with the `workspace` tool and the fake sandbox, a rewind restores the files and the identical writes run again; it is how 35c finds out whether `Generations.identity` treats `repeat` as D9 assumes. (b) **The proxy spike of D6 is an `integration`-tier check,** run only where Docker exists; its result is written into the docs' list of verified platforms.
+CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module it lands in, nothing is `@Disabled` to get green, and the tiers (`make test-core`, `make test-fast`, `make test-oracle` at the end) are as they are. The real container backend and a real browser are not in the default build, so CI covers them only where a runtime is installed.
 
 ## D16. The browser
 
