@@ -52,7 +52,7 @@ Considered and left for later (see D18): object storage, a message queue, a chat
 
 | Sub-phase | What | Gate |
 |---|---|---|
-| 35a | F1, F2: self-describing kinds and the registry. No new tool and no behaviour change | The owner reviews the branch before 35b |
+| 35a | First, the move to `src/tools/` in a commit of its own (D4); then F1, F2: self-describing kinds and the registry. No new tool and no behaviour change | The owner reviews the branch before 35b |
 | 35b | `compute`, `check`, `scan` and the `file` additions the decisions pick. Pure and cheap: no runtime change | |
 | 35c | F3 and the `workspace` kind: snapshot, restore, `effects: restore` | The owner reviews the branch: this touches the rewind runtime |
 | 35d | F4, F5 and `sandbox` (process and container backends, the fake, `serve` if D7 says so) | |

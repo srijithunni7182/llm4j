@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D3 are taken, nineteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D4 are taken, eighteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -9,7 +9,7 @@ Status: **draft; D1 to D3 are taken, nineteen decisions are open.** Each gives t
 | D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, review gates after 35a and 35c) |
 | D2 | How a tool kind describes itself | **taken** (a `profile` method on `ToolKind`; built-ins move their profiles into the kinds; a characterization test first) |
 | D3 | Registering and discovering kinds | **taken** (explicit for the built-ins, `ServiceLoader` for optional modules, four rules) |
-| D4 | The weight rule and the module layout | open |
+| D4 | The weight rule and the module layout | **taken** (a tools parent, the light module inside it, an `extras` aggregator for the heavy ones; weight tests; a README each) |
 | D5 | Isolation as an honest, audited fact | open |
 | D6 | The sandbox contract | open |
 | D7 | Long-running processes (`serve`) and reaching them | open |
@@ -83,7 +83,23 @@ Status: **draft; D1 to D3 are taken, nineteen decisions are open.** Each gives t
 
 **Recommendation: A**, with a **pinned test** that fails if `ai-agent4j-tools` gains a dependency (it reads the resolved dependency list), and a size note in the release notes. `search` and `git` are light and could live in the tools module; they are separate only so a user who wants neither pays nothing, and the owner may prefer to fold them in.
 
-**Decision (owner):** open.
+**Decision (owner): option A, in the owner's layout.** Light tools keep going into `ai-agent4j-tools`; a tool that needs a dependency is its own module.
+```
+src/tools/pom.xml                       parent (new, published): the weight rule and shared build settings
+src/tools/ai-agent4j-tools/             the light tools, moved from src/ai-agent4j-tools; the artifact id is unchanged
+src/tools/extras/pom.xml                aggregator (new, published): versions of heavy dependencies in one place, shared build and test settings
+src/tools/extras/ai-agent4j-tools-browser/
+                 ai-agent4j-tools-documents/
+                 ai-agent4j-tools-search/
+                 ai-agent4j-tools-git/
+```
+The aggregator is called **`extras`** (not `addon-tools`, which would be confused with the existing `ai-agent4j-addons`); the artifact ids stay `ai-agent4j-tools-<name>`. Whether `search` and `git` stay separate or fold into the light module is left as the owner stated it: separate, as optional capabilities, and open to being folded in during 35e if they prove too small to justify a module.
+**Rules**
+1. **The move comes first, in a commit of its own** with nothing else in it, so CI proves a pure rename. About 26 files mention the old path (the `verify-*.sh` scripts, the root `pom.xml`, docs); the artifact coordinates do not change for users.
+2. **Weight tests:** the light module has a pinned test that fails if its resolved dependencies grow beyond the core, Jackson and the optional mail library; each extras module has a small allow-list test of its own dependencies, and its licence must be compatible with Apache 2.0. The release notes state the light module's jar size before and after.
+3. **A README for each module, and for the two parents.** Each module's README says what it is for and who needs it, gives the options table and a working `tool` example, says what the audit sees (the profile note) and what the tool reaches and how to run it safely, and says how to add it to `weave` and to a Maven project. The samples are checked by a `*DocsTest` like the other documentation. Each is linked from the root README, the module table in `CLAUDE.md` and `llms.txt`. The parent READMEs explain the layout, the weight rule and how to add a module.
+4. **Adding an extras module to `weave`** (a gap in D3, closed here): the `ServiceLoader` lookup uses the class loader that `--classes` sets (`ProjectClasses.loader()`), not the default one; and an extras module that has dependencies also publishes a self-contained jar for `--classes`, since that option brings no transitive dependencies.
+**To check in 35a:** the release configuration with two new published parent poms (not read), and the reactor order (the extras modules depend on the light module and the core; Loom depends on neither the extras nor their parent).
 
 ## D5. Isolation as an honest, audited fact
 
