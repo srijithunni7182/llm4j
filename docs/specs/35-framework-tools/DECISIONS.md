@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D4 are taken, eighteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D5 are taken, seventeen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -10,7 +10,7 @@ Status: **draft; D1 to D4 are taken, eighteen decisions are open.** Each gives t
 | D2 | How a tool kind describes itself | **taken** (a `profile` method on `ToolKind`; built-ins move their profiles into the kinds; a characterization test first) |
 | D3 | Registering and discovering kinds | **taken** (explicit for the built-ins, `ServiceLoader` for optional modules, four rules) |
 | D4 | The weight rule and the module layout | **taken** (a tools parent, the light module inside it, an `extras` aggregator for the heavy ones; weight tests; a README each) |
-| D5 | Isolation as an honest, audited fact | open |
+| D5 | Isolation as an honest, audited fact | **taken** (option A with six rules; one sub-question on the load-time probe still open) |
 | D6 | The sandbox contract | open |
 | D7 | Long-running processes (`serve`) and reaching them | open |
 | D8 | Sandbox backends and the default | open |
@@ -111,7 +111,14 @@ The aggregator is called **`extras`** (not `addon-tools`, which would be confuse
 
 **Recommendation: A.** Levels: `none`, `process`, `container`, `vm`. There is **no default**: a `sandbox` tool without an `isolation` line is a load error, so nobody gets a weak level by omission. The fallback rule (never to a weaker level) is a test, checked by removing the container runtime.
 
-**Decision (owner):** open.
+**Decision (owner): option A.** Levels `none`, `process`, `container`, `vm`. Rules:
+1. **No default:** a `sandbox` tool without an `isolation` line is a load error.
+2. **Fail closed, never weaker:** a request for `container` with no runtime fails; it never falls back to `process`. Tested by removing the runtime.
+3. **Probe at load:** a missing container runtime is a load-time error, not a surprise mid-run (a backend that cannot be probed at load, such as a remote one, fails at first use). **Sub-question still open:** whether `weave check` itself runs `docker version` or `podman version` (the first time `check` would run a program), or only the run does. Recommendation: run it in `check` and say so.
+4. **The reported level is what the audit shows,** not the requested one; if they differ, the run stops.
+5. **Honest wording:** the audit note and the journal say "isolation: process", never "sandboxed".
+6. **LA31** flags a program run at `none` or `process` (medium when the workspace also holds secrets or the network is `open`, high when both); taken in D19.
+The docs say plainly that a container is not a boundary against a kernel exploit.
 
 ## D6. The sandbox contract
 
