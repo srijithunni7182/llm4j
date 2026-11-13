@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D17 are taken, D23 is deferred, five decisions are open (D18 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D18 are taken, D23 is deferred, four decisions are open (D19 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -23,7 +23,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D15 | Testing: fakes, contract tests, guards, the oracle | **taken** (all six parts, with two additions: a hermetic test of the D9 pattern, and the proxy spike in the integration tier) |
 | D16 | The browser | **taken** (an optional extras module: a JDK-only CDP backend, plus the contract and a fake; kept in this phase) |
 | D17 | eval4j enhancements | **taken** (option B: steps, evidence, cost per pass, a versioned export; no oracle module yet) |
-| D18 | Other tools: now, later, never | open |
+| D18 | Other tools: now, later, never | **taken** (the table as proposed; `search`, `documents` and `git` now, as extras modules) |
 | D19 | Security rules and documents | open |
 | D20 | Visibility: the ecosystem | open |
 | D21 | Names | open |
@@ -418,7 +418,11 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 
 **Recommendation: the table.** The owner can move a row.
 
-**Decision (owner):** open.
+**Decision (owner): the table as it stands.** `search`, `documents` and `git` are built now, each as a member of the extras aggregator (D4), in 35e with the browser (D16); the rows marked later, never and the vertical stay as written. Notes carried into the build:
+- **`search`:** a provider interface with one reference backend; the key is a `SecretRef` and results are `unchecked`. The provider is named in the module's README only and none is baked in (provider choice involves a key, terms of use and cost, so it is the consumer's).
+- **`documents`:** the module depends on **Apache PDFBox** for PDF (the one extras module with a real dependency, which is what the extras structure is for); its dependency tree and licence are checked when it is built (D4 rule 2), and the module publishes the self-contained jar for `weave` that D4 rule 4 requires.
+- **`git`:** a thin wrapper over the `git` program run through the sandbox contract, so it inherits isolation and limits; `push` is an effect that needs approval; it must never let `.git/hooks` run on the host, which the workspace deny list (D11) already guards.
+- **Weight of 35e:** four members (browser, search, documents, git), each with a README, a fake, a contract test and a profile.
 
 ## D19. Security rules and documents
 
