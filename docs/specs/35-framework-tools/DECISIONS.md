@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 is taken, eleven decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 and D12 are taken, ten decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -17,7 +17,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 is taken, eleve
 | D9 | Restore on rewind: the mechanism | **taken** (no framework support: restore is a `workspace` operation a script calls; a spike in 35c) |
 | D10 | Snapshot storage and limits | **folded into D11** (storage is an implementation detail; the visible rules moved) |
 | D11 | The workspace kind, patching and protected paths | **taken** (a new kind next to `file`; `allow` required; optional `version` on patch; protected paths; a built-in deny list; no `delete` or `move`) |
-| D12 | Evidence: the `check` kind and provenance | open |
+| D12 | Evidence: the `check` kind and provenance | **taken** (a minimal `check`: JUnit XML and JSON Schema; the typed-counts and untrusted-text rules) |
 | D13 | Pure computation: `compute` | open |
 | D14 | Finding secrets and personal data: `scan` | open |
 | D15 | Testing: fakes, contract tests, guards, the oracle | open |
@@ -270,7 +270,16 @@ rewind to Clean when (...) at most 2 times  carrying feedback = "..."  side effe
 
 **Recommendation: A.** The provenance oracle gets a canary that travels through a verifier's output, to prove no model-written value becomes trusted by passing through it. A parse failure is a failed check, never a pass.
 
-**Decision (owner):** open.
+**Decision (owner): option A, minimal.** A `check` kind (its name may become `verify`, D21) that turns a verifier's result into one typed record. **First version: JUnit XML and JSON Schema validation.** An exit code is already in the `sandbox` result (D6) and needs no tool. TAP and SARIF are added when a real workflow needs them (not in this phase).
+**Where it applies:** in a script, after a `sandbox` run has written a report into the workspace, `use Verify(source = "out/report.xml") -> result`, then `rewind ... when (result.failed > 0)` or `alt`; also to validate a model's structured output against a schema, and, in D17, to give eval4j a typed result to score instead of text.
+**Rules**
+1. **Counts and statuses are typed data parsed by the host;** the names and messages of items stay `unchecked`, since a model may have written them. The provenance oracle gets a canary that travels through a verifier's output.
+2. **A parse failure is a failed check, never a pass;** an empty report is reported as `total: 0` and the script decides.
+3. **The record never says "requirement met":** it says the artifact passed a check, and the check is only as good as who wrote it (hence `protect:` in D11).
+4. **It reads a file in the workspace or takes the text; it never runs a program.** It is pure: no reach, no effect, deterministic.
+5. **Bounded:** a cap on report size and on the number of items kept; truncation is said (principle 32).
+6. **No new core types:** the record lives in the tools module; eval4j's evidence type is D17.
+7. **No compare operation** (for example "did the failure count go down"): a script compares two numbers itself.
 
 ## D13. Pure computation: `compute`
 
