@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D16 are taken, D23 is deferred, six decisions are open (D17 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D17 are taken, D23 is deferred, five decisions are open (D18 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -22,7 +22,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D14 | Finding secrets and personal data: `scan` | **taken** (a pure `scan` kind that reports a rule and a place, never the match; no `redact` action) |
 | D15 | Testing: fakes, contract tests, guards, the oracle | **taken** (all six parts, with two additions: a hermetic test of the D9 pattern, and the proxy spike in the integration tier) |
 | D16 | The browser | **taken** (an optional extras module: a JDK-only CDP backend, plus the contract and a fake; kept in this phase) |
-| D17 | eval4j enhancements | open |
+| D17 | eval4j enhancements | **taken** (option B: steps, evidence, cost per pass, a versioned export; no oracle module yet) |
 | D18 | Other tools: now, later, never | open |
 | D19 | Security rules and documents | open |
 | D20 | Visibility: the ecosystem | open |
@@ -386,7 +386,19 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 
 **Recommendation: A.** (1) and (2) are needed by anything that evaluates a workflow with steps; (4) mostly exists (Wilson intervals, the cost tail) and needs only the combined figure and a version field. (3) is the one with a cost: a new module. The owner may take B now and (3) with the first user.
 
-**Decision (owner):** open.
+**Decision (owner): option B, with five rules.** Four small additions to eval4j and `weave eval`:
+1. **Steps in a scenario:** an ordered list of steps, each with its own input and expectations, so "create a page, then add a form to it" is one scenario; the old constructor stays.
+2. **Evidence:** a typed record a `Criterion` can read (the `check` result of D12: counts and statuses), in eval4j and with no dependency on the tools module.
+3. **Cost per pass with a confidence interval,** next to the pass rate, in `weave eval` and the export; the pieces exist (Wilson intervals, the cost tail), so this adds the combined figure.
+4. **A versioned export:** a `schemaVersion` field in the run export, so a reader can tell a newer file.
+**Left out for now:** the executable oracle (an interface to run a check against an artifact, with implementations in a new module that depends on both eval4j and the tools module). It comes back with the first real user; until then an evaluator writes a `Criterion` that calls a `sandbox` itself, which `Criterion` already allows.
+**Rules**
+1. **Compatibility:** steps are an addition to `EvalScenario` and the old constructor is kept; `docs/API_COMPATIBILITY.md` is updated in the same change.
+2. **Evidence stays typed and free text stays `unchecked`,** as in D12.
+3. **No new dependencies:** eval4j stays as it is.
+4. **`weave eval` changes only to print the new figure and read steps;** nothing else in the runner moves.
+5. **Tests:** the output of `weave eval` for every existing eval in the repository is pinned before the change.
+**Not yet read, to read at the start of 35f:** how a stored run is re-scored, whether `weave eval` runs cases in parallel, and the report module; any of it may change the plan and the owner is told.
 
 ## D18. Other tools: now, later, never
 
