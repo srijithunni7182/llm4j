@@ -153,6 +153,7 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 - **Image:** named in the script, never pulled implicitly (a pull is a network effect, so it is an explicit option).
 
 **Decision (owner):** taken as above; host-level matching confirmed.
+**Amended (owner, C3 and C4 in [VERIFICATION](VERIFICATION.md)):** with `isolation: process`, `network` must be written `open` (any other value is a load error, since a process cannot be kept off the network); and a secret named with `env.NAME: secret.REF` is resolved by the host on each run, never when the tool is built.
 
 ## D7. Long-running processes (`serve`) and reaching them
 
