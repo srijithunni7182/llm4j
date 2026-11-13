@@ -1,6 +1,6 @@
 # Phase 35: design
 
-Status: **final for phase 35 (all decisions taken; D23 deferred); not yet built.** Facts marked (read) come from the merged source on `main` after PR 119. Anything marked (not read) must be read before the work that depends on it starts. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md).
+Status: **final for phase 35 (all decisions taken; D23 deferred); not yet built.** Facts marked (read) come from the merged source on `main` after PR 119. Anything marked (not read) must be read before the work that depends on it starts. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md). Tests: [TEST_STRATEGY.md](TEST_STRATEGY.md). What was read and what must be proved: [VERIFICATION.md](VERIFICATION.md).
 
 ## 1. What the code does today (read)
 
