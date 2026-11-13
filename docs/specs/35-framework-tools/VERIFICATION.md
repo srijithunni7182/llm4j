@@ -34,11 +34,20 @@ Status: **final for phase 35; nothing is built.** Section 0 lists what was read 
 | R8 | `EffectPolicy` (`idempotent`, `on_unknown`) for `snapshot` and `restore` | D9: a crash mid-restore is retried | 35c |
 | R9 | How a stored eval run is re-scored, whether `weave eval` runs cases in parallel, the `eval4j-report` module and the export schema | D17 | 35f, first |
 | R10 | The `PIIDetector` API | `scan` reuses it (D14) | 35b |
-| R11 | The egress proxy's reachability from a network with no outside route, on Docker for Linux, Docker Desktop and rootless Podman | D6 spike | 35d, first |
+| R11 | The egress proxy's reachability from a network with no outside route, on Docker for Linux, Docker Desktop and rootless Podman. **Docker for Linux was probed ad hoc (above) and works; the integration test must still be written, and the other two are not probed** | D6 spike | 35d, first |
 | R12 | Where a load-time probe fits in `weave check`, and whether a skip flag (`--no-probe`) is wanted for CI | D5 | 35d |
 | R13 | Every list of kinds in the documentation, the skills and the starters (a grep for `use: webhook`, `webhook | email`), and the exact hover and snippet entries | D20 | 35f |
 | R14 | Whether phase 31's multimodal return path could carry an image from a tool | informational; D16 keeps a screenshot a file | 35e |
 | R15 | The CDP calls for request interception on the browser versions the module will name | D16 | 35e |
+
+### Probes done while writing the spec (E0; ad hoc, not tests)
+
+Run in the cloud session on 2026-11-13 (Ubuntu 24.04, root, kernel 6.18, cgroup v1). They show what the implementation session can rely on; they do not replace the integration tests.
+- **A container runtime is already installed:** `docker` 29.9.2 with `dockerd`, `containerd` and `runc` are in the image. The daemon is **not** running at session start; `nohup dockerd > log 2>&1 &` (as root) started it within seconds and `docker info` answered (overlayfs, runc).
+- **Images:** Docker Hub is reachable. A first `docker pull alpine:3.20` returned HTTP 429 (rate limit); the image then came down with `docker run`. Tests should use one small image, pull it once and retry on a 429.
+- **No network:** `docker run --network none` ran a command.
+- **No route out:** a container on `docker network create --internal` had only the bridge's own subnet in its routing table and could not reach an outside host.
+- **The proxy's premise (R11, Docker for Linux):** a listener bound on the host to the internal network's gateway address (here `172.18.0.1`) **was reachable from a container on that network**, while the container had no route to anything else. So an egress proxy bound to the gateway can be the container's only way out. Docker Desktop and rootless Podman are **not** probed; Podman is not in the image's package lists.
 
 ### Where the code contradicts a decision or the design (filled in by the build)
 
@@ -76,4 +85,4 @@ Nothing is built.
 
 ## 2. How the report is written
 
-At the end of each sub-phase the report states, for each row, the level reached and the evidence (the test names), **what was not run** (`make test-full`, the other `slow` tests, every integration test that needed a runtime the session lacked, anything at E4), the risks of DESIGN §5 that turned out to be real, each R-item read and what it found, and any decision that was changed and why. A row is never marked reached without the test that proves it. **If the cloud session has no container runtime, the container backend and the proxy are reported as not verified, not as passing.**
+At the end of each sub-phase the report states, for each row, the level reached and the evidence (the test names), **what was not run** (`make test-full`, the other `slow` tests, every integration test that needed a runtime the session lacked, anything at E4), the risks of DESIGN §5 that turned out to be real, each R-item read and what it found, and any decision that was changed and why. A row is never marked reached without the test that proves it. **Docker is in the cloud image but its daemon must be started (see the probes above); if a session cannot start it, the container backend and the proxy are reported as not verified, not as passing.**
