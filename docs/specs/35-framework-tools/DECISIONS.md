@@ -1,12 +1,12 @@
 # Phase 35: decisions
 
-Status: **draft; all twenty-two decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 is taken, twenty-one decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
 | | Decision | State |
 |---|---|---|
-| D1 | The scope and staging of this phase | open |
+| D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, review gates after 35a and 35c) |
 | D2 | How a tool kind describes itself | open |
 | D3 | Registering and discovering kinds | open |
 | D4 | The weight rule and the module layout | open |
@@ -39,7 +39,8 @@ Status: **draft; all twenty-two decisions are open.** Each gives the question, w
 
 **Recommendation: A.** The order is built so the owner can stop after any sub-phase with something whole, and the two gates fall where the runtime changes. B is the fallback if the owner finds the phase too large to review.
 
-**Decision (owner):** open.
+**Decision (owner): option A, with the gates.** One phase with six sub-phases (35a to 35f, [DESIGN §4](DESIGN.md)).
+**The gates:** the implementation session **stops after 35a** (self-describing kinds, the audit refactor) **and after 35c** (restore on rewind), reports what it built and found, and waits for the owner, who then tells it to continue or to change something. Nothing is merged in between. If the review load proves too large, the split into two phases (option B) stays available at the 35d/35e boundary.
 
 ## D2. How a tool kind describes itself
 
