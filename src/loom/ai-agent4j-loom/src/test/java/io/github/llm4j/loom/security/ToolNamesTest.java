@@ -41,4 +41,39 @@ class ToolNamesTest {
         assertThat(c.untrusted()).isTrue();
         assertThat(c.outward()).isFalse();
     }
+
+    @Test
+    void aReachTheLootFileGetsWrongIsNotTakenAsADeclaration() {
+        Capabilities c = Capabilities.resolve("Odd", Map.of(), Map.of("Odd", "loud"));
+        assertThat(c.known()).isFalse();
+        assertThat(c.effectSource()).isEqualTo(Capabilities.EffectSource.ASSUMED);
+        assertThat(c.note()).contains("reach: loud is not one of");
+    }
+
+    @Test
+    void theShortConstructorAssumesTheEffectFromTheLegs() {
+        assertThat(new Capabilities(false, false, true, true, true, "n").level())
+                .isEqualTo(TaskEffect.CHANGES);
+        assertThat(new Capabilities(true, false, false, false, true, "n").level())
+                .isEqualTo(TaskEffect.READS);
+        assertThat(new Capabilities(false, true, false, false, true, "n").level())
+                .isEqualTo(TaskEffect.READS);
+        assertThat(new Capabilities(false, false, false, false, true, "n").level())
+                .isEqualTo(TaskEffect.NONE);
+    }
+
+    @Test
+    void aKindIsToldItsOptionsAsWrittenNeverTheirValues() {
+        io.github.llm4j.loom.ast.ToolDef api = new io.github.llm4j.loom.ast.ToolDef("Api");
+        api.setKind("http");
+        api.getOptions()
+                .put("base_url", io.github.llm4j.loom.ast.ToolDef.OptionValue.env("API_URL"));
+        api.getOptions()
+                .put("methods", io.github.llm4j.loom.ast.ToolDef.OptionValue.literal("POST"));
+        Capabilities c = Capabilities.resolve("Api", Map.of("Api", api), Map.of());
+        assertThat(c.note()).isEqualTo("calls env.API_URL with POST");
+        assertThat(Capabilities.opt(api, "base_url")).isEqualTo("env.API_URL");
+        assertThat(Capabilities.opt(api, "methods")).isEqualTo("POST");
+        assertThat(Capabilities.opt(api, "absent")).isNull();
+    }
 }

@@ -78,6 +78,30 @@ public class KindDiscoveryTest {
         }
     }
 
+    /** A kind whose name a script could not write. */
+    public static final class BadName implements io.github.llm4j.agent.tool.ToolKind {
+        @Override
+        public String name() {
+            return "Bad Name";
+        }
+
+        @Override
+        public String check(Map<String, String> options, Path baseDir) {
+            return null;
+        }
+
+        @Override
+        public Tool create(String name, Map<String, String> options, Path baseDir) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Tool create(
+                String name, Map<String, String> options, Path baseDir, EffectContext context) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
     /** A kind that does not say what it reaches. */
     public static final class Silent implements io.github.llm4j.agent.tool.ToolKind {
         @Override
@@ -269,5 +293,72 @@ public class KindDiscoveryTest {
                 .asString()
                 .contains("unknown tool kind 'browser'")
                 .contains("--classes");
+    }
+
+    @Test
+    void aKindInAJarIsNamedByTheJarsFileName() throws Exception {
+        Path jar = dir.resolve("ai-agent4j-tools-echo-1.0.jar");
+        try (var out =
+                new java.util.jar.JarOutputStream(java.nio.file.Files.newOutputStream(jar))) {
+            out.putNextEntry(new java.util.jar.JarEntry(DiscoveredKinds.SERVICE));
+            out.write(
+                    ("# a comment\n\n" + Echo.class.getName() + "  # the echo kind\n").getBytes());
+            out.closeEntry();
+        }
+        ToolFactory factory =
+                new ToolFactory(
+                        new URLClassLoader(
+                                new URL[] {jar.toUri().toURL()}, getClass().getClassLoader()));
+        assertThat(factory.loadProblems()).isEmpty();
+        assertThat(factory.sources()).containsEntry("echo_extra", "ai-agent4j-tools-echo-1.0.jar");
+    }
+
+    @Test
+    void sourcesAreTheJarFileOrTheFolder() throws Exception {
+        assertThat(
+                        DiscoveredKinds.sourceOf(
+                                new URL(
+                                        "jar:file:/opt/lib/extra-2.jar!/"
+                                                + DiscoveredKinds.SERVICE)))
+                .isEqualTo("extra-2.jar");
+        assertThat(
+                        DiscoveredKinds.sourceOf(
+                                new URL("file:/work/classes/" + DiscoveredKinds.SERVICE)))
+                .isEqualTo("/work/classes");
+        assertThat(DiscoveredKinds.sourceOf(new URL("http://example.invalid/x")))
+                .isEqualTo("http://example.invalid/x");
+    }
+
+    @Test
+    void aKindWithANameAScriptCannotWriteIsNotLoaded() throws Exception {
+        ToolFactory factory = new ToolFactory(module("bad-name-module", BadName.class, Echo.class));
+        assertThat(factory.loadProblems())
+                .singleElement()
+                .asString()
+                .contains(BadName.class.getName())
+                .contains("bad-name-module")
+                .contains("no usable name");
+        assertThat(factory.kinds()).contains("echo_extra");
+    }
+
+    @Test
+    void aClassPathThatCannotBeReadIsAnErrorNotSilence() {
+        ClassLoader unreadable =
+                new ClassLoader(getClass().getClassLoader()) {
+                    @Override
+                    public java.util.Enumeration<URL> getResources(String name)
+                            throws java.io.IOException {
+                        if (name.equals(DiscoveredKinds.SERVICE))
+                            throw new java.io.IOException("disk gone");
+                        return super.getResources(name);
+                    }
+                };
+        ToolFactory factory = new ToolFactory(unreadable);
+        assertThat(factory.loadProblems())
+                .singleElement()
+                .asString()
+                .contains("could not be loaded")
+                .contains("disk gone");
+        assertThat(factory.kinds()).contains("file");
     }
 }

@@ -88,10 +88,6 @@ public record Capabilities(
         return declared != null ? declared : whole.level();
     }
 
-    static Capabilities none(String note) {
-        return new Capabilities(false, false, false, false, true, note);
-    }
-
     static Capabilities unknown(String note) {
         return new Capabilities(true, true, true, true, false, note);
     }
