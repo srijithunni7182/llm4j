@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D23 was added, ten decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D23 is deferred, nine decisions are open (D14 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -28,7 +28,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D20 | Visibility: the ecosystem | open |
 | D21 | Names | open |
 | D22 | What stays out of this phase | open |
-| D23 | Predictions from a pre-trained model: a `predict` tool | open (raised by the owner; under discussion) |
+| D23 | Predictions from a pre-trained model: a `predict` tool | **deferred** (left out of this phase by the owner; to be taken up later) |
 
 ## D1. The scope and staging of this phase
 
@@ -424,6 +424,9 @@ Proposed: any vertical's own tools (package policy, code navigation, a design br
 
 ## D23. Predictions from a pre-trained model: a `predict` tool
 
-**Raised by the owner; under discussion, not yet a proposal.** An agent is poor at statistical prediction on tabular data, and the traditional answer is to train and tune a separate model per dataset. Pre-trained tabular models predict in one forward pass without training. The question is whether llm4j should have a tool that makes such predictions, and on what terms. See the discussion before this is filled in.
+**Deferred (owner): left out of this phase; to be taken up later.** Raised by the owner: an agent is poor at statistical prediction on tabular data, and the traditional answer is to train and tune a model per dataset, while pre-trained tabular models (TabPFN, TabICL) predict in one forward pass; time-series forecasters (Chronos-2, TimesFM) are a related family. What was found when it was raised, so it need not be researched again:
+- **Licences are the main trap:** TabPFN's code is Apache 2.0 but its 2.5 and later weights are non-commercial, with outputs limited to non-commercial evaluation and research unless a commercial licence or the paid API is used (the sources disagree on details; read the licence text). TimesFM 3.0 weights are non-commercial while 2.5 is Apache 2.0; Chronos-2 is reported as Apache 2.0 (blog sources only). TabICL has public weights; its licence was not verified.
+- **No Java path:** nothing was found on ONNX export or a Java runtime for these models; in practice they run in Python.
+- **First reaction (not a proposal):** llm4j owns a `predict` contract in an optional extras module and never ships or defaults to a model; backends behind an interface (the user's own image through `sandbox` with `network: none`, a hosted API whose data leaving the machine the audit shows, and a trivial baseline); results carry cross-validated metrics, the baseline's score, the training-row count and the model's id and version; guards for too-small training sets and a target also in the features; a pinned seed; a journaled effect. Tabular classification and regression first, forecasting a second action later. Tests can cover only the contract against a fake and the baseline; a real model is an `integration` test.
+Nothing in this phase depends on it.
 
-**Decision (owner):** open.
