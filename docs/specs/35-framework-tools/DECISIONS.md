@@ -1,13 +1,13 @@
 # Phase 35: decisions
 
-Status: **draft; D1 is taken, twenty-one decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 and D2 are taken, twenty decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
 | | Decision | State |
 |---|---|---|
 | D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, review gates after 35a and 35c) |
-| D2 | How a tool kind describes itself | open |
+| D2 | How a tool kind describes itself | **taken** (a `profile` method on `ToolKind`; built-ins move their profiles into the kinds; a characterization test first) |
 | D3 | Registering and discovering kinds | open |
 | D4 | The weight rule and the module layout | open |
 | D5 | Isolation as an honest, audited fact | open |
@@ -52,7 +52,9 @@ Status: **draft; D1 is taken, twenty-one decisions are open.** Each gives the qu
 
 **Recommendation: A.** It is the smallest core change (one default method and one record), keeps a kind's facts next to its code (principle 24), and old kinds keep working. Condition: a **characterization test** pins the audit output for every repository script before the refactor and after; the refactor does not start without it.
 
-**Decision (owner):** open.
+**Decision (owner): option A, with the characterization test.** `ToolKind` gains a default `profile(options)` returning a core `ToolProfile`; the built-in kinds move their profiles into themselves, so Loom keeps no list of kind names for what a kind reaches. A kind that does not answer is "unknown" and is assumed to reach everything, as today.
+**Precondition:** before the refactor, a test records the audit output for every `.loom` file in the repository; after it, the output must be identical. Any difference is reported to the owner, not resolved silently, because it is either a profile bug or a place where the old lists disagreed.
+**Settled in 35a, not here:** how the kinds Loom registers itself (`duckduckgo`, `calculator`, `openapi`, `knowledge_graph`, `skill_registry`, `class`) answer the same question (the same method on Loom's registration interface, or a small remaining switch), and the mapping from today's boolean `effect` to `TaskEffect`.
 
 ## D3. Registering and discovering kinds
 
