@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, twelve decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 is taken, eleven decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -16,7 +16,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, twelve decisions ar
 | D8 | Sandbox backends and the default | **taken** (`process`, `container` and `fake`; an interface for `vm` and remote; six rules) |
 | D9 | Restore on rewind: the mechanism | **taken** (no framework support: restore is a `workspace` operation a script calls; a spike in 35c) |
 | D10 | Snapshot storage and limits | **folded into D11** (storage is an implementation detail; the visible rules moved) |
-| D11 | The workspace kind, patching and protected paths | open |
+| D11 | The workspace kind, patching and protected paths | **taken** (a new kind next to `file`; `allow` required; optional `version` on patch; protected paths; a built-in deny list; no `delete` or `move`) |
 | D12 | Evidence: the `check` kind and provenance | open |
 | D13 | Pure computation: `compute` | open |
 | D14 | Finding secrets and personal data: `scan` | open |
@@ -202,9 +202,9 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 **Decision (owner): none in the framework; option C.** The owner's reasons: what "restore" means is subjective and differs for every tool; it could become a bottleneck for anyone building a tool; and not every backend (a `vm`, a remote service) can or wants to support it. The framework therefore gains **no** `Checkpointable` capability, **no** `restorable` field in the profile, **no** `side effects: restore` word, no change to `Rewinder` and no new `RewindChecks` rule.
 **How a script does it** (a sketch, not a script that parses today):
 ```loom
-use Data(op = "snapshot", name = "clean")          // once, before the checkpoint
+use Data(action = "snapshot", name = "clean")          // once, before the checkpoint
 checkpoint Clean  starting with feedback = "none"
-use Data(op = "restore", name = "clean")           // a no-op the first time; after a rewind it undoes the failed attempt
+use Data(action = "restore", name = "clean")           // a no-op the first time; after a rewind it undoes the failed attempt
 ...
 rewind to Clean when (...) at most 2 times  carrying feedback = "..."  side effects: repeat
 ```
@@ -234,9 +234,32 @@ rewind to Clean when (...) at most 2 times  carrying feedback = "..."  side effe
 4. **`diff` compares the workspace to a named snapshot** (the latest if none is named) and lists added, changed and deleted paths, bounded in count: this is how a script learns what a `sandbox` run did (D6).
 5. **Idempotent:** restoring the same snapshot twice leaves the same state, which is what lets a crash mid-restore be retried (D9).
 
-**Recommendation: A**, with the patch, the protected paths and the five rules above.
+**Decision (owner): option A, with the rules below.** A new `workspace` kind next to `file`; `file` is unchanged and its guards (`PathGuard`, the reserved paths, the per-file locks, the effect policy) are reused. Calls use `action`, `path` and `content`, as `file` does (the `op` in the D9 sketch becomes `action`).
 
-**Decision (owner):** open.
+| Action | What it does |
+|---|---|
+| `read` | A file, optionally by line range; returns a short `version` tag, a hash of the whole file |
+| `list`, `exists` | As in `file`; `list` is bounded and skips ignored paths |
+| `write`, `append` | Create or extend a file, creating directories; `overwrite` as in `file` |
+| `patch` | A list of (old text, new text) edits for one file; all apply or none |
+| `find` | Paths matching a glob, bounded |
+| `grep` | A literal search by default, or a regex with a bounded line length and match count; returns path, line and text, with optional context lines |
+| `diff` | The workspace against a named snapshot (the latest if none is named): added, changed and deleted paths, bounded |
+| `snapshot`, `restore` | The five rules above; built last in 35c |
+
+**Patch.** Each `old` must appear exactly once in the original file; edits are matched against the original, not one after another; overlapping edits are refused; a failure names the edit and why (not found, or found N times) and changes nothing; a protected path is refused. The file's `version` is **optional**: if given it must match. (The first draft required it; exact-once matching already stops a stale patch landing on the wrong text, and a required tag makes a model fail on a mistyped one.)
+**Protected paths.** `protect: "tests/**, oracle/**"` makes those paths read-only through every call of this tool and read-only in the sandbox mount that names it (D6): one declaration for both, which keeps evidence honest (principle 28). A script's own `use` calls go through the same tool, so protected files are put in place before the run or by a second `workspace` tool declared without `protect`.
+**Rules**
+1. **`allow` is required, with no default** (a missing setting is a load error, as `isolation` is in D5); it matches relative path globs.
+2. **Symlinks are never followed** by reads, writes, `find`, `grep`, snapshot or restore: a program in the sandbox can create a link inside the workspace, and a host-side tool that followed it would read the host.
+3. **A built-in deny list that `allow` cannot override:** writes under `.git/**` are refused (a hook file there would run on the host the next time `git` does); reads of `.env*`, `*.pem`, `*.key` and `id_*` are refused.
+4. **`snapshot` and `restore` are journaled effects**, so a resumed run reuses the recorded result instead of taking a snapshot of later state; both are idempotent (D9).
+5. **Text only:** a binary file is listed and counted, `read` refuses it with its size; snapshots and `diff` handle it by hash.
+6. **`ignore` affects only listing, `find`, `grep`, `snapshot` and `diff`;** reading and writing follow `allow`.
+7. **Modes** `read`, `write`, `readwrite` as in `file`; `restore` needs write.
+8. **Left out of the first version:** `delete` and `move` (a `sandbox` can do both); they can be added on demand.
+**What the audit sees (D2):** reaches private data (the workspace), effect `changes` unless `mode: read`, no network; the note names the root and the protected paths.
+
 
 ## D12. Evidence: the `check` kind and provenance
 
