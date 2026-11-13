@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 and D15 are taken, D23 is deferred, seven decisions are open (D16 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D16 are taken, D23 is deferred, six decisions are open (D17 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -21,7 +21,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D13 | Pure computation: `compute` | **taken** (one `compute` kind: `calc`, `date`, `json`, `csv`; built first) |
 | D14 | Finding secrets and personal data: `scan` | **taken** (a pure `scan` kind that reports a rule and a place, never the match; no `redact` action) |
 | D15 | Testing: fakes, contract tests, guards, the oracle | **taken** (all six parts, with two additions: a hermetic test of the D9 pattern, and the proxy spike in the integration tier) |
-| D16 | The browser | open |
+| D16 | The browser | **taken** (an optional extras module: a JDK-only CDP backend, plus the contract and a fake; kept in this phase) |
 | D17 | eval4j enhancements | open |
 | D18 | Other tools: now, later, never | open |
 | D19 | Security rules and documents | open |
@@ -363,7 +363,18 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 
 **Recommendation: A**, plus the contract and fake of C. A tool result is a `String` (DESIGN §1, not read: phase 31 return path), so a screenshot is **a file the script passes on**, not an image returned to a model. Page text is `unchecked` and the audit marks the kind as reading untrusted content. If the owner prefers less code to write, B is acceptable as an optional module.
 
-**Decision (owner):** open.
+**Decision (owner): options A and C together; kept in this phase.** An optional extras module, `ai-agent4j-tools-browser`, with the **contract and a fake** (C) and a **reference backend on the JDK** (A): the Chrome DevTools Protocol over `java.net.http.WebSocket` to a browser the user already has installed (found on `PATH` or named in an option), with no new dependency. Option B (Playwright for Java) was not taken.
+**Where it applies:** research on pages that need scripts; checking an app the sandbox serves (D7); filling a form in an approval step; a screenshot as evidence.
+**Actions (first version):** `open` (load a URL, wait, return title and status), `text` (visible text, bounded), `screenshot` (a PNG to a workspace file, returning its path), `click` and `fill` (by CSS selector, or by visible text or label), `wait_for` (a selector or text, with a timeout), `console` (bounded), `failed_requests` (bounded).
+**Rules**
+1. **Every request is checked, not just the first URL:** the protocol's request interception applies `NetPolicy` and the script's allow-list to everything a page loads; loopback and metadata addresses are refused, with the one exception of the one-port grant for a process the run started (D7).
+2. **Page content is untrusted:** the audit marks the kind as reading untrusted content, and `text` and `console` are `unchecked`.
+3. **A tool result is text:** a screenshot is a file the script passes on, not an image returned to a model (a change to the tool result type is out of this phase, D22).
+4. **Isolation:** a fresh profile with no saved cookies or logins; the browser is stopped when the run ends, is cancelled or is recovered after a crash (principle 31); where a container is available it can run in the sandbox.
+5. **No downloads, no file pickers and no permission prompts;** dialogs are dismissed and recorded.
+6. **Bounded:** time, page text, number of requests and screenshot size, with truncation said.
+7. **Fake and contract tests (D15):** the fake plays scripted pages; the real backend is `integration`-tagged and needs an installed browser. The module's README says which browser versions were verified.
+**What it costs, accepted:** a small CDP client (about a thousand lines) to write and to keep current as the protocol changes between browser versions, and the largest module among the extras. It is built last in 35e; if it proves too large, it can move out to its own phase (the owner may revisit).
 
 ## D17. eval4j enhancements
 
