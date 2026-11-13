@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.srijithunni7182</groupId>
+        <artifactId>ai-agent4j-tools-parent</artifactId>
+        <version>6.2.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ai-agent4j-tools-extras-parent</artifactId>
+    <packaging>pom</packaging>
+
+    <name>AI Agent4J - Tools Extras Parent</name>
+    <description>Parent of the optional tool modules that need a dependency beyond the core and Jackson (ai-agent4j-tools-&lt;name&gt;). Keeps the versions of those dependencies in one place.</description>
+
+    <!--
+        Each extras module is its own artifact, ai-agent4j-tools-<name>, that a user adds only when they want that tool.
+        Its kinds are found with ServiceLoader when its jar is on the class path. The versions of the heavy dependencies
+        go in <dependencyManagement> here, so two extras modules never bring two copies of one library.
+        See README.md for how to add a module. No module has been added yet.
+    -->
+    <modules/>
+</project>

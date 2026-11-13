@@ -46,7 +46,7 @@
         <module>src/a2a-testkit</module>
         <module>src/ai-agent4j</module>
         <module>src/ai-agent4j-addons</module>
-        <module>src/tools/ai-agent4j-tools</module>
+        <module>src/tools</module>
         <module>src/eval4j</module>
         <module>src/eval4j-report</module>
         <module>src/loom/ai-agent4j-loom</module>

@@ -8,6 +8,11 @@ All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX
 - **`sarvam/<model>` in Loom and `provider: sarvam` in Spring now use the V2 API.** The same key and the same `SARVAM_BASE_URL` (the host) work. Tool-using agents on Sarvam now call tools natively instead of through the text protocol, and `weave audit` names the host `api.sarvam.ai`.
 - **`sarvam-m` is no longer served by Sarvam.** `SarvamChatProvider` (V1, text only) is deprecated and now defaults to `sarvam-105b`. Speech, text-to-speech and translation are unchanged.
 
+## Tools: one home and a weight rule (phase 35a)
+
+- **The tools module moved to `src/tools/ai-agent4j-tools`.** Its coordinates are unchanged (`io.github.srijithunni7182:ai-agent4j-tools`); only the folder in the repository moved. Two new parent poms are published with it, `ai-agent4j-tools-parent` and `ai-agent4j-tools-extras-parent`, so the optional tool modules of this phase can sit beside it ([the layout](../src/tools/README.md)).
+- **The light tools module cannot grow a dependency unnoticed.** A test pins what it depends on (the core, Jackson and the optional mail library); a tool that needs more goes in its own module under `src/tools/extras`.
+
 ## Starting workflows and supervising them (phase 33, Loom)
 
 - **`start`, `wait`, `cancel`, `steer` and `supervise <handle>`.** A script can start a workflow as a child run of its own, get a handle at once, and then wait for it, cancel it, steer it and watch it with rules, so one workflow runs, watches and operates others. A child has its own journal, a budget that is also charged to its parent, a deterministic run id (a restart finds the same child and never repeats an effect), and a status the script reads as a value. `call` is unchanged. See [the guide section](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise) and the [design](specs/33-async-workflows/DESIGN.md).
