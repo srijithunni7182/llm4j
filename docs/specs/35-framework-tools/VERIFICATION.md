@@ -40,6 +40,21 @@ Status: **final for phase 35; nothing is built.** Section 0 lists what was read 
 | R14 | Whether phase 31's multimodal return path could carry an image from a tool | informational; D16 keeps a screenshot a file | 35e |
 | R15 | The CDP calls for request interception on the browser versions the module will name | D16 | 35e |
 
+### Notes on the reads (written by the build)
+
+- **R2 (35a).** A bare word is a valid option value (`LoomParser.optionValue`), so `workspace: Data` parses, as the text `Data`. A kind's `check` and `create` see only their own options and the base directory, never another declaration, so resolving `Data` to a `workspace` tool's root and protected paths must be done by Loom's `ToolFactory` before the kind is asked (or D6's fallback, a repeated root plus a load check). Settled in 35d; it does not block 35a.
+- **R4 (35a).** The release (`-Prelease deploy`) bundles every module of the reactor, so a parent pom is published by being in it; `pom` packaging inherits name, licence, SCM and developers from `llm4j-parent`, and the sources and javadoc steps skip it. `mvn -Prelease -Dgpg.skip=true -DskipTests install -pl src/tools,src/tools/extras,src/tools/ai-agent4j-tools` built both parents and the light module's three jars. Reactor order: the root lists `src/tools` where it listed the light module, and `src/tools` lists the light module before `extras`; Loom depends on the light module's artifact only. `docs/PUBLISHING.md` now counts fourteen artifacts. `make release-check` (the whole reactor) was not run.
+- **R6 (35a, first).** The eight sites do not all ask the same question:
+
+  | Site | What its list means | A question the profile answers? |
+  |---|---|---|
+  | `security/Capabilities.of` and `ofName` (`SEARCH`, `HARMLESS`) | What a kind reaches, from its options | **Yes**: this is the profile |
+  | `generate/PlanChecker.KINDS` | Whether a kind exists | No: the registry's (`ToolFactory.kinds()`), identical list today |
+  | `review/fact/ToolFacts.JOURNALED`, `whatif/WhatIf.EFFECT_KINDS`, `wtest/ScriptedTools.EFFECT_KINDS` | The same six names (`webhook`, `email`, `http`, `file`, `shell`, `sql`): the kinds whose calls go through the effect journal (all six tools extend `GenericTool implements Effectful`). It includes `sql` and a read-only `file`, so it is **not** the effect level | Not with D2's fields; see the contradiction below |
+  | `execution/RewindChecks` (`READ_ONLY_KINDS`, `EFFECT_KINDS`, its own `file` and `http` parsing) | Whether a tool can have changed something before a rewind; any kind it does not list is "unknown" and counted as risky. It ignores `effect:` and `reach:` | Yes, but asking it **changes `weave check`** (below) |
+  | `security/SecurityAudit` (`shell` with `unattended` or `allow_interpreters`, `file` with `overwrite`, `http` writing without `allow_paths`), `generate/SafeDefaults` and `PlanChecker` (`shell` needs a reason) | Rules about one kind's own options, not lists of kinds | Not a reach question; can stay as rules about that kind |
+- **R7 (35a).** `MemoryManagementTool` is attached by Loom only for an agent with `memory { facts }`, and the audit treats it through the agent's memory setting (`privateData` "memory facts", the rule on memory fed by untrusted content), not as a kind. `DelegateTaskTool` and `ScheduledActionTool` are not reachable from a script. None of the three needs a profile.
+
 ### Probes done while writing the spec (E0; ad hoc, not tests)
 
 Run in the cloud session on 2026-11-13 (Ubuntu 24.04, root, kernel 6.18, cgroup v1). They show what the implementation session can rely on; they do not replace the integration tests.
@@ -51,7 +66,12 @@ Run in the cloud session on 2026-11-13 (Ubuntu 24.04, root, kernel 6.18, cgroup 
 
 ### Where the code contradicts a decision or the design (filled in by the build)
 
-None yet. If a read shows that a decision cannot be built as written, the session stops at that point, writes the finding here with the evidence, and asks the owner; it does not deviate silently.
+If a read shows that a decision cannot be built as written, the session stops at that point, writes the finding here with the evidence, and asks the owner; it does not deviate silently.
+
+**C1 (R6, 35a): D2 says the eight sites ask the kind and their lists are deleted; DESIGN F1 says no behaviour changes. For four sites both cannot hold.** Open, asked of the owner.
+1. **`ToolFacts`, `WhatIf`, `ScriptedTools`.** Their shared list means "journaled", which D2's profile (three reach booleans, effect level, isolation, note) cannot express. Deriving it from the effect level changes behaviour: `weave test` would answer "ok" to an unscripted call of a search tool where today the case fails, `weave whatif` would list search and `openapi` tools as effects, and the review's `journaled` fact would change for every non-generic kind. Options: (a) a `journaled` field in the profile, true for the six generic kinds, behaviour identical; (b) derive it from the effect level and accept the changes; (c) keep the three lists for now.
+2. **`RewindChecks`.** Its list disagrees with the audit. With the audit's answer (`Capabilities.resolve`: the profile and any `effect:` or `reach:`), a tool the audit says changes nothing stops being counted as risky. In `every-kind.loom` (the characterization fixture) the unstated-rewind warning today names `Translate`, `Translit`, `Detect`, `Speak`, `Transcribe`, `translate`, `speak`, `GraphRead` (`read_only: true`), `Skills`, `MineNone`, `MineReads`, `MineFetch`, `Declared` (`effect: reads`) and `Quiet` (`effect: none`); after the change it would not, and `side effects: repeat` would stop requiring their approval. Options: (a) ask the audit and record the new `weave check` output as accepted; (b) keep its list.
+3. The kind-specific option rules in `SecurityAudit`, `SafeDefaults` and `PlanChecker` are not lists of kinds; the build proposes to leave them as rules about that kind.
 
 ## 1. Acceptance: what must be true when the phase is built
 
