@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D20 are taken, D23 is deferred, two decisions are open (D21 and D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D21 are taken, D23 is deferred, one decision is open (D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -17,7 +17,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D9 | Restore on rewind: the mechanism | **taken** (no framework support: restore is a `workspace` operation a script calls; a spike in 35c) |
 | D10 | Snapshot storage and limits | **folded into D11** (storage is an implementation detail; the visible rules moved) |
 | D11 | The workspace kind, patching and protected paths | **taken** (a new kind next to `file`; `allow` required; optional `version` on patch; protected paths; a built-in deny list; no `delete` or `move`) |
-| D12 | Evidence: the `check` kind and provenance | **taken** (a minimal `check`: JUnit XML and JSON Schema; the typed-counts and untrusted-text rules) |
+| D12 | Evidence: the `verify` kind and provenance | **taken** (a minimal `verify`: JUnit XML and JSON Schema; the typed-counts and untrusted-text rules) |
 | D13 | Pure computation: `compute` | **taken** (one `compute` kind: `calc`, `date`, `json`, `csv`; built first) |
 | D14 | Finding secrets and personal data: `scan` | **taken** (a pure `scan` kind that reports a rule and a place, never the match; no `redact` action) |
 | D15 | Testing: fakes, contract tests, guards, the oracle | **taken** (all six parts, with two additions: a hermetic test of the D9 pattern, and the proxy spike in the integration tier) |
@@ -26,7 +26,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D18 | Other tools: now, later, never | **taken** (the table as proposed; `search`, `documents` and `git` now, as extras modules) |
 | D19 | Security rules and documents | **taken** (LA31 to LA33, audit-output notes, four documents) |
 | D20 | Visibility: the ecosystem | **taken** (the whole pass, two starters and a tutorial chapter; nothing deferred) |
-| D21 | Names | open |
+| D21 | Names | **taken** (`verify` instead of `check`; `network: allow` with a `hosts:` option) |
 | D22 | What stays out of this phase | open |
 | D23 | Predictions from a pre-trained model: a `predict` tool | **deferred** (left out of this phase by the owner; to be taken up later) |
 
@@ -80,7 +80,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 
 **Why.** Principle 25: the tools module must stay light. Several of these tools tempt a dependency (a PDF library, a browser driver, a container client).
 
-- **A. In `ai-agent4j-tools` (JDK and Jackson only):** `sandbox`, `workspace`, `compute`, `check`, `scan`. **Separate optional modules:** `ai-agent4j-tools-browser`, `-documents`, `-search`, `-git`.
+- **A. In `ai-agent4j-tools` (JDK and Jackson only):** `sandbox`, `workspace`, `compute`, `verify`, `scan`. **Separate optional modules:** `ai-agent4j-tools-browser`, `-documents`, `-search`, `-git`.
 - **B. Everything in the tools module,** with the heavy parts as `<optional>` dependencies.
 - **C. One new module for everything new.**
 
@@ -117,7 +117,7 @@ The aggregator is called **`extras`** (not `addon-tools`, which would be confuse
 **Decision (owner): option A.** Levels `none`, `process`, `container`, `vm`. Rules:
 1. **No default:** a `sandbox` tool without an `isolation` line is a load error.
 2. **Fail closed, never weaker:** a request for `container` with no runtime fails; it never falls back to `process`. Tested by removing the runtime.
-3. **Probe at load:** a missing container runtime is a load-time error, not a surprise mid-run (a backend that cannot be probed at load, such as a remote one, fails at first use). **Sub-question still open:** whether `weave check` itself runs `docker version` or `podman version` (the first time `check` would run a program), or only the run does. Recommendation: run it in `check` and say so.
+3. **Probe at load:** a missing container runtime is a load-time error, not a surprise mid-run (a backend that cannot be probed at load, such as a remote one, fails at first use). **Sub-question still open:** whether `weave check` itself runs `docker version` or `podman version` (the first time `verify` would run a program), or only the run does. Recommendation: run it in `verify` and say so.
 4. **The reported level is what the audit shows,** not the requested one; if they differ, the run stops.
 5. **Honest wording:** the audit note and the journal say "isolation: process", never "sandboxed".
 6. **LA31** flags a program run at `none` or `process` (medium when the workspace also holds secrets or the network is `open`, high when both); taken in D19.
@@ -144,8 +144,8 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 - **A call:** `program`, `args` (a list, never a string through a shell), an optional `cwd` inside the workspace, optional `stdin`. The program must be in the tool's `allow`, in the same syntax as `shell`'s where it fits (to read in 35d); any program is refused. A `cwd` that escapes the workspace is an error.
 - **Environment:** a list of variable names, empty by default; a secret gets in only by naming a `SecretRef` (D19).
 - **Mounts:** the workspace only, read-write except protected paths, which are read-only. No other mount in the first version; reference data goes into the workspace and is protected.
-- **Network:** three values. `none` (the default); `allow: "host, host:port"`, a **host allow-list** (the owner holds that a whitelist is a must); `open`, flagged by the audit. The allow-list is enforced by a small **egress proxy** the container backend runs, written on the JDK: the container sits on a network with no other route, so a program that ignores the proxy settings simply cannot connect (it fails closed). The proxy resolves each name once and connects to that address, and refuses loopback, private and metadata addresses even when the name is on the list (the rules of `NetPolicy`). A backend that cannot enforce a list (`process`, or a platform where the proxy was not proven) **refuses `allow:` at load**; it is never treated as `open`. **Granularity is the host (and port), not the path:** for HTTPS a path rule would need the proxy to intercept TLS, which is refused. **Confirmed by the owner:** host-level is what the whitelist means here (the `http` tool, which makes its own requests, keeps its path rules).
-- **To prove first in 35d (a spike):** the proxy's reachability from a network with no outside route on Docker for Linux, Docker Desktop and rootless Podman. If a platform cannot be made reliable, `allow:` is refused there with a message that says so; it is never weakened.
+- **Network:** three values. `none` (the default); `network: allow` with a `hosts: "host, host:port"` option (amended in D21; first written as `allow: "host, host:port"`), a **host allow-list** (the owner holds that a whitelist is a must); `open`, flagged by the audit. The allow-list is enforced by a small **egress proxy** the container backend runs, written on the JDK: the container sits on a network with no other route, so a program that ignores the proxy settings simply cannot connect (it fails closed). The proxy resolves each name once and connects to that address, and refuses loopback, private and metadata addresses even when the name is on the list (the rules of `NetPolicy`). A backend that cannot enforce a list (`process`, or a platform where the proxy was not proven) **refuses `network: allow` at load**; it is never treated as `open`. **Granularity is the host (and port), not the path:** for HTTPS a path rule would need the proxy to intercept TLS, which is refused. **Confirmed by the owner:** host-level is what the whitelist means here (the `http` tool, which makes its own requests, keeps its path rules).
+- **To prove first in 35d (a spike):** the proxy's reachability from a network with no outside route on Docker for Linux, Docker Desktop and rootless Podman. If a platform cannot be made reliable, `network: allow` is refused there with a message that says so; it is never weakened.
 - **Limits are relaxed but bounded.** `timeout` defaults to **10 minutes** (a named constant), because a build by a coding agent will not finish in 60 seconds; there is a hard ceiling (one hour, a named constant) a script cannot exceed, and an agent may ask for less than the script's timeout, never more. `max_output` defaults to 64 KiB and the result keeps **the start and the end** of the output (a build's errors are at the end) and says what was cut. `memory`, `pids` and `disk` are enforced only by the container backend; declaring one with `isolation: process` is a load error, never silently ignored.
 - **Result:** `exit`, `timedOut`, `truncated`, `isolation` (as applied), `durationMs`, `stdout`, `stderr` (both `unchecked`, redacted through `Redactor`). There is **no changed-files list**: the script uses `workspace diff` (D11: a diff against the last snapshot), so the sandbox does no scan after a run.
 - **Effects:** a `run` is an effect, journaled, never repeated on resume or replay, simulated in `weave test`; the agent needs `approve:` as with `shell`, which the earned-autonomy ladder can relax.
@@ -262,16 +262,16 @@ rewind to Clean when (...) at most 2 times  carrying feedback = "..."  side effe
 **What the audit sees (D2):** reaches private data (the workspace), effect `changes` unless `mode: read`, no network; the note names the root and the protected paths.
 
 
-## D12. Evidence: the `check` kind and provenance
+## D12. Evidence: the `verify` kind and provenance
 
 **Why.** Many workflows decide on the result of a verifier. Today that is a string the model reads.
 
-- **A. A `check` kind** that parses JUnit XML, TAP, SARIF, an exit code or a JSON Schema validation into one record: `passed`, `failed`, `skipped`, `total`, a list of items (name, status, message), the source. Counts and statuses are typed and trusted as *parsed by the host*; **names and messages stay `unchecked`**. The record never says "requirement met".
+- **A. A `verify` kind** that parses JUnit XML, TAP, SARIF, an exit code or a JSON Schema validation into one record: `passed`, `failed`, `skipped`, `total`, a list of items (name, status, message), the source. Counts and statuses are typed and trusted as *parsed by the host*; **names and messages stay `unchecked`**. The record never says "requirement met".
 - **B. Leave parsing to the script** (a `shell` or `sandbox` call and text matching).
 
 **Recommendation: A.** The provenance oracle gets a canary that travels through a verifier's output, to prove no model-written value becomes trusted by passing through it. A parse failure is a failed check, never a pass.
 
-**Decision (owner): option A, minimal.** A `check` kind (its name may become `verify`, D21) that turns a verifier's result into one typed record. **First version: JUnit XML and JSON Schema validation.** An exit code is already in the `sandbox` result (D6) and needs no tool. TAP and SARIF are added when a real workflow needs them (not in this phase).
+**Decision (owner): option A, minimal.** A `verify` kind (named in D21) that turns a verifier's result into one typed record. **First version: JUnit XML and JSON Schema validation.** An exit code is already in the `sandbox` result (D6) and needs no tool. TAP and SARIF are added when a real workflow needs them (not in this phase).
 **Where it applies:** in a script, after a `sandbox` run has written a report into the workspace, `use Verify(source = "out/report.xml") -> result`, then `rewind ... when (result.failed > 0)` or `alt`; also to validate a model's structured output against a schema, and, in D17, to give eval4j a typed result to score instead of text.
 **Rules**
 1. **Counts and statuses are typed data parsed by the host;** the names and messages of items stay `unchecked`, since a model may have written them. The provenance oracle gets a canary that travels through a verifier's output.
@@ -337,9 +337,9 @@ Proposed:
 1. Every kind ships a **fake backend** (scripted answers, recorded calls) and a `weave test` vocabulary for it, so a workflow using it is tested with no container, browser or network.
 2. A **contract test** per kind runs the same cases against the fake and, tagged `@Tag("integration")`, against the real backend (a container runtime or a browser is not in the default build).
 3. **Guards are tested by breaking them once:** the program allow-list, the path jail, the protected paths, the patch precondition, the snapshot hash check, the isolation fail-closed rule.
-4. **Mutation profiles** for the new decision-making classes (the isolation check, the patch applier, the snapshot and restore, the `check` parsers).
+4. **Mutation profiles** for the new decision-making classes (the isolation check, the patch applier, the snapshot and restore, the `verify` parsers).
 5. The **audit characterization test** of D2.
-6. The **provenance oracle** gets canaries through a sandbox result, a `check` record and a browser page.
+6. The **provenance oracle** gets canaries through a sandbox result, a `verify` record and a browser page.
 
 **Recommendation: all six.** The two real backends are exercised in CI only where a runtime exists, and the report says which ran.
 
@@ -347,9 +347,9 @@ Proposed:
 1. **Every kind ships a fake and a `weave test` vocabulary** (scripted answers, recorded calls); the fake plugs in through the kind, which D2 makes possible (`ScriptedTools` no longer keeps its own list of kinds).
 2. **A contract test per kind** runs the same cases against the fake and, tagged `@Tag("integration")`, against the real backend (a container runtime, a browser); the report says which ran.
 3. **Guards are tested by breaking them once:** the sandbox's program allow-list, the workspace path jail and the no-symlink rule, protected paths and the built-in deny list, the patch's exact-once rule, the isolation fail-closed rule (remove the runtime), the proxy's refusal of private and metadata addresses, and `scan` never echoing a match.
-4. **Mutation profiles** for the decision-making classes (the isolation check, the patch applier, the path guard, the `check` parsers, the `scan` rules); a score cannot drop.
+4. **Mutation profiles** for the decision-making classes (the isolation check, the patch applier, the path guard, the `verify` parsers, the `scan` rules); a score cannot drop.
 5. **The audit characterization test** of D2.
-6. **The provenance oracle gets new canaries** through a `sandbox` result, a `check` record and a `scan` finding; the browser adds a page.
+6. **The provenance oracle gets new canaries** through a `sandbox` result, a `verify` record and a `scan` finding; the browser adds a page.
 **Additions.** (a) **The D9 pattern has a hermetic test:** with the `workspace` tool and the fake sandbox, a rewind restores the files and the identical writes run again; it is how 35c finds out whether `Generations.identity` treats `repeat` as D9 assumes. (b) **The proxy spike of D6 is an `integration`-tier check,** run only where Docker exists; its result is written into the docs' list of verified platforms.
 CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module it lands in, nothing is `@Disabled` to get green, and the tiers (`make test-core`, `make test-fast`, `make test-oracle` at the end) are as they are. The real container backend and a real browser are not in the default build, so CI covers them only where a runtime is installed.
 
@@ -388,7 +388,7 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 
 **Decision (owner): option B, with five rules.** Four small additions to eval4j and `weave eval`:
 1. **Steps in a scenario:** an ordered list of steps, each with its own input and expectations, so "create a page, then add a form to it" is one scenario; the old constructor stays.
-2. **Evidence:** a typed record a `Criterion` can read (the `check` result of D12: counts and statuses), in eval4j and with no dependency on the tools module.
+2. **Evidence:** a typed record a `Criterion` can read (the `verify` result of D12: counts and statuses), in eval4j and with no dependency on the tools module.
 3. **Cost per pass with a confidence interval,** next to the pass rate, in `weave eval` and the export; the pieces exist (Wilson intervals, the cost tail), so this adds the combined figure.
 4. **A versioned export:** a `schemaVersion` field in the run export, so a reader can tell a newer file.
 **Left out for now:** the executable oracle (an interface to run a check against an artifact, with implementations in a new module that depends on both eval4j and the tools module). It comes back with the first real user; until then an evaluator writes a `Criterion` that calls a `sandbox` itself, which `Criterion` already allows.
@@ -436,14 +436,14 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 |---|---|---|
 | **LA31** | A program is run, or a process served, at isolation `none` or `process` (D5); the finding names the tool, the level and what can follow | medium; **high** when the workspace also holds secrets or the network is `open` |
 | **LA32** | A workflow reaches a process it started, through the D7 one-port grant; the finding names the tool and the port's owner | info |
-| **LA33** | A `sandbox`'s `network` is `open`, or an `allow:` list; the finding lists the hosts and calls out a wide host | info for a list; medium for `open` |
+| **LA33** | A `sandbox`'s `network` is `open`, or `network: allow` with a `hosts:` list; the finding lists the hosts and calls out a wide host | info for a list; medium for `open` |
 **In the audit output, not as rules:** a `sandbox` whose `allow` names an interpreter or a shell (`sh`, `bash`, `python3`) says so in its note ("any command inside the container"); any `SecretRef` passed into a sandbox is listed by name, never by value.
 **Documents**
 1. **`docs/security/sandbox.md`, a threat model:** what the sandbox stops and does not (a container is not a boundary against a kernel exploit; `process` isolation is not isolation in a strong sense; who owns the image; what the one mount exposes; why an egress proxy sees hosts and not paths).
 2. **The rules** are listed in `docs/security/weave-audit.md` and mapped in `owasp-llm-top-10.md`, as every rule is.
 3. **`weave review` rules** for the same facts, regenerated with `make regen`.
 4. **Secrets into a sandbox are denied by default** (D6): a program gets an environment variable only by naming a `SecretRef`, resolved per call, never cached or logged, and the audit lists it.
-**Not added:** a rule about a `workspace` with a wide `allow`, or about `compute`, `check` and `scan`: they are pure or bounded, and a rule for each would be noise.
+**Not added:** a rule about a `workspace` with a wide `allow`, or about `compute`, `verify` and `scan`: they are pure or bounded, and a rule for each would be noise.
 
 ## D20. Visibility: the ecosystem
 
@@ -452,7 +452,7 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 **Decision (owner): the whole pass, nothing deferred.** It is sub-phase 35f, and it covers all of the following (docs are part of the change, never a later one).
 | Area | What changes |
 |---|---|
-| **Language and tool references** | The tool-kind tables in `LOOM_GUIDE.md` and `LOOM_PROMPT.md` for `sandbox`, `workspace`, `compute`, `check` (or `verify`, D21), `scan` and the extras kinds; the `weave check` output that lists kinds and where each came from (D3 rule 3) |
+| **Language and tool references** | The tool-kind tables in `LOOM_GUIDE.md` and `LOOM_PROMPT.md` for `sandbox`, `workspace`, `compute`, `verify`, `scan` and the extras kinds; the `weave check` output that lists kinds and where each came from (D3 rule 3) |
 | **Wiki and machine-readable** | The wiki pages, the root README, `llms.txt`, the module table in `CLAUDE.md` |
 | **Module READMEs** | One for each new module and one for each of the two parents (D4) |
 | **VS Code** | The grammar and snippets; no new extension feature |
@@ -465,20 +465,26 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 | **Security documents** | As in D19 |
 | **Generated files** | `make regen`, then `make docs-check`, committing what it regenerated |
 **The two starters** (neither needs a coding background):
-1. **A report writer:** an agent edits a document in a `workspace`, `check` validates it, and when the check fails the workflow restores a snapshot and tries again; it shows the D9 pattern with `side effects: repeat`.
-2. **A data analyst:** an agent writes a short script, a `sandbox` runs it against a CSV with `network: none`, `compute` and `check` verify the result, and `scan` gates anything that goes out; it shows isolation and composition.
+1. **A report writer:** an agent edits a document in a `workspace`, `verify` validates it, and when the check fails the workflow restores a snapshot and tries again; it shows the D9 pattern with `side effects: repeat`.
+2. **A data analyst:** an agent writes a short script, a `sandbox` runs it against a CSV with `network: none`, `compute` and `verify` verify the result, and `scan` gates anything that goes out; it shows isolation and composition.
 A third starter that uses the `browser` is not part of this pass; the owner may add it.
-**Wording:** restore is described everywhere as a pattern a script writes (D9), not as a rewind feature; whichever name D21 picks for `check` is used throughout.
+**Wording:** restore is described everywhere as a pattern a script writes (D9), not as a rewind feature; the kind is called `verify` throughout (D21).
 
 ## D21. Names
 
-**Why.** Words in a Loom script and in a tool's options are public from the day they ship.
+**Why.** Words in a Loom script and in a tool's options are public from the day they ship, so they are hard to change later.
 
-Proposed: kinds `sandbox`, `workspace`, `compute`, `check`, `scan`, `browser`, `search`, `documents`, `git`; options `isolation`, `network`, `protect`, `ignore`, `limits`. `check` is already a word for `weave check`; it appears only as a `use:` value, so it does not collide, but the owner may prefer `verify`.
-
-**Recommendation: these, with `check` replaced by `verify` if the owner agrees** (it avoids two meanings in the docs).
-
-**Decision (owner):** open.
+**Decision (owner): accepted as proposed.**
+- **Kinds:** `sandbox`, `workspace`, `compute`, **`verify`**, `scan`, `browser`, `search`, `documents`, `git`. The result-parsing kind is `verify`, not `check`: `check` is already the word for `weave check`, and `use Verify(source = ...)` reads better in a script and in the docs.
+- **Options:** `isolation`, `network`, `hosts`, `allow` (programs for `sandbox`, path globs for `workspace`), `protect`, `ignore`, `workspace`, `image`, `runtime`, `timeout`, `max_output`, `memory`, `pids`, `disk`, `pull`, `store`.
+- **Actions** (the `action` argument, as in `file`): `read`, `list`, `exists`, `write`, `append`, `patch`, `find`, `grep`, `diff`, `snapshot`, `restore`, `run`, `serve`, `stop`, `status`, `calc`, `date`, `json`, `csv`, and the browser's.
+- **Amendment to D6: the network allow-list is `network: allow` with a separate `hosts:` option,** so no option's value changes meaning inside one tool (`allow` keeps one meaning per kind). A `sandbox` then reads:
+```loom
+tool Python { use: sandbox  workspace: Data  isolation: container  image: "python:3.12-slim"
+              allow: "python3"  network: allow  hosts: "pypi.org, files.pythonhosted.org"  timeout: 10m }
+```
+- **The word `restore` is only an action value,** not a keyword: D9 removed the `side effects: restore` form, so Loom's parser needs no change for any name in this decision (tool kinds and options are strings in a tool declaration).
+- **Sweep done with this decision:** the earlier records, the design and the index now say `verify` and `network: allow` with `hosts:` throughout.
 
 ## D22. What stays out of this phase
 

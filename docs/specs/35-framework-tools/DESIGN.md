@@ -39,7 +39,7 @@ Each row says what it is for **besides** a coding agent (principle 30).
 | `sandbox` | tools | Runs a program from an allow-list inside a declared isolation with declared limits (`run`); optionally keeps one running for a while (`serve`, `stop`) | A data analyst running a script on a file; a converter (a document to PDF); a grader running a submission; anything an agent computes by code |
 | `workspace` | tools | A directory the agent reads and writes, with a patch operation guarded by a precondition hash, find and grep, protected paths, a diff, and snapshot and restore | A report or document writer revising drafts; a config editor; any "edit, check, try again" loop |
 | `compute` | tools | Pure computation: exact arithmetic, date arithmetic with an injected clock, JSON path and transform, CSV statistics, regex test with a limit. No reach, no effect, deterministic | Anything that today asks a model to do arithmetic or reshape data; finance and reporting steps |
-| `check` | tools | Turns a verifier's output into one typed record: JUnit XML, TAP, SARIF, an exit code, a JSON Schema validation | Test results; a linter; schema validation of a model's structured output; a compliance scan result |
+| `verify` | tools | Turns a verifier's output into one typed record: JUnit XML, TAP, SARIF, an exit code, a JSON Schema validation | Test results; a linter; schema validation of a model's structured output; a compliance scan result |
 | `scan` | tools | Finds secrets and personal data in text or files and reports a name and a place, never the match | A guard before anything is sent or published; a pre-commit check; a document review |
 | `browser` | optional module | Opens a page, reads its text, takes a screenshot to a file, clicks and fills, waits for a condition, reports the console and failed requests. Every request goes through `NetPolicy` | Research on pages that need scripts; checking a deployed page; form-filling an approval workflow; a visual check |
 | `search` | optional module | Web search through a provider the user chooses and keys (a `SecretRef`); returns titles, URLs and snippets as `unchecked` | Any research workflow |
@@ -53,7 +53,7 @@ Considered and left for later (see D18): object storage, a message queue, a chat
 | Sub-phase | What | Gate |
 |---|---|---|
 | 35a | First, the move to `src/tools/` in a commit of its own (D4); then F1, F2: self-describing kinds and the registry. No new tool and no behaviour change | The owner reviews the branch before 35b |
-| 35b | `compute`, `check`, `scan` and the `file` additions the decisions pick. Pure and cheap: no runtime change | |
+| 35b | `compute`, `verify`, `scan` and the `file` additions the decisions pick. Pure and cheap: no runtime change | |
 | 35c | The `workspace` kind: read, write, patch, find, grep, diff, snapshot, restore; and a spike with a real workflow of the `use` plus `side effects: repeat` pattern (D9) | |
 | 35d | F4, F5 and `sandbox` (process and container backends, the fake, `serve` if D7 says so) | |
 | 35e | The optional modules the decisions pick: `browser`, `search`, `documents`, `git` | |
@@ -66,5 +66,5 @@ Considered and left for later (see D18): object storage, a message queue, a chat
 3. **Restore can be wrong in a quiet way:** a snapshot that misses a file, or a restore that races a running process. The snapshot is hashed and verified on restore, and a restore with a served process running is refused. The `use` plus `side effects: repeat` pattern rests on how `Generations.identity` treats `repeat` (not read): a spike in 35c proves it on a real workflow before it is documented.
 4. **A served port and `NetPolicy`.** The policy refuses loopback by design. A browser or `http` tool reaching a served app needs a narrow exception tied to that one handle, not a switch that opens loopback for everyone (D7).
 5. **A tool result is text.** A screenshot cannot come back as an image to a model today; the browser writes a file and the script decides what to do with it (D16).
-6. **The egress proxy (D6).** A host allow-list for a container needs a proxy the container can reach and nothing else. Whether that works the same on Docker for Linux, Docker Desktop and rootless Podman is not known; it is a spike at the start of 35d, and a platform that fails it refuses `allow:` rather than weakening it.
+6. **The egress proxy (D6).** A host allow-list for a container needs a proxy the container can reach and nothing else. Whether that works the same on Docker for Linux, Docker Desktop and rootless Podman is not known; it is a spike at the start of 35d, and a platform that fails it refuses `network: allow` rather than weakening it.
 7. **Scope.** Nine kinds and two runtime changes in one phase is large. The gates and the order are meant to let the owner stop after any sub-phase and still have something whole.
