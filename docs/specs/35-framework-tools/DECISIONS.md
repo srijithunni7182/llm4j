@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D18 are taken, D23 is deferred, four decisions are open (D19 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D19 are taken, D23 is deferred, three decisions are open (D20 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -24,7 +24,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D16 | The browser | **taken** (an optional extras module: a JDK-only CDP backend, plus the contract and a fake; kept in this phase) |
 | D17 | eval4j enhancements | **taken** (option B: steps, evidence, cost per pass, a versioned export; no oracle module yet) |
 | D18 | Other tools: now, later, never | **taken** (the table as proposed; `search`, `documents` and `git` now, as extras modules) |
-| D19 | Security rules and documents | open |
+| D19 | Security rules and documents | **taken** (LA31 to LA33, audit-output notes, four documents) |
 | D20 | Visibility: the ecosystem | open |
 | D21 | Names | open |
 | D22 | What stays out of this phase | open |
@@ -428,16 +428,22 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 
 **Why.** A tool that runs model-written code is the largest new attack surface in the project.
 
-Proposed:
-1. **LA31:** a program is run, or a process served, at an isolation level below `container` (a finding naming the tool, the level and what can follow), medium when the workspace also holds secrets or the network is `open`, high when both. A `weave audit` rule is listed in `docs/security/weave-audit.md` and mapped to OWASP LLM06 and LLM05.
-2. **LA32:** a workflow reaches a process it started (the D7 grant), an info finding.
-3. A **threat model** page, `docs/security/sandbox.md`: what the sandbox does and does not stop (a container is not a boundary against a kernel exploit), who owns the image, what a mount exposes.
-4. **Secrets into a sandbox are denied by default.** A run gets an environment variable only by naming a `SecretRef`, resolved per call, never cached, never logged, and the audit lists it.
-5. `weave review` rules for the same facts (the review rule pages are generated, `make regen`).
-
-**Recommendation: all five.**
-
-**Decision (owner):** open.
+**Decision (owner): accepted as proposed.**
+**Where it applies:** the audit report for a script that uses `sandbox`, `workspace` or `browser`; the documents in `docs/security/`, which `SecurityDocTest` keeps in step with the rules. Each rule lands with the tool that triggers it: the sandbox rules in 35d, the served-process rule when `serve` is built, the browser's in 35e.
+**What needs no new rule:** the profile (D2) supplies the three legs of the lethal trifecta (a `browser` reads untrusted content, a `workspace` reaches private data, a `sandbox` with a network can send outward), so the existing trifecta check covers a combination of them.
+**The rules** (numbers continue from LA30; the current last rule in `docs/security/weave-audit.md` was checked):
+| Rule | Fires when | Severity |
+|---|---|---|
+| **LA31** | A program is run, or a process served, at isolation `none` or `process` (D5); the finding names the tool, the level and what can follow | medium; **high** when the workspace also holds secrets or the network is `open` |
+| **LA32** | A workflow reaches a process it started, through the D7 one-port grant; the finding names the tool and the port's owner | info |
+| **LA33** | A `sandbox`'s `network` is `open`, or an `allow:` list; the finding lists the hosts and calls out a wide host | info for a list; medium for `open` |
+**In the audit output, not as rules:** a `sandbox` whose `allow` names an interpreter or a shell (`sh`, `bash`, `python3`) says so in its note ("any command inside the container"); any `SecretRef` passed into a sandbox is listed by name, never by value.
+**Documents**
+1. **`docs/security/sandbox.md`, a threat model:** what the sandbox stops and does not (a container is not a boundary against a kernel exploit; `process` isolation is not isolation in a strong sense; who owns the image; what the one mount exposes; why an egress proxy sees hosts and not paths).
+2. **The rules** are listed in `docs/security/weave-audit.md` and mapped in `owasp-llm-top-10.md`, as every rule is.
+3. **`weave review` rules** for the same facts, regenerated with `make regen`.
+4. **Secrets into a sandbox are denied by default** (D6): a program gets an environment variable only by naming a `SecretRef`, resolved per call, never cached or logged, and the audit lists it.
+**Not added:** a rule about a `workspace` with a wide `allow`, or about `compute`, `check` and `scan`: they are pure or bounded, and a rule for each would be noise.
 
 ## D20. Visibility: the ecosystem
 
