@@ -403,7 +403,7 @@ tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }
 
 A tool that holds several operations declares each one: `effects: { listOrders: reads, createRefund: changes }` on an `openapi` tool (by `operationId`) and on an `mcp` server (by tool name). An operation not listed falls back to the tool's own effect.
 
-When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime and the other harmless built-ins `none`; search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
+When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime, `compute` and the other harmless built-ins `none` (so are `verify` and `scan` without a `root`); search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, `verify` and `scan` with a `root`, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
 
 `reach:` on a `class` tool (`none`, `reads`, `fetches`, `writes`, `sends`) is the older form and keeps working: `none` and `reads` give that effect, `fetches` gives `reads` plus the untrusted leg, `writes` and `sends` give `changes` (and `sends` the outward leg). Giving `effect:` and `reach:` on one tool is an error; keep `effect:`. A tool mapped in a `.loot` file takes `Name.reach = reads`, read by `weave audit --loot tools.loot`.
 
@@ -418,6 +418,9 @@ When you declare nothing, Loom assumes an effect from the kind of tool and says 
 | `translate`, `transliterate`, `detect_language`, `speak`, `transcribe` | see [Memory, Voice and Languages](#memory-voice-and-languages) |
 | `knowledge_graph` | `store` (file or `memory`), `read_only?` |
 | `skill_registry` | `url`, `api_key?` (env) |
+| `compute` | `max_bytes?`, `max_rows?` (see [Tools that compute and check](#tools-that-compute-and-check-compute-verify-scan)) |
+| `verify` | `root?`, `max_bytes?`, `max_items?` |
+| `scan` | `root?`, `rules?`, `pii?`, `max_bytes?`, `max_files?`, `max_findings?` |
 
 - **Built-ins** work by name with no declaration: `web_search` (DuckDuckGo), `calculator`, `datetime`,
   `current_time`, and the language tools `translate`, `transliterate`, `detect_language`, `speak`,
@@ -733,6 +736,40 @@ notifies by `email` (and, in a second script, `webhook`), scheduled with `schedu
 weave schedule sync digest.loom --store ~/.loom/triggers
 weave triggers install ~/.loom/triggers --env-file ~/.loom/env --apply
 ```
+
+### Tools that compute and check (`compute`, `verify`, `scan`)
+
+Three tool kinds do work a model is bad at, or should not be trusted with, and reach nothing outside the run (unless you
+give `verify` or `scan` a `root:` directory to read):
+
+| `use:` | For | Reference |
+|---|---|---|
+| `compute` | Exact arithmetic (`calc`), dates on the run's clock (`date`), a value out of JSON (`json`), figures over CSV (`csv`) | [compute](../../tools/ai-agent4j-tools/docs/compute.md) |
+| `verify` | A JUnit XML report, or a JSON document checked against a JSON Schema, as one record of counts | [verify](../../tools/ai-agent4j-tools/docs/verify.md) |
+| `scan` | Secrets and personal data in text or files, reported as a rule and a place, never the match | [scan](../../tools/ai-agent4j-tools/docs/scan.md) |
+
+```loom
+tool Calc  { use: compute }
+tool Check { use: verify  root: "out" }
+tool Scan  { use: scan }
+
+workflow Close(net, report) {
+    use Calc(action = "calc", expression = "{net} * 1.18") -> gross
+    use Check(format = "junit", source = report) -> tests
+    alt (tests.failed > 0) { halt "{tests.failed} tests failed" }
+    use Scan(text = "Total {gross.value}") -> found
+    return gross.value
+}
+```
+
+- **They change nothing**, so they need no approval, and a call replays exactly; `weave audit` sees them as reaching nothing,
+  or reading the files under `root`.
+- **What they return keeps its origin.** A value `compute` picks out of a model's answer is still the model's text when it
+  leaves the workflow. The counts and status of `verify` and the count of `scan` are data the tool parsed, but the test names
+  and messages of `verify`, and the file names of `scan`, stay unchecked model text (a model's code may have written them).
+- **`verify` fails closed:** a report it cannot read counts as one failure (`failed: 1`, `status: failed`), and a schema that
+  uses a keyword it does not check is refused rather than half-checked.
+- **`scan` is a net, not a proof:** a clean result means nothing its rules know was found.
 
 ### Checkpoints, Rewind and Fork
 

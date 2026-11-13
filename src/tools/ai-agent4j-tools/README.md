@@ -11,6 +11,9 @@ chooses the arguments, so each one limits what a hostile or mistaken model can d
 | [`file`](docs/file.md) | Reads and writes text files in one directory | Stays inside the directory; no hidden files; writes are atomic |
 | [`shell`](docs/shell.md) | Runs named programs | An allow-list of programs, no shell, a cleared environment, output and time caps |
 | [`sql`](docs/sql.md) | Runs read-only queries | One `SELECT`, `WITH` or `VALUES` statement, bound parameters, row and byte caps |
+| [`compute`](docs/compute.md) | Exact arithmetic, dates, JSON and CSV figures | Computes from its arguments only; exact decimals; every input bounded |
+| [`verify`](docs/verify.md) | Turns a test report or a schema check into typed counts | Runs nothing; a report it cannot read is a failure; names and messages stay unchecked |
+| [`scan`](docs/scan.md) | Finds secrets and personal data | Reports a rule and a place, never the match; a net, not a proof |
 
 Every tool returns text, never throws at the agent, and scrubs its credentials (plain, URL-encoded and Base64) from
 everything it returns. A tool with side effects is **journaled**: it records that a call is about to happen and that it
@@ -29,7 +32,7 @@ String result = slack.execute(Map.of("text", "Digest is ready"));
 
 `create` takes the same options a script would write (`url`, `format`, `timeout`, `retries`, ...), already resolved.
 `kind.check(options, baseDir)` returns what is wrong with them, or `null`, without touching the network or the files.
-The other kinds are `EmailKind`, `HttpKind`, `FileKind`, `ShellKind` and `SqlKind`.
+The other kinds are `EmailKind`, `HttpKind`, `FileKind`, `ShellKind`, `SqlKind`, `ComputeKind`, `VerifyKind` and `ScanKind`.
 
 Register the tool with an agent the way you register any `Tool`.
 
