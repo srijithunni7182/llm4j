@@ -53,6 +53,7 @@ Status: **final for phase 35; nothing is built.** Section 0 lists what was read 
   | `review/fact/ToolFacts.JOURNALED`, `whatif/WhatIf.EFFECT_KINDS`, `wtest/ScriptedTools.EFFECT_KINDS` | The same six names (`webhook`, `email`, `http`, `file`, `shell`, `sql`): the kinds whose calls go through the effect journal (all six tools extend `GenericTool implements Effectful`). It includes `sql` and a read-only `file`, so it is **not** the effect level | Not with D2's fields; see the contradiction below |
   | `execution/RewindChecks` (`READ_ONLY_KINDS`, `EFFECT_KINDS`, its own `file` and `http` parsing) | Whether a tool can have changed something before a rewind; any kind it does not list is "unknown" and counted as risky. It ignores `effect:` and `reach:` | Yes, but asking it **changes `weave check`** (below) |
   | `security/SecurityAudit` (`shell` with `unattended` or `allow_interpreters`, `file` with `overwrite`, `http` writing without `allow_paths`), `generate/SafeDefaults` and `PlanChecker` (`shell` needs a reason) | Rules about one kind's own options, not lists of kinds | Not a reach question; can stay as rules about that kind |
+- **R10 (35b).** `io.github.llm4j.privacy.PIIDetector.detect(text)` returns `PIIEntity`s with a type (`EMAIL`, `PHONE`, `SSN`, `CREDIT_CARD`, `IP_ADDRESS`, `URL`) and start and end offsets; `RegexPIIDetector` is the implementation. `scan` uses it for personal data, asks for email, phone, SSN and card numbers by default (an address or a URL alone is rarely personal), and adds its own versioned secret rules.
 - **R7 (35a).** `MemoryManagementTool` is attached by Loom only for an agent with `memory { facts }`, and the audit treats it through the agent's memory setting (`privateData` "memory facts", the rule on memory fed by untrusted content), not as a kind. `DelegateTaskTool` and `ScheduledActionTool` are not reachable from a script. None of the three needs a profile.
 
 ### Probes done while writing the spec (E0; ad hoc, not tests)
@@ -114,6 +115,18 @@ Every row is `not built`.
 | A18 | met | This report; the session waits for the owner |
 
 **Tiers run:** `make test-core` after 35a-4 and 35a-5; `make test-fast` on the whole reactor (green, with the coverage gates), and again on Loom after the last test commit; `make docs-check` after each docs change; `make test-oracle` (green); the Loom `mutation` profile (87.0% over the profile; `Capabilities` 53/53, `ReachDeclaration` 3/3, `DiscoveredKinds` 25/31, the rest equivalent). `make format-check` fails on five A2A files of phase 32 (`A2AJsonRpc10`, `RemoteAgent` and three tests), none touched here; this phase's files are formatted. **Not run:** `make test-full` and the other `slow` tests (left to CI), `make release-check` (the release profile was run on the tools modules only), every integration test (none in 35a; the Docker daemon was not started, as nothing in 35a needs it).
+
+**35b (2026-11-13).**
+
+| Row | Level | Evidence |
+|---|---|---|
+| A5 | E1 | `ComputeToolTest`, `ExpressionLimitsTest`, `CsvTest` (G62; broken on purpose with binary floats). Built first, on `ToolProfile.pure` |
+| A6 | E1 | `VerifyToolTest`, `VerifyEdgesTest` (G61; broken on purpose: an unreadable report not counted as a failure). Canary in a test name: `ToolResultProvenanceTest` |
+| A7 | E1 | `ScanToolTest`, `ScanEdgesTest` (G63: the canary appears in no result, journal, trace or error; broken on purpose with the match in a finding) |
+| A16, part | E2 | `ToolResultProvenanceTest` (G64 for `compute`, `verify` and `scan`, live and replayed; broken on purpose twice). `make test-oracle` green |
+
+**Found and decided in the build (not a contradiction of a decision):** a `use` step bound every tool result as not model-written, so D12 rule 1 could not hold. A kind now names the result fields that may hold model text (`ToolKind.uncheckedResult`), and a pure kind passes on its arguments' origin; the effect on existing pure kinds (`calculator`, the language kinds) is stricter and is in the release notes. The results of other tools (`http`, `webhook`, a host's) are still bound as not model-written, as before this phase; whether a fetched page should be untrusted text at an exit is a question for the owner, not changed here.
+**Mutation:** `mutation-tools` 94.8% (gate 85%). **Tiers:** `make test-core`, `make docs-check`, `make test-oracle` green; the tools module's tests green.
 
 **Risks of DESIGN §5 that became real:** risk 1 (the refactor touches the audit): two places where the old lists disagreed with the audit (C1, C2), both found by the characterization and decided by the owner.
 
