@@ -1,8 +1,11 @@
 # Changelog
 
-## 1.5.0
+## 1.6.0
 
 - **Progress, signals and `wait any` (phase 34).** `progress { }` and `report { }`, `notify` (with `parent` and `sticky`), `wait signal`, `when signal`, `wait any` and `assert progress.field changes within` are highlighted **only in the one shape each has**: `report`, `progress`, `notify`, `signal` and `any` stay ordinary names as variables, parameters and handles, and are plain text in a string. Hover explains each where it is a keyword and says nothing where it is a name. Four snippets (`progress`, `notify`, `waitsignal`, `waitany`) pass `weave check`. Needs the engine's phase 34.
+
+## 1.5.0
+
 - **Starting and supervising workflows.** `start`, `wait`, `cancel`, `steer`, `supervise` on a handle and `assert` are highlighted and have hover help, with a `start` snippet that passes `weave check`. The graph draws a started workflow, a wait, a cancel and the rules that watch it, with a dotted line from the `start` to what uses its handle. Needs the engine's child runs (phase 33).
 
 ## 1.4.0
