@@ -12,6 +12,7 @@ import io.github.llm4j.tools.ShellKind;
 import io.github.llm4j.tools.SqlKind;
 import io.github.llm4j.tools.VerifyKind;
 import io.github.llm4j.tools.WebhookKind;
+import io.github.llm4j.tools.WorkspaceKind;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,6 +49,7 @@ class DocumentedExamplesTest {
             case "Compute" -> new ComputeKind();
             case "Verify" -> new VerifyKind();
             case "Scan" -> new ScanKind();
+            case "Workspace" -> new WorkspaceKind();
             default -> throw new AssertionError("no kind " + name);
         };
     }

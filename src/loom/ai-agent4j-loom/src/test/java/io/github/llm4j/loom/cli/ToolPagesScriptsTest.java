@@ -23,12 +23,12 @@ class ToolPagesScriptsTest {
 
     static final Path DOCS = Path.of("../../tools/ai-agent4j-tools/docs");
     static final Pattern SCRIPT =
-            Pattern.compile("## From a Loom script\\s+```text\\n(.*?)```", Pattern.DOTALL);
+            Pattern.compile("## From a Loom script[^\\n]*\\s+```text\\n(.*?)```", Pattern.DOTALL);
 
     @TempDir Path dir;
 
     @ParameterizedTest
-    @ValueSource(strings = {"compute.md", "verify.md", "scan.md"})
+    @ValueSource(strings = {"compute.md", "verify.md", "scan.md", "workspace.md"})
     void theScriptOnThePagePassesTheCheck(String page) throws Exception {
         Matcher m = SCRIPT.matcher(Files.readString(DOCS.resolve(page)));
         assertThat(m.find()).as("a script under \"From a Loom script\" in " + page).isTrue();

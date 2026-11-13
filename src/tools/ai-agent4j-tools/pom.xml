@@ -195,12 +195,18 @@
                                 <param>io.github.llm4j.tools.ScanRules*</param>
                                 <param>io.github.llm4j.tools.ScanTool*</param>
                                 <param>io.github.llm4j.tools.RootedFiles*</param>
+                                <param>io.github.llm4j.tools.Globs*</param>
+                                <param>io.github.llm4j.tools.WorkspaceJail*</param>
+                                <param>io.github.llm4j.tools.PatchApplier*</param>
+                                <param>io.github.llm4j.tools.SnapshotStore*</param>
+                                <param>io.github.llm4j.tools.WorkspaceTool*</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.tools.compute.*Test</param>
                                 <param>io.github.llm4j.tools.verify.*Test</param>
                                 <param>io.github.llm4j.tools.scan.*Test</param>
                                 <param>io.github.llm4j.tools.CsvTest</param>
+                                <param>io.github.llm4j.tools.workspace.*Test</param>
                             </targetTests>
                             <mutationThreshold>85</mutationThreshold>
                             <threads>4</threads>

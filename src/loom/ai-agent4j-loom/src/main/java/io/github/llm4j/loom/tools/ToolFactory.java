@@ -193,6 +193,7 @@ public final class ToolFactory {
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ComputeKind()));
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.VerifyKind()));
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ScanKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.WorkspaceKind()));
         register.accept(new GraphKind());
         register.accept(
                 simple(
