@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D23 is deferred, nine decisions are open (D14 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 is taken, D23 is deferred, eight decisions are open (D15 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -19,7 +19,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D11 | The workspace kind, patching and protected paths | **taken** (a new kind next to `file`; `allow` required; optional `version` on patch; protected paths; a built-in deny list; no `delete` or `move`) |
 | D12 | Evidence: the `check` kind and provenance | **taken** (a minimal `check`: JUnit XML and JSON Schema; the typed-counts and untrusted-text rules) |
 | D13 | Pure computation: `compute` | **taken** (one `compute` kind: `calc`, `date`, `json`, `csv`; built first) |
-| D14 | Finding secrets and personal data: `scan` | open |
+| D14 | Finding secrets and personal data: `scan` | **taken** (a pure `scan` kind that reports a rule and a place, never the match; no `redact` action) |
 | D15 | Testing: fakes, contract tests, guards, the oracle | open |
 | D16 | The browser | open |
 | D17 | eval4j enhancements | open |
@@ -317,7 +317,17 @@ Left out on purpose: a general transform language, a statistics library, a sprea
 
 **Recommendation: A**, and say plainly in the docs that it is a net, not a proof: false negatives exist. Package and licence policy checks are **not** here: they belong to the vertical (D22).
 
-**Decision (owner):** open.
+**Decision (owner): option A, with the rules below and no `redact` action.** A `scan` kind over text or a workspace file that finds secrets (known token shapes and high-entropy strings) and personal data (through the core `PIIDetector`).
+**Where it applies:** before a `webhook` or `email` step, a script scans the text it is about to send (`use Scan(text = draft) -> found`, then branches on the count); after a `sandbox` run it scans a file or directory the agent produced; it catches an agent that copied a key from a file into a prompt.
+**Rules**
+1. **Never echo the match:** a finding is a rule name, a file and line, and a character range, and nothing of the matched text, so a found secret does not reach a model's context, the journal or a trace (the principle of `SecretRef.toString()`).
+2. **A net, not a proof:** false negatives exist; a clean result means "nothing the rules know", and the docs and the audit note say so.
+3. **Versioned rules:** the result carries the rule-set version, so a finding can be reproduced and a change in rules is visible.
+4. **Bounded:** caps on input size, number of files and number of findings, with truncation said (principle 32); entropy detection has a minimum length so it does not flag every hash.
+5. **Pure:** it reads text or a workspace file and reaches nothing; its profile (D2) is pure, or reads for a file.
+6. **Reuses what exists:** personal data goes through the core `PIIDetector`; the tool adds the secret patterns and the reporting.
+7. **Package and licence policy checks are not here** (the vertical, D22).
+**Left out on purpose:** a `redact` action that returns the text with matches masked. It would make the tool the producer of the text that goes out, which raises the bar for correctness; `scan` is a gate only for now.
 
 ## D15. Testing: fakes, contract tests, guards, the oracle
 
