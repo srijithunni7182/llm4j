@@ -11,7 +11,7 @@ Status: **draft; D1 to D5 are taken, seventeen decisions are open.** Each gives 
 | D3 | Registering and discovering kinds | **taken** (explicit for the built-ins, `ServiceLoader` for optional modules, four rules) |
 | D4 | The weight rule and the module layout | **taken** (a tools parent, the light module inside it, an `extras` aggregator for the heavy ones; weight tests; a README each) |
 | D5 | Isolation as an honest, audited fact | **taken** (option A with six rules; one sub-question on the load-time probe still open) |
-| D6 | The sandbox contract | open |
+| D6 | The sandbox contract | open (composition taken: two kinds; the contract itself still to confirm) |
 | D7 | Long-running processes (`serve`) and reaching them | open |
 | D8 | Sandbox backends and the default | open |
 | D9 | Restore on rewind: the mechanism | open |
@@ -135,7 +135,11 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 
 **Recommendation: the contract above; A for the first version** (B can sit on top of it later), and C is refused. The sandbox is the *only* place an interpreter is allowed: `ShellKind`'s deny-list stays as it is.
 
-**Decision (owner):** open.
+**Composition (owner, taken): two kinds.** `shell` stays the host tool: small, allow-listed, interpreters refused, unchanged. `sandbox` is the contained one, the only place an interpreter may run. A `sandbox` and a `workspace` share a directory by **naming the workspace tool** (`workspace: Data`), so there is one root, one set of protected paths and one snapshot for `restore` to cover what a program wrote. A shell inside a sandbox is a `sandbox` whose `allow` names `sh`, a visible and deliberate choice inside a container. The docs say plainly: `shell` for the few host commands you list, `sandbox` for anything that runs code. `file` has no isolation level: it runs in the JVM and its containment is the path jail, which `workspace` keeps. A new top-level `sandbox` declaration was refused as too heavy for Loom; a `shell` with an `isolation:` option was refused because one name would then cover two different risks.
+**To read in 35a before building:** whether a tool's option can name another tool. If not, the fallback is to repeat the path in both tools and add a load check that two tools naming one workspace name the same root.
+**Contract details: still to confirm.**
+
+**Decision (owner):** open for the contract details above.
 
 ## D7. Long-running processes (`serve`) and reaching them
 
