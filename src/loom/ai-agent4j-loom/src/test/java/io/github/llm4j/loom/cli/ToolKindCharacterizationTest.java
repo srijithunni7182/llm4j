@@ -64,8 +64,7 @@ class ToolKindCharacterizationTest {
             String check = normalize(check(script, parsed));
             Path out = OUTPUTS.resolve(name.replace('/', '_') + ".txt");
             Files.writeString(
-                    out,
-                    "== audit\n" + audit + "\n== review\n" + review + "\n== check\n" + check);
+                    out, "== audit\n" + audit + "\n== review\n" + review + "\n== check\n" + check);
             now.put(name, digest(audit) + "\t" + digest(review) + "\t" + digest(check));
         }
         assertThat(now).hasSizeGreaterThan(100);
@@ -139,8 +138,7 @@ class ToolKindCharacterizationTest {
     private static String audit(Path script) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         AuditCommand c = new AuditCommand();
-        new CommandLine(c)
-                .parseArgs(script.toString(), "--format", "json", "--fail-on", "none");
+        new CommandLine(c).parseArgs(script.toString(), "--format", "json", "--fail-on", "none");
         int code = AuditCommand.audit(c, env(out));
         return "exit " + code + "\n" + out.toString(StandardCharsets.UTF_8);
     }
@@ -166,7 +164,8 @@ class ToolKindCharacterizationTest {
         ToolRegistry hostTools = new ToolRegistry();
         for (AgentDef a : parsed.getAgents())
             a.getTools()
-                    .forEach(t -> hostTools.register(t, new io.github.llm4j.agent.tools.EchoTool()));
+                    .forEach(
+                            t -> hostTools.register(t, new io.github.llm4j.agent.tools.EchoTool()));
         for (var w : parsed.getWorkflows())
             StatementWalker.walk(
                     w.getStatements(),
@@ -201,8 +200,7 @@ class ToolKindCharacterizationTest {
         e.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(parsed, script, null));
         e.setEnvLookup(ToolKindCharacterizationTest::envValue);
         e.setHumanInterface(message -> "");
-        e.setEmbeddingFactory(
-                model -> new io.github.llm4j.loom.parity.HashingEmbeddingProvider());
+        e.setEmbeddingFactory(model -> new io.github.llm4j.loom.parity.HashingEmbeddingProvider());
         StringBuilder out = new StringBuilder();
         for (ScriptValidator.Problem p :
                 new ScriptValidator().validate(parsed, e.validationContext()))
@@ -218,9 +216,9 @@ class ToolKindCharacterizationTest {
                                     .ORDER_MAP_ENTRIES_BY_KEYS);
 
     /**
-     * The exit line and the report with its object keys sorted: some reports fill a map whose
-     * order varies from run to run, and an order is not something a user relies on. Arrays keep
-     * their order.
+     * The exit line and the report with its object keys sorted: some reports fill a map whose order
+     * varies from run to run, and an order is not something a user relies on. Arrays keep their
+     * order.
      */
     private static String canonical(String output) throws Exception {
         int newline = output.indexOf('\n');

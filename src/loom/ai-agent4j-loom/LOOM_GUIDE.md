@@ -424,7 +424,13 @@ When you declare nothing, Loom assumes an effect from the kind of tool and says 
   `transcribe` (with `SARVAM_API_KEY`).
 - A name in `tools:` is looked up in the script's declarations, then in tools the host registered
   (`.loot` or Java), then among the built-ins. The model sees the name you gave the tool.
-- Hosts can add their own kinds with `executor.addToolKind(...)`.
+- Hosts can add their own kinds with `executor.addToolKind(...)`. A jar can bring kinds too: each one it lists in
+  `META-INF/services/io.github.llm4j.agent.tool.ToolKind` is found when the jar is on the class path (`weave --classes
+  <jar>`, or a dependency of your project), and `weave check` lists the kinds it found and which jar brought each. A kind
+  name is registered once: a jar or a host cannot replace `file` or `shell`, and a jar whose kind fails to load or takes a
+  name already used makes `weave check` fail, naming the jar.
+- Each kind tells `weave audit` what a tool of it reaches (reads untrusted content, reaches private data, sends or changes
+  something). A kind that does not say is assumed to reach everything.
 
 **Knowledge bases** index your documents, and agents get the relevant passages:
 

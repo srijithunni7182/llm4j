@@ -38,8 +38,14 @@ class LoomKindProfilesTest {
     void localAndLanguageKindsReachNothingAndAreNamedInTheirNote() {
         for (String kind :
                 new String[] {
-                    "calculator", "datetime", "current_time", "translate", "transliterate",
-                    "detect_language", "speak", "transcribe"
+                    "calculator",
+                    "datetime",
+                    "current_time",
+                    "translate",
+                    "transliterate",
+                    "detect_language",
+                    "speak",
+                    "transcribe"
                 }) {
             ToolProfile p = profile(kind, Map.of());
             assertThat(p.known()).as(kind).isTrue();
@@ -83,7 +89,8 @@ class LoomKindProfilesTest {
                 .isEqualTo(
                         "Java class a.B, declared reach: sends (the author's word; the audit does not check it)");
         assertThat(profile("class", Map.of("class", "a.B", "reach", "loud")).note())
-                .isEqualTo("Java class a.B: reach: loud is not one of none, reads, fetches, writes, sends");
+                .isEqualTo(
+                        "Java class a.B: reach: loud is not one of none, reads, fetches, writes, sends");
     }
 
     @Test

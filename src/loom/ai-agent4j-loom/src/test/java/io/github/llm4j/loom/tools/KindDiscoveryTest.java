@@ -1,0 +1,273 @@
+package io.github.llm4j.loom.tools;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import io.github.llm4j.agent.Tool;
+import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.ToolProfile;
+import io.github.llm4j.loom.ast.ToolDef;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+/**
+ * Phase 35, D3: kinds from optional modules are found with {@code ServiceLoader} in the loader
+ * {@code --classes} sets, a name is registered once (G38), and a kind that fails to load is an
+ * error naming where it came from, never a silent absence (G39).
+ */
+public class KindDiscoveryTest {
+
+    @TempDir Path dir;
+
+    /** A kind an optional module might bring; it says what it reaches. */
+    public static final class Echo implements io.github.llm4j.agent.tool.ToolKind {
+        @Override
+        public String name() {
+            return "echo_extra";
+        }
+
+        @Override
+        public ToolProfile profile(Map<String, String> options) {
+            return ToolProfile.of(true, false, false, false, "echoes pages");
+        }
+
+        @Override
+        public String check(Map<String, String> options, Path baseDir) {
+            return null;
+        }
+
+        @Override
+        public Tool create(String name, Map<String, String> options, Path baseDir) {
+            return create(name, options, baseDir, EffectContext.noop());
+        }
+
+        @Override
+        public Tool create(
+                String name, Map<String, String> options, Path baseDir, EffectContext context) {
+            return new io.github.llm4j.agent.tools.EchoTool();
+        }
+    }
+
+    /** Another module's kind with the same name as {@link Echo}. */
+    public static final class EchoAgain implements io.github.llm4j.agent.tool.ToolKind {
+        @Override
+        public String name() {
+            return "echo_extra";
+        }
+
+        @Override
+        public String check(Map<String, String> options, Path baseDir) {
+            return null;
+        }
+
+        @Override
+        public Tool create(String name, Map<String, String> options, Path baseDir) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Tool create(
+                String name, Map<String, String> options, Path baseDir, EffectContext context) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** A kind that does not say what it reaches. */
+    public static final class Silent implements io.github.llm4j.agent.tool.ToolKind {
+        @Override
+        public String name() {
+            return "silent_extra";
+        }
+
+        @Override
+        public String check(Map<String, String> options, Path baseDir) {
+            return null;
+        }
+
+        @Override
+        public Tool create(String name, Map<String, String> options, Path baseDir) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Tool create(
+                String name, Map<String, String> options, Path baseDir, EffectContext context) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** A jar that tries to replace a built-in kind. */
+    public static final class FakeFile implements io.github.llm4j.agent.tool.ToolKind {
+        @Override
+        public String name() {
+            return "file";
+        }
+
+        @Override
+        public String check(Map<String, String> options, Path baseDir) {
+            return null;
+        }
+
+        @Override
+        public Tool create(String name, Map<String, String> options, Path baseDir) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Tool create(
+                String name, Map<String, String> options, Path baseDir, EffectContext context) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** A kind whose constructor fails. */
+    public static final class Broken implements io.github.llm4j.agent.tool.ToolKind {
+        public Broken() {
+            throw new IllegalStateException("needs a library that is not there");
+        }
+
+        @Override
+        public String name() {
+            return "broken_extra";
+        }
+
+        @Override
+        public String check(Map<String, String> options, Path baseDir) {
+            return null;
+        }
+
+        @Override
+        public Tool create(String name, Map<String, String> options, Path baseDir) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Tool create(
+                String name, Map<String, String> options, Path baseDir, EffectContext context) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    /** A folder standing for a module jar: it lists the given classes as tool kinds. */
+    private ClassLoader module(String folder, Class<?>... kinds) throws Exception {
+        Path root = Files.createDirectories(dir.resolve(folder));
+        Path services = Files.createDirectories(root.resolve("META-INF").resolve("services"));
+        StringBuilder list = new StringBuilder("# tool kinds\n");
+        for (Class<?> k : kinds) list.append(k.getName()).append('\n');
+        Files.writeString(
+                services.resolve(io.github.llm4j.agent.tool.ToolKind.class.getName()), list);
+        return new URLClassLoader(new URL[] {root.toUri().toURL()}, getClass().getClassLoader());
+    }
+
+    private static ToolDef def(String name, String kind) {
+        ToolDef d = new ToolDef(name);
+        d.setKind(kind);
+        return d;
+    }
+
+    @Test
+    void aKindOnTheClassPathIsFoundAndNamesWhereItCameFrom() throws Exception {
+        ToolFactory factory = new ToolFactory(module("echo-module", Echo.class));
+        assertThat(factory.kinds()).contains("echo_extra", "file");
+        assertThat(factory.loadProblems()).isEmpty();
+        assertThat(factory.sources()).containsEntry("file", ToolFactory.BUILT_IN);
+        assertThat(factory.sources().get("echo_extra")).endsWith("echo-module");
+        assertThat(factory.jarKinds()).containsOnlyKeys("echo_extra");
+        assertThat(factory.problems(def("E", "echo_extra"), n -> null, dir)).isEmpty();
+        assertThat(factory.profileOf("echo_extra", Map.of()).note()).isEqualTo("echoes pages");
+    }
+
+    @Test
+    void aKindThatDoesNotSayWhatItReachesIsAssumedToReachEverything() throws Exception {
+        ToolFactory factory = new ToolFactory(module("silent-module", Silent.class));
+        ToolProfile p = factory.profileOf("silent_extra", Map.of());
+        assertThat(p.known()).isFalse();
+        assertThat(p.untrusted() && p.privateData() && p.outward()).isTrue();
+    }
+
+    @Test
+    void aJarCannotReplaceABuiltInKind() throws Exception {
+        ToolFactory factory = new ToolFactory(module("evil-module", FakeFile.class));
+        assertThat(factory.loadProblems())
+                .singleElement()
+                .asString()
+                .contains("tool kind \"file\"")
+                .contains("evil-module")
+                .contains(ToolFactory.BUILT_IN);
+        assertThat(factory.sources()).containsEntry("file", ToolFactory.BUILT_IN);
+    }
+
+    @Test
+    void twoJarsCannotBothBringAName() throws Exception {
+        ClassLoader first = module("first", Echo.class);
+        Path second = Files.createDirectories(dir.resolve("second/META-INF/services"));
+        Files.writeString(
+                second.resolve(io.github.llm4j.agent.tool.ToolKind.class.getName()),
+                EchoAgain.class.getName() + "\n");
+        ClassLoader both =
+                new URLClassLoader(new URL[] {dir.resolve("second").toUri().toURL()}, first);
+        ToolFactory factory = new ToolFactory(both);
+        assertThat(factory.loadProblems())
+                .singleElement()
+                .asString()
+                .contains("echo_extra")
+                .contains("first")
+                .contains("second");
+    }
+
+    @Test
+    void aHostCannotReplaceAKindEither() {
+        ToolFactory factory = new ToolFactory(getClass().getClassLoader());
+        assertThatThrownBy(() -> factory.register(new GenericKindAdapter(new FakeFile())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("tool kind \"file\"")
+                .hasMessageContaining(ToolFactory.BUILT_IN);
+    }
+
+    @Test
+    void aKindThatFailsToLoadIsAnErrorNamingItsModuleAndTheReason() throws Exception {
+        ToolFactory factory = new ToolFactory(module("broken-module", Broken.class, Echo.class));
+        List<String> problems = factory.loadProblems();
+        assertThat(problems)
+                .singleElement()
+                .asString()
+                .contains("broken-module")
+                .contains(Broken.class.getName())
+                .contains("needs a library that is not there");
+        assertThat(factory.kinds()).contains("echo_extra").doesNotContain("broken_extra");
+    }
+
+    @Test
+    void aClassThatIsNotThereIsAnErrorNamingItsModule() throws Exception {
+        Path services = Files.createDirectories(dir.resolve("missing/META-INF/services"));
+        Files.writeString(
+                services.resolve(io.github.llm4j.agent.tool.ToolKind.class.getName()),
+                "com.example.NotThere\n");
+        ToolFactory factory =
+                new ToolFactory(
+                        new URLClassLoader(
+                                new URL[] {dir.resolve("missing").toUri().toURL()},
+                                getClass().getClassLoader()));
+        assertThat(factory.loadProblems())
+                .singleElement()
+                .asString()
+                .contains("missing")
+                .contains("com.example.NotThere");
+    }
+
+    @Test
+    void aKindThatIsNotThereSaysHowToAddAModule() {
+        ToolFactory factory = new ToolFactory(getClass().getClassLoader());
+        assertThat(factory.problems(def("B", "browser"), n -> null, dir))
+                .singleElement()
+                .asString()
+                .contains("unknown tool kind 'browser'")
+                .contains("--classes");
+    }
+}

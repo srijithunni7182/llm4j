@@ -780,6 +780,13 @@ public class WeaveCLI implements Callable<Integer> {
                             codeSteps.add(r.getTaskName());
                     });
         }
+        java.util.Map<String, String> jarKinds =
+                new io.github.llm4j.loom.tools.ToolFactory().jarKinds();
+        if (!jarKinds.isEmpty()) {
+            java.util.List<String> listed = new ArrayList<>();
+            jarKinds.forEach((kind, source) -> listed.add(kind + " (" + source + ")"));
+            env.out().println("ℹ tool kinds from jars: " + String.join(", ", listed));
+        }
         if (!codeSteps.isEmpty()) {
             env.out()
                     .println(

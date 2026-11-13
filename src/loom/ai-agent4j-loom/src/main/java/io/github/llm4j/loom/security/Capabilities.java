@@ -189,7 +189,7 @@ public record Capabilities(
      */
     public static ToolProfile profile(ToolDef t) {
         String kind = t.getKind() == null ? "" : t.getKind().toLowerCase(Locale.ROOT);
-        return ToolFactory.standardKind(kind)
+        return ToolFactory.knownKind(kind)
                 .map(k -> k.profile(written(t)))
                 .orElseGet(
                         () ->

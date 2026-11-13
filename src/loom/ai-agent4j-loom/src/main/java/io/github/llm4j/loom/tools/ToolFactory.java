@@ -61,11 +61,38 @@ public final class ToolFactory {
      */
     static final String REPLAY = "replay";
 
-    private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
+    /** Where a built-in kind comes from, in {@link #sources()}. */
+    public static final String BUILT_IN = "built in";
 
-    /** A factory that knows the built-in kinds: the ones {@link #standardKinds()} lists. */
+    private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
+    private final Map<String, String> sources = new LinkedHashMap<>();
+    private final List<String> loadProblems = new java.util.ArrayList<>();
+
+    /**
+     * A factory that knows the built-in kinds and the kinds the jars on the project's class path
+     * bring ({@link io.github.llm4j.loom.init.ProjectClasses#loader()}, which {@code --classes}
+     * sets).
+     */
     public ToolFactory() {
-        standardKinds().forEach(this::register);
+        this(io.github.llm4j.loom.init.ProjectClasses.loader());
+    }
+
+    /**
+     * A factory that knows the built-in kinds ({@link #standardKinds()}) and the kinds the jars
+     * visible to {@code loader} list in {@code
+     * META-INF/services/io.github.llm4j.agent.tool.ToolKind}. A name is registered once: a jar that
+     * brings a name already known, or a kind that fails to load, is left out and reported in {@link
+     * #loadProblems()}.
+     */
+    public ToolFactory(ClassLoader loader) {
+        standardKinds().forEach(k -> add(k, BUILT_IN));
+        DiscoveredKinds found = DiscoveredKinds.in(loader);
+        loadProblems.addAll(found.problems());
+        for (DiscoveredKinds.Found f : found.kinds()) {
+            String clash = clash(f.kind().name(), f.source());
+            if (clash == null) add(f.kind(), f.source());
+            else loadProblems.add(clash);
+        }
     }
 
     /**
@@ -202,6 +229,33 @@ public final class ToolFactory {
         return java.util.Collections.unmodifiableMap(out);
     }
 
+    /** The kinds the jars visible to the last loader asked about bring, found once per loader. */
+    private static final java.util.concurrent.atomic.AtomicReference<
+                    Map.Entry<ClassLoader, Map<String, ToolKind>>>
+            DISCOVERED = new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * A kind a script can name with no host code, for asking what it reaches: a built-in, else one
+     * a jar on the project's class path brings ({@link
+     * io.github.llm4j.loom.init.ProjectClasses#loader()}). A jar's kind with a built-in's name is
+     * not one: the built-in wins, and {@code weave check} reports the jar.
+     */
+    public static java.util.Optional<ToolKind> knownKind(String name) {
+        java.util.Optional<ToolKind> builtIn = standardKind(name);
+        if (builtIn.isPresent()) return builtIn;
+        ClassLoader loader = io.github.llm4j.loom.init.ProjectClasses.loader();
+        Map.Entry<ClassLoader, Map<String, ToolKind>> last = DISCOVERED.get();
+        if (last == null || last.getKey() != loader) {
+            Map<String, ToolKind> found = new LinkedHashMap<>();
+            DiscoveredKinds.in(loader)
+                    .kinds()
+                    .forEach(f -> found.putIfAbsent(f.kind().name(), f.kind()));
+            last = Map.entry(loader, java.util.Collections.unmodifiableMap(found));
+            DISCOVERED.set(last);
+        }
+        return java.util.Optional.ofNullable(last.getValue().get(name));
+    }
+
     /** The names of the built-in kinds, sorted. */
     public static Set<String> standardKindNames() {
         return java.util.Collections.unmodifiableSet(new TreeSet<>(Standard.KINDS.keySet()));
@@ -261,9 +315,75 @@ public final class ToolFactory {
         };
     }
 
+    /**
+     * Adds a kind the host supplies.
+     *
+     * @throws IllegalArgumentException when a kind of that name is already registered: a name is
+     *     registered once, so nothing can quietly replace {@code file} or {@code shell}
+     */
     public ToolFactory register(ToolKind kind) {
-        kinds.put(kind.name(), kind);
+        String source = "the host (" + kind.getClass().getName() + ")";
+        String clash = clash(kind.name(), source);
+        if (clash != null) throw new IllegalArgumentException(clash);
+        add(kind, source);
         return this;
+    }
+
+    private void add(ToolKind kind, String source) {
+        kinds.put(kind.name(), kind);
+        sources.put(kind.name(), source);
+    }
+
+    /** Why a kind of this name from {@code source} cannot be added, or null. */
+    private String clash(String name, String source) {
+        String existing = sources.get(name);
+        return existing == null
+                ? null
+                : "tool kind \""
+                        + name
+                        + "\" from "
+                        + source
+                        + " has the name of the one from "
+                        + existing
+                        + "; a name is registered once, so it was not loaded (remove one of them)";
+    }
+
+    /**
+     * Where each kind came from, by name: {@link #BUILT_IN}, the jar or folder that listed it, or
+     * the host.
+     */
+    public Map<String, String> sources() {
+        return java.util.Collections.unmodifiableMap(sources);
+    }
+
+    /** The kinds that came from jars or folders on the class path, with where each came from. */
+    public Map<String, String> jarKinds() {
+        Map<String, String> out = new java.util.TreeMap<>();
+        sources.forEach(
+                (name, source) -> {
+                    if (!source.equals(BUILT_IN) && !source.startsWith("the host ("))
+                        out.put(name, source);
+                });
+        return out;
+    }
+
+    /**
+     * The kinds that could not be added: one that failed to load, or a name already registered.
+     * Each names where it came from; {@code weave check} reports them as errors.
+     */
+    public List<String> loadProblems() {
+        return List.copyOf(loadProblems);
+    }
+
+    /**
+     * What a tool of this kind with these options (as written) reaches; a kind this factory does
+     * not have is assumed to reach everything.
+     */
+    public ToolProfile profileOf(String kind, Map<String, String> options) {
+        ToolKind k = kinds.get(kind);
+        return k == null
+                ? ToolProfile.unknown("tool kind \"" + kind + "\" is not one the audit knows")
+                : k.profile(options);
     }
 
     public Set<String> kinds() {
@@ -292,7 +412,13 @@ public final class ToolFactory {
         List<String> out = new java.util.ArrayList<>();
         ToolKind kind = kinds.get(def.getKind());
         if (kind == null) {
-            out.add("unknown tool kind '" + def.getKind() + "'; use one of " + kinds());
+            out.add(
+                    "unknown tool kind '"
+                            + def.getKind()
+                            + "'; use one of "
+                            + kinds()
+                            + " (a kind from an optional module needs its jar: weave --classes"
+                            + " <jar>, or a dependency of your project)");
             return out;
         }
         for (String req : kind.required()) {

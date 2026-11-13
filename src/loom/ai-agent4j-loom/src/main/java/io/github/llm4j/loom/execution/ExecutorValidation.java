@@ -46,6 +46,14 @@ final class ExecutorValidation {
 
         List<String> toolProblems(io.github.llm4j.loom.ast.ToolDef def);
 
+        /**
+         * Tool kinds a jar on the class path brings that could not be added: one that failed to
+         * load, or a name already registered. Never silent: each is an error.
+         */
+        default List<String> toolKindProblems() {
+            return List.of();
+        }
+
         String agentToolProblem(
                 io.github.llm4j.loom.ast.ToolDef def, String agent, boolean approved);
 
@@ -898,6 +906,7 @@ final class ExecutorValidation {
     }
 
     void checkToolsAndApprovals(ScriptValidator.Checker c) {
+        for (String problem : host.toolKindProblems()) c.error(0, "tool kinds", problem);
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (io.github.llm4j.loom.ast.ToolDef t : host.script().getTools()) {
             if (!seen.add(t.getName()))

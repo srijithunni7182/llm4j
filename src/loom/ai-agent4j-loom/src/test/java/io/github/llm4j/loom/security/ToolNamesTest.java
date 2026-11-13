@@ -7,8 +7,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * A tool an agent names without declaring it: a built-in name is what its kind says; any other
- * name is the host's own tool, judged by what it declares and never by its name (phase 35, C2).
+ * A tool an agent names without declaring it: a built-in name is what its kind says; any other name
+ * is the host's own tool, judged by what it declares and never by its name (phase 35, C2).
  */
 class ToolNamesTest {
 
@@ -35,7 +35,8 @@ class ToolNamesTest {
 
     @Test
     void aHostToolThatDeclaresItsReachIsBelieved() {
-        Capabilities c = Capabilities.resolve("duckduckgo", Map.of(), Map.of("duckduckgo", "fetches"));
+        Capabilities c =
+                Capabilities.resolve("duckduckgo", Map.of(), Map.of("duckduckgo", "fetches"));
         assertThat(c.known()).isTrue();
         assertThat(c.untrusted()).isTrue();
         assertThat(c.outward()).isFalse();

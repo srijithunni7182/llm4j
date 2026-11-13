@@ -2004,6 +2004,11 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
+                        public List<String> toolKindProblems() {
+                            return toolFactory.loadProblems();
+                        }
+
+                        @Override
                         public String agentToolProblem(
                                 io.github.llm4j.loom.ast.ToolDef def,
                                 String agent,

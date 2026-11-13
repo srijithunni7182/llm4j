@@ -33,6 +33,12 @@ declaration wrote them, so a reference such as `env.NAME` arrives as that text, 
 the rewind checks and `weave test` read the profile; a kind that does not override it is assumed to reach everything and change
 things, so the audit flags every agent that holds it.
 
+**Ship it in its own jar.** A kind outside this library is found by Loom when its jar lists it in
+`META-INF/services/io.github.llm4j.agent.tool.ToolKind` (one class name per line, each with a public no-argument constructor)
+and the jar is on the class path (`weave --classes <jar>`, or a dependency of the project). Its name must be lower-case letters,
+digits and `_`, and must not be taken: a name is registered once. A kind that fails to load is reported by `weave check` with
+the jar and the reason. A kind that needs a dependency of its own belongs in [the extras](../../extras/README.md).
+
 ## Checklist
 
 - Secrets are listed in `secrets()` and never appear in an error, a trace or a result.
