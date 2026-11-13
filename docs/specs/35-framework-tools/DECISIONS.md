@@ -1,12 +1,12 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D8 are taken, fourteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, thirteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
 | | Decision | State |
 |---|---|---|
-| D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, review gates after 35a and 35c) |
+| D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, one review gate, after 35a; the gate after 35c was dropped with D9) |
 | D2 | How a tool kind describes itself | **taken** (a `profile` method on `ToolKind`; built-ins move their profiles into the kinds; a characterization test first) |
 | D3 | Registering and discovering kinds | **taken** (explicit for the built-ins, `ServiceLoader` for optional modules, four rules) |
 | D4 | The weight rule and the module layout | **taken** (a tools parent, the light module inside it, an `extras` aggregator for the heavy ones; weight tests; a README each) |
@@ -14,7 +14,7 @@ Status: **draft; D1 to D8 are taken, fourteen decisions are open.** Each gives t
 | D6 | The sandbox contract | **taken** (two kinds; one workspace mount; network none, a host allow-list or open; relaxed time limits; no changed-files list) |
 | D7 | Long-running processes (`serve`) and reaching them | **taken** (`serve`, `stop`, `status` with a lease and a one-port grant; built last in 35d) |
 | D8 | Sandbox backends and the default | **taken** (`process`, `container` and `fake`; an interface for `vm` and remote; six rules) |
-| D9 | Restore on rewind: the mechanism | open |
+| D9 | Restore on rewind: the mechanism | **taken** (no framework support: restore is a `workspace` operation a script calls; a spike in 35c) |
 | D10 | Snapshot storage and limits | open |
 | D11 | The workspace kind, patching and protected paths | open |
 | D12 | Evidence: the `check` kind and provenance | open |
@@ -41,6 +41,7 @@ Status: **draft; D1 to D8 are taken, fourteen decisions are open.** Each gives t
 
 **Decision (owner): option A, with the gates.** One phase with six sub-phases (35a to 35f, [DESIGN §4](DESIGN.md)).
 **The gates:** the implementation session **stops after 35a** (self-describing kinds, the audit refactor) **and after 35c** (restore on rewind), reports what it built and found, and waits for the owner, who then tells it to continue or to change something. Nothing is merged in between. If the review load proves too large, the split into two phases (option B) stays available at the 35d/35e boundary.
+**Amended (owner, with D9):** the gate after 35c is **dropped**: 35c no longer changes the rewind runtime, so it is only the `workspace` tool. The one gate is after 35a. The rest of D1 stands.
 
 ## D2. How a tool kind describes itself
 
@@ -55,6 +56,7 @@ Status: **draft; D1 to D8 are taken, fourteen decisions are open.** Each gives t
 **Decision (owner): option A, with the characterization test.** `ToolKind` gains a default `profile(options)` returning a core `ToolProfile`; the built-in kinds move their profiles into themselves, so Loom keeps no list of kind names for what a kind reaches. A kind that does not answer is "unknown" and is assumed to reach everything, as today.
 **Precondition:** before the refactor, a test records the audit output for every `.loom` file in the repository; after it, the output must be identical. Any difference is reported to the owner, not resolved silently, because it is either a profile bug or a place where the old lists disagreed.
 **Settled in 35a, not here:** how the kinds Loom registers itself (`duckduckgo`, `calculator`, `openapi`, `knowledge_graph`, `skill_registry`, `class`) answer the same question (the same method on Loom's registration interface, or a small remaining switch), and the mapping from today's boolean `effect` to `TaskEffect`.
+**Amended (with D9):** the profile has no `restorable` field.
 
 ## D3. Registering and discovering kinds
 
@@ -165,7 +167,7 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 - **The lease:** a handle, a port the backend chooses, a deadline and an owner (the run). The deadline follows the same relaxed-but-bounded rule as `run` (a default, and a hard ceiling no script can exceed). A readiness check lets a script wait until the port answers.
 - **The grant:** a tool that must reach the process (`http`, `browser`) is given a `NetPolicy` entry for exactly `127.0.0.1:<that port>`, valid until the handle ends, journaled, and shown by the audit as "this workflow reaches a process it started". A generic `allow_loopback` option was **refused**: it would turn the SSRF guard off for every address on the machine.
 - **Ownership and cleanup:** a registry file in the run folder records process id, container name, port and deadline. A process is stopped on `stop`, on cancel and on run end; a resumed run reads the registry first and stops anything a crashed run left. A limit on live handles per run, with a loud error when exceeded.
-- **With restore (D9, D10):** a restore is refused while a served process holds the workspace.
+- **With `workspace restore` (D10):** a restore is refused while a served process holds the workspace.
 - **Order:** `serve` is built last in 35d, after `run` is solid; it is the hardest part of the sandbox (orphans after a crash, port clashes, a process that ignores a stop signal).
 
 ## D8. Sandbox backends and the default
@@ -191,13 +193,25 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 
 **Why.** Rewind today re-runs or skips effects; it cannot give a directory back. Retrying a build or a document edit from a clean state needs that.
 
-- **A. A `Checkpointable` capability in the core;** at a `checkpoint`, Loom snapshots each checkpointable tool in scope and records the id in the journal; `rewind ... effects: restore` restores them before the attempt is replayed; anything else in the discarded attempt still needs `ask first`, `keep` or `repeat`.
+- **A. A `Checkpointable` capability in the core;** at a `checkpoint`, Loom snapshots each checkpointable tool in scope and records the id in the journal; `side effects: restore` restores them before the attempt is replayed; anything else in the discarded attempt still needs `ask first`, `keep` or `repeat`.
 - **B. Compensation per effect** (a saga: each effect names its undo). Powerful, but it invites claiming that a send can be undone.
-- **C. Nothing in Loom:** the script calls `workspace restore` itself after a rewind.
+- **C. Nothing in the framework:** the script calls `workspace snapshot` and `workspace restore` itself with `use`, and the rewind says `side effects: repeat`.
 
-**Recommendation: A.** It is the one change to the rewind runtime, and it is narrow: restore touches only tools that declare `restorable`. B is refused (principle 27). C works today and is the fallback, but it loses the guarantee that the restore happens before the replay and is journaled. `RewindChecks` gains a rule: `effects: restore` on a script with no restorable tool in scope is a load error.
+**Recommendation (first draft): A,** after reading how checkpoints and rewinds execute. A checkpoint already snapshots variables and agent memory in memory and a rewind restores them, so tool state would go in the same two places; three hazards shaped the design (a checkpoint runs again on replay, `begin` runs again on resume, a crash can fall between a restore and the recording of the new attempt).
 
-**Decision (owner):** open.
+**Decision (owner): none in the framework; option C.** The owner's reasons: what "restore" means is subjective and differs for every tool; it could become a bottleneck for anyone building a tool; and not every backend (a `vm`, a remote service) can or wants to support it. The framework therefore gains **no** `Checkpointable` capability, **no** `restorable` field in the profile, **no** `side effects: restore` word, no change to `Rewinder` and no new `RewindChecks` rule.
+**How a script does it** (a sketch, not a script that parses today):
+```loom
+use Data(op = "snapshot", name = "clean")          // once, before the checkpoint
+checkpoint Clean  starting with feedback = "none"
+use Data(op = "restore", name = "clean")           // a no-op the first time; after a rewind it undoes the failed attempt
+...
+rewind to Clean when (...) at most 2 times  carrying feedback = "..."  side effects: repeat
+```
+**Why the existing machinery is enough:** `use Tool(...)` is journaled and not run twice on resume, so a replay reuses the recorded snapshot id instead of taking a new one; the restore is declared idempotent (`EffectPolicy`), so an unknown outcome after a crash is retried; and `repeat` is already allowed when the tools involved are approved.
+**What it costs:** the audit sees effects, not "this workflow can restore"; the author writes the three lines; and `repeat` re-runs the attempt's effects, so it fits an attempt that touches only the workspace and the sandbox (an attempt that also sends an email keeps `ask first`).
+**To prove in 35c (a spike):** how `Generations.identity` treats `repeat` (not read), that identical effects really run again in the new attempt, with a real workflow. If the pattern is awkward, a later phase may add language support, informed by real scripts; that is recorded in D22.
+`workspace` keeps `snapshot`, `restore` and `diff` as its own operations (D10, D11); a `vm` or remote backend whose files are not on the host implements them itself or does not offer them, and nothing in the sandbox contract (D6) requires them.
 
 ## D10. Snapshot storage and limits
 
@@ -215,7 +229,7 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 
 **Why.** The `file` kind (read, list, write) is a stable public surface. An editing agent needs more, and needs some files out of its reach.
 
-- **A. A new `workspace` kind** (a superset of `file`, restorable), operations: `read`, `list`, `write`, `patch`, `find`, `grep`, `diff`, `snapshot`, `restore`; `file` is unchanged.
+- **A. A new `workspace` kind** (a superset of `file`), operations: `read`, `list`, `write`, `patch`, `find`, `grep`, `diff`, `snapshot`, `restore`; `file` is unchanged.
 - **B. Add the operations to `file`.** One kind, but it widens a published surface and mixes a simple tool with a stateful one.
 
 **Patch format:** a model is more reliable with search-and-replace blocks than with unified diffs, so `patch` takes **a list of (old text, new text) edits for one file plus the hash of the file it was written against**; it fails, changing nothing, when the hash differs, an old text is not found exactly once, or the file is protected. A unified diff may be accepted later.
@@ -339,7 +353,7 @@ Proposed:
 
 **Why.** The phases so far each moved the whole ecosystem at the end.
 
-Proposed: the tool-kind table in `LOOM_GUIDE.md` and `LOOM_PROMPT.md`; the wiki pages; `llms.txt`; the VS Code grammar and snippets; **two starters** that need no coding background (a report writer that edits a document, checks it and rewinds with `restore`; a data analyst that runs a script in the sandbox and checks the result); CTK scenarios; the `llm4j-workflow-guide`, `-harness-design` and `-patterns` skills (tools, isolation, restore); a tutorial chapter; the release notes; `docs/API_COMPATIBILITY.md` for the new core types.
+Proposed: the tool-kind table in `LOOM_GUIDE.md` and `LOOM_PROMPT.md`; the wiki pages; `llms.txt`; the VS Code grammar and snippets; **two starters** that need no coding background (a report writer that edits a document, checks it and, when the check fails, restores the workspace and tries again; a data analyst that runs a script in the sandbox and checks the result); CTK scenarios; the `llm4j-workflow-guide`, `-harness-design` and `-patterns` skills (tools, isolation, the restore pattern); a tutorial chapter; the release notes; `docs/API_COMPATIBILITY.md` for the new core types.
 
 **Recommendation: all of it,** in 35f, with `make docs-check` as the check.
 
@@ -349,7 +363,7 @@ Proposed: the tool-kind table in `LOOM_GUIDE.md` and `LOOM_PROMPT.md`; the wiki 
 
 **Why.** Words in a Loom script and in a tool's options are public from the day they ship.
 
-Proposed: kinds `sandbox`, `workspace`, `compute`, `check`, `scan`, `browser`, `search`, `documents`, `git`; the rewind word `restore` (`effects: restore`, in the same family as `ask first`, `keep`, `repeat`); options `isolation`, `network`, `protect`, `ignore`, `limits`. `check` is already a word for `weave check`; it appears only as a `use:` value, so it does not collide, but the owner may prefer `verify`. The parser must read `restore` as a keyword only in the position after `effects:`.
+Proposed: kinds `sandbox`, `workspace`, `compute`, `check`, `scan`, `browser`, `search`, `documents`, `git`; options `isolation`, `network`, `protect`, `ignore`, `limits`. `check` is already a word for `weave check`; it appears only as a `use:` value, so it does not collide, but the owner may prefer `verify`.
 
 **Recommendation: these, with `check` replaced by `verify` if the owner agrees** (it avoids two meanings in the docs).
 
@@ -357,7 +371,7 @@ Proposed: kinds `sandbox`, `workspace`, `compute`, `check`, `scan`, `browser`, `
 
 ## D22. What stays out of this phase
 
-Proposed: any vertical's own tools (package policy, code navigation, a design brief); a `vm` or remote sandbox backend (an SPI, not an implementation); sibling or queue messaging; compensation of external effects (principle 27); a GUI or desktop-control tool; image returned to a model from a tool (a change to the tool result type, its own phase); changes to `weave eval` beyond D17; and anything in the VS Code extension beyond grammar and snippets.
+Proposed: any vertical's own tools (package policy, code navigation, a design brief); a `vm` or remote sandbox backend (an SPI, not an implementation); sibling or queue messaging; compensation of external effects (principle 27); framework support for restoring tools on rewind (a `Checkpointable` capability, `side effects: restore`), deferred until real workflows show the D9 pattern is awkward; a GUI or desktop-control tool; image returned to a model from a tool (a change to the tool result type, its own phase); changes to `weave eval` beyond D17; and anything in the VS Code extension beyond grammar and snippets.
 
 **Recommendation: confirm the list.**
 

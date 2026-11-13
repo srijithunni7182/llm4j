@@ -20,11 +20,11 @@ Status: **draft.** Facts marked (read) come from the merged source on `main` aft
 
 ## 2. The framework parts
 
-**F1. Self-describing kinds (35a).** A default method on `ToolKind`, `profile(options)`, returns a small core record: what the kind reaches (the three booleans), its effect level, whether a call can be restored, the isolation level it applies, and a one-line note. The eight Loom sites ask the kind and their name lists are deleted. A kind that does not override it answers "unknown", which is today's behaviour. No behaviour changes: a characterization test pins the audit's output for every `.loom` file in the repository (`RepositoryScriptsTest` already walks them) before and after.
+**F1. Self-describing kinds (35a).** A default method on `ToolKind`, `profile(options)`, returns a small core record: what the kind reaches (the three booleans), its effect level, the isolation level it applies, and a one-line note. The eight Loom sites ask the kind and their name lists are deleted. A kind that does not override it answers "unknown", which is today's behaviour. No behaviour changes: a characterization test pins the audit's output for every `.loom` file in the repository (`RepositoryScriptsTest` already walks them) before and after.
 
 **F2. Registration (35a).** `ToolFactory` takes a registry of kinds. The tools module's kinds are registered as now; an optional module's kinds are found with `ServiceLoader` when the jar is on the classpath, so adding the browser jar adds the `browser` kind and nothing else changes.
 
-**F3. Restore on rewind (35c).** A small optional capability in the core, `Checkpointable` (take a snapshot, restore one; the snapshot is an id and a content hash). Loom takes a snapshot of each checkpointable tool in scope at a `checkpoint`, records the id in the journal, and `rewind ... effects: restore` restores them before the attempt is replayed. The new enum value, its parser word, `RewindChecks`, the grammar and the docs follow. Only restorable tools are restored; any other effect in the discarded attempt still needs an answer.
+**F3. Restore is a workspace operation, not a framework feature (35c).** An earlier draft added a `Checkpointable` capability to the core and `side effects: restore` to Loom. The owner dropped it (D9): what restoring means differs for every tool, not every backend can offer it, and a tool author should not carry it. `workspace` offers `snapshot`, `restore` and `diff` as ordinary operations; a script calls them with `use` and a rewind with `side effects: repeat` runs the attempt again. The existing effect protocol covers replay and a crash mid-restore (the operations are idempotent and journaled).
 
 **F4. Isolation as an audited fact (35d).** The level a tool reports appears in `weave audit` and in the review facts, with a rule (LA31) for a tool that runs a program or serves a process at a level below the one the script declared it needs. A new rule must be listed in `docs/security/weave-audit.md` and mapped in `owasp-llm-top-10.md`.
 
@@ -54,7 +54,7 @@ Considered and left for later (see D18): object storage, a message queue, a chat
 |---|---|---|
 | 35a | First, the move to `src/tools/` in a commit of its own (D4); then F1, F2: self-describing kinds and the registry. No new tool and no behaviour change | The owner reviews the branch before 35b |
 | 35b | `compute`, `check`, `scan` and the `file` additions the decisions pick. Pure and cheap: no runtime change | |
-| 35c | F3 and the `workspace` kind: snapshot, restore, `effects: restore` | The owner reviews the branch: this touches the rewind runtime |
+| 35c | The `workspace` kind: read, write, patch, find, grep, diff, snapshot, restore; and a spike with a real workflow of the `use` plus `side effects: repeat` pattern (D9) | |
 | 35d | F4, F5 and `sandbox` (process and container backends, the fake, `serve` if D7 says so) | |
 | 35e | The optional modules the decisions pick: `browser`, `search`, `documents`, `git` | |
 | 35f | eval4j (D17) and the ecosystem: docs, starters, CTK scenarios, skills, VS Code, the tutorial | |
@@ -63,7 +63,7 @@ Considered and left for later (see D18): object storage, a message queue, a chat
 
 1. **The refactor in 35a touches the audit,** the most security-critical code in Loom. The characterization test is the control; without it the refactor must not start.
 2. **The sandbox is a promise people will rely on.** A weak backend that is described as strong is worse than none. Principle 26 and D5 exist for this.
-3. **Restore can be wrong in a quiet way:** a snapshot that misses a file, or a restore that races a running process. The snapshot is hashed and verified on restore, and a restore with a served process running is refused.
+3. **Restore can be wrong in a quiet way:** a snapshot that misses a file, or a restore that races a running process. The snapshot is hashed and verified on restore, and a restore with a served process running is refused. The `use` plus `side effects: repeat` pattern rests on how `Generations.identity` treats `repeat` (not read): a spike in 35c proves it on a real workflow before it is documented.
 4. **A served port and `NetPolicy`.** The policy refuses loopback by design. A browser or `http` tool reaching a served app needs a narrow exception tied to that one handle, not a switch that opens loopback for everyone (D7).
 5. **A tool result is text.** A screenshot cannot come back as an image to a model today; the browser writes a file and the script decides what to do with it (D16).
 6. **The egress proxy (D6).** A host allow-list for a container needs a proxy the container can reach and nothing else. Whether that works the same on Docker for Linux, Docker Desktop and rootless Podman is not known; it is a spike at the start of 35d, and a platform that fails it refuses `allow:` rather than weakening it.
