@@ -211,7 +211,7 @@ substitution: braces
 provider Box { use: sarvam  api_key: secret.BOX_KEY  base_url: "https://box.example.com" }
 tool Search  { use: serpapi  api_key: secret.SERP_KEY }
 
-agent Indic { model: "Box/sarvam-m"  system: "You answer briefly."  tools: [Search] }
+agent Indic { model: "Box/sarvam-105b"  system: "You answer briefly."  tools: [Search] }
 
 workflow Main(q) {
     delegate "{q}" to Indic -> answer

@@ -127,6 +127,36 @@ public record ModelTraits(
         return DEFAULT;
     }
 
+    // ── Sarvam ──────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Sarvam models whose thinking {@code reasoning_effort: "none"} switches off. Not {@code
+     * sarvam-105b-conversations}, whose switch is not documented.
+     */
+    private static final Pattern SARVAM_SWITCHABLE =
+            Pattern.compile("^(?:sarvam-105b|(?:deepseekv|qwen)\\d+(?:[-.].*)?)$");
+
+    /** Sarvam models that do not think unless asked to. */
+    private static final Pattern SARVAM_OFF_BY_DEFAULT = Pattern.compile("^gemma\\d+(?:[-.].*)?$");
+
+    private static final Map<String, Object> SARVAM_THINK_OFF = Map.of("reasoning_effort", "none");
+    private static final Map<String, Object> SARVAM_THINK_LOW = Map.of("reasoning_effort", "low");
+
+    /**
+     * Sarvam (V2 chat completions): {@code sarvam-105b}, the DeepSeek and the Qwen models think by
+     * default and take {@code reasoning_effort: "none"} to stop; {@code gemma4} thinks only when
+     * given an effort; GLM and Kimi always think. Any effort the caller passes as an additional
+     * parameter is sent as given.
+     */
+    public static ModelTraits sarvam(String model) {
+        String m = lower(model);
+        if (SARVAM_SWITCHABLE.matcher(m).matches())
+            return DEFAULT.withThinkingSwitch(Map.of(), SARVAM_THINK_OFF);
+        if (SARVAM_OFF_BY_DEFAULT.matcher(m).matches())
+            return DEFAULT.withThinkingSwitch(SARVAM_THINK_LOW, Map.of());
+        return DEFAULT;
+    }
+
     // ── Perplexity (Agent API) ──────────────────────────────────────────────────────────────
 
     /**

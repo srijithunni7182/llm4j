@@ -360,7 +360,7 @@ governance, all declared in the script.
 ### Agent Definition Syntax
 ```loom
 agent Analyst {
-    model: "gemini-2.5-flash"            // or "sarvam/sarvam-m", "ollama/llama3", "Box/llama3" (a declared provider)
+    model: "gemini-2.5-flash"            // or "sarvam/sarvam-105b", "ollama/llama3", "Box/llama3" (a declared provider)
     persona: Mentor                      // a persona declared in the script, or a PersonaLibrary one ("technicalAnalyst")
     system: "You are an analyst specialising in {domain}."   // follows the persona when both are given
     temperature: 0.3                     // 0.0–2.0: creative roles high, checkers low
@@ -1214,14 +1214,15 @@ workflow Main(recording) {
 - `gemini-…` (key in `GEMINI_API_KEY`, in the environment or the secret store);
 - `claude-…` or `anthropic/<model>` (`ANTHROPIC_API_KEY`), e.g. `claude-opus-5-5`, `claude-haiku-4-5`;
 - `ollama/<model>` (at `OLLAMA_BASE_URL`, default `http://localhost:11434`);
-- `sarvam/<model>` (`SARVAM_API_KEY`);
+- `sarvam/<model>` (`SARVAM_API_KEY`, optionally `SARVAM_BASE_URL`): Sarvam's V2 chat, its own `sarvam-105b` and the Token Factory's open-weight models, e.g.
+  `sarvam/glm5.3`, `sarvam/gemma4`, `sarvam/deepseekv4.1-flash-1017`;
 - `openai/<model>` (`OPENAI_API_KEY`), `xai/<model>` (`XAI_API_KEY`), `kimi/<model>` (`MOONSHOT_API_KEY`, **preview**), `qwen/<model>` (`DASHSCOPE_API_KEY`, **preview**)
   and `perplexity/<creator>/<model>` or `perplexity/preset:<name>` (`PERPLEXITY_API_KEY`; Perplexity's Agent API, e.g. `perplexity/openai/gpt-5.6-sol`). Each vendor's
   address can be overridden with `OPENAI_BASE_URL`, `XAI_BASE_URL`, `MOONSHOT_BASE_URL`, `DASHSCOPE_BASE_URL` and `PERPLEXITY_BASE_URL`;
 - a bare name that only one vendor could own works without a prefix: `gpt-…`, `o1`, `o3`, `o4`, `chatgpt-…` (OpenAI), `grok-…` (xAI), `kimi-…`, `moonshot-…` (Kimi).
   A bare `qwen3` or `gpt-oss` is **not** guessed (they usually mean a local Ollama model): write `qwen/qwen3-max` or `ollama/qwen3`.
 
-Agents that use tools talk to Gemini, Claude and the OpenAI-family vendors through their native tool calling (structured calls, not parsed text); Sarvam and Ollama use the
+Agents that use tools talk to Gemini, Claude and the OpenAI-family vendors through their native tool calling (structured calls, not parsed text), and Sarvam is one of them; Ollama uses the
 text protocol. See [Native Tool Calling](../../ai-agent4j/wiki/Native-Tool-Calling.md).
 
 To reach a specific endpoint with its own key, declare a **provider**:
@@ -1231,7 +1232,7 @@ provider Box    { use: ollama  base_url: "http://gpu-box:11434" }
 provider Team   { use: sarvam  api_key: secret.TEAM_SARVAM_KEY }   // or env.TEAM_SARVAM_KEY
 
 agent Local  { model: "Box/llama3" }
-agent Indic  { model: "Team/sarvam-m" }
+agent Indic  { model: "Team/sarvam-105b" }
 ```
 
 - `use:` is `gemini`, `anthropic`, `ollama`, `sarvam`, `openai`, `xai`, `kimi`, `qwen`, `perplexity`, `perplexity_router` (private preview), `openai_compatible`, or one of the two decision-model kinds for an `intentclassifier` (they do not chat): `jev` and `perplexity_decisions`.

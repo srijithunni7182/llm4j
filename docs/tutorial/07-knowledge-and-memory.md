@@ -155,7 +155,7 @@ substitution: braces
 tool Hindi { use: translate  target: "hi-IN" }
 
 agent Helper {
-    model: "sarvam/sarvam-m"
+    model: "sarvam/sarvam-105b"
     system: "You help callers in their own language."
     tools: [Hindi]
     voice { listen: "sarvam/saarika:v2.5"  speak: "sarvam/bulbul:v2"  language: "hi-IN" }

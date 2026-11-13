@@ -1,0 +1,35 @@
+# source: recorded
+# vendor: sarvam
+# date: 2026-11-12
+# model: deepseekv4.1-flash-1017
+# endpoint: POST /v2/chat/completions
+# step: reasoning-stream
+# prompt: What is 17 * 23? Think it through, then give the number.
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"role":"assistant","reasoning_content":"We"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":" need answer simple"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":". Need \""},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":"think through"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":"\" but final just"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":" number likely"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":". Compute 17*23"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":" = 391"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":". Need maybe"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"reasoning_content":" concise."},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[{"delta":{"content":"391"},"finish_reason":"stop","index":0,"logprobs":null}],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_dfa784e9-dd41-40c2-8a84-c7094d5236ad","choices":[],"created":1794499948,"model":"deepseekv4.1-flash-1017","object":"chat.completion.chunk","usage":{"completion_tokens":32,"prompt_tokens":47,"total_tokens":79,"completion_tokens_details":{"reasoning_tokens":30},"prompt_tokens_details":{"cached_tokens":0}}}
+
+data: [DONE]
+

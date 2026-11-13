@@ -1,0 +1,10 @@
+# source: recorded
+# vendor: sarvam
+# date: 2026-11-12
+# model: sarvam-105b
+# endpoint: POST /v2/chat/completions
+# step: plain
+# prompt: Reply with exactly the word: ready
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+{"id":"20261112_dc40395d-a192-490e-9301-cadb158b421d","choices":[{"finish_reason":"stop","index":0,"logprobs":null,"message":{"content":"ready","refusal":null,"role":"assistant","annotations":null,"audio":null,"function_call":null,"tool_calls":null,"reasoning":null},"stop_reason":null,"token_ids":null,"routed_experts":null}],"created":1794499945,"model":"sarvam-105b","object":"chat.completion","service_tier":null,"system_fingerprint":"fp_scrubbed","usage":{"completion_tokens":2,"prompt_tokens":21,"total_tokens":23,"completion_tokens_details":{"accepted_prediction_tokens":null,"audio_tokens":null,"reasoning_tokens":0,"rejected_prediction_tokens":null},"prompt_tokens_details":{"audio_tokens":null,"cached_tokens":0,"created_cache_tokens":0,"multimodal_tokens":null}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}

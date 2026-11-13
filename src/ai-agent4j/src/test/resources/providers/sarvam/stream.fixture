@@ -1,0 +1,19 @@
+# source: recorded
+# vendor: sarvam
+# date: 2026-11-12
+# model: sarvam-105b
+# endpoint: POST /v2/chat/completions
+# step: stream
+# prompt: Reply with exactly the word: ready
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+data: {"id":"20261112_ae76b736-a309-41b0-9dc1-70eba23dd9ea","choices":[{"delta":{"content":"","role":"assistant"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499945,"model":"sarvam-105b","object":"chat.completion.chunk","prompt_token_ids":null,"prompt_text":null}
+
+data: {"id":"20261112_ae76b736-a309-41b0-9dc1-70eba23dd9ea","choices":[{"delta":{"content":"ready"},"finish_reason":null,"index":0,"logprobs":null,"token_ids":null}],"created":1794499945,"model":"sarvam-105b","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_ae76b736-a309-41b0-9dc1-70eba23dd9ea","choices":[{"delta":{},"finish_reason":"stop","index":0,"logprobs":null,"stop_reason":null,"token_ids":null}],"created":1794499945,"model":"sarvam-105b","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_ae76b736-a309-41b0-9dc1-70eba23dd9ea","choices":[],"created":1794499945,"model":"sarvam-105b","object":"chat.completion.chunk","system_fingerprint":"fp_scrubbed","usage":{"completion_tokens":2,"prompt_tokens":21,"total_tokens":23,"completion_tokens_details":{"reasoning_tokens":0},"prompt_tokens_details":{"cached_tokens":0,"created_cache_tokens":0}}}
+
+data: [DONE]
+

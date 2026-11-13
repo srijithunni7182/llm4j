@@ -75,6 +75,16 @@ class ProvidersDocsExamplesTest {
     }
 
     @Test
+    void sarvam() {
+        String sarvamKey = apiKey;
+        // --- sample: sarvam
+        LLMConfig cfg5 = LLMConfig.builder().apiKey(sarvamKey).defaultModel("sarvam-105b").build();
+        LLMClient sarvam = new DefaultLLMClient(OpenAiCompatibleProvider.sarvam(cfg5));
+        // --- end sample
+        assertThat(sarvam).isNotNull();
+    }
+
+    @Test
     void perplexity() throws Exception {
         reply(RESPONSES);
         // --- sample: perplexity
@@ -163,10 +173,13 @@ class ProvidersDocsExamplesTest {
         // --- sample: vendors
         Vendor.ofModel("gpt-5-mini");                          // OPENAI, sends "gpt-5-mini"
         Vendor.ofModel("perplexity/openai/gpt-5.6-sol");       // PERPLEXITY, sends "openai/gpt-5.6-sol"
+        Vendor.ofModel("sarvam/glm5.3");                       // SARVAM, sends "glm5.3"
         Vendor.ofModel("qwen3");                               // empty: it usually means a local Ollama model
         // --- end sample
         assertThat(Vendor.ofModel("gpt-5-mini").orElseThrow().vendor()).isEqualTo(Vendor.OPENAI);
         assertThat(Vendor.ofModel("perplexity/openai/gpt-5.6-sol").orElseThrow().model()).isEqualTo("openai/gpt-5.6-sol");
+        assertThat(Vendor.ofModel("sarvam/glm5.3").orElseThrow().vendor()).isEqualTo(Vendor.SARVAM);
+        assertThat(Vendor.ofModel("sarvam/glm5.3").orElseThrow().model()).isEqualTo("glm5.3");
         assertThat(Vendor.ofModel("qwen3")).isEmpty();
     }
 
@@ -182,7 +195,7 @@ class ProvidersDocsExamplesTest {
             String sample = m.group(2).stripIndent().strip();
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(sample);
         }
-        assertThat(found).isEqualTo(8);
+        assertThat(found).isEqualTo(9);
     }
 
     @Test

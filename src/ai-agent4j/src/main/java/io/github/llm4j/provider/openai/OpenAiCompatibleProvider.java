@@ -99,6 +99,14 @@ public class OpenAiCompatibleProvider implements DescribableProvider {
         return new OpenAiCompatibleProvider(Dialect.QWEN, config);
     }
 
+    /**
+     * Sarvam AI's V2 chat completions: {@code sarvam-105b} and the Token Factory's open-weight
+     * models.
+     */
+    public static OpenAiCompatibleProvider sarvam(LLMConfig config) {
+        return new OpenAiCompatibleProvider(Dialect.SARVAM, config);
+    }
+
     /** Any provider with the given dialect. */
     public static OpenAiCompatibleProvider of(Dialect dialect, LLMConfig config) {
         return new OpenAiCompatibleProvider(dialect, config);

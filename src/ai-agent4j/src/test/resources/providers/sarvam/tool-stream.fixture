@@ -1,0 +1,25 @@
+# source: recorded
+# vendor: sarvam
+# date: 2026-11-12
+# model: sarvam-105b
+# endpoint: POST /v2/chat/completions
+# step: tool-stream
+# prompt: What is the weather in Pune right now? Use the get_weather tool.
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+data: {"id":"20261112_d489b499-8b35-4ecf-a1d5-90038d175677","choices":[{"delta":{"content":"","role":"assistant"},"finish_reason":null,"index":0,"logprobs":null}],"created":1794499947,"model":"sarvam-105b","object":"chat.completion.chunk","prompt_token_ids":null,"prompt_text":null}
+
+data: {"id":"20261112_d489b499-8b35-4ecf-a1d5-90038d175677","choices":[{"delta":{"tool_calls":[{"index":0,"id":"chatcmpl-scrubbed","function":{"name":"get_weather"},"type":"function"}]},"finish_reason":null,"index":0,"logprobs":null,"token_ids":null}],"created":1794499947,"model":"sarvam-105b","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_d489b499-8b35-4ecf-a1d5-90038d175677","choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"city\": \""}}]},"finish_reason":null,"index":0,"logprobs":null,"token_ids":null}],"created":1794499947,"model":"sarvam-105b","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_d489b499-8b35-4ecf-a1d5-90038d175677","choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"Pune"}}]},"finish_reason":null,"index":0,"logprobs":null,"token_ids":null}],"created":1794499947,"model":"sarvam-105b","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_d489b499-8b35-4ecf-a1d5-90038d175677","choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"}"}}]},"finish_reason":null,"index":0,"logprobs":null,"token_ids":null}],"created":1794499947,"model":"sarvam-105b","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_d489b499-8b35-4ecf-a1d5-90038d175677","choices":[{"delta":{},"finish_reason":"tool_calls","index":0,"logprobs":null,"stop_reason":null,"token_ids":null}],"created":1794499947,"model":"sarvam-105b","object":"chat.completion.chunk"}
+
+data: {"id":"20261112_d489b499-8b35-4ecf-a1d5-90038d175677","choices":[],"created":1794499947,"model":"sarvam-105b","object":"chat.completion.chunk","system_fingerprint":"fp_scrubbed","usage":{"completion_tokens":15,"prompt_tokens":102,"total_tokens":117,"completion_tokens_details":{"reasoning_tokens":0},"prompt_tokens_details":{"cached_tokens":96,"created_cache_tokens":0}}}
+
+data: [DONE]
+

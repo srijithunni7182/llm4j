@@ -16,7 +16,6 @@ final class ModelKinds {
     static String kindOf(String model) {
         String m = model.toLowerCase(Locale.ROOT);
         if (m.startsWith("jev/") || m.startsWith("jev-")) return "jev";
-        if (m.startsWith("sarvam/")) return "sarvam";
         if (m.startsWith("anthropic/") || m.startsWith("claude-")) return "anthropic";
         var vendor = io.github.llm4j.provider.openai.Vendor.ofModel(model);
         if (vendor.isPresent()) return vendor.get().vendor().kind();

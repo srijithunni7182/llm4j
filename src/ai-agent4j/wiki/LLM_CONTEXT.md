@@ -8,7 +8,7 @@
 
 **Key Features**:
 
-- **Providers**: Google Gemini (`GoogleProvider`, e.g. `gemini-2.5-flash`), Anthropic Claude (`AnthropicProvider`, e.g. `claude-opus-5-5`), Sarvam (`SarvamChatProvider`) and Ollama (`OllamaProvider`). All share one contract, so switching is one line.
+- **Providers**: Google Gemini (`GoogleProvider`, e.g. `gemini-2.5-flash`), Anthropic Claude (`AnthropicProvider`, e.g. `claude-opus-5-5`), Sarvam (`OpenAiCompatibleProvider.sarvam`, e.g. `sarvam-105b` or a Token Factory model such as `glm5.3`) and Ollama (`OllamaProvider`). All share one contract, so switching is one line.
 - **ReAct Agent**: A framework for agents that use tools.
 - **Tools**: A typed interface for custom tools using `Map<String, Object>` arguments.
 

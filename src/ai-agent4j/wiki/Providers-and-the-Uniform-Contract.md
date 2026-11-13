@@ -6,7 +6,7 @@ between them by changing the provider or the model name; the rest of your code s
 ```java
 LLMClient client = new DefaultLLMClient(new GoogleProvider(
         LLMConfig.builder().apiKey(System.getenv("GEMINI_API_KEY")).defaultModel("gemini-2.5-flash").build()));
-// …or SarvamChatProvider / OllamaProvider / AnthropicProvider / OpenAiCompatibleProvider: nothing below changes
+// …or OllamaProvider / AnthropicProvider / OpenAiCompatibleProvider (OpenAI, xAI, Kimi, Qwen, Sarvam, …): nothing below changes
 
 AgentResult result = ReActAgent.builder().llmClient(client).addTool(new CalculatorTool()).build()
         .run("What is 1234 * 5678?");
@@ -78,7 +78,7 @@ Messages carry the HTTP status, the provider's error text and its request id, an
 
 ### Tool calling
 
-`client.supportsToolCalling()` tells you whether a client can offer tools natively: Gemini, Claude and the [OpenAI family](OpenAI-Family-Providers.md) (OpenAI, xAI, Kimi, Qwen, Perplexity) yes, Sarvam and Ollama no (agents use the
+`client.supportsToolCalling()` tells you whether a client can offer tools natively: Gemini, Claude and the [OpenAI family](OpenAI-Family-Providers.md) (OpenAI, xAI, Kimi, Qwen, Sarvam through `OpenAiCompatibleProvider.sarvam`, Perplexity) yes; Ollama and the deprecated `SarvamChatProvider` no (agents use the
 text protocol with them). See [Native Tool Calling](Native-Tool-Calling.md).
 
 ### Streaming works everywhere
@@ -157,7 +157,8 @@ US$0.50.
 | Provider | Conformance suite (every build) | Verified against the real service |
 |---|---|---|
 | Gemini | ✅ | ✅ Verified by the maintainer with a real API key (every showcase app runs on Gemini); bad-key check through the live suite (2026-09-29) |
-| Sarvam | ✅ | ✅ Verified by the maintainer against the real Sarvam API |
+| Sarvam (`OpenAiCompatibleProvider.sarvam`, V2 with the Token Factory) | ✅ the shared `ChatCompletionsContract` suite | ✅ Responses recorded from the real API on 2026-11-12 (`sarvam-105b`, `deepseekv4.1-flash-1017`) and replayed by `RecordedFixturesTest`; the live suite (L1–L13, pictures, structured output, a refused key) passed on `sarvam-105b`, `gemma4`, `glm5.3-flash` and `deepseekv4.1-flash-1017` |
+| Sarvam V1 (`SarvamChatProvider`, deprecated) | ✅ | ✅ Verified by the maintainer against the real Sarvam API |
 | Ollama | ✅ | ✅ Verified by the maintainer against a local Ollama server |
 | Anthropic | ✅ | ✅ Full live suite, L1–L11, on `claude-opus-5-5` and `claude-haiku-4-5` (2026-09-29) |
 | OpenAI (chat completions and Responses), xAI, Perplexity (Agent API) | ✅ the shared `ChatCompletionsContract` / `ResponsesContract` suites | ✅ Responses recorded from the real APIs on 2026-10-22 (plain, stream, tool call and answer, streamed tool call, reasoning) and replayed by `RecordedFixturesTest`; spend about US$0.003 |
@@ -178,6 +179,7 @@ The full page is [Structured output](Structured-Output.md); this is the summary.
 | Anthropic | `output_config.format` (shared with `effort`) | the models the structured-outputs page lists |
 | Ollama | `format` | any model on a local server; not Ollama Cloud |
 | Google Gemini | `generationConfig.responseMimeType` and `responseJsonSchema` | Gemini 2.5 and later |
+| Sarvam (V2) | `response_format.json_schema` | its chat models (`sarvam-105b`, GLM, Gemma, DeepSeek, Kimi, Qwen) |
 | Kimi, Qwen, other OpenAI-style servers | not sent | no recorded support yet |
 
 A reply held to a schema is still model output: it can be a refusal or be cut at the token limit, so check it. Loom's `extractor` does this for you ([LOOM_GUIDE](../../loom/ai-agent4j-loom/LOOM_GUIDE.md), "Extracting fields").

@@ -5,7 +5,6 @@ import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.ollama.OllamaProvider;
-import io.github.llm4j.provider.sarvam.SarvamChatProvider;
 import io.github.llm4j.secret.SecretRef;
 import io.github.llm4j.secret.SecretStore;
 import java.util.Locale;
@@ -18,13 +17,13 @@ import java.util.function.Function;
  *   <li>{@code gemini-*} (any name containing {@code gemini}): Google, {@code GEMINI_API_KEY};
  *   <li>{@code ollama/<model>}, or a name containing llama, gemma or mistral: Ollama at {@code
  *       OLLAMA_BASE_URL} (default {@code http://localhost:11434});
- *   <li>{@code sarvam/<model>}: Sarvam, {@code SARVAM_API_KEY}, optionally {@code SARVAM_BASE_URL};
  *   <li>{@code anthropic/<model>} or {@code claude-*}: Anthropic, {@code ANTHROPIC_API_KEY},
  *       optionally {@code ANTHROPIC_BASE_URL};
- *   <li>{@code openai/<model>}, {@code xai/<model>}, {@code kimi/<model>}, {@code qwen/<model>} and
- *       {@code perplexity/<creator>/<model>} (the Agent API): the vendor's key ({@code
- *       OPENAI_API_KEY}, {@code XAI_API_KEY}, {@code MOONSHOT_API_KEY}, {@code DASHSCOPE_API_KEY},
- *       {@code PERPLEXITY_API_KEY}) and optionally its {@code *_BASE_URL}. A bare name works when
+ *   <li>{@code openai/<model>}, {@code xai/<model>}, {@code kimi/<model>}, {@code qwen/<model>},
+ *       {@code sarvam/<model>} (Sarvam's V2 chat, with the Token Factory's models) and {@code
+ *       perplexity/<creator>/<model>} (the Agent API): the vendor's key ({@code OPENAI_API_KEY},
+ *       {@code XAI_API_KEY}, {@code MOONSHOT_API_KEY}, {@code DASHSCOPE_API_KEY}, {@code
+ *       SARVAM_API_KEY}, {@code PERPLEXITY_API_KEY}) and optionally its {@code *_BASE_URL}. A bare name works when
  *       no other vendor could own it: {@code gpt-*}, {@code o1}/{@code o3}/{@code o4}, {@code
  *       chatgpt-*} (OpenAI), {@code grok-*} (xAI), {@code kimi-*}, {@code moonshot-*} (Kimi). A
  *       bare {@code qwen3} is not guessed: it usually means a local Ollama model.
@@ -90,14 +89,12 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
     private enum Kind {
         GEMINI,
         OLLAMA,
-        SARVAM,
         ANTHROPIC,
         VENDOR
     }
 
     private static Kind kindOf(String modelName) {
         String m = modelName.toLowerCase(Locale.ROOT);
-        if (m.startsWith("sarvam/")) return Kind.SARVAM;
         if (m.startsWith("anthropic/") || m.startsWith("claude-")) return Kind.ANTHROPIC;
         // before the contains() rules: a Perplexity slug such as perplexity/google/gemini-3.7-flash
         // is Perplexity's
@@ -136,7 +133,6 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                                     lower.startsWith("ollama/")
                                             ? modelName.substring("ollama/".length())
                                             : modelName);
-                    case SARVAM -> io.github.llm4j.model.MediaCapabilities.NONE;
                     case VENDOR -> {
                         var resolved =
                                 io.github.llm4j.provider.openai.Vendor.ofModel(modelName)
@@ -170,10 +166,6 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
             return "model "
                     + modelName
                     + " needs GEMINI_API_KEY in the environment or the secret store";
-        if (kind == Kind.SARVAM && !hasKey("SARVAM_API_KEY"))
-            return "model "
-                    + modelName
-                    + " needs SARVAM_API_KEY in the environment or the secret store";
         if (kind == Kind.ANTHROPIC && !hasKey("ANTHROPIC_API_KEY"))
             return "model "
                     + modelName
@@ -222,14 +214,6 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                     modelName.toLowerCase(Locale.ROOT).startsWith("ollama/")
                             ? modelName.substring("ollama/".length())
                             : modelName);
-            case SARVAM -> {
-                ProviderSpec spec = spec("sarvam", env("SARVAM_BASE_URL"), "SARVAM_API_KEY");
-                if (spec == null)
-                    throw new IllegalStateException(
-                            "SARVAM_API_KEY (an environment variable or a secret) is required for model: "
-                                    + modelName);
-                yield forProvider(spec, timeout, modelName.substring("sarvam/".length()));
-            }
             case VENDOR -> {
                 var resolved =
                         io.github.llm4j.provider.openai.Vendor.ofModel(modelName).orElseThrow();
@@ -276,7 +260,6 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                 switch (spec.kind()) {
                     case "gemini" -> new GoogleProvider(config.build());
                     case "ollama" -> new OllamaProvider(config.build());
-                    case "sarvam" -> new SarvamChatProvider(config.build());
                     case "anthropic" -> new io.github.llm4j.provider.anthropic.AnthropicProvider(
                             config.build());
                     case "jev", "perplexity_decisions" -> throw new IllegalArgumentException(

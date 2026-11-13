@@ -22,11 +22,22 @@ import okhttp3.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Implementation of {@link LLMProvider} for Sarvam AI Chat Completions. */
+/**
+ * Sarvam AI's older V1 chat completions ({@code /v1/chat/completions}): text only, with no native
+ * tool calling. It serves {@code sarvam-105b} and {@code sarvam-105b-conversations}; {@code
+ * sarvam-m} is no longer served.
+ *
+ * @deprecated since 6.2.0. Use {@link
+ *     io.github.llm4j.provider.openai.OpenAiCompatibleProvider#sarvam(LLMConfig)} (or {@code use:
+ *     sarvam} in Loom), which calls the V2 API: tools, streaming reasoning, structured output,
+ *     pictures and the Token Factory's open-weight models on the same key.
+ */
+@Deprecated(since = "6.2.0")
 public class SarvamChatProvider implements LLMProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(SarvamChatProvider.class);
     private static final String DEFAULT_BASE_URL = "https://api.sarvam.ai";
+    private static final String DEFAULT_MODEL = "sarvam-105b";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final LLMConfig config;
@@ -140,7 +151,7 @@ public class SarvamChatProvider implements LLMProvider {
     private String modelFor(LLMRequest request) {
         return request.getModel() != null
                 ? request.getModel()
-                : config.getDefaultModel() != null ? config.getDefaultModel() : "sarvam-m";
+                : config.getDefaultModel() != null ? config.getDefaultModel() : DEFAULT_MODEL;
     }
 
     @Override
