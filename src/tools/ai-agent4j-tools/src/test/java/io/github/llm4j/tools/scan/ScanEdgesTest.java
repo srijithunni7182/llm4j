@@ -58,7 +58,7 @@ class ScanEdgesTest {
         JsonNode two = text(AWS + " " + AWS);
         assertThat(two.get("count").asInt()).isEqualTo(2);
         assertThat(two.get("findings").get(1).get("start").asInt()).isEqualTo(AWS.length() + 2);
-        JsonNode touching = text("-----BEGIN RSA PRIVATE KEY-----" + AWS);
+        JsonNode touching = text(ScanToolTest.KEY_HEADER + AWS);
         assertThat(touching.get("findings").findValuesAsText("rule"))
                 .containsExactly("private_key", "aws_access_key");
         // a known shape is named rather than the general rule it also matches: one finding, not two

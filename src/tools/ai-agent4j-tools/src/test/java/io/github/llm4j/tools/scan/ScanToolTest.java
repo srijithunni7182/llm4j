@@ -30,6 +30,7 @@ class ScanToolTest {
     static final String AWS = "AKIA" + "TESTFAKE0000EXAMPLE".substring(0, 16);
     static final String GITHUB = "ghp_" + "x".repeat(36);
     static final String CANARY = "sk-test-" + "CANARYcanary0123456789abcdef";
+    static final String KEY_HEADER = "-----BEGIN RSA " + "PRIVATE KEY-----";
 
     @TempDir Path dir;
     RecordingEffects effects = new RecordingEffects();
@@ -79,12 +80,12 @@ class ScanToolTest {
             value = {
                 "aws_access_key | key id AWS",
                 "github_token | token GITHUB",
-                "private_key | -----BEGIN RSA PRIVATE KEY-----",
+                "private_key | KEY_HEADER",
                 "assigned_secret | password = hunter2hunter2",
                 "jwt | eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
             })
     void knownSecretShapesAreFound(String rule, String text) throws Exception {
-        String t = text.replace("AWS", AWS).replace("GITHUB", GITHUB);
+        String t = text.replace("AWS", AWS).replace("GITHUB", GITHUB).replace("KEY_HEADER", KEY_HEADER);
         assertThat(rules(call("text", t))).contains(rule);
     }
 
