@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D5 are taken, seventeen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D6 are taken, sixteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -11,7 +11,7 @@ Status: **draft; D1 to D5 are taken, seventeen decisions are open.** Each gives 
 | D3 | Registering and discovering kinds | **taken** (explicit for the built-ins, `ServiceLoader` for optional modules, four rules) |
 | D4 | The weight rule and the module layout | **taken** (a tools parent, the light module inside it, an `extras` aggregator for the heavy ones; weight tests; a README each) |
 | D5 | Isolation as an honest, audited fact | **taken** (option A with six rules; one sub-question on the load-time probe still open) |
-| D6 | The sandbox contract | open (composition taken: two kinds; the contract itself still to confirm) |
+| D6 | The sandbox contract | **taken** (two kinds; one workspace mount; network none, a host allow-list or open; relaxed time limits; no changed-files list; one sub-question on host versus URL granularity) |
 | D7 | Long-running processes (`serve`) and reaching them | open |
 | D8 | Sandbox backends and the default | open |
 | D9 | Restore on rewind: the mechanism | open |
@@ -137,9 +137,18 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 
 **Composition (owner, taken): two kinds.** `shell` stays the host tool: small, allow-listed, interpreters refused, unchanged. `sandbox` is the contained one, the only place an interpreter may run. A `sandbox` and a `workspace` share a directory by **naming the workspace tool** (`workspace: Data`), so there is one root, one set of protected paths and one snapshot for `restore` to cover what a program wrote. A shell inside a sandbox is a `sandbox` whose `allow` names `sh`, a visible and deliberate choice inside a container. The docs say plainly: `shell` for the few host commands you list, `sandbox` for anything that runs code. `file` has no isolation level: it runs in the JVM and its containment is the path jail, which `workspace` keeps. A new top-level `sandbox` declaration was refused as too heavy for Loom; a `shell` with an `isolation:` option was refused because one name would then cover two different risks.
 **To read in 35a before building:** whether a tool's option can name another tool. If not, the fallback is to repeat the path in both tools and add a load check that two tools naming one workspace name the same root.
-**Contract details: still to confirm.**
+**Contract (owner, taken).** One `run` operation (`serve` is D7).
+- **A call:** `program`, `args` (a list, never a string through a shell), an optional `cwd` inside the workspace, optional `stdin`. The program must be in the tool's `allow`, in the same syntax as `shell`'s where it fits (to read in 35d); any program is refused. A `cwd` that escapes the workspace is an error.
+- **Environment:** a list of variable names, empty by default; a secret gets in only by naming a `SecretRef` (D19).
+- **Mounts:** the workspace only, read-write except protected paths, which are read-only. No other mount in the first version; reference data goes into the workspace and is protected.
+- **Network:** three values. `none` (the default); `allow: "host, host:port"`, a **host allow-list** (the owner holds that a whitelist is a must); `open`, flagged by the audit. The allow-list is enforced by a small **egress proxy** the container backend runs, written on the JDK: the container sits on a network with no other route, so a program that ignores the proxy settings simply cannot connect (it fails closed). The proxy resolves each name once and connects to that address, and refuses loopback, private and metadata addresses even when the name is on the list (the rules of `NetPolicy`). A backend that cannot enforce a list (`process`, or a platform where the proxy was not proven) **refuses `allow:` at load**; it is never treated as `open`. **Granularity is the host (and port), not the path:** for HTTPS a path rule would need the proxy to intercept TLS, which is refused. **Sub-question to confirm with the owner:** that host-level is what "whitelist of URLs" means here (the `http` tool, which makes its own requests, keeps its path rules).
+- **To prove first in 35d (a spike):** the proxy's reachability from a network with no outside route on Docker for Linux, Docker Desktop and rootless Podman. If a platform cannot be made reliable, `allow:` is refused there with a message that says so; it is never weakened.
+- **Limits are relaxed but bounded.** `timeout` defaults to **10 minutes** (a named constant), because a build by a coding agent will not finish in 60 seconds; there is a hard ceiling (one hour, a named constant) a script cannot exceed, and an agent may ask for less than the script's timeout, never more. `max_output` defaults to 64 KiB and the result keeps **the start and the end** of the output (a build's errors are at the end) and says what was cut. `memory`, `pids` and `disk` are enforced only by the container backend; declaring one with `isolation: process` is a load error, never silently ignored.
+- **Result:** `exit`, `timedOut`, `truncated`, `isolation` (as applied), `durationMs`, `stdout`, `stderr` (both `unchecked`, redacted through `Redactor`). There is **no changed-files list**: the script uses `workspace diff` (D11: a diff against the last snapshot), so the sandbox does no scan after a run.
+- **Effects:** a `run` is an effect, journaled, never repeated on resume or replay, simulated in `weave test`; the agent needs `approve:` as with `shell`, which the earned-autonomy ladder can relax.
+- **Image:** named in the script, never pulled implicitly (a pull is a network effect, so it is an explicit option).
 
-**Decision (owner):** open for the contract details above.
+**Decision (owner):** taken as above, apart from the host-versus-URL sub-question.
 
 ## D7. Long-running processes (`serve`) and reaching them
 
