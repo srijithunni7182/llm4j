@@ -62,7 +62,12 @@ class RepositoryScriptsTest {
                                                     // test proves each really fails
                                                     && !p.toString().endsWith("probes/exit-check/loom/unchecked.loom")
                                                     && !p.toString().endsWith("probes/tool-effects/loom/retries.loom")
-                                                    && !p.toString().endsWith("probes/route-allowlist/loom/unbounded.loom"))
+                                                    && !p.toString().endsWith("probes/route-allowlist/loom/unbounded.loom")
+                                                    // declares a sql tool, whose url comes from a
+                                                    // secret this test fills with an https URL;
+                                                    // ToolKindCharacterizationTest records every
+                                                    // problem weave check finds in it
+                                                    && !p.toString().endsWith("characterization/every-kind.loom"))
                             .sorted()
                             .toList();
         }

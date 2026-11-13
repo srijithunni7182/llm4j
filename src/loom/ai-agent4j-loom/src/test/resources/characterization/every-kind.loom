@@ -1,0 +1,97 @@
+// Phase 35, G36: one declaration of every built-in tool kind and of every option the audit tells apart, so
+// ToolKindCharacterizationTest records what weave audit, review and check say about each of them. The repository's
+// other scripts do not use sql, google_search, the language kinds, http with credentials or writes, email to
+// recipients the agent chooses, or shell with interpreters. Not meant to run.
+
+budget { tokens: 10000  calls: 20 }
+
+tool Ddg       { use: duckduckgo }
+tool Serp      { use: serpapi  api_key: env.SERPAPI_KEY }
+tool Google    { use: google_search  api_key: env.GOOGLE_KEY  cx: "engine-id" }
+tool Calc      { use: calculator }
+tool Dates     { use: datetime }
+tool Clock     { use: current_time }
+tool Translate { use: translate  target: "hi-IN" }
+tool Translit  { use: transliterate  target: "hi-IN" }
+tool Detect    { use: detect_language }
+tool Speak     { use: speak }
+tool Transcribe { use: transcribe }
+
+tool Hook      { use: webhook  url: env.HOOK_URL }
+tool MailFixed { use: email  from: "bot@example.com"  to: "team@example.com"  outbox: "outbox" }
+tool MailAny   { use: email  from: "bot@example.com"  allow_to: "*@example.com"  outbox: "outbox" }
+tool ApiRead   { use: http  base_url: "https://api.example.com"  methods: "GET" }
+tool ApiWrite  { use: http  base_url: "https://api.example.com"  methods: "GET, POST" }
+tool ApiAuth   { use: http  base_url: "https://api.example.com"  auth_header: "Authorization"  auth_value: env.API_TOKEN }
+tool FilesDefault { use: file }
+tool FilesRead { use: file  root: "data"  mode: read }
+tool FilesWrite { use: file  root: "out"  mode: readwrite  overwrite: true }
+tool Run       { use: shell  allow: "git"  unattended: true }
+tool RunAny    { use: shell  allow: "python3"  allow_interpreters: true }
+tool Db        { use: sql  url: env.DB_URL }
+tool Graph     { use: knowledge_graph  store: "graphs/g.json" }
+tool GraphRead { use: knowledge_graph  store: "graphs/g.json"  read_only: true }
+tool Skills    { use: skill_registry  url: "https://skills.example.com" }
+
+tool Mine      { use: class  class: "com.example.Mine" }
+tool MineNone  { use: class  class: "com.example.Mine"  reach: none }
+tool MineReads { use: class  class: "com.example.Mine"  reach: reads }
+tool MineFetch { use: class  class: "com.example.Mine"  reach: fetches }
+tool MineWrite { use: class  class: "com.example.Mine"  reach: writes }
+tool MineSend  { use: class  class: "com.example.Mine"  reach: sends }
+tool Declared  { use: webhook  url: env.HOOK_URL  effect: reads }
+tool Quiet     { use: http  base_url: "https://api.example.com"  methods: "GET, POST"  effect: none }
+
+agent Searcher {
+    model: "m"
+    system: "s"
+    tools: [Ddg, Serp, Google, web_search, Calc, Dates, Clock, calculator, datetime, current_time]
+}
+
+agent Linguist {
+    model: "m"
+    system: "s"
+    tools: [Translate, Translit, Detect, Speak, Transcribe, translate, speak]
+}
+
+agent Sender {
+    model: "m"
+    system: "s"
+    tools: [Hook, MailFixed, MailAny, ApiRead, ApiWrite, ApiAuth, Declared, Quiet]
+    approve: [Hook, MailFixed]
+}
+
+agent Worker {
+    model: "m"
+    system: "s"
+    tools: [FilesDefault, FilesRead, FilesWrite, Run, RunAny, Db, Graph, GraphRead, Skills]
+    approve: all
+}
+
+agent Author {
+    model: "m"
+    system: "s"
+    tools: [Mine, MineNone, MineReads, MineFetch, MineWrite, MineSend, HostTool]
+}
+
+workflow Main(q) {
+    delegate "{q}" to Searcher -> a
+    delegate "{a}" to Linguist -> b
+    delegate "{b}" to Sender -> c
+    delegate "{c}" to Worker -> d
+    delegate "{d}" to Author -> e
+    use Run(args = "status") -> f
+    note "{e} {f}"
+}
+
+// A rewind over every agent with no side effects: line, so weave check lists every tool it thinks can change something.
+workflow Again(q) {
+    checkpoint begin
+    delegate "{q}" to Searcher -> a
+    delegate "{a}" to Linguist -> b
+    delegate "{b}" to Sender -> c
+    delegate "{c}" to Worker -> d
+    delegate "{d}" to Author -> e
+    rewind to begin at most 1 time
+    note "{e}"
+}
