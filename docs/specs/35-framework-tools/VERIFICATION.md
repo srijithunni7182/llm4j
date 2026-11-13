@@ -42,6 +42,9 @@ Status: **final for phase 35; nothing is built.** Section 0 lists what was read 
 
 ### Notes on the reads (written by the build)
 
+- **R1 (35c).** `Generations.identity(step)`: with no rewind that chose `repeat`, a step's generation suffix (`~2`) is stripped, so an identical effect in a new attempt finds the earlier one done and is replayed (`keep`). For a block whose rewind chose `repeat`, the suffix is kept, so the effect journal finds no earlier record and the identical effect runs again. `UseRunner` records a step's result by its own step id, which also carries the suffix, so a `use` in a new attempt is a new step. Proven on a real workflow by `RestorePatternTest` (G60): with `repeat` the restore runs and attempt one's scratch file is gone; with `keep` the identical restore is replayed and the file survives.
+- **R5 (35c).** A `use` call is journaled twice. `UseRunner` keeps the step's result under the step id (any tool, effect or not), so a resumed run binds it without calling. `EffectTool` journals a call the tool says is an effect (`isEffect(args)`), `pending` before and `done` after, under the identity step, the tool, a hash of the arguments and an ordinal; a read passes straight through. So `snapshot` and `restore` are journaled by being effects of the `workspace` tool (D11 rule 4).
+- **R8 (35c).** `EffectPolicy(onUnknown, idempotent, maxPerRun)` was one per tool. D11 needs `snapshot` and `restore` to be safe to repeat after a crash while `append` is not, so the core gained `Effectful.policy(args)`, a default method returning `policy()`, which `EffectTool` asks per call. Existing tools behave as before.
 - **R2 (35a).** A bare word is a valid option value (`LoomParser.optionValue`), so `workspace: Data` parses, as the text `Data`. A kind's `check` and `create` see only their own options and the base directory, never another declaration, so resolving `Data` to a `workspace` tool's root and protected paths must be done by Loom's `ToolFactory` before the kind is asked (or D6's fallback, a repeated root plus a load check). Settled in 35d; it does not block 35a.
 - **R4 (35a).** The release (`-Prelease deploy`) bundles every module of the reactor, so a parent pom is published by being in it; `pom` packaging inherits name, licence, SCM and developers from `llm4j-parent`, and the sources and javadoc steps skip it. `mvn -Prelease -Dgpg.skip=true -DskipTests install -pl src/tools,src/tools/extras,src/tools/ai-agent4j-tools` built both parents and the light module's three jars. Reactor order: the root lists `src/tools` where it listed the light module, and `src/tools` lists the light module before `extras`; Loom depends on the light module's artifact only. `docs/PUBLISHING.md` now counts fourteen artifacts. `make release-check` (the whole reactor) was not run.
 - **R6 (35a, first).** The eight sites do not all ask the same question:
@@ -127,6 +130,15 @@ Every row is `not built`.
 
 **Found and decided in the build (not a contradiction of a decision):** a `use` step bound every tool result as not model-written, so D12 rule 1 could not hold. A kind now names the result fields that may hold model text (`ToolKind.uncheckedResult`), and a pure kind passes on its arguments' origin; the effect on existing pure kinds (`calculator`, the language kinds) is stricter and is in the release notes. The results of other tools (`http`, `webhook`, a host's) are still bound as not model-written, as before this phase; whether a fetched page should be untrusted text at an exit is a question for the owner, not changed here.
 **Mutation:** `mutation-tools` 94.8% (gate 85%). **Tiers:** `make test-core`, `make docs-check`, `make test-oracle` green; the tools module's tests green.
+
+**35c (2026-11-13).**
+
+| Row | Level | Evidence |
+|---|---|---|
+| A8 | E1, E3 | `WorkspaceToolTest` (G54 links never followed, G55 the deny list, G56 exact patches, G57 exact, idempotent and bounded restore, G58 a resumed run reuses the snapshot and a restore cut short by a crash is retried; each broken on purpose) and `WorkspaceEdgesTest`. **G59 (no restore while a process is served) is not built yet:** it needs the lease of `serve`, which comes in 35d |
+| A9 | E2 | `RestorePatternTest` (G60, the 35c spike: `repeat` restores and runs the attempt again; `keep` leaves attempt one's file) |
+
+**Found in the build:** `append` checked `max_bytes` without the line break it may add in front, so a file could grow one byte past the cap (fixed, with a test). **Mutation:** `mutation-tools` 93.5% with the workspace classes. A credential-shaped header (`-----BEGIN ... PRIVATE KEY-----`, no key) was written literally in two `scan` tests in the 35b commit; `RepositoryHasNoSecretsTest` caught it in 35c and the tests now build it at run time.
 
 **Risks of DESIGN §5 that became real:** risk 1 (the refactor touches the audit): two places where the old lists disagreed with the audit (C1, C2), both found by the characterization and decided by the owner.
 

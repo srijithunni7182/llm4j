@@ -403,7 +403,7 @@ tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }
 
 A tool that holds several operations declares each one: `effects: { listOrders: reads, createRefund: changes }` on an `openapi` tool (by `operationId`) and on an `mcp` server (by tool name). An operation not listed falls back to the tool's own effect.
 
-When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime, `compute` and the other harmless built-ins `none` (so are `verify` and `scan` without a `root`); search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, `verify` and `scan` with a `root`, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
+When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime, `compute` and the other harmless built-ins `none` (so are `verify` and `scan` without a `root`); search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, `verify` and `scan` with a `root`, `workspace` in `read` mode, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` or `workspace` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
 
 `reach:` on a `class` tool (`none`, `reads`, `fetches`, `writes`, `sends`) is the older form and keeps working: `none` and `reads` give that effect, `fetches` gives `reads` plus the untrusted leg, `writes` and `sends` give `changes` (and `sends` the outward leg). Giving `effect:` and `reach:` on one tool is an error; keep `effect:`. A tool mapped in a `.loot` file takes `Name.reach = reads`, read by `weave audit --loot tools.loot`.
 
@@ -421,6 +421,7 @@ When you declare nothing, Loom assumes an effect from the kind of tool and says 
 | `compute` | `max_bytes?`, `max_rows?` (see [Tools that compute and check](#tools-that-compute-and-check-compute-verify-scan)) |
 | `verify` | `root?`, `max_bytes?`, `max_items?` |
 | `scan` | `root?`, `rules?`, `pii?`, `max_bytes?`, `max_files?`, `max_findings?` |
+| `workspace` | `allow`, `root?`, `mode?`, `overwrite?`, `protect?`, `ignore?`, `store?`, size and count caps (see [Editing files and trying again](#editing-files-and-trying-again-workspace)) |
 
 - **Built-ins** work by name with no declaration: `web_search` (DuckDuckGo), `calculator`, `datetime`,
   `current_time`, and the language tools `translate`, `transliterate`, `detect_language`, `speak`,
@@ -771,6 +772,35 @@ workflow Close(net, report) {
   uses a keyword it does not check is refused rather than half-checked.
 - **`scan` is a net, not a proof:** a clean result means nothing its rules know was found.
 
+### Editing files and trying again (`workspace`)
+
+`use: workspace` is a directory an agent reads and edits: `read` (with a `version`), `list`, `exists`, `write`, `append`,
+`patch` (a list of `{old, new}` edits, each found exactly once, all or none), `find`, `grep`, and `diff`, `snapshot` and
+`restore`. `allow:` is required; `protect:` makes paths read only (the tests that judge the agent's work); a link is never
+followed; nothing under `.git` is written and keys and `.env` files are never read. The reference is
+[workspace](../../tools/ai-agent4j-tools/docs/workspace.md).
+
+A rewind never undoes a file by itself. To try again from a clean state, the script restores a snapshot itself:
+
+```loom
+tool Data { use: workspace  root: "work"  allow: "**"  mode: readwrite  overwrite: true }
+agent Writer { model: "gemini-2.5-flash"  system: "You write the report."  tools: [Data]  approve: [Data] }
+
+workflow Draft() {
+    use Data(action = "snapshot", name = "clean")
+    checkpoint Clean starting with feedback = "none"
+    use Data(action = "restore", name = "clean")
+    delegate "Write report.md. Feedback: {feedback}" to Writer -> done
+    use Data(action = "read", path = "report.md") -> report
+    rewind to Clean when (report.content == "") at most 2 times carrying feedback = "it was empty" side effects: repeat
+}
+```
+
+The snapshot is taken once, before the checkpoint. Every attempt starts by restoring it (the first time it changes nothing),
+and `side effects: repeat` lets the attempt's writes run again. With `keep`, the second attempt's restore is taken for the
+first one already done and is skipped, so the files are not put back. Snapshots and restores are journaled: a resumed run
+reuses the recorded snapshot, and a restore cut short by a crash is run again.
+
 ### Checkpoints, Rewind and Fork
 
 A run can stop and carry on, but only forward. If a late step shows that an early one was wrong, you would have to start over and pay for everything again. **Checkpoints and rewinds** let a workflow go back to a named point, keep what it learned, and try again: the script says what "going bad" means, and what to do about it.
@@ -846,7 +876,7 @@ So after a rewind the agents think again, but a Slack message with the same text
 
 `weave check` warns when the steps a rewind goes back over can change things outside the run, and asks you to say which you mean. A tool counts when `weave audit` says it can change something: its kind's own answer, or the `effect:` you declared on it. The simplest safe design is to put the checkpoint, and the check that triggers the rewind, *before* the steps with effects.
 
-What a rewind does **not** undo: facts an agent saved with `memory { facts }`, knowledge indexes, and anything else a tool wrote outside the run. `weave check` warns about agents with fact memory. Going back also never un-sends anything.
+What a rewind does **not** undo: facts an agent saved with `memory { facts }`, knowledge indexes, and anything else a tool wrote outside the run. To put files back, restore a `workspace` snapshot at the start of the attempt (see [Editing files and trying again](#editing-files-and-trying-again-workspace)). `weave check` warns about agents with fact memory. Going back also never un-sends anything.
 
 #### From outside: `timeline`, `rewind`, `reset`, `fork`
 
