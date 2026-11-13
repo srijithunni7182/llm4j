@@ -308,23 +308,28 @@ final class ChildLauncher {
      * after the child has let go of the console and the host, so the new attempt starts clean.
      */
     private void body(HarnessExecutor child, ChildHandle handle, Launch spec, Attempt attempt) {
-        AutoCloseable registered = null;
-        Runnable next = null;
         try {
-            if (spec.label() != null) registered = LiveRuns.shared().register(spec.label(), child);
-            child.installOuterBudgets(spec.enclosing());
-            next = runChild(child, handle, spec.workflow(), spec.invoker());
-        } finally {
+            AutoCloseable registered = null;
+            Runnable next = null;
             try {
-                if (registered != null) registered.close();
-            } catch (Exception closing) {
-                log.log(java.util.logging.Level.FINE, "could not unregister " + spec.label(), closing);
+                if (spec.label() != null) registered = LiveRuns.shared().register(spec.label(), child);
+                child.installOuterBudgets(spec.enclosing());
+                next = runChild(child, handle, spec.workflow(), spec.invoker());
+            } finally {
+                try {
+                    if (registered != null) registered.close();
+                } catch (Exception closing) {
+                    log.log(java.util.logging.Level.FINE, "could not unregister " + spec.label(), closing);
+                }
+                if (next == null) executor.childRuns().settled(spec.childRun(), handle.status());
             }
-            if (next == null) executor.childRuns().settled(spec.childRun(), handle.status());
+            if (next != null) next.run();
+        } finally {
+            // even when the run died with an Error: a parent asleep on the monitor must hear of it at once and
+            // must not see a child that is gone as still running
+            attempt.done = true;
+            monitor.changed();
         }
-        if (next != null) next.run();
-        attempt.done = true;
-        monitor.changed();
     }
 
     /** Refuses a start past a limit, naming it; nothing is queued and nothing is journaled (D14). */
@@ -646,7 +651,7 @@ final class ChildLauncher {
             throw new IllegalStateException(
                     "wait any " + stmt.getTarget().describe() + " names " + handles.size() + " handles, past max_children: " + effectiveMaxChildren()
                             + ". Wait for fewer at once, or raise max_children.");
-        long deadline = executor.nowMillis() + stmt.getTimeoutMillis();
+        long deadline = executor.signalRunner().deadlineOf(journal, stepId, stmt.getTimeoutMillis()); // written once: a restart never lengthens it
         while (true) {
             long seen = monitor.version();
             Map<String, Object> done = decideAny(stepId, handles);
@@ -860,7 +865,15 @@ final class ChildLauncher {
             if (handle.status() != ChildStatus.WAITING || !name.equals(handle.waitsFor())) return;
             if (live.journal().get(CANCEL_MARKER).isPresent()) return;
             handle.resume();
-            launch(handle, live, live.run());
+            try {
+                launch(handle, live, live.run());
+            } catch (RuntimeException notLaunched) {
+                // the claim is already made (the handle says RUNNING), so a launch that fails must end the child here:
+                // left as it is, nothing would ever run it and the parent would wait out its whole timeout
+                log.log(java.util.logging.Level.WARNING, "could not run " + live.launch().childRun() + " again", notLaunched);
+                handle.end(ChildStatus.FAILED, "could not be run again after its signal: " + notLaunched.getMessage());
+                executor.childRuns().settled(live.launch().childRun(), handle.status());
+            }
         }
         monitor.changed();
     }
@@ -1020,7 +1033,7 @@ final class ChildLauncher {
         if (recorded.isPresent() && WAIT.equals(recorded.get().kind())) {
             applyRecorded(handles, recorded.get().value());
         } else {
-            settle(handles, stmt.getTimeoutMillis());
+            settle(stepId, handles, stmt.getTimeoutMillis());
             suspendIfNothingCanRun(stepId, handles);
             executor.journal().put(stepId, new RunJournal.Entry(WAIT, outcomesOf(handles)));
         }
@@ -1034,8 +1047,8 @@ final class ChildLauncher {
      * and for at most {@link #POLL_MILLIS} at a time, so the clock is looked at again. A queued
      * child on a controlled scheduler is driven from here, as before.
      */
-    private void settle(Map<String, ChildHandle> handles, long timeoutMillis) {
-        long deadline = executor.nowMillis() + timeoutMillis;
+    private void settle(String stepId, Map<String, ChildHandle> handles, long timeoutMillis) {
+        long deadline = executor.signalRunner().deadlineOf(executor.journal(), stepId, timeoutMillis); // written once: a restart never lengthens it
         while (true) {
             long seen = monitor.version();
             Live running = firstActive(handles);

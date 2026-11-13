@@ -3202,6 +3202,11 @@ public class HarnessExecutor implements LoomEngine {
 
     private final ProgressLog progressLog = new ProgressLog();
     private final SignalRunner signals = new SignalRunner(this);
+
+    /** The signal runner, for the launcher's waits that keep their deadline in the journal. */
+    SignalRunner signalRunner() {
+        return signals;
+    }
     private volatile Runnable parentSignalled = () -> {};
 
     /**
