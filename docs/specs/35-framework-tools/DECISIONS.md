@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 and D12 are taken, ten decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D23 was added, ten decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -18,7 +18,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 and D12 are tak
 | D10 | Snapshot storage and limits | **folded into D11** (storage is an implementation detail; the visible rules moved) |
 | D11 | The workspace kind, patching and protected paths | **taken** (a new kind next to `file`; `allow` required; optional `version` on patch; protected paths; a built-in deny list; no `delete` or `move`) |
 | D12 | Evidence: the `check` kind and provenance | **taken** (a minimal `check`: JUnit XML and JSON Schema; the typed-counts and untrusted-text rules) |
-| D13 | Pure computation: `compute` | open |
+| D13 | Pure computation: `compute` | **taken** (one `compute` kind: `calc`, `date`, `json`, `csv`; built first) |
 | D14 | Finding secrets and personal data: `scan` | open |
 | D15 | Testing: fakes, contract tests, guards, the oracle | open |
 | D16 | The browser | open |
@@ -28,6 +28,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 and D12 are tak
 | D20 | Visibility: the ecosystem | open |
 | D21 | Names | open |
 | D22 | What stays out of this phase | open |
+| D23 | Predictions from a pre-trained model: a `predict` tool | open (raised by the owner; under discussion) |
 
 ## D1. The scope and staging of this phase
 
@@ -291,7 +292,20 @@ rewind to Clean when (...) at most 2 times  carrying feedback = "..."  side effe
 
 **Recommendation: A.** Pure, deterministic, replays exactly, `reach: none`. Bounds: expression length and depth, result size, a time limit. It is the first tool to build, to prove the self-describing profile (D2) on a kind with nothing to hide.
 
-**Decision (owner):** open.
+**Decision (owner): option A, with `csv` in.** One `compute` kind with four actions:
+| Action | What it does |
+|---|---|
+| `calc` | Exact decimal arithmetic (`BigDecimal`) from a bounded expression grammar: numbers, `+ - * / %`, parentheses, and a few functions (`round`, `min`, `max`, `abs`); no scripting engine |
+| `date` | Add or subtract days, months or years; the difference between two dates; the weekday; uses an injected `Clock` so tests are exact |
+| `json` | Pick a value by path (`a.b[0].c`) or list keys; no transform language |
+| `csv` | Count, sum, mean, min, max and group-by over a named column, with a row cap |
+**Rules**
+1. **Pure and deterministic:** it reaches nothing, changes nothing and replays exactly; its profile (D2) is `ToolProfile.pure(...)`.
+2. **Bounded:** limits on expression length and nesting, input size, rows and result size; division by zero, malformed input and over-limit input are errors that say why.
+3. **No regex action in the first version:** it would need a real defence against catastrophic patterns and nothing here needs it yet.
+4. **Exact decimals:** the result of `calc` is a decimal string, never a binary float (`0.1 + 0.2` is `0.3`).
+5. **Built first,** to prove the `profile` method (D2) on the simplest kind.
+Left out on purpose: a general transform language, a statistics library, a spreadsheet formula engine; a `sandbox` can run a real script for anything larger.
 
 ## D14. Finding secrets and personal data: `scan`
 
@@ -405,5 +419,11 @@ Proposed: kinds `sandbox`, `workspace`, `compute`, `check`, `scan`, `browser`, `
 Proposed: any vertical's own tools (package policy, code navigation, a design brief); a `vm` or remote sandbox backend (an SPI, not an implementation); sibling or queue messaging; compensation of external effects (principle 27); framework support for restoring tools on rewind (a `Checkpointable` capability, `side effects: restore`), deferred until real workflows show the D9 pattern is awkward; a GUI or desktop-control tool; image returned to a model from a tool (a change to the tool result type, its own phase); changes to `weave eval` beyond D17; and anything in the VS Code extension beyond grammar and snippets.
 
 **Recommendation: confirm the list.**
+
+**Decision (owner):** open.
+
+## D23. Predictions from a pre-trained model: a `predict` tool
+
+**Raised by the owner; under discussion, not yet a proposal.** An agent is poor at statistical prediction on tabular data, and the traditional answer is to train and tune a separate model per dataset. Pre-trained tabular models predict in one forward pass without training. The question is whether llm4j should have a tool that makes such predictions, and on what terms. See the discussion before this is filled in.
 
 **Decision (owner):** open.
