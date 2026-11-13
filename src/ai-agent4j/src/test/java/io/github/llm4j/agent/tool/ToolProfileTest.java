@@ -33,6 +33,15 @@ class ToolProfileTest {
     }
 
     @Test
+    void aPureToolReachesNothingAndChangesNothing() {
+        ToolProfile p = ToolProfile.pure("adds numbers");
+        assertThat(p.known()).isTrue();
+        assertThat(p.untrusted() || p.privateData() || p.outward()).isFalse();
+        assertThat(p.effect()).isEqualTo(TaskEffect.NONE);
+        assertThat(p.note()).isEqualTo("adds numbers");
+    }
+
+    @Test
     void anUnknownProfileReachesEverythingAndChangesThings() {
         ToolProfile p = ToolProfile.unknown("cannot tell");
         assertThat(p.known()).isFalse();
@@ -84,6 +93,38 @@ class ToolProfileTest {
                                         true,
                                         "n"))
                 .hasMessageContaining("isolation");
+    }
+
+    @Test
+    void aKindSaysNoResultFieldHoldsModelTextUnlessItSaysSo() {
+        ToolKind plain =
+                new ToolKind() {
+                    @Override
+                    public String name() {
+                        return "plain";
+                    }
+
+                    @Override
+                    public String check(Map<String, String> options, Path baseDir) {
+                        return null;
+                    }
+
+                    @Override
+                    public Tool create(String name, Map<String, String> options, Path baseDir) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public Tool create(
+                            String name,
+                            Map<String, String> options,
+                            Path baseDir,
+                            EffectContext context) {
+                        throw new UnsupportedOperationException();
+                    }
+                };
+        assertThat(plain.uncheckedResult(Map.of())).isEmpty();
+        assertThat(ToolKind.WHOLE_RESULT).isEqualTo("*");
     }
 
     @Test

@@ -958,6 +958,33 @@ public class HarnessExecutor implements LoomEngine {
     record Tracked<T>(T value, Provenance.Tag tag, java.util.Set<String> from) {}
 
     /**
+     * The origin of what {@code use name} returns (phase 35, D12 and D15). A kind that names the
+     * fields of its result that may hold model text has them kept unchecked, and the rest (counts,
+     * statuses) is data it parsed. A kind that names none and reaches nothing computes only from
+     * its arguments, so its result has their origin. Any other tool's result is its own data, as
+     * before.
+     */
+    Provenance.Tag useResultTag(String name, Provenance.Tag arguments) {
+        io.github.llm4j.loom.ast.ToolDef def = null;
+        for (io.github.llm4j.loom.ast.ToolDef t : script.getTools())
+            if (t.getName().equals(name)) def = t;
+        if (def == null || def.getKind() == null) return Provenance.NOT_MODEL;
+        Map<String, String> written = io.github.llm4j.loom.security.Capabilities.written(def);
+        java.util.Set<String> fields = toolFactory.uncheckedResultOf(def.getKind(), written);
+        Provenance.Tag own =
+                fields.isEmpty()
+                        ? Provenance.NOT_MODEL
+                        : fields.contains(io.github.llm4j.agent.tool.ToolKind.WHOLE_RESULT)
+                                ? Provenance.UNCHECKED
+                                : Provenance.model(fields);
+        // a kind that names its text fields has parsed the rest itself: counts stay its data
+        if (!fields.isEmpty()) return own;
+        io.github.llm4j.agent.tool.ToolProfile p = toolFactory.profileOf(def.getKind(), written);
+        boolean computesOnly = p.known() && !p.untrusted() && !p.privateData() && !p.outward();
+        return computesOnly ? arguments : Provenance.NOT_MODEL;
+    }
+
+    /**
      * Runs {@code work}, which fills text from variables or copies one, and returns its value with
      * the origin worked out from every variable it took from: the worst level among them.
      */

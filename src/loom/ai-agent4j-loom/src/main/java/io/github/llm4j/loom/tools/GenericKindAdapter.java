@@ -56,6 +56,11 @@ final class GenericKindAdapter implements ToolKind {
     }
 
     @Override
+    public Set<String> uncheckedResult(Map<String, String> options) {
+        return kind.uncheckedResult(options);
+    }
+
+    @Override
     public String check(Map<String, String> options, Path baseDir) {
         return kind.check(options, baseDir);
     }

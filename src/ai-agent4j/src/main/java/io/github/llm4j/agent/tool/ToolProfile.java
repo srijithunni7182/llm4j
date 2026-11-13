@@ -55,6 +55,14 @@ public record ToolProfile(
     }
 
     /**
+     * A tool that computes only from its arguments: it reaches nothing, changes nothing and gives
+     * the same answer for the same arguments.
+     */
+    public static ToolProfile pure(String note) {
+        return of(false, false, false, false, note);
+    }
+
+    /**
      * What is assumed of a tool whose kind cannot say what it reaches: everything, and that it
      * changes things.
      */

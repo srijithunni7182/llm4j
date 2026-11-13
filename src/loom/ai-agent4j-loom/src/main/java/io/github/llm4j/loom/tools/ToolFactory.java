@@ -376,6 +376,17 @@ public final class ToolFactory {
     }
 
     /**
+     * The fields of a result of this kind that may hold model text ({@link
+     * ToolKind#uncheckedResult}); a kind this factory does not have: the whole result.
+     */
+    public Set<String> uncheckedResultOf(String kind, Map<String, String> options) {
+        ToolKind k = kinds.get(kind);
+        return k == null
+                ? Set.of(io.github.llm4j.agent.tool.ToolKind.WHOLE_RESULT)
+                : k.uncheckedResult(options);
+    }
+
+    /**
      * What a tool of this kind with these options (as written) reaches; a kind this factory does
      * not have is assumed to reach everything.
      */

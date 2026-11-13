@@ -194,7 +194,7 @@ public record Capabilities(
     }
 
     /** The options as written: a reference is its text ({@code env.NAME}), never its value. */
-    private static Map<String, String> written(ToolDef t) {
+    public static Map<String, String> written(ToolDef t) {
         Map<String, String> out = new java.util.LinkedHashMap<>();
         t.getOptions()
                 .forEach((name, v) -> out.put(name, v.isReference() ? v.toString() : v.value()));

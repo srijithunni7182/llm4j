@@ -85,7 +85,7 @@ final class UseRunner {
                                 ? executor.callWithTimeout(
                                         () -> call(tool, args, stepId), timeout, "use " + name)
                                 : call(tool, args, stepId);
-                done(stmt, stepId, result, tried, started);
+                done(stmt, stepId, result, tried, started, origin.tag());
                 return;
             } catch (io.github.llm4j.agent.AgentInterrupt pause) {
                 throw pause; // waiting for a person is not a failure
@@ -187,14 +187,20 @@ final class UseRunner {
 
     // ---- outcomes
 
-    private void done(UseStmt stmt, String stepId, String result, int attempts, long started) {
+    private void done(
+            UseStmt stmt,
+            String stepId,
+            String result,
+            int attempts,
+            long started,
+            Provenance.Tag arguments) {
         Object value = parsed(result);
         executor.journal().put(stepId, new RunJournal.Entry("use", value));
         if (stmt.getVariableName() != null)
             executor.bind(
                     executor.resolveVariableName(stmt.getVariableName()),
                     value,
-                    Provenance.NOT_MODEL);
+                    executor.useResultTag(stmt.getTool(), arguments));
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("tool", stmt.getTool());
         data.put("step", stepId);
@@ -220,6 +226,18 @@ final class UseRunner {
         return result;
     }
 
+    /**
+     * The origin of a replayed step's arguments, worked out again from the variables (a resumed run
+     * restores them); arguments that can no longer be filled count as model text.
+     */
+    private Provenance.Tag replayedArguments(UseStmt stmt) {
+        try {
+            return executor.tracked(() -> arguments(stmt)).tag();
+        } catch (RuntimeException e) {
+            return Provenance.UNCHECKED;
+        }
+    }
+
     private void replay(UseStmt stmt, RunJournal.Entry entry) {
         switch (entry.kind()) {
             case "failed" -> fail(stmt, executor.currentStep(), String.valueOf(entry.value()), null, 0, false);
@@ -233,7 +251,7 @@ final class UseRunner {
                     executor.bind(
                             executor.resolveVariableName(stmt.getVariableName()),
                             entry.value(),
-                            Provenance.NOT_MODEL);
+                            executor.useResultTag(stmt.getTool(), replayedArguments(stmt)));
             }
         }
     }

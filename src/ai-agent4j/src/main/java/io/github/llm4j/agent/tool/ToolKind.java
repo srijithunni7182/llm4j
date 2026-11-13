@@ -65,6 +65,25 @@ public interface ToolKind {
                         + " reach everything");
     }
 
+    /** In {@link #uncheckedResult}: the whole result may hold text a model wrote. */
+    String WHOLE_RESULT = "*";
+
+    /**
+     * The top-level fields of a tool's result (a JSON object) that may hold text a model wrote,
+     * whatever the arguments were: a test name in a report a model's code produced, a page's text,
+     * a program's output. A host keeps those fields marked as unchecked model text, so they cannot
+     * leave a workflow as if a person or the code had written them; the other fields (counts,
+     * statuses) are data the tool parsed. {@link #WHOLE_RESULT} marks the whole result.
+     *
+     * <p>A kind that names fields here has parsed the rest of its result itself, so a host trusts
+     * those other fields whatever the arguments were. The default is none: a host treats the result
+     * as the tool's own data, except that a tool that computes only from its arguments (one whose
+     * {@link #profile} reaches nothing) gives its result the origin of those arguments.
+     */
+    default Set<String> uncheckedResult(Map<String, String> options) {
+        return Set.of();
+    }
+
     /** What is wrong with the options, or null. Touches neither the network nor the files. */
     String check(Map<String, String> options, Path baseDir);
 

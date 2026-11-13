@@ -68,6 +68,14 @@ public interface ToolKind {
     }
 
     /**
+     * The top-level fields of a tool's result that may hold text a model wrote, as in {@link
+     * io.github.llm4j.agent.tool.ToolKind#uncheckedResult}; none by default.
+     */
+    default Set<String> uncheckedResult(Map<String, String> options) {
+        return Set.of();
+    }
+
+    /**
      * Extra checks on the resolved options (e.g. exactly one of two); returns a problem or null.
      */
     default String check(Map<String, String> options) {
