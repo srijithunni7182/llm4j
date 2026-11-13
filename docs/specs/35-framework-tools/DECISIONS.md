@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D21 are taken, D23 is deferred, one decision is open (D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **final for phase 35: D1 to D22 are taken (D10 was folded into D11) and D23 is deferred; nothing is built.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -10,7 +10,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D2 | How a tool kind describes itself | **taken** (a `profile` method on `ToolKind`; built-ins move their profiles into the kinds; a characterization test first) |
 | D3 | Registering and discovering kinds | **taken** (explicit for the built-ins, `ServiceLoader` for optional modules, four rules) |
 | D4 | The weight rule and the module layout | **taken** (a tools parent, the light module inside it, an `extras` aggregator for the heavy ones; weight tests; a README each) |
-| D5 | Isolation as an honest, audited fact | **taken** (option A with six rules; one sub-question on the load-time probe still open) |
+| D5 | Isolation as an honest, audited fact | **taken** (option A with six rules; the probe runs in `weave check`) |
 | D6 | The sandbox contract | **taken** (two kinds; one workspace mount; network none, a host allow-list or open; relaxed time limits; no changed-files list) |
 | D7 | Long-running processes (`serve`) and reaching them | **taken** (`serve`, `stop`, `status` with a lease and a one-port grant; built last in 35d) |
 | D8 | Sandbox backends and the default | **taken** (`process`, `container` and `fake`; an interface for `vm` and remote; six rules) |
@@ -27,7 +27,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D19 | Security rules and documents | **taken** (LA31 to LA33, audit-output notes, four documents) |
 | D20 | Visibility: the ecosystem | **taken** (the whole pass, two starters and a tutorial chapter; nothing deferred) |
 | D21 | Names | **taken** (`verify` instead of `check`; `network: allow` with a `hosts:` option) |
-| D22 | What stays out of this phase | open |
+| D22 | What stays out of this phase | **taken** (the list confirmed, with a narrower VS Code line) |
 | D23 | Predictions from a pre-trained model: a `predict` tool | **deferred** (left out of this phase by the owner; to be taken up later) |
 
 ## D1. The scope and staging of this phase
@@ -117,7 +117,7 @@ The aggregator is called **`extras`** (not `addon-tools`, which would be confuse
 **Decision (owner): option A.** Levels `none`, `process`, `container`, `vm`. Rules:
 1. **No default:** a `sandbox` tool without an `isolation` line is a load error.
 2. **Fail closed, never weaker:** a request for `container` with no runtime fails; it never falls back to `process`. Tested by removing the runtime.
-3. **Probe at load:** a missing container runtime is a load-time error, not a surprise mid-run (a backend that cannot be probed at load, such as a remote one, fails at first use). **Sub-question still open:** whether `weave check` itself runs `docker version` or `podman version` (the first time `verify` would run a program), or only the run does. Recommendation: run it in `verify` and say so.
+3. **Probe at load:** a missing container runtime is a load-time error, not a surprise mid-run (a backend that cannot be probed at load, such as a remote one, fails at first use). **Resolved (owner): the probe runs in `weave check` itself** (the first time `check` runs a program, and it says so: a missing container runtime is found before the run). A way to skip it where no runtime exists (for example a `--no-probe` flag for CI) was suggested but not confirmed; it is settled in 35d.
 4. **The reported level is what the audit shows,** not the requested one; if they differ, the run stops.
 5. **Honest wording:** the audit note and the journal say "isolation: process", never "sandboxed".
 6. **LA31** flags a program run at `none` or `process` (medium when the workspace also holds secrets or the network is `open`, high when both); taken in D19.
@@ -455,7 +455,7 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 | **Language and tool references** | The tool-kind tables in `LOOM_GUIDE.md` and `LOOM_PROMPT.md` for `sandbox`, `workspace`, `compute`, `verify`, `scan` and the extras kinds; the `weave check` output that lists kinds and where each came from (D3 rule 3) |
 | **Wiki and machine-readable** | The wiki pages, the root README, `llms.txt`, the module table in `CLAUDE.md` |
 | **Module READMEs** | One for each new module and one for each of the two parents (D4) |
-| **VS Code** | The grammar and snippets; no new extension feature |
+| **VS Code** | **Amended (owner):** the hover text in the language server (`src/lsp/server.ts`), which lists the kinds in `use:` and the kinds each option applies to, is updated for the new kinds and options; snippets for the new tools; a `CHANGELOG.md` entry; the extension's README kept accurate. The grammar needs no change (it does not list kinds). No new extension features |
 | **Starters** | Two new ones (below) |
 | **Tests of the documentation** | The `*DocsTest` classes for each README's samples, `StartersTest`, and `RepositoryScriptsTest` for every new `.loom` file |
 | **CTK** | A scenario for each new kind |
@@ -488,17 +488,25 @@ tool Python { use: sandbox  workspace: Data  isolation: container  image: "pytho
 
 ## D22. What stays out of this phase
 
-Proposed: any vertical's own tools (package policy, code navigation, a design brief); a `vm` or remote sandbox backend (an SPI, not an implementation); sibling or queue messaging; compensation of external effects (principle 27); framework support for restoring tools on rewind (a `Checkpointable` capability, `side effects: restore`), deferred until real workflows show the D9 pattern is awkward; a GUI or desktop-control tool; image returned to a model from a tool (a change to the tool result type, its own phase); changes to `weave eval` beyond D17; and anything in the VS Code extension beyond grammar and snippets.
-
-**Recommendation: confirm the list.**
-
-**Decision (owner):** open.
-
-## D23. Predictions from a pre-trained model: a `predict` tool
-
-**Deferred (owner): left out of this phase; to be taken up later.** Raised by the owner: an agent is poor at statistical prediction on tabular data, and the traditional answer is to train and tune a model per dataset, while pre-trained tabular models (TabPFN, TabICL) predict in one forward pass; time-series forecasters (Chronos-2, TimesFM) are a related family. What was found when it was raised, so it need not be researched again:
-- **Licences are the main trap:** TabPFN's code is Apache 2.0 but its 2.5 and later weights are non-commercial, with outputs limited to non-commercial evaluation and research unless a commercial licence or the paid API is used (the sources disagree on details; read the licence text). TimesFM 3.0 weights are non-commercial while 2.5 is Apache 2.0; Chronos-2 is reported as Apache 2.0 (blog sources only). TabICL has public weights; its licence was not verified.
-- **No Java path:** nothing was found on ONNX export or a Java runtime for these models; in practice they run in Python.
-- **First reaction (not a proposal):** llm4j owns a `predict` contract in an optional extras module and never ships or defaults to a model; backends behind an interface (the user's own image through `sandbox` with `network: none`, a hosted API whose data leaving the machine the audit shows, and a trivial baseline); results carry cross-validated metrics, the baseline's score, the training-row count and the model's id and version; guards for too-small training sets and a target also in the features; a pinned seed; a journaled effect. Tabular classification and regression first, forecasting a second action later. Tests can cover only the contract against a fake and the baseline; a real model is an `integration` test.
-Nothing in this phase depends on it.
-
+**Decision (owner): the list is confirmed.** Everything below is out, so nobody builds it by accident and nobody expects it.
+| Out | Where it was decided, or why |
+|---|---|
+| A vertical's own tools: package and licence policy, code navigation, a design brief | The vertical, not the framework (D18) |
+| A `vm` or remote sandbox backend | An interface a consumer implements; llm4j ships none (D8) |
+| Framework support for restoring tools on rewind (`Checkpointable`, `side effects: restore`) | Deferred until real workflows show the D9 pattern is awkward |
+| Predictions from a pre-trained model | Deferred (D23) |
+| Compensation of external effects (a saga) | Refused: it invites claiming a send can be undone (principle 27) |
+| The executable oracle module for eval4j | Comes back with the first real user (D17) |
+| TAP, SARIF and exit-code parsing in `verify`; a compare action | Added when a workflow needs them (D12) |
+| A regex action in `compute` | Needs a defence against catastrophic patterns (D13) |
+| A `redact` action in `scan` | `scan` is a gate only for now (D14) |
+| `delete` and `move` in `workspace` | A `sandbox` can do both; added on demand (D11) |
+| More than one mount in `sandbox`; path-level network rules; TLS interception | One mount keeps it safe; host level is what the proxy can see (D6) |
+| Object storage, a message queue, chat, calendar, speech, image generation as kinds | Reachable with `http` or `webhook`, or their own decision (D18) |
+| Sibling or queue messaging between workflows | Not needed by these tools |
+| A GUI or desktop-control tool | Not in scope |
+| An image returned to a model from a tool | A change to the tool result type, its own phase; a screenshot is a file (D16) |
+| A third starter that uses the `browser` | The owner may add it (D20) |
+| Changes to `weave eval` beyond D17 | Only the new figure and steps |
+| **New VS Code extension features:** panels, viewers (a sandbox run's output, a workspace diff, served processes), hover and completion driven by the engine's own list of kinds and options | Deferred (the owner agrees); updating the existing hover text, snippets and CHANGELOG is in scope (D20). Engine-driven kinds are a natural follow-up, since `weave check` already lists the kinds it found (D3) |
+| A global default for isolation, or auto-detecting a container runtime | Refused (D5, D8) |

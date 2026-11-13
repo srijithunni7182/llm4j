@@ -1,6 +1,6 @@
 # Phase 35: the framework: self-describing tools and a wider tool set
 
-Status: **draft; nothing is decided and nothing is built.** Every choice is in [DECISIONS.md](DECISIONS.md), open, with a recommendation. The facts about the code are in [DESIGN.md](DESIGN.md).
+Status: **final for phase 35 (all decisions taken by the owner; D23 deferred); not yet built.** Every choice is in [DECISIONS.md](DECISIONS.md). The facts about the code are in [DESIGN.md](DESIGN.md).
 The principles of phases [33](../33-async-workflows/PRINCIPLES.md) and [34](../34-supervision-signals/PRINCIPLES.md) all still hold (in particular: the model reasons and the code holds the authority; fail closed; every effect is journaled; a construct is finished only when it can be tested without a model, a real clock or racing threads). This file adds what is new.
 
 ## What this phase is for

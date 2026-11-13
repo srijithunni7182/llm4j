@@ -1,6 +1,6 @@
 # Phase 35: design
 
-Status: **draft.** Facts marked (read) come from the merged source on `main` after PR 119. Anything marked (not read) must be read before the decision that depends on it is taken. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md).
+Status: **final for phase 35 (all decisions taken; D23 deferred); not yet built.** Facts marked (read) come from the merged source on `main` after PR 119. Anything marked (not read) must be read before the work that depends on it starts. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md).
 
 ## 1. What the code does today (read)
 
@@ -26,7 +26,7 @@ Status: **draft.** Facts marked (read) come from the merged source on `main` aft
 
 **F3. Restore is a workspace operation, not a framework feature (35c).** An earlier draft added a `Checkpointable` capability to the core and `side effects: restore` to Loom. The owner dropped it (D9): what restoring means differs for every tool, not every backend can offer it, and a tool author should not carry it. `workspace` offers `snapshot`, `restore` and `diff` as ordinary operations; a script calls them with `use` and a rewind with `side effects: repeat` runs the attempt again. The existing effect protocol covers replay and a crash mid-restore (the operations are idempotent and journaled).
 
-**F4. Isolation as an audited fact (35d).** The level a tool reports appears in `weave audit` and in the review facts, with a rule (LA31) for a tool that runs a program or serves a process at a level below the one the script declared it needs. A new rule must be listed in `docs/security/weave-audit.md` and mapped in `owasp-llm-top-10.md`.
+**F4. Isolation as an audited fact (35d).** The level a tool reports appears in `weave audit` and in the review facts, with rules LA31 to LA33 (D19) for a tool that runs a program or serves a process at a level below the one the script declared it needs. A new rule must be listed in `docs/security/weave-audit.md` and mapped in `owasp-llm-top-10.md`.
 
 **F5. Owned resources (35d).** A small registry in the run folder records what a tool started (a process id, a port, a deadline). On cancel and on end the tool stops it; on a resumed run, the registry is read first and anything left from a crashed one is stopped before work continues.
 
@@ -34,17 +34,17 @@ Status: **draft.** Facts marked (read) come from the merged source on `main` aft
 
 Each row says what it is for **besides** a coding agent (principle 30).
 
-| Kind | Where | What it does | Other workflows that need it |
+| Kind | Where (D4) | What it does | Other workflows that need it |
 |---|---|---|---|
-| `sandbox` | tools | Runs a program from an allow-list inside a declared isolation with declared limits (`run`); optionally keeps one running for a while (`serve`, `stop`) | A data analyst running a script on a file; a converter (a document to PDF); a grader running a submission; anything an agent computes by code |
-| `workspace` | tools | A directory the agent reads and writes, with a patch operation guarded by a precondition hash, find and grep, protected paths, a diff, and snapshot and restore | A report or document writer revising drafts; a config editor; any "edit, check, try again" loop |
-| `compute` | tools | Pure computation: exact arithmetic, date arithmetic with an injected clock, JSON path and transform, CSV statistics, regex test with a limit. No reach, no effect, deterministic | Anything that today asks a model to do arithmetic or reshape data; finance and reporting steps |
-| `verify` | tools | Turns a verifier's output into one typed record: JUnit XML, TAP, SARIF, an exit code, a JSON Schema validation | Test results; a linter; schema validation of a model's structured output; a compliance scan result |
-| `scan` | tools | Finds secrets and personal data in text or files and reports a name and a place, never the match | A guard before anything is sent or published; a pre-commit check; a document review |
-| `browser` | optional module | Opens a page, reads its text, takes a screenshot to a file, clicks and fills, waits for a condition, reports the console and failed requests. Every request goes through `NetPolicy` | Research on pages that need scripts; checking a deployed page; form-filling an approval workflow; a visual check |
-| `search` | optional module | Web search through a provider the user chooses and keys (a `SecretRef`); returns titles, URLs and snippets as `unchecked` | Any research workflow |
-| `documents` | optional module | Extracts text and tables from PDF, DOCX and HTML into text; a size and page limit | Intake of contracts, invoices, papers, tickets |
-| `git` | optional module | `status`, `diff`, `log`, `branch`, `commit`; `push` is an effect that needs approval; runs the `git` program through the sandbox contract | Docs-as-code; a change-review workflow; release notes |
+| `sandbox` | tools | Runs a program from an allow-list inside a declared isolation (`process`, `container`, or a consumer's backend) with declared limits (`run`); the workspace is the only mount; network `none`, a host allow-list (`network: allow` with `hosts:`) or `open`; optionally keeps a process running for a while (`serve`, `stop`, `status`) (D5 to D8) | A data analyst running a script on a file; a converter; a grader running a submission; anything an agent computes by code |
+| `workspace` | tools | A directory the agent reads and writes: `read`, `list`, `exists`, `write`, `append`, `patch` (exact-once edits), `find`, `grep`, `diff`, `snapshot`, `restore`; `allow` required, protected paths, a built-in deny list, symlinks never followed (D11) | A report or document writer revising drafts; a config editor; any "edit, check, try again" loop |
+| `compute` | tools | Pure computation: `calc` (exact decimals), `date` (an injected clock), `json` (path), `csv` (count, sum, mean, min, max, group by). No reach, no effect, deterministic (D13) | Anything that today asks a model to do arithmetic or reshape data; finance and reporting steps |
+| `verify` | tools | Turns a verifier's result into one typed record: JUnit XML and JSON Schema validation (TAP and SARIF later); counts typed, names and messages `unchecked` (D12) | Test results; schema validation of a model's structured output; a result an evaluation scores |
+| `scan` | tools | Finds secrets and personal data in text or a file and reports a rule and a place, never the match; a gate, with no `redact` (D14) | A guard before anything is sent or published; a pre-commit check; a document review |
+| `browser` | extras | Opens a page, reads its text, takes a screenshot to a file, clicks and fills, waits for a condition, reports the console and failed requests; a JDK-only CDP backend plus the contract and a fake; every request goes through `NetPolicy` (D16) | Research on pages that need scripts; checking an app the sandbox serves; filling a form in an approval step |
+| `search` | extras | Web search through a provider the user chooses and keys (a `SecretRef`); titles, URLs and snippets as `unchecked` (D18) | Any research workflow |
+| `documents` | extras | Extracts text and tables from PDF (Apache PDFBox), DOCX and HTML into text; a size and page limit (D18) | Intake of contracts, invoices, papers, tickets |
+| `git` | extras | `status`, `diff`, `log`, `branch`, `commit`; `push` is an effect that needs approval; runs the `git` program through the sandbox contract (D18) | Docs-as-code; a change-review workflow; release notes |
 
 Considered and left for later (see D18): object storage, a message queue, a chat kind (the `webhook` kind already posts), a calendar, speech, image generation (the `http` kind reaches these providers).
 
@@ -53,11 +53,11 @@ Considered and left for later (see D18): object storage, a message queue, a chat
 | Sub-phase | What | Gate |
 |---|---|---|
 | 35a | First, the move to `src/tools/` in a commit of its own (D4); then F1, F2: self-describing kinds and the registry. No new tool and no behaviour change | The owner reviews the branch before 35b |
-| 35b | `compute`, `verify`, `scan` and the `file` additions the decisions pick. Pure and cheap: no runtime change | |
+| 35b | `compute`, `verify`, `scan`: pure and cheap, no runtime change. `compute` first, to prove the profile (D13) | |
 | 35c | The `workspace` kind: read, write, patch, find, grep, diff, snapshot, restore; and a spike with a real workflow of the `use` plus `side effects: repeat` pattern (D9) | |
-| 35d | F4, F5 and `sandbox` (process and container backends, the fake, `serve` if D7 says so) | |
-| 35e | The optional modules the decisions pick: `browser`, `search`, `documents`, `git` | |
-| 35f | eval4j (D17) and the ecosystem: docs, starters, CTK scenarios, skills, VS Code, the tutorial | |
+| 35d | F4, F5 and `sandbox`: the proxy spike first (D6), then `run` with the process, container and fake backends, then `serve` last (D7); audit rules LA31 to LA33 and `docs/security/sandbox.md` (D19) | |
+| 35e | The extras modules: `search`, `documents`, `git`, then `browser` last (D16, D18) | |
+| 35f | eval4j (D17) and the whole ecosystem pass, nothing deferred (D20): docs, two starters, CTK scenarios, skills, VS Code hover text and snippets, the tutorial chapter | |
 
 ## 5. Risks (for the owner to weigh against the decisions)
 
