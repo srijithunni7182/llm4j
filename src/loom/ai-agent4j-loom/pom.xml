@@ -574,6 +574,10 @@
                                 <param>io.github.llm4j.loom.ladder.*</param>
                                 <param>io.github.llm4j.loom.eval.NodeCasesGate</param>
                                 <param>io.github.llm4j.loom.eval.NodeFingerprints</param>
+                                <!-- phase 35a: what a tool reaches, as the audit reads it from the kinds -->
+                                <param>io.github.llm4j.loom.security.Capabilities</param>
+                                <param>io.github.llm4j.loom.tools.ReachDeclaration</param>
+                                <param>io.github.llm4j.loom.tools.DiscoveredKinds</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.loom.autonomy.expr.*Test</param>
@@ -585,6 +589,13 @@
                                 <param>io.github.llm4j.loom.autonomy.LadderRunTest</param>
                                 <param>io.github.llm4j.loom.autonomy.LadderStoresTest</param>
                                 <param>io.github.llm4j.loom.autonomy.LadderVerificationTest</param>
+                                <param>io.github.llm4j.loom.security.ToolReachTest</param>
+                                <param>io.github.llm4j.loom.security.ToolNamesTest</param>
+                                <param>io.github.llm4j.loom.effects.*Test</param>
+                                <param>io.github.llm4j.loom.tools.LoomKindProfilesTest</param>
+                                <param>io.github.llm4j.loom.tools.KindDiscoveryTest</param>
+                                <param>io.github.llm4j.loom.cli.KindsFromJarsTest</param>
+                                <param>io.github.llm4j.loom.cli.ToolKindCharacterizationTest</param>
                             </targetTests>
                             <excludedTests>
                                 <param>io.github.llm4j.loom.ladder.LadderAuditTest</param>
