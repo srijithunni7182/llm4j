@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D7 are taken, fifteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D8 are taken, fourteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -13,7 +13,7 @@ Status: **draft; D1 to D7 are taken, fifteen decisions are open.** Each gives th
 | D5 | Isolation as an honest, audited fact | **taken** (option A with six rules; one sub-question on the load-time probe still open) |
 | D6 | The sandbox contract | **taken** (two kinds; one workspace mount; network none, a host allow-list or open; relaxed time limits; no changed-files list) |
 | D7 | Long-running processes (`serve`) and reaching them | **taken** (`serve`, `stop`, `status` with a lease and a one-port grant; built last in 35d) |
-| D8 | Sandbox backends and the default | open |
+| D8 | Sandbox backends and the default | **taken** (`process`, `container` and `fake`; an interface for `vm` and remote; six rules) |
 | D9 | Restore on rewind: the mechanism | open |
 | D10 | Snapshot storage and limits | open |
 | D11 | The workspace kind, patching and protected paths | open |
@@ -178,7 +178,14 @@ Options for the program allow-list: **A.** named programs only (`npm`, `node`, `
 
 **Recommendation: A.** `process` is there so a developer can try a workflow on a laptop, and it is flagged by LA31 (D5) so it is never mistaken for isolation; the container backend is the one to recommend. The runtime is probed once at load; the container image is named in the script and never pulled implicitly (a pull is a network effect, so it is an explicit option).
 
-**Decision (owner):** open.
+**Decision (owner): option A, with six rules.** Backends: `process` (reports `process`; refuses `memory`, `pids`, `disk` and `network: allow` at load), `container` (the `docker` or `podman` command line through `ProcessBuilder`, no client library; enforces every limit, the one mount and the three network values), `fake` (scripted answers and recorded calls; never runs a program), and a small `SandboxBackend` interface a consumer implements for `vm` or a remote service (llm4j ships none).
+1. **Selection** is from the script's `isolation` line; there is no global default and no auto-detection, so a missing runtime is D5's error and never a quiet switch.
+2. **Container runtime:** `docker` or `podman`, from `PATH` or named in a `runtime:` option; with neither named, `docker` then `podman`, and the audit shows the one found.
+3. **Image:** named in the script, never pulled implicitly; a missing image is an error that says the pull command, or an explicit `pull: true` that the audit shows (a pull is a network effect).
+4. **Cleanup:** each container is named from the run id and step id, runs with `--rm`, and is stopped and removed on timeout, cancel and run end; the D7 registry lets a resumed run remove leftovers.
+5. **The interface stays small:** `SandboxBackend` has `run`, and `serve`, `stop` and `status` for backends that can serve; it reports its isolation level and which limits it enforces; a backend that cannot serve makes `serve` a load error, not a failure at first use.
+6. **Testing:** the D15 contract test runs against `fake`, always against `process` (it needs only the JDK), and against `container` only where a runtime exists (`@Tag("integration")`); `weave test` uses `fake`.
+**First supported runtime: Docker for Linux.** The docs say which others were verified (after the D6 spike) and do not promise all three.
 
 ## D9. Restore on rewind: the mechanism
 
