@@ -101,7 +101,19 @@ Every row is `not built`.
 
 ## 1b. What the build reached (kept current; written at the end of each sub-phase)
 
-Nothing is built.
+**35a (2026-11-13), stopped at the gate.**
+
+| Row | Level | Evidence |
+|---|---|---|
+| A1 | E1, CI pending | The move is commit `b8d02a2a` alone (renames plus 46 path lines in 29 files); `make docs-check` and `CiCoversEveryModuleTest` passed on it. The two parents are `d84c590e`. Coordinates unchanged. CI has not run on the branch (no pull request) |
+| A2 | E1 | `ToolKindCharacterizationTest` (G36; 444 scripts: every `.loom` file in the repository that loads, plus `every-kind.loom`), written and green before the refactor (`36329574`), green after with two differences, both answered by the owner (C1, C2), and broken on purpose before and after the refactor. `KindProfilesTest`, `LoomKindProfilesTest`, `ToolProfileTest`; G37 in `ToolProfileTest`, `LoomKindProfilesTest` and end to end in `KindsFromJarsTest`, broken on purpose |
+| A3 | E1, E2 | `KindDiscoveryTest` (G38, G39: a broken entry, a missing class, an unusable name, an unreadable class path, a clash with a built-in, a clash between jars, a host clash), `KindsFromJarsTest` (`weave check` lists jar kinds and fails on a broken jar; the audit reads a jar kind's profile). G38 and G39 broken on purpose. The `ServiceLoader` lookup uses `ProjectClasses.loader()`. The Maven plugin loads no kinds. **Not yet:** the message naming a specific absent module (G39's second half) waits for the extras modules of 35e; today the message says how to add an optional module's jar |
+| A4 | E1, partly | `WeightRuleTest` (G40), broken on purpose. READMEs for both parents. The extras' allow-list tests and module READMEs come with the modules (35e) |
+| A18 | met | This report; the session waits for the owner |
+
+**Tiers run:** `make test-core` after 35a-4 and 35a-5; `make test-fast` on the whole reactor (green, with the coverage gates), and again on Loom after the last test commit; `make docs-check` after each docs change; `make test-oracle` (green); the Loom `mutation` profile (87.0% over the profile; `Capabilities` 53/53, `ReachDeclaration` 3/3, `DiscoveredKinds` 25/31, the rest equivalent). `make format-check` fails on five A2A files of phase 32 (`A2AJsonRpc10`, `RemoteAgent` and three tests), none touched here; this phase's files are formatted. **Not run:** `make test-full` and the other `slow` tests (left to CI), `make release-check` (the release profile was run on the tools modules only), every integration test (none in 35a; the Docker daemon was not started, as nothing in 35a needs it).
+
+**Risks of DESIGN §5 that became real:** risk 1 (the refactor touches the audit): two places where the old lists disagreed with the audit (C1, C2), both found by the characterization and decided by the owner.
 
 ## 2. How the report is written
 
