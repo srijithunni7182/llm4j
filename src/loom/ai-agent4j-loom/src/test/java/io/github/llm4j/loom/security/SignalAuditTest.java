@@ -62,7 +62,7 @@ class SignalAuditTest {
     }
 
     @Test
-    void aSignalWhoseTextReachesAPromptIsLowBecauseTextFromAnotherRunEntersAModelsContext() {
+    void aSignalWhoseTextReachesAPromptIsMediumBecauseTextFromAnotherRunEntersAModelsContext() {
         var reaches =
                 la30(
                         """
@@ -76,9 +76,60 @@ class SignalAuditTest {
                         workflow Main(q) { start Worker(x = q) budget { tokens: 10 } -> w  wait w timeout 1m }
                         """);
 
-        assertThat(reaches.get(0).severity()).isEqualTo(Severity.LOW);
+        assertThat(reaches.get(0).severity()).isEqualTo(Severity.MEDIUM);
         assertThat(reaches.get(0).risk()).contains("prompt");
         assertThat(unused.get(0).severity()).isEqualTo(Severity.INFO);
+    }
+
+    private static Severity worker(String body) {
+        return la30(
+                        "workflow Worker(x) { wait signal \"go\" timeout 5m -> text  " + body + " }\n"
+                                + "workflow Main(q) { start Worker(x = q) budget { tokens: 10 } -> w  wait w timeout 1m }\n")
+                .get(0)
+                .severity();
+    }
+
+    @Test
+    void aCopyOfTheTextThatReachesAPromptIsFollowedAndIsMedium() {
+        assertThat(worker("set copy = text  delegate \"Act on: {copy}\" to Writer -> r  return r")).isEqualTo(Severity.MEDIUM);
+    }
+
+    @Test
+    void aCopyBuiltIntoLargerTextIsFollowed() {
+        assertThat(worker("set note = \"Instruction from a helper: {text}\"  delegate \"{note}\" to Writer -> r  return r"))
+                .isEqualTo(Severity.MEDIUM);
+    }
+
+    @Test
+    void aChainOfCopiesIsFollowedToTheEnd() {
+        assertThat(worker("set first = text  set second = first  set third = \"{second}\"  delegate \"{third}\" to Writer -> r  return r"))
+                .isEqualTo(Severity.MEDIUM);
+    }
+
+    @Test
+    void aCopyThatNothingReadsLeavesTheFindingAtInfo() {
+        assertThat(worker("set copy = text  set again = copy  return \"done\"")).isEqualTo(Severity.INFO);
+    }
+
+    @Test
+    void aCopyBuiltFromOtherThingsDoesNotCarryTheTextAndAPromptThatReadsItStaysInfo() {
+        assertThat(worker("set other = \"fixed\"  delegate \"Act on: {other}\" to Writer -> r  return r")).isEqualTo(Severity.INFO);
+    }
+
+    @Test
+    void aVariableThatOnlyStartsWithTheSignalsNameIsNotTheSignalsText() {
+        assertThat(worker("set textual = \"fixed\"  delegate \"Act on: {textual}\" to Writer -> r  return r")).isEqualTo(Severity.INFO);
+    }
+
+    @Test
+    void aFieldOfTheTextOrACopyAlsoCounts() {
+        assertThat(worker("delegate \"Act on: {text.body}\" to Writer -> r  return r")).isEqualTo(Severity.MEDIUM);
+        assertThat(worker("set copy = text  delegate \"Act on: {copy.body}\" to Writer -> r  return r")).isEqualTo(Severity.MEDIUM);
+    }
+
+    @Test
+    void theCopyItselfIsNotTakenForTheTextReachingAPromptWhenOnlyItIsBuilt() {
+        assertThat(worker("set note = \"Heard: {text}\"  return \"done\"")).isEqualTo(Severity.INFO);
     }
 
     @Test

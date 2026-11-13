@@ -6,11 +6,13 @@ import io.github.llm4j.loom.ast.CallStmt;
 import io.github.llm4j.loom.ast.DelegateStmt;
 import io.github.llm4j.loom.ast.HandoffStmt;
 import io.github.llm4j.loom.ast.LoomScript;
+import io.github.llm4j.loom.ast.SetStmt;
 import io.github.llm4j.loom.ast.StartStmt;
 import io.github.llm4j.loom.ast.StatementWalker;
 import io.github.llm4j.loom.ast.SteerStmt;
 import io.github.llm4j.loom.ast.SuperviseDef;
 import io.github.llm4j.loom.ast.SuperviseStmt;
+import io.github.llm4j.loom.ast.ValueExpr;
 import io.github.llm4j.loom.ast.WorkflowDef;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -104,7 +106,8 @@ final class ChildAudit {
      * LA30 (phase 34c, D14): a workflow that <em>reads</em> a signal (a {@code wait signal}, a
      * {@code wait handle signal}, or a {@code when signal} rule) can have text from another run enter
      * its variables. The finding names the signal and the side that can send it, in the shape of LA28.
-     * It is low when the text can reach a model's prompt or a task's argument, info otherwise. There
+     * It is medium when the text can reach a model's prompt or a task's argument, directly or through a
+     * copy ({@code set copy = text}, followed to the end), info otherwise. There
      * is no rule for sending: the parent already gets the child's result, so the channel is not new.
      */
     static void signals(LoomScript script, List<Finding> findings) {
@@ -154,7 +157,7 @@ final class ChildAudit {
         findings.add(
                 new Finding(
                         "LA30",
-                        reaches ? Severity.LOW : Severity.INFO,
+                        reaches ? Severity.MEDIUM : Severity.INFO,
                         List.of(Owasp.LLM01),
                         reader.getName() + " / signal " + name,
                         line,
@@ -166,17 +169,65 @@ final class ChildAudit {
                         "Treat the text as untrusted: check it before it reaches an agent that can act, and prefer a signal's arrival (a rule or a branch) over its content."));
     }
 
-    /** True when {@code {variable}} is written into a prompt, a payload or an argument of the workflow. */
+    /**
+     * True when the text read from a signal is written into a prompt, a payload or an argument of the
+     * workflow, directly or through a copy: {@code set copy = text}, or a text that holds it. A copy
+     * is followed to the end (a chain of copies too), and a {@code set} is not itself taken for a use:
+     * it only passes the text on. The match is the placeholder itself, so {@code {textual}} is not
+     * {@code {text}}.
+     */
     private static boolean reaches(WorkflowDef w, String variable) {
+        Set<String> carriers = carriers(w, variable);
         boolean[] found = {false};
-        String needle = "{" + variable;
         StatementWalker.walk(
                 w.getStatements(),
                 s -> {
+                    if (s instanceof SetStmt) return;
                     for (io.github.llm4j.loom.execution.SubstitutedText.Entry e : io.github.llm4j.loom.execution.SubstitutedText.entries(s))
-                        if (e.text().contains(needle)) found[0] = true;
+                        if (mentions(e.text(), carriers)) found[0] = true;
                 });
         return found[0];
+    }
+
+    /** The variable and every variable a {@code set} makes from it, by name, until nothing more is added. */
+    private static Set<String> carriers(WorkflowDef w, String seed) {
+        Set<String> names = new LinkedHashSet<>(List.of(seed));
+        boolean[] grew = {true};
+        while (grew[0]) {
+            grew[0] = false;
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof SetStmt set && !names.contains(set.getName()) && carries(set.getValue(), names)) {
+                            names.add(set.getName());
+                            grew[0] = true;
+                        }
+                    });
+        }
+        return names;
+    }
+
+    private static boolean carries(ValueExpr value, Set<String> names) {
+        if (value instanceof ValueExpr.Ref ref) return names.contains(head(ref.path()));
+        if (value instanceof ValueExpr.Text text) return mentions(text.text(), names);
+        if (value instanceof ValueExpr.Obj obj) return obj.fields().values().stream().anyMatch(v -> carries(v, names));
+        return false;
+    }
+
+    private static String head(String path) {
+        int cut = path.length();
+        for (char c : new char[] {'.', '['}) {
+            int at = path.indexOf(c);
+            if (at >= 0) cut = Math.min(cut, at);
+        }
+        return path.substring(0, cut);
+    }
+
+    /** True when the text has a placeholder for one of the names, alone or with a field after it ({@code {name}}, {@code {name.field}}). */
+    private static boolean mentions(String text, Set<String> names) {
+        for (String name : names)
+            if (java.util.regex.Pattern.compile("\\{\\s*" + java.util.regex.Pattern.quote(name) + "(?!\\w)").matcher(text).find()) return true;
+        return false;
     }
 
     private static boolean steers(SuperviseStmt s) {
