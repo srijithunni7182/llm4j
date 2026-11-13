@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, thirteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, twelve decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -15,7 +15,7 @@ Status: **draft; D1 to D9 are taken, thirteen decisions are open.** Each gives t
 | D7 | Long-running processes (`serve`) and reaching them | **taken** (`serve`, `stop`, `status` with a lease and a one-port grant; built last in 35d) |
 | D8 | Sandbox backends and the default | **taken** (`process`, `container` and `fake`; an interface for `vm` and remote; six rules) |
 | D9 | Restore on rewind: the mechanism | **taken** (no framework support: restore is a `workspace` operation a script calls; a spike in 35c) |
-| D10 | Snapshot storage and limits | open |
+| D10 | Snapshot storage and limits | **folded into D11** (storage is an implementation detail; the visible rules moved) |
 | D11 | The workspace kind, patching and protected paths | open |
 | D12 | Evidence: the `check` kind and provenance | open |
 | D13 | Pure computation: `compute` | open |
@@ -215,15 +215,7 @@ rewind to Clean when (...) at most 2 times  carrying feedback = "..."  side effe
 
 ## D10. Snapshot storage and limits
 
-**Why.** A snapshot of a tree with `node_modules` is gigabytes. The mechanism must be correct before it is clever.
-
-- **A. A content-addressed copy store** under the run folder (JDK only: SHA-256 per file, a manifest, files stored once), with `ignore` globs, a cap on files and bytes, and a hash verified on restore.
-- **B. Git through the CLI** (needs `git`; handles large trees by deltas).
-- **C. Filesystem features** (reflinks, overlay, ZFS): fast, not portable.
-
-**Recommendation: A**, with a default ignore list (`node_modules`, `target`, `.git`, build outputs) the script can change, a cap that fails loudly ("the workspace is larger than the snapshot cap; ignore a path or raise the cap"), and the manifest hash in the journal. B can be a second backend later. A restore is **refused** while a served process holds the workspace (D7).
-
-**Decision (owner):** open.
+**Folded into D11 (owner).** Where a snapshot is stored is an implementation detail behind three operations (`snapshot`, `restore`, `diff`); no script and no other tool depends on it, and it can change without breaking anyone. Deciding it before the 35c spike would repeat what D9 removed. The behaviour a script can see moved to D11. **Guidance for the implementer, not a decision:** a content-addressed copy store on the JDK (SHA-256 per file stored once, a manifest, a hash checked on restore) under the run folder, or under a `store:` directory outside a managed run, outside the workspace root so the agent's own tools cannot reach it; git through the command line is a possible second backend; filesystem features are not portable. Revisit in the 35c spike. A snapshot is a convenience for trying again, not a security boundary.
 
 ## D11. The workspace kind, patching and protected paths
 
@@ -235,7 +227,14 @@ rewind to Clean when (...) at most 2 times  carrying feedback = "..."  side effe
 **Patch format:** a model is more reliable with search-and-replace blocks than with unified diffs, so `patch` takes **a list of (old text, new text) edits for one file plus the hash of the file it was written against**; it fails, changing nothing, when the hash differs, an old text is not found exactly once, or the file is protected. A unified diff may be accepted later.
 **Protected paths:** `protect: ["tests/**", "oracle/**"]` makes those paths read-only to the agent (in the tool and in the sandbox mount). This is what keeps evidence honest (principle 28): a model cannot edit the test that judges it.
 
-**Recommendation: A**, with the patch and the protected paths as above.
+**Snapshot, restore and diff** (from the folded D10), as operations a script calls with `use` (D9). Built **last in 35c**, after `read`, `write`, `patch`, `find` and `grep`; if the spike shows they are not missed, they come out. The behaviour a script depends on:
+1. **Restore is exact:** the files of the snapshot are put back and files created since are deleted, inside the workspace root only (the path jail of every operation); ignored and protected paths are left alone.
+2. **Bounded and loud:** caps on files, bytes and the number of snapshots per workspace (default eight; the same name replaces the older one). A workspace over a cap fails with "the workspace is larger than the snapshot cap; ignore a path or raise the cap" and never takes a partial snapshot. A default ignore list (`node_modules`, `target`, `.git`, build output) the script can change.
+3. **Refused while a process is served** (D7), naming the handle.
+4. **`diff` compares the workspace to a named snapshot** (the latest if none is named) and lists added, changed and deleted paths, bounded in count: this is how a script learns what a `sandbox` run did (D6).
+5. **Idempotent:** restoring the same snapshot twice leaves the same state, which is what lets a crash mid-restore be retried (D9).
+
+**Recommendation: A**, with the patch, the protected paths and the five rules above.
 
 **Decision (owner):** open.
 
