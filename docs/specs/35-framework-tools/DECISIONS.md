@@ -58,6 +58,7 @@ Status: **final for phase 35: D1 to D22 are taken (D10 was folded into D11) and 
 **Precondition:** before the refactor, a test records the audit output for every `.loom` file in the repository; after it, the output must be identical. Any difference is reported to the owner, not resolved silently, because it is either a profile bug or a place where the old lists disagreed.
 **Settled in 35a, not here:** how the kinds Loom registers itself (`duckduckgo`, `calculator`, `openapi`, `knowledge_graph`, `skill_registry`, `class`) answer the same question (the same method on Loom's registration interface, or a small remaining switch), and the mapping from today's boolean `effect` to `TaskEffect`.
 **Amended (with D9):** the profile has no `restorable` field.
+**Amended (owner, C1 in [VERIFICATION](VERIFICATION.md)):** the profile also has a `journaled` field (true when the kind's calls go through the effect journal: the six generic kinds today), because `weave test`, `weave whatif` and the review's `journaled` fact ask that and not the effect level. `RewindChecks` asks the audit (the profile and any `effect:` or `reach:`) instead of keeping its own lists, and the change in `weave check` output this causes is accepted. The rules about one kind's own options (`shell` with `allow_interpreters` or `unattended`, `file` with `overwrite`, `http` without `allow_paths`, a `shell` tool's reason in a plan) stay as rules about that kind.
 
 ## D3. Registering and discovering kinds
 

@@ -74,12 +74,20 @@ agent Author {
     tools: [Mine, MineNone, MineReads, MineFetch, MineWrite, MineSend, HostTool]
 }
 
+// Tools the host registers under the name of a kind, with no declaration in the script
+agent HostNamed {
+    model: "m"
+    system: "s"
+    tools: [duckduckgo, serpapi, google_search, webhook, file]
+}
+
 workflow Main(q) {
     delegate "{q}" to Searcher -> a
     delegate "{a}" to Linguist -> b
     delegate "{b}" to Sender -> c
     delegate "{c}" to Worker -> d
     delegate "{d}" to Author -> e
+    delegate "{e}" to HostNamed -> g
     use Run(args = "status") -> f
     note "{e} {f}"
 }
