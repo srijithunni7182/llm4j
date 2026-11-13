@@ -1,6 +1,6 @@
 # Phase 35: decisions
 
-Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D19 are taken, D23 is deferred, three decisions are open (D20 to D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are taken, D14 to D20 are taken, D23 is deferred, two decisions are open (D21 and D22).** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -25,7 +25,7 @@ Status: **draft; D1 to D9 are taken, D10 is folded into D11, D11 to D13 are take
 | D17 | eval4j enhancements | **taken** (option B: steps, evidence, cost per pass, a versioned export; no oracle module yet) |
 | D18 | Other tools: now, later, never | **taken** (the table as proposed; `search`, `documents` and `git` now, as extras modules) |
 | D19 | Security rules and documents | **taken** (LA31 to LA33, audit-output notes, four documents) |
-| D20 | Visibility: the ecosystem | open |
+| D20 | Visibility: the ecosystem | **taken** (the whole pass, two starters and a tutorial chapter; nothing deferred) |
 | D21 | Names | open |
 | D22 | What stays out of this phase | open |
 | D23 | Predictions from a pre-trained model: a `predict` tool | **deferred** (left out of this phase by the owner; to be taken up later) |
@@ -447,13 +447,28 @@ CLAUDE.md's rules are unchanged: new code meets the coverage bar of the module i
 
 ## D20. Visibility: the ecosystem
 
-**Why.** The phases so far each moved the whole ecosystem at the end.
+**Why.** The phases so far each moved the whole ecosystem at the end. CLAUDE.md requires it: a feature is not done until every page that describes it is correct, and `make docs-check` is the check.
 
-Proposed: the tool-kind table in `LOOM_GUIDE.md` and `LOOM_PROMPT.md`; the wiki pages; `llms.txt`; the VS Code grammar and snippets; **two starters** that need no coding background (a report writer that edits a document, checks it and, when the check fails, restores the workspace and tries again; a data analyst that runs a script in the sandbox and checks the result); CTK scenarios; the `llm4j-workflow-guide`, `-harness-design` and `-patterns` skills (tools, isolation, the restore pattern); a tutorial chapter; the release notes; `docs/API_COMPATIBILITY.md` for the new core types.
-
-**Recommendation: all of it,** in 35f, with `make docs-check` as the check.
-
-**Decision (owner):** open.
+**Decision (owner): the whole pass, nothing deferred.** It is sub-phase 35f, and it covers all of the following (docs are part of the change, never a later one).
+| Area | What changes |
+|---|---|
+| **Language and tool references** | The tool-kind tables in `LOOM_GUIDE.md` and `LOOM_PROMPT.md` for `sandbox`, `workspace`, `compute`, `check` (or `verify`, D21), `scan` and the extras kinds; the `weave check` output that lists kinds and where each came from (D3 rule 3) |
+| **Wiki and machine-readable** | The wiki pages, the root README, `llms.txt`, the module table in `CLAUDE.md` |
+| **Module READMEs** | One for each new module and one for each of the two parents (D4) |
+| **VS Code** | The grammar and snippets; no new extension feature |
+| **Starters** | Two new ones (below) |
+| **Tests of the documentation** | The `*DocsTest` classes for each README's samples, `StartersTest`, and `RepositoryScriptsTest` for every new `.loom` file |
+| **CTK** | A scenario for each new kind |
+| **Skills** | `llm4j-workflow-guide` (the tools table, isolation, the restore pattern), `llm4j-harness-design` (isolation, the sandbox as a harness element), `llm4j-workflow-patterns` (a pattern that uses them); shared references stay identical |
+| **Tutorial** | A chapter that uses the workspace and the sandbox, with the generated web page regenerated (`bash scripts/make-tutorial-html.sh`) |
+| **Release notes and compatibility** | The current release notes; `docs/API_COMPATIBILITY.md` for the new core types (`ToolProfile`, the `profile` method) and the steps added to `EvalScenario` |
+| **Security documents** | As in D19 |
+| **Generated files** | `make regen`, then `make docs-check`, committing what it regenerated |
+**The two starters** (neither needs a coding background):
+1. **A report writer:** an agent edits a document in a `workspace`, `check` validates it, and when the check fails the workflow restores a snapshot and tries again; it shows the D9 pattern with `side effects: repeat`.
+2. **A data analyst:** an agent writes a short script, a `sandbox` runs it against a CSV with `network: none`, `compute` and `check` verify the result, and `scan` gates anything that goes out; it shows isolation and composition.
+A third starter that uses the `browser` is not part of this pass; the owner may add it.
+**Wording:** restore is described everywhere as a pattern a script writes (D9), not as a rewind feature; whichever name D21 picks for `check` is used throughout.
 
 ## D21. Names
 
