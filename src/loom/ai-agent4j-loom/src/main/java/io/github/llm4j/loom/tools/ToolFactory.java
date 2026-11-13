@@ -190,6 +190,9 @@ public final class ToolFactory {
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.EmailKind()));
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ShellKind()));
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.SqlKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ComputeKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.VerifyKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ScanKind()));
         register.accept(new GraphKind());
         register.accept(
                 simple(

@@ -32,6 +32,11 @@ tool Db        { use: sql  url: env.DB_URL }
 tool Graph     { use: knowledge_graph  store: "graphs/g.json" }
 tool GraphRead { use: knowledge_graph  store: "graphs/g.json"  read_only: true }
 tool Skills    { use: skill_registry  url: "https://skills.example.com" }
+tool Calc2     { use: compute }
+tool CheckText { use: verify }
+tool CheckFiles { use: verify  root: "out" }
+tool ScanText  { use: scan }
+tool ScanFiles { use: scan  root: "out"  rules: "secrets" }
 
 tool Mine      { use: class  class: "com.example.Mine" }
 tool MineNone  { use: class  class: "com.example.Mine"  reach: none }
@@ -64,7 +69,7 @@ agent Sender {
 agent Worker {
     model: "m"
     system: "s"
-    tools: [FilesDefault, FilesRead, FilesWrite, Run, RunAny, Db, Graph, GraphRead, Skills]
+    tools: [FilesDefault, FilesRead, FilesWrite, Run, RunAny, Db, Graph, GraphRead, Skills, Calc2, CheckText, CheckFiles, ScanText, ScanFiles]
     approve: all
 }
 

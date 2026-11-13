@@ -161,4 +161,56 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Mutation tests of the classes that decide what a model may do with the phase 35 tools (TEST_STRATEGY §4):
+            mvn -Pmutation-tools org.pitest:pitest-maven:mutationCoverage -pl src/tools/ai-agent4j-tools
+            The build fails below 85% of mutants killed. Kill a survivor with a better assertion; never exclude it.
+        -->
+        <profile>
+            <id>mutation-tools</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.tools.Expression*</param>
+                                <param>io.github.llm4j.tools.Csv*</param>
+                                <param>io.github.llm4j.tools.ComputeTool*</param>
+                                <param>io.github.llm4j.tools.Verdict*</param>
+                                <param>io.github.llm4j.tools.JUnitReport*</param>
+                                <param>io.github.llm4j.tools.SchemaCheck*</param>
+                                <param>io.github.llm4j.tools.VerifyTool*</param>
+                                <param>io.github.llm4j.tools.ScanRules*</param>
+                                <param>io.github.llm4j.tools.ScanTool*</param>
+                                <param>io.github.llm4j.tools.RootedFiles*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.tools.compute.*Test</param>
+                                <param>io.github.llm4j.tools.verify.*Test</param>
+                                <param>io.github.llm4j.tools.scan.*Test</param>
+                                <param>io.github.llm4j.tools.CsvTest</param>
+                            </targetTests>
+                            <mutationThreshold>85</mutationThreshold>
+                            <threads>4</threads>
+                            <timeoutFactor>3</timeoutFactor>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

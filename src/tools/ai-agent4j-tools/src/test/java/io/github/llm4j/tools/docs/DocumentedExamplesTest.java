@@ -3,11 +3,14 @@ package io.github.llm4j.tools.docs;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.llm4j.agent.tool.ToolKind;
+import io.github.llm4j.tools.ComputeKind;
 import io.github.llm4j.tools.EmailKind;
 import io.github.llm4j.tools.FileKind;
 import io.github.llm4j.tools.HttpKind;
+import io.github.llm4j.tools.ScanKind;
 import io.github.llm4j.tools.ShellKind;
 import io.github.llm4j.tools.SqlKind;
+import io.github.llm4j.tools.VerifyKind;
 import io.github.llm4j.tools.WebhookKind;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -42,6 +45,9 @@ class DocumentedExamplesTest {
             case "File" -> new FileKind();
             case "Shell" -> new ShellKind();
             case "Sql" -> new SqlKind();
+            case "Compute" -> new ComputeKind();
+            case "Verify" -> new VerifyKind();
+            case "Scan" -> new ScanKind();
             default -> throw new AssertionError("no kind " + name);
         };
     }

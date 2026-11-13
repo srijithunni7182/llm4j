@@ -211,7 +211,7 @@ src/loom/ai-agent4j-loom/src/main/resources/templates/pipeline/main.loom	697dce1
 src/loom/ai-agent4j-loom/src/main/resources/try/flaky/main.loom	74e035269f4956cb	9ac2db856f16f184	e3b0c44298fc1c14
 src/loom/ai-agent4j-loom/src/main/resources/try/newsletter/main.loom	bae19852a7f62ef1	860bd59c2980ea1e	e3b0c44298fc1c14
 src/loom/ai-agent4j-loom/src/main/resources/try/triage/main.loom	a8c31d9de31e1072	63f1e8bba8b98051	e3b0c44298fc1c14
-src/loom/ai-agent4j-loom/src/test/resources/characterization/every-kind.loom	75a27c7ddc960501	96a0912ba6b5105b	a46ae29777d82495
+src/loom/ai-agent4j-loom/src/test/resources/characterization/every-kind.loom	db722d6f957d9972	dd42dcbb10257d36	249ccc5df3ad4ed3
 src/loom/ai-agent4j-loom/src/test/resources/concurrency-test.loom	2f779b33ccf5a662	ec11f3d8d840a439	a61c7ca65dfdf8c0
 src/loom/ai-agent4j-loom/src/test/resources/docs/depth_examples.loom	0b0b37c9b31bc858	8362062400b2bd90	12880cacdfe7f4af
 src/loom/ai-agent4j-loom/src/test/resources/docs/readme_examples.loom	7ff5253bfc55d702	9dc415cfa6098204	51ac49445243b079
