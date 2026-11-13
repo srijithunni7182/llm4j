@@ -24,10 +24,20 @@ its own tests.
    the effect journal, and the model gets exactly-once behaviour without the tool doing anything more. Use `idempotencyKey`
    (stable across a repeat) if the receiver can deduplicate.
 
+**Say what it reaches.** Override `profile(options)` on the kind and return a `ToolProfile`: whether a tool with these options
+reads content from outside (`untrusted`), reaches the user's own data (`privateData`), sends or changes something beyond the run
+(`outward`), whether a call changes something (its effect level), whether its calls are journaled, the isolation it applies to a
+program it runs (`Isolation.NONE` when it runs none), and a one-line note. `ToolProfile.of(untrusted, privateData, outward,
+changes, note)` derives the effect level; add `.journaled(true)` when the tool is a `GenericTool`. The options are as the
+declaration wrote them, so a reference such as `env.NAME` arrives as that text, never its value. `weave audit`, `weave review`,
+the rewind checks and `weave test` read the profile; a kind that does not override it is assumed to reach everything and change
+things, so the audit flags every agent that holds it.
+
 ## Checklist
 
 - Secrets are listed in `secrets()` and never appear in an error, a trace or a result.
 - `check` touches neither the network nor the files, and names the option that is wrong.
+- `profile` says what a tool of the kind reaches, from its options as written, and has a test.
 - Every refusal is text starting `Error:` and says which rule refused, without echoing a secret.
 - A call that may have been delivered but whose answer was lost throws `UnknownOutcomeException`, not `ToolRefusal`.
 - Tests: the options table, each refusal, the failure paths, a hostile-call test, and a test that a repeat of the same call on the

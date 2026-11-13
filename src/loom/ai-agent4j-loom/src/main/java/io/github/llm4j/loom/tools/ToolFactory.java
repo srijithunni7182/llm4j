@@ -3,6 +3,7 @@ package io.github.llm4j.loom.tools;
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
 import io.github.llm4j.agent.tool.Effectful;
+import io.github.llm4j.agent.tool.ToolProfile;
 import io.github.llm4j.agent.tools.CalculatorTool;
 import io.github.llm4j.agent.tools.CurrentTimeTool;
 import io.github.llm4j.agent.tools.DateTimeTool;
@@ -62,10 +63,24 @@ public final class ToolFactory {
 
     private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
 
+    /** A factory that knows the built-in kinds: the ones {@link #standardKinds()} lists. */
     public ToolFactory() {
-        register(
+        standardKinds().forEach(this::register);
+    }
+
+    /**
+     * The kinds a script can name with no host code: one new instance of each, in the order they
+     * are listed. The one place the built-in kinds are listed (D3); what each reaches is its own
+     * {@link ToolKind#profile} (D2).
+     */
+    static java.util.List<ToolKind> standardKinds() {
+        java.util.List<ToolKind> out = new java.util.ArrayList<>();
+        java.util.function.Consumer<ToolKind> register = out::add;
+
+        register.accept(
                 simple(
                         "duckduckgo",
+                        o -> SEARCH_RESULTS,
                         Set.of(),
                         Set.of("base_url"),
                         Set.of(),
@@ -74,9 +89,10 @@ public final class ToolFactory {
                                         ? new DuckDuckGoSearchTool(
                                                 new OkHttpClient(), o.get("base_url"))
                                         : new DuckDuckGoSearchTool()));
-        register(
+        register.accept(
                 simple(
                         "serpapi",
+                        o -> SEARCH_RESULTS,
                         Set.of("api_key"),
                         Set.of("base_url"),
                         Set.of("api_key"),
@@ -87,38 +103,43 @@ public final class ToolFactory {
                                                 new OkHttpClient(),
                                                 o.get("base_url"))
                                         : new SerpApiSearchTool(o.get("api_key"))));
-        register(
+        register.accept(
                 simple(
                         "google_search",
+                        o -> SEARCH_RESULTS,
                         Set.of("api_key", "cx"),
                         Set.of(),
                         Set.of("api_key"),
                         (n, o, dir) -> new WebSearchTool(o.get("api_key"), o.get("cx"))));
-        register(new OpenApiKind());
-        register(
+        register.accept(new OpenApiKind());
+        register.accept(
                 simple(
                         "calculator",
+                        o -> ToolProfile.of(false, false, false, false, "calculator"),
                         Set.of(),
                         Set.of(),
                         Set.of(),
                         (n, o, dir) -> new CalculatorTool()));
-        register(
+        register.accept(
                 simple(
                         "datetime",
+                        o -> ToolProfile.of(false, false, false, false, "datetime"),
                         Set.of(),
                         Set.of(),
                         Set.of(),
                         (n, o, dir) -> new DateTimeTool()));
-        register(
+        register.accept(
                 simple(
                         "current_time",
+                        o -> ToolProfile.of(false, false, false, false, "current_time"),
                         Set.of(),
                         Set.of(),
                         Set.of(),
                         (n, o, dir) -> new CurrentTimeTool()));
-        register(
+        register.accept(
                 simple(
                         "class",
+                        o -> ReachDeclaration.profile(o.get(REACH), "Java class " + o.get("class")),
                         Set.of("class"),
                         Set.of(),
                         Set.of(),
@@ -135,17 +156,24 @@ public final class ToolFactory {
                             }
                             return (Tool) c.getDeclaredConstructor().newInstance();
                         }));
-        LanguageTools.registerAll(this);
-        register(new GenericKindAdapter(new io.github.llm4j.tools.WebhookKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.FileKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.HttpKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.EmailKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.ShellKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.SqlKind()));
-        register(new GraphKind());
-        register(
+        LanguageTools.registerAll(register);
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.WebhookKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.FileKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.HttpKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.EmailKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ShellKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.SqlKind()));
+        register.accept(new GraphKind());
+        register.accept(
                 simple(
                         "skill_registry",
+                        o ->
+                                ToolProfile.of(
+                                        true,
+                                        false,
+                                        false,
+                                        false,
+                                        "skills fetched from " + o.get("url")),
                         Set.of("url"),
                         Set.of("api_key"),
                         Set.of("api_key"),
@@ -156,6 +184,35 @@ public final class ToolFactory {
                             if (o.containsKey("api_key")) b.apiKey(o.get("api_key"));
                             return new io.github.llm4j.agent.tool.SkillDiscoveryTool(b.build());
                         }));
+        return out;
+    }
+
+    /** What a search kind's results are: content from the web, nothing else. */
+    private static final ToolProfile SEARCH_RESULTS =
+            ToolProfile.of(true, false, false, false, "web search results");
+
+    /** The built-in kinds by name, made on first use. */
+    private static final class Standard {
+        static final Map<String, ToolKind> KINDS = byName(standardKinds());
+    }
+
+    private static Map<String, ToolKind> byName(List<ToolKind> list) {
+        Map<String, ToolKind> out = new LinkedHashMap<>();
+        list.forEach(k -> out.put(k.name(), k));
+        return java.util.Collections.unmodifiableMap(out);
+    }
+
+    /** The names of the built-in kinds, sorted. */
+    public static Set<String> standardKindNames() {
+        return java.util.Collections.unmodifiableSet(new TreeSet<>(Standard.KINDS.keySet()));
+    }
+
+    /**
+     * The built-in kind of this name, for asking what it reaches ({@link ToolKind#profile}). Never
+     * used to build a tool: a tool is built by a factory, which holds its own kinds.
+     */
+    public static java.util.Optional<ToolKind> standardKind(String name) {
+        return java.util.Optional.ofNullable(Standard.KINDS.get(name));
     }
 
     @FunctionalInterface
@@ -165,6 +222,7 @@ public final class ToolFactory {
 
     private static ToolKind simple(
             String kind,
+            Function<Map<String, String>, ToolProfile> profile,
             Set<String> required,
             Set<String> optional,
             Set<String> secrets,
@@ -188,6 +246,11 @@ public final class ToolFactory {
             @Override
             public Set<String> secrets() {
                 return secrets;
+            }
+
+            @Override
+            public ToolProfile profile(Map<String, String> options) {
+                return profile.apply(options);
             }
 
             @Override

@@ -2,11 +2,13 @@ package io.github.llm4j.tools;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.ToolProfile;
 import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -69,5 +71,11 @@ public final class SqlKind extends GenericKind {
     private static String scheme(String url) {
         String[] parts = url.split(":", 3);
         return parts.length >= 2 ? parts[0] + ":" + parts[1] : "that kind of URL";
+    }
+
+    /** What a tool of this kind reaches, for an audit; its calls go through the effect journal. */
+    @Override
+    public ToolProfile profile(Map<String, String> options) {
+        return ToolProfile.of(false, true, false, false, "read-only queries").journaled(true);
     }
 }

@@ -2,8 +2,10 @@ package io.github.llm4j.tools;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.ToolProfile;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -73,5 +75,19 @@ public final class EmailKind extends GenericKind {
 
     static Duration maxTimeout() {
         return Duration.ofMinutes(5);
+    }
+
+    /** What a tool of this kind reaches, for an audit; its calls go through the effect journal. */
+    @Override
+    public ToolProfile profile(Map<String, String> options) {
+        return ToolProfile.of(
+                        false,
+                        false,
+                        true,
+                        true,
+                        options.get("to") != null
+                                ? "mails fixed recipients"
+                                : "mails recipients the agent chooses from allow_to")
+                .journaled(true);
     }
 }

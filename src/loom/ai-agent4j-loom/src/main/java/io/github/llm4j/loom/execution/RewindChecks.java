@@ -33,18 +33,6 @@ final class RewindChecks {
         UNKNOWN
     }
 
-    private static final Set<String> READ_ONLY_KINDS =
-            Set.of(
-                    "sql",
-                    "calculator",
-                    "datetime",
-                    "current_time",
-                    "web_search",
-                    "serpapi",
-                    "duckduckgo",
-                    "google_search");
-    private static final Set<String> EFFECT_KINDS = Set.of("webhook", "email", "shell");
-
     private final LoomScript script;
     private final ScriptValidator.Checker checker;
 
@@ -278,24 +266,21 @@ final class RewindChecks {
                 && "true".equals(d.getOptions().get("unattended").value());
     }
 
+    /**
+     * Whether a tool can have changed something before a rewind goes back over it. Asks what the
+     * audit asks ({@link io.github.llm4j.loom.security.Capabilities#resolve}: the kind's own
+     * profile and any {@code effect:} or {@code reach:} the developer wrote), so the rewind checks
+     * and the audit cannot disagree about a tool.
+     */
     Reach reach(String tool) {
-        ToolDef d = declaration(tool);
-        String kind = d == null ? tool : d.getKind();
-        if (READ_ONLY_KINDS.contains(kind)) return Reach.NONE;
-        if (EFFECT_KINDS.contains(kind)) return Reach.EFFECT;
-        if (kind.equals("file")) {
-            var mode = d == null ? null : d.getOptions().get("mode");
-            return mode != null && "read".equals(mode.value())
-                    ? Reach.NONE
-                    : (mode == null ? Reach.NONE : Reach.EFFECT);
-        }
-        if (kind.equals("http")) {
-            var methods = d == null ? null : d.getOptions().get("methods");
-            if (methods == null) return Reach.NONE;
-            return methods.value().toUpperCase().replace(" ", "").equals("GET")
-                    ? Reach.NONE
-                    : Reach.EFFECT;
-        }
-        return Reach.UNKNOWN;
+        java.util.Map<String, ToolDef> declared = new java.util.LinkedHashMap<>();
+        for (ToolDef d : script.getTools()) declared.put(d.getName(), d);
+        var c =
+                io.github.llm4j.loom.security.Capabilities.resolve(
+                        tool, declared, java.util.Map.of());
+        if (!c.known()) return Reach.UNKNOWN;
+        return c.level() == io.github.llm4j.agent.task.TaskEffect.CHANGES
+                ? Reach.EFFECT
+                : Reach.NONE;
     }
 }

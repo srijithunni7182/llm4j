@@ -2,8 +2,10 @@ package io.github.llm4j.tools;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.ToolProfile;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import okhttp3.HttpUrl;
 
@@ -63,5 +65,28 @@ public final class HttpKind extends GenericKind {
                 new HttpSupport(
                         policy, context, c.net().timeout(), c.maxBytes(), c.net().retries());
         return new HttpTool(name, c, http, redactor(o), context);
+    }
+
+    /** What a tool of this kind reaches, for an audit; its calls go through the effect journal. */
+    @Override
+    public ToolProfile profile(Map<String, String> options) {
+        String baseUrl = options.get("base_url");
+        String methods = options.get("methods");
+        boolean writes = writes(methods);
+        return ToolProfile.of(
+                        true,
+                        options.get("auth_value") != null || options.get("auth_header") != null,
+                        writes,
+                        writes,
+                        writes ? "calls " + baseUrl + " with " + methods : "reads from " + baseUrl)
+                .journaled(true);
+    }
+
+    /** Whether {@code methods} (a comma-separated list) names any method other than GET. */
+    private static boolean writes(String methods) {
+        if (methods == null) return false;
+        for (String m : methods.split(","))
+            if (!m.strip().equalsIgnoreCase("GET") && !m.isBlank()) return true;
+        return false;
     }
 }

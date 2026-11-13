@@ -2,6 +2,7 @@ package io.github.llm4j.tools;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.ToolProfile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -179,5 +180,12 @@ public final class ShellKind extends GenericKind {
         if (!Files.isDirectory(dir))
             throw new OptionException("cwd: " + cwd + " is not a directory");
         return dir;
+    }
+
+    /** What a tool of this kind reaches, for an audit; its calls go through the effect journal. */
+    @Override
+    public ToolProfile profile(Map<String, String> options) {
+        return ToolProfile.of(false, true, true, true, "runs " + options.get("allow"))
+                .journaled(true);
     }
 }

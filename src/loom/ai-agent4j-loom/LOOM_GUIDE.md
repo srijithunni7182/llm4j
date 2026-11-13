@@ -801,7 +801,7 @@ So after a rewind the agents think again, but a Slack message with the same text
 | `keep` | The rewind goes ahead. Identical calls are found again, not repeated; a different call (other text) runs, and the trace says "a different effect after a rewind". |
 | `repeat` | The rewind goes ahead and every effect runs again. Each tool involved must be approved (`approve:`) or `unattended`. |
 
-`weave check` warns when the steps a rewind goes back over can change things outside the run, and asks you to say which you mean. The simplest safe design is to put the checkpoint, and the check that triggers the rewind, *before* the steps with effects.
+`weave check` warns when the steps a rewind goes back over can change things outside the run, and asks you to say which you mean. A tool counts when `weave audit` says it can change something: its kind's own answer, or the `effect:` you declared on it. The simplest safe design is to put the checkpoint, and the check that triggers the rewind, *before* the steps with effects.
 
 What a rewind does **not** undo: facts an agent saved with `memory { facts }`, knowledge indexes, and anything else a tool wrote outside the run. `weave check` warns about agents with fact memory. Going back also never un-sends anything.
 

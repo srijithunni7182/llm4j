@@ -9,16 +9,13 @@ import java.util.TreeMap;
 
 /**
  * A tool in a test case is never real. It answers from the case ({@code tools:}), counts its calls,
- * can be made to fail, and, for the kinds that act on the world (webhook, email, http, file, shell,
- * sql), records what it would have done (the tool, the kind, the target and a digest of the
- * arguments) so the case can assert on the effects. A call nobody scripted fails the case, except a
- * call to a tool that acts, which answers "ok" and is recorded.
+ * can be made to fail, and, for the kinds that act on the world (those whose calls are journaled:
+ * webhook, email, http, file, shell and sql among the built-ins), records what it would have done
+ * (the tool, the kind, the target and a digest of the arguments) so the case can assert on the
+ * effects. A call nobody scripted fails the case, except a call to a tool that acts, which answers
+ * "ok" and is recorded.
  */
 final class ScriptedTools {
-
-    /** The tool kinds that act on the world; their calls are recorded as effects. */
-    static final java.util.Set<String> EFFECT_KINDS =
-            java.util.Set.of("webhook", "email", "http", "file", "shell", "sql");
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -32,7 +29,10 @@ final class ScriptedTools {
             boolean repeatLast,
             Recorder recorder) {
         String kind = declared == null || declared.getKind() == null ? "" : declared.getKind();
-        boolean acts = EFFECT_KINDS.contains(kind);
+        // a kind whose calls are journaled acts on the world: its calls are recorded as effects
+        boolean acts =
+                !kind.isEmpty()
+                        && io.github.llm4j.loom.security.Capabilities.profile(declared).journaled();
         String target = declared == null ? "" : target(declared);
         return new Tool() {
             @Override

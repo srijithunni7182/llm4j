@@ -489,9 +489,6 @@ public final class WhatIf {
 
     // ---- effects
 
-    private static final Set<String> EFFECT_KINDS =
-            Set.of("webhook", "email", "http", "file", "shell", "sql");
-
     private static EffectDelta effects(
             LoomScript script,
             LoomScript candidateScript,
@@ -533,7 +530,10 @@ public final class WhatIf {
                 if (!def.getName().equals(agent)) continue;
                 for (String tool : def.getTools()) {
                     ToolDef t = tools.get(tool);
-                    if (t != null && t.getKind() != null && EFFECT_KINDS.contains(t.getKind()))
+                    // a tool whose calls are journaled is one whose calls are effects
+                    if (t != null
+                            && t.getKind() != null
+                            && io.github.llm4j.loom.security.Capabilities.profile(t).journaled())
                         out.add(new Effect(step, statement, tool + " (" + t.getKind() + ")"));
                 }
             }

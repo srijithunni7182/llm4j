@@ -2,8 +2,10 @@ package io.github.llm4j.tools;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.ToolProfile;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import okhttp3.HttpUrl;
 
@@ -59,5 +61,11 @@ public final class WebhookKind extends GenericKind {
                 new HttpSupport(
                         policy, context, config.net().timeout(), 16 * 1024, config.net().retries());
         return new WebhookTool(name, config, http, redactor, context);
+    }
+
+    /** What a tool of this kind reaches, for an audit; its calls go through the effect journal. */
+    @Override
+    public ToolProfile profile(Map<String, String> options) {
+        return ToolProfile.of(false, false, true, true, "posts to a fixed URL").journaled(true);
     }
 }

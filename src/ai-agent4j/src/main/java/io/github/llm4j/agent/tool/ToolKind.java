@@ -49,6 +49,22 @@ public interface ToolKind {
         return null;
     }
 
+    /**
+     * What a tool of this kind with these options reaches and does, for an audit. {@code options}
+     * are as written in the declaration: a reference to the environment or a secret store stays its
+     * reference text, never its value. Touches neither the network nor the files.
+     *
+     * <p>A kind that does not override this is assumed to reach everything and change things
+     * ({@link ToolProfile#unknown}): an audit never trusts a kind that has not said.
+     */
+    default ToolProfile profile(Map<String, String> options) {
+        return ToolProfile.unknown(
+                "tool kind \""
+                        + name()
+                        + "\" does not say what it reaches, so it is assumed to"
+                        + " reach everything");
+    }
+
     /** What is wrong with the options, or null. Touches neither the network nor the files. */
     String check(Map<String, String> options, Path baseDir);
 

@@ -18,28 +18,7 @@ public final class PlanChecker {
      * The tool kinds the language has built in, and {@code class} (a stub the developer writes).
      */
     public static final Set<String> KINDS =
-            Set.of(
-                    "duckduckgo",
-                    "serpapi",
-                    "google_search",
-                    "calculator",
-                    "datetime",
-                    "current_time",
-                    "translate",
-                    "transliterate",
-                    "detect_language",
-                    "speak",
-                    "transcribe",
-                    "webhook",
-                    "email",
-                    "http",
-                    "file",
-                    "shell",
-                    "sql",
-                    "openapi",
-                    "knowledge_graph",
-                    "skill_registry",
-                    "class");
+            io.github.llm4j.loom.tools.ToolFactory.standardKindNames();
 
     public static final Set<String> REACHES = Set.of("none", "reads", "fetches", "writes", "sends");
 

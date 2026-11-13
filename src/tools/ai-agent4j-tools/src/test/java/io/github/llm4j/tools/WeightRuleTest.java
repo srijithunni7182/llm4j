@@ -68,6 +68,7 @@ class WeightRuleTest {
                                         "   a.b:mail:jar:2.0:compile (optional) -- module mail",
                                         "   a.b:junit:jar:5:test",
                                         "   a.b:extra:jar:1:runtime")))
-                .containsExactly("a.b:core:compile", "a.b:extra:runtime", "a.b:mail:compile (optional)");
+                .containsExactly(
+                        "a.b:core:compile", "a.b:extra:runtime", "a.b:mail:compile (optional)");
     }
 }

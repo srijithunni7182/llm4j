@@ -2,8 +2,10 @@ package io.github.llm4j.tools;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.ToolProfile;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -43,5 +45,19 @@ public final class FileKind extends GenericKind {
         } catch (IllegalArgumentException e) {
             throw new OptionException("root: " + e.getMessage());
         }
+    }
+
+    /** What a tool of this kind reaches, for an audit; its calls go through the effect journal. */
+    @Override
+    public ToolProfile profile(Map<String, String> options) {
+        String mode = options.getOrDefault("mode", "read");
+        String root = options.getOrDefault("root", ".");
+        return ToolProfile.of(
+                        false,
+                        mode.contains("read"),
+                        false,
+                        !mode.equals("read"),
+                        mode + " in " + root)
+                .journaled(true);
     }
 }
