@@ -38,7 +38,7 @@ llm4j:
     store: env                       # env, encrypted-file or chained
   clients:
     default:
-      provider: anthropic            # gemini, anthropic, ollama or sarvam
+      provider: anthropic            # gemini, anthropic, ollama, sarvam, openai, xai, kimi, qwen, perplexity, …
       model: claude-sonnet-5-5
       api-key-secret: ANTHROPIC_API_KEY
     cheap:

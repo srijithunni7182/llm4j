@@ -64,7 +64,7 @@ class ProvidersTest {
         var e =
                 h.executor(
                         """
-                agent A { model: "sarvam/sarvam-m" }
+                agent A { model: "sarvam/sarvam-105b" }
                 workflow Main() { delegate "hello" to A -> out }
                 """,
                         new DefaultLLMClientFactory(env::get),
@@ -72,9 +72,12 @@ class ProvidersTest {
         e.initialize();
         e.executeWorkflow("Main", Map.of());
         RecordedRequest r = server.takeRequest();
-        assertThat(r.getPath()).isEqualTo("/v1/chat/completions");
+        // the V2 API, on the same key and base URL the older V1 provider used
+        assertThat(r.getPath()).isEqualTo("/v2/chat/completions");
         assertThat(r.getHeader("api-subscription-key")).isEqualTo("sk");
-        assertThat(r.getBody().readUtf8()).contains("\"model\":\"sarvam-m\"");
+        assertThat(r.getBody().readUtf8())
+                .contains("\"model\":\"sarvam-105b\"")
+                .contains("\"reasoning_effort\":\"none\"");
         assertThat(e.getContext().getVariable("out")).isEqualTo("hi");
     }
 

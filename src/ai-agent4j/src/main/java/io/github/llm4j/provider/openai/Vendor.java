@@ -31,6 +31,11 @@ public enum Vendor {
      * Alibaba's Qwen through DashScope. Preview until its fixtures are recorded from the real API.
      */
     QWEN("qwen", Dialect.QWEN, null, true),
+    /**
+     * Sarvam AI's V2 chat completions: {@code sarvam-105b} and the Token Factory's open-weight
+     * models.
+     */
+    SARVAM("sarvam", Dialect.SARVAM, null, false),
     /** Perplexity's Agent API (Responses schema). */
     PERPLEXITY("perplexity", null, ResponsesDialect.PERPLEXITY, false),
     /** Perplexity's Orchestrator API (private preview). */
@@ -78,6 +83,7 @@ public enum Vendor {
             case XAI -> "xAI (Grok)";
             case KIMI -> "Moonshot (Kimi)";
             case QWEN -> "Alibaba (Qwen via DashScope)";
+            case SARVAM -> "Sarvam AI";
             case PERPLEXITY -> "Perplexity (Agent API)";
             case PERPLEXITY_ROUTER -> "Perplexity (Orchestrator API)";
             case OPENAI_COMPATIBLE -> "an OpenAI-compatible server";
@@ -150,10 +156,10 @@ public enum Vendor {
 
     /**
      * Resolves a model name: an explicit prefix always works ({@code openai/gpt-5-mini}, {@code
-     * perplexity/openai/gpt-5.6-sol}); a bare name only when no other vendor could own it ({@code
-     * gpt-*}, {@code o1}/{@code o3}/{@code o4}, {@code chatgpt-*} → OpenAI; {@code grok-*} → xAI;
-     * {@code kimi-*}, {@code moonshot-*} → Kimi). {@code qwen3} stays unresolved because it usually
-     * means a local Ollama model, and so does {@code gpt-oss}.
+     * perplexity/openai/gpt-5.6-sol}, {@code sarvam/glm5.3}); a bare name only when no other vendor
+     * could own it ({@code gpt-*}, {@code o1}/{@code o3}/{@code o4}, {@code chatgpt-*} → OpenAI;
+     * {@code grok-*} → xAI; {@code kimi-*}, {@code moonshot-*} → Kimi). {@code qwen3} stays
+     * unresolved because it usually means a local Ollama model, and so does {@code gpt-oss}.
      */
     public static Optional<Resolved> ofModel(String name) {
         if (name == null || name.isBlank()) return Optional.empty();

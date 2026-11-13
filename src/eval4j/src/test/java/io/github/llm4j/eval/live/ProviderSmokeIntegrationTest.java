@@ -48,7 +48,7 @@ import org.junit.jupiter.api.Test;
  * <p>Opt-in: {@code mvn -pl src/eval4j -Plive test -Dtest=ProviderSmokeIntegrationTest}. A {@link
  * SpendGuard} caps each vendor (default US$0.25, {@code SMOKE_CAP_USD}); prompts are tiny and
  * outputs are short. Keys come from {@code OPENAI_API_KEY}, {@code XAI_API_KEY}, {@code
- * PERPLEXITY_API_KEY}, {@code MOONSHOT_API_KEY}, {@code DASHSCOPE_API_KEY}, {@code
+ * PERPLEXITY_API_KEY}, {@code MOONSHOT_API_KEY}, {@code DASHSCOPE_API_KEY}, {@code SARVAM_API_KEY}, {@code
  * ANTHROPIC_API_KEY} (or {@code SPIKE_ANTHROPIC_KEY}) and {@code GEMINI_API_KEY} (or {@code
  * SMOKE_GEMINI_API_KEY}); a vendor without a key is skipped. {@code SMOKE_ONLY=openai,xai} limits
  * the run. Raw responses go to {@code target/smoke/<vendor>/}, with a summary in {@code
@@ -169,6 +169,17 @@ class ProviderSmokeIntegrationTest {
                             "qwen3.8-flash",
                             c -> new OpenAiCompatibleProvider(Dialect.QWEN, c),
                             false,
+                            Map.of()),
+                    new Vendor(
+                            "sarvam",
+                            "sarvam",
+                            List.of("SARVAM_API_KEY"),
+                            "https://api.sarvam.ai",
+                            "",
+                            "sarvam-105b",
+                            "deepseekv4.1-flash-1017",
+                            c -> new OpenAiCompatibleProvider(Dialect.SARVAM, c),
+                            true,
                             Map.of()));
 
     /** What happened in one step. */

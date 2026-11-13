@@ -27,7 +27,8 @@ import org.junit.jupiter.api.Test;
  * LLM4J_LIVE_MP4} to name a short clip of a solid red screen.
  *
  * <p>Keys: {@code ANTHROPIC_API_KEY}, {@code GEMINI_API_KEY}, {@code OPENAI_API_KEY}, {@code
- * XAI_API_KEY}. Each client is metered against {@link LiveTargets#budget(String)}.
+ * XAI_API_KEY}, {@code SARVAM_API_KEY}. Each client is metered against {@link
+ * LiveTargets#budget(String)}.
  */
 @Tag("live")
 class LiveMediaTest {
@@ -92,6 +93,15 @@ class LiveMediaTest {
                                 .build()));
     }
 
+    private static LLMClient sarvam(String model) {
+        String key = LiveTargets.env("SARVAM_API_KEY");
+        assumeTrue(key != null, "SARVAM_API_KEY not set");
+        return metered(
+                "sarvam",
+                OpenAiCompatibleProvider.sarvam(
+                        LLMConfig.builder().apiKey(key).defaultModel(model).build()));
+    }
+
     private static String ask(LLMClient client, String question, Media media) {
         LLMResponse response =
                 client.chat(
@@ -131,6 +141,18 @@ class LiveMediaTest {
     @Test
     void xaiSeesAPicture() {
         assertThat(ask(xai(), COLOUR_QUESTION, LiveMedia.redPicture())).containsIgnoringCase("red");
+    }
+
+    @Test
+    void sarvamGemmaSeesAPicture() {
+        assertThat(ask(sarvam("gemma4"), COLOUR_QUESTION, LiveMedia.redPicture()))
+                .containsIgnoringCase("red");
+    }
+
+    @Test
+    void sarvamGlmFlashSeesAPicture() {
+        assertThat(ask(sarvam("glm5.3-flash"), COLOUR_QUESTION, LiveMedia.redPicture()))
+                .containsIgnoringCase("red");
     }
 
     // ── PDFs ───────────────────────────────────────────────────────────────────────────────

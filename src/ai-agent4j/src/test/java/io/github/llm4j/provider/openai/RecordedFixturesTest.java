@@ -52,6 +52,10 @@ class RecordedFixturesTest {
                         c -> new OpenAiCompatibleProvider(Dialect.XAI, c),
                         "grok-4.20-0309-non-reasoning"),
                 new Vendor(
+                        "sarvam",
+                        c -> new OpenAiCompatibleProvider(Dialect.SARVAM, c),
+                        "sarvam-105b"),
+                new Vendor(
                         "perplexity-agent",
                         c -> new OpenAiResponsesProvider(ResponsesDialect.PERPLEXITY, c),
                         "openai/gpt-6-luna"));

@@ -43,7 +43,7 @@ agent Helpline {
 }
 
 agent Local  { model: "Box/llama3" }
-agent Indic  { model: "Team/sarvam-m" }
+agent Indic  { model: "Team/sarvam-105b" }
 
 agent Coach  { model: "gemini-2.5-flash"  persona: Mentor  system: "Review the student's pull request." }
 

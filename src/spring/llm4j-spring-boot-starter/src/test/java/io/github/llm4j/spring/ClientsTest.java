@@ -139,7 +139,7 @@ class ClientsTest {
                             "llm4j.clients.o.model=llama3",
                             "llm4j.clients.o.base-url=" + ollama.url(),
                             "llm4j.clients.s.provider=sarvam",
-                            "llm4j.clients.s.model=sarvam-m",
+                            "llm4j.clients.s.model=sarvam-105b",
                             "llm4j.clients.s.api-key-secret=S",
                             "llm4j.clients.s.base-url=" + sarvam.url(),
                             "llm4j.primary=a",
@@ -162,7 +162,7 @@ class ClientsTest {
                                 assertThat(ollama.seen).hasSize(1);
                                 assertThat(ollama.lastPath()).isEqualTo("/api/chat");
                                 assertThat(sarvam.seen).hasSize(1);
-                                assertThat(sarvam.lastPath()).isEqualTo("/v1/chat/completions");
+                                assertThat(sarvam.lastPath()).isEqualTo("/v2/chat/completions");
                             });
         }
     }

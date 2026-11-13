@@ -114,7 +114,7 @@ weave secrets set GEMINI_API_KEY --secrets keys.store --allow-host generativelan
 
 - You can mix modes: `ChainedSecretStore.of(vaultStore, encryptedFile, EnvSecretStore.system())` uses the first store that has the name.
 - `allowedHosts` (via `SecretMetadata.allowing("host")` when you `put`) stops a key being sent anywhere but its provider.
-- The same `SecretRef` works for every provider (`GoogleProvider`, `AnthropicProvider`, `SarvamChatProvider`), embeddings and tools such as search and OpenAPI.
+- The same `SecretRef` works for every provider (`GoogleProvider`, `AnthropicProvider`, `OpenAiCompatibleProvider`), embeddings and tools such as search and OpenAPI.
 - A key must never be committed to your repository or logged. If one ever is, revoke it at the provider.
 
 The full API, and what the encrypted file protects, is in the [Secret Store](Secret-Store.md) guide.
@@ -140,7 +140,7 @@ public class HelloLLM {
                 .build();
         
         // 2. Create client. To use another provider, swap this one line:
-        //    new AnthropicProvider(config), new SarvamChatProvider(config) or new OllamaProvider(config)
+        //    new AnthropicProvider(config), OpenAiCompatibleProvider.sarvam(config) or new OllamaProvider(config)
         LLMClient client = new DefaultLLMClient(
             new GoogleProvider(config)
         );

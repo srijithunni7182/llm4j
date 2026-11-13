@@ -4,7 +4,7 @@ The `llm4j` library provides comprehensive support for [Sarvam AI](https://sarva
 
 ## Features
 
-- **Chat Completions**: Conversational AI models optimized for Indian languages (e.g., `sarvam-m`, `gemma-4b`).
+- **Chat Completions (V2)**: Sarvam's own `sarvam-105b` and the open-weight models of its [Token Factory](https://docs.sarvam.ai/api/token-factory/models) (`glm5.3`, `glm5.3-flash`, `gemma4`, `deepseekv4.1-flash-1017`, and provisioned models such as `kimi-k3.1-pro` and `qwen38-27b`) on the same key, with native tools, streaming reasoning, structured output and pictures.
 - **Speech-to-Text (STT)**: High-accuracy ASR (Automatic Speech Recognition) for Indian languages.
 - **Text-to-Speech (TTS)**: Natural sounding speech synthesis.
 - **Translation**: Translate between English and various Indian languages.
@@ -28,15 +28,22 @@ To use Sarvam AI providers, you need a Sarvam API key.
 
 ### Chat
 
+Chat goes through `OpenAiCompatibleProvider.sarvam`, which calls Sarvam's V2 chat completions (`https://api.sarvam.ai/v2/chat/completions`):
+
 ```java
-SarvamChatProvider chatProvider = new SarvamChatProvider(config);
-LLMRequest request = LLMRequest.builder()
-        .messages(List.of(Message.user("Namaste!")))
-        .model("sarvam-m")
-        .build();
-LLMResponse response = chatProvider.chat(request);
+LLMClient client = new DefaultLLMClient(OpenAiCompatibleProvider.sarvam(config));
+LLMResponse response = client.chat(LLMRequest.builder()
+        .addUserMessage("Namaste!")
+        .model("sarvam-105b")                 // or "glm5.3", "gemma4", "deepseekv4.1-flash-1017", …
+        .build());
 System.out.println(response.getContent());
 ```
+
+- **Thinking.** `sarvam-105b`, the DeepSeek and the Qwen models think by default; the provider sends `reasoning_effort: "none"` unless a streamed call asks to see reasoning (`LLMRequest.Builder.reasoning(true)`). `gemma4` thinks only when asked. GLM and Kimi always think. For another effort, `addParameter("reasoning_effort", "high")`.
+- **Tools, schemas and pictures.** Every chat model takes native tools and a JSON-Schema `responseFormat`. `gemma4`, `glm5.3-flash`, the DeepSeek flash models, `kimi-k3.1-pro` and `qwen38-27b` take pictures.
+- **In Loom**, `model: "sarvam/glm5.3"` (or `provider Box { use: sarvam }`); **in Spring**, `provider: sarvam`. Both read `SARVAM_API_KEY` and, optionally, `SARVAM_BASE_URL` (the host, without `/v2`).
+- **Provisioned models** (`deepseekv4-pro`, `kimi-k3.1-pro`, `qwen38-27b`, …) answer 404 until Sarvam grants your organisation access. To see what your key can use, call `OpenAiCompatibleProvider.sarvam(config).listModels()` (`GET /v2/models`).
+- **`sarvam-m` is no longer served.** `SarvamChatProvider`, the V1 text-only provider, is deprecated and now defaults to `sarvam-105b`; move to `OpenAiCompatibleProvider.sarvam`. See [OpenAI-family providers](../wiki/OpenAI-Family-Providers.md#sarvam-ai-and-its-token-factory) for what the dialect sends.
 
 ### Speech-to-Text (STT)
 
@@ -80,7 +87,7 @@ You can create agents that "speak" and "listen" using Sarvam's TTS and STT capab
 
 ```java
 ReActAgent agent = ReActAgent.builder()
-        .llmClient(new DefaultLLMClient(new SarvamChatProvider(config)))
+        .llmClient(new DefaultLLMClient(OpenAiCompatibleProvider.sarvam(config)))
         .ttsProvider(new SarvamTextToSpeechProvider(config))
         .sttProvider(new SarvamAudioProvider(config))
         .audioPlayer(new JavaAudioPlayer()) // Enable audio playback

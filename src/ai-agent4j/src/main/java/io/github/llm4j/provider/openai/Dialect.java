@@ -16,9 +16,9 @@ import java.util.function.Function;
  * {@link ModelTraits}.
  *
  * <p>The built-ins are {@link #OPENAI}, {@link #XAI}, {@link #KIMI}, {@link #QWEN}, {@link
- * #PERPLEXITY_ROUTER} and {@link #GENERIC}, which has no base URL of its own: give it one (and, for
- * gateways that want it, another header name or fixed query parameters) to reach DeepSeek, Groq,
- * Together, vLLM, LM Studio and the like.
+ * #SARVAM}, {@link #PERPLEXITY_ROUTER} and {@link #GENERIC}, which has no base URL of its own: give
+ * it one (and, for gateways that want it, another header name or fixed query parameters) to reach
+ * DeepSeek, Groq, Together, vLLM, LM Studio and the like.
  */
 public final class Dialect {
 
@@ -359,6 +359,31 @@ public final class Dialect {
                     .baseUrlEnv("PERPLEXITY_ROUTER_BASE_URL")
                     .modelsPath(null)
                     .hosts(List.of("api.perplexity.ai"))
+                    .build();
+
+    /**
+     * Sarvam AI's chat completions (V2), which serves Sarvam's own {@code sarvam-105b} and the
+     * open-weight models of its Token Factory ({@code glm5.3}, {@code gemma4}, {@code
+     * deepseekv4.1-flash-1017}, {@code kimi-k3.1-pro}, {@code qwen38-27b}, …) on the same key. The
+     * base URL is the host ({@code https://api.sarvam.ai}) and the version is in the path, so a
+     * {@code SARVAM_BASE_URL} written for the older V1 provider still works. Its fixtures are
+     * recorded from the real API.
+     */
+    public static final Dialect SARVAM =
+            builder("sarvam")
+                    .defaultBaseUrl("https://api.sarvam.ai")
+                    .chatPath("/v2/chat/completions")
+                    .modelsPath("/v2/models")
+                    .maxTokensField("max_tokens")
+                    .authHeader("api-subscription-key", "")
+                    .thinkTags(true)
+                    .keyEnv("SARVAM_API_KEY")
+                    .baseUrlEnv("SARVAM_BASE_URL")
+                    .hosts(List.of("api.sarvam.ai"))
+                    .traits(ModelTraits::sarvam)
+                    .fallbackModel("sarvam-105b")
+                    .structuredOutputModels(MediaModels.SARVAM_CHAT)
+                    .mediaModels(io.github.llm4j.model.MediaKind.IMAGE, MediaModels.SARVAM_SEES)
                     .build();
 
     /**
