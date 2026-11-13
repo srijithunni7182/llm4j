@@ -122,13 +122,13 @@ The heavy-lifting pieces, kept out of the core so it stays light:
 - **Local embeddings**: ONNX and DJL models on your own machine, with no API calls and no per-token cost.
 - **Persistent vector stores**: PostgreSQL with pgvector, or Pinecone.
 
-### 🔧 [Tools](../src/ai-agent4j-tools/): *"How do I let an agent act on the world safely?"*
+### 🔧 [Tools](../src/tools/ai-agent4j-tools/): *"How do I let an agent act on the world safely?"*
 
 Ready-made tools built for the case where the model picks the arguments: `webhook` (Slack, Discord, Teams),
 `email`, `http`, `file`, `shell` and read-only `sql`. Each has allow-lists, size and time limits, secrets scrubbed from
 every result, and a journal so a crash never repeats a send. Use them from Java, or from a Loom script with no Java.
 The contracts they implement (`ToolKind`, `Effectful`, `EffectJournal`) live in the core `ai-agent4j`; this module is the
-implementations, with [its own documentation](../src/ai-agent4j-tools/docs/README.md).
+implementations, with [its own documentation](../src/tools/ai-agent4j-tools/docs/README.md).
 
 ### 🏷️ Classification (since 6.1.0): *"Which of these is it?"*
 

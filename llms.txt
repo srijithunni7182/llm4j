@@ -55,9 +55,9 @@ Key facts:
 
 ## ai-agent4j-tools (tools built for a hostile caller)
 
-- [Tools documentation](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j-tools/docs/README.md): `webhook` (Slack, Discord, Teams), `email`, `http`, `file`, `shell` and read-only `sql`. Each has allow-lists, internal-address blocking, size and time caps, and secrets scrubbed from results. A journal makes sure a crash never repeats a send. Use them from Java or from Loom.
-- [Safety model](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j-tools/docs/safety.md): what a hostile call tries, what stops it, and what the tools don't do
-- [Writing a tool](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j-tools/docs/writing-a-tool.md): building your own on the same contracts
+- [Tools documentation](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/ai-agent4j-tools/docs/README.md): `webhook` (Slack, Discord, Teams), `email`, `http`, `file`, `shell` and read-only `sql`. Each has allow-lists, internal-address blocking, size and time caps, and secrets scrubbed from results. A journal makes sure a crash never repeats a send. Use them from Java or from Loom.
+- [Safety model](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/ai-agent4j-tools/docs/safety.md): what a hostile call tries, what stops it, and what the tools don't do
+- [Writing a tool](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/ai-agent4j-tools/docs/writing-a-tool.md): building your own on the same contracts
 
 ## Loom (workflows that run for days)
 

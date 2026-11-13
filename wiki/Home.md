@@ -21,7 +21,7 @@ Each module answers the question the previous one raises.
 | **Loom** | How do many agents work together, reliably, for days? | [Overview](../src/loom/ai-agent4j-loom/README.md) · [Language guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md) |
 | **Engram** | How does an agent remember without drowning in context? | [Engram](../src/engram/engram-core/README.md) · [Loom + Engram workflows](../docs/AGENTIC_WORKFLOWS_GUIDE.md) |
 | **Addons** | How do I keep my data private and my costs at zero? | [Addons](../src/ai-agent4j-addons/) (ONNX and DJL embeddings, pgvector, Pinecone) |
-| **Tools** | How do I let an agent act on the world safely? | [Ready-made tools](../src/ai-agent4j-tools/docs/README.md) (`webhook`, `email`, `http`, `file`, `shell`, `sql`) |
+| **Tools** | How do I let an agent act on the world safely? | [Ready-made tools](../src/tools/ai-agent4j-tools/docs/README.md) (`webhook`, `email`, `http`, `file`, `shell`, `sql`) |
 | **Observability** | How do I see what a workflow is doing right now? | [Overview](Observability.md) · [Fabric server](Fabric-Server.md) · [Deployer skill](Deployer-Skill.md) |
 | **eval4j** | How do I know it works, and keeps working? | [eval4j guide](../src/eval4j/README.md) · [Dashboard guide](../src/eval4j-report/docs/USER-GUIDE.md) |
 
@@ -34,7 +34,7 @@ Each module answers the question the previous one raises.
 - [Quick Start](../src/ai-agent4j/wiki/Getting-Started.md)
 - [ReAct Agent Guide](../src/ai-agent4j/wiki/ReAct-Agent-Guide.md)
 - [Providers and the Uniform Contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) · [Web-search grounding](../src/ai-agent4j/wiki/Web-Search-Grounding.md) · [Media input (pictures, PDFs, sound, video)](../src/ai-agent4j/wiki/Media-Input.md) · [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md) · [A2A](../src/ai-agent4j/wiki/A2A.md)
-- [Creating Custom Tools](../src/ai-agent4j/wiki/Creating-Custom-Tools.md) · [Ready-made tools](../src/ai-agent4j-tools/docs/README.md)
+- [Creating Custom Tools](../src/ai-agent4j/wiki/Creating-Custom-Tools.md) · [Ready-made tools](../src/tools/ai-agent4j-tools/docs/README.md)
 - [Agent Skills](../src/ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](../src/ai-agent4j/wiki/Agent-Personas.md) · [Prompt Registry](../src/ai-agent4j/wiki/Prompt-Registry-Guide.md)
 - [Memory](../src/ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](../src/ai-agent4j/wiki/SEMANTIC_MEMORY.md)
 - [RAG](../src/ai-agent4j/wiki/RAG-Support.md) · [Knowledge Graphs](../src/ai-agent4j/wiki/Knowledge-Graphs.md)

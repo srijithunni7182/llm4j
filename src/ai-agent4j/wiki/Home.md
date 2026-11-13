@@ -102,7 +102,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 | **[Loom](../../loom/ai-agent4j-loom/README.md)** | How do many agents work together, reliably, for days? |
 | **[Engram](../../engram/engram-core/README.md)** | How does an agent remember without drowning in context? |
 | **[Addons](../../ai-agent4j-addons/)** | Local ONNX and DJL embeddings, pgvector and Pinecone stores. |
-| **[Tools](../../ai-agent4j-tools/docs/README.md)** | Safe `webhook`, `email`, `http`, `file`, `shell` and read-only `sql` tools. |
+| **[Tools](../../tools/ai-agent4j-tools/docs/README.md)** | Safe `webhook`, `email`, `http`, `file`, `shell` and read-only `sql` tools. |
 | **[eval4j](../../eval4j/README.md)** | How do I know it works, and keeps working? |
 
 ---

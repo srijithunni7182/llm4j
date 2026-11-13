@@ -247,7 +247,7 @@ Every page begins with who it is for and ends with links to the README, the phil
 |---|---|
 | `README.md` (repository) | The stack table rows for ai-agent4j and Loom; a line in "Why llm4j"; the documentation list and the examples list, linking `docs/a2a/` and the starter |
 | `src/ai-agent4j/README.md` | A feature entry (call and expose agents over A2A as a facilitator), the documentation hub link, and the Java guide |
-| `src/ai-agent4j-tools/README.md` | That `NetPolicy` and `HttpSupport` are what a consumer's transport and link fetching should use to refuse private addresses |
+| `src/tools/ai-agent4j-tools/README.md` | That `NetPolicy` and `HttpSupport` are what a consumer's transport and link fetching should use to refuse private addresses |
 | `src/loom/README.md`, `src/loom/ai-agent4j-loom/README.md` | The new declarations and `ask` in the primitives table, `weave card`, and the Loom guide link |
 | `src/loom/vscode-loom/README.md` | The new keywords, the hover and completion for the new declarations, the graph kinds, the snippets list |
 | `src/loom/ctk/README.md` | The new scenarios |

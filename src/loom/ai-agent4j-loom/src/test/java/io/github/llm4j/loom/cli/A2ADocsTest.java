@@ -179,7 +179,7 @@ class A2ADocsTest {
 
     @Test
     void theReadmesOfAffectedProjectsLinkTheSet() throws Exception {
-        for (String readme : List.of("README.md", "docs/README.md", "src/ai-agent4j/README.md", "src/ai-agent4j-tools/README.md", "src/spring/llm4j-spring-boot-starter/README.md", "src/ai-agent4j/wiki/A2A.md")) {
+        for (String readme : List.of("README.md", "docs/README.md", "src/ai-agent4j/README.md", "src/tools/ai-agent4j-tools/README.md", "src/spring/llm4j-spring-boot-starter/README.md", "src/ai-agent4j/wiki/A2A.md")) {
             assertThat(read(ROOT.resolve(readme))).as(readme).containsAnyOf("docs/a2a/", "a2a/README.md");
         }
         assertThat(read(ROOT.resolve("src/ai-agent4j/wiki/Home.md"))).contains("(A2A.md)");

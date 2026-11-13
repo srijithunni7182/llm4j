@@ -10,7 +10,7 @@ llm4j is a Maven monorepo of Java libraries for building LLM agents and workflow
 |---|---|
 | `src/ai-agent4j` | Core: `LLMClient`, providers (`provider/openai`, `anthropic`, `google`, `ollama`, …), agents, tools, RAG, memory, budgets, the secret store, PII masking |
 | `src/ai-agent4j-addons` | Optional integrations built on the core |
-| `src/ai-agent4j-tools` | Ready-made tools (HTTP, shell, email, …) with their network policy (`NetPolicy`) and redaction (`Redactor`) |
+| `src/tools/ai-agent4j-tools` | Ready-made tools (HTTP, shell, email, …) with their network policy (`NetPolicy`) and redaction (`Redactor`) |
 | `src/eval4j`, `src/eval4j-report` | Evaluation: golden datasets, judges, reports |
 | `src/loom/ai-agent4j-loom` | Loom, the workflow language and runtime, and the `weave` CLI (check, audit, eval, run) |
 | `src/loom/loom-inspect-core`, `loom-inspect`, `loom-fabric` | Watching a run: inspection rules, the live run page, the Fabric server |

@@ -1,6 +1,6 @@
 # ai-agent4j-tools documentation
 
-Ready-made, guarded tools for agents built with [ai-agent4j](../../ai-agent4j/). The library overview and a Java quick start
+Ready-made, guarded tools for agents built with [ai-agent4j](../../../ai-agent4j/). The library overview and a Java quick start
 are in the [module README](../README.md); this folder is the reference.
 
 | Page | What it covers |

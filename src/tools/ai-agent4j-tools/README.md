@@ -1,6 +1,6 @@
 # ai-agent4j-tools
 
-Ready-made, guarded tools for [ai-agent4j](../ai-agent4j/) agents. They are written for the case where the model, not you,
+Ready-made, guarded tools for [ai-agent4j](../../ai-agent4j/) agents. They are written for the case where the model, not you,
 chooses the arguments, so each one limits what a hostile or mistaken model can do.
 
 | Tool | What it does | What limits it |
@@ -43,7 +43,7 @@ Tool slack = new WebhookKind().create("Slack", options, baseDir, myContext);
 ```
 
 `EffectContext` is a small interface in `ai-agent4j` (audit, trace, journal, current step, clock, sleeper);
-`EffectContext.noop()` is a starting point. [Loom](../loom/ai-agent4j-loom/) is one host that supplies a durable one, from its run journal.
+`EffectContext.noop()` is a starting point. [Loom](../../loom/ai-agent4j-loom/) is one host that supplies a durable one, from its run journal.
 
 ## From a Loom script
 
@@ -53,7 +53,7 @@ Loom registers these kinds, so a script needs no Java:
 tool Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
 ```
 
-See the Generic Tools section of the [Loom guide](../loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools).
+See the Generic Tools section of the [Loom guide](../../loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools).
 
 ## Where the contracts live
 
@@ -81,4 +81,4 @@ See [Writing a tool](docs/writing-a-tool.md).
 
 ## For an A2A transport
 
-A consumer's [A2A transport](../../docs/a2a/INTEGRATING.md) and its link fetching should use `NetPolicy` and `HttpSupport`: they refuse loopback, private and cloud-metadata addresses and keep a request under the declared base URL. llm4j's A2A support does not do this for you, by design.
+A consumer's [A2A transport](../../../docs/a2a/INTEGRATING.md) and its link fetching should use `NetPolicy` and `HttpSupport`: they refuse loopback, private and cloud-metadata addresses and keep a request under the declared base URL. llm4j's A2A support does not do this for you, by design.

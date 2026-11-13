@@ -10,7 +10,7 @@ SPEC=.kiro/specs/spring-boot-starter
 EVIDENCE="$ROOT/$SPEC/evidence"
 STARTER=src/spring/llm4j-spring-boot-starter
 LOOM=src/loom/ai-agent4j-loom
-LIBS="src/ai-agent4j,src/ai-agent4j-addons,src/ai-agent4j-tools,src/eval4j,src/eval4j-report,$LOOM,src/loom/loom-inspect-core,src/loom/loom-inspect,src/loom/loom-fabric"
+LIBS="src/ai-agent4j,src/ai-agent4j-addons,src/tools/ai-agent4j-tools,src/eval4j,src/eval4j-report,$LOOM,src/loom/loom-inspect-core,src/loom/loom-inspect,src/loom/loom-fabric"
 BUILD="$LIBS,$STARTER"
 BASELINE=185720cd   # the last commit before any starter code
 SHA=$(git rev-parse HEAD)
@@ -47,7 +47,7 @@ g1() {
   for i in 0 1 2; do
     echo "-- run $((i+1)) ${flags[$i]}" | tee -a "$out"
     # the random-order pass covers the modules this work touches or uses; the observe modules are unchanged and FabricEndToEndTest there is order-dependent at the baseline too (see G1 notes)
-    local mods="$BUILD"; [ "$i" -eq 2 ] && mods="src/ai-agent4j,src/ai-agent4j-addons,src/ai-agent4j-tools,$LOOM,$STARTER"
+    local mods="$BUILD"; [ "$i" -eq 2 ] && mods="src/ai-agent4j,src/ai-agent4j-addons,src/tools/ai-agent4j-tools,$LOOM,$STARTER"
     # shellcheck disable=SC2086
     if mvn -B -pl "$mods" verify ${flags[$i]} > "$EVIDENCE/.g1-run$i.log" 2>&1; then echo "   BUILD SUCCESS" | tee -a "$out"
     else echo "   BUILD FAILURE" | tee -a "$out"; FAILED+=("G1 run $((i+1))"); tail -40 "$EVIDENCE/.g1-run$i.log" >> "$out"; fi
@@ -146,7 +146,7 @@ g9() {
   local out="$EVIDENCE/G9-regression.txt" work
   { echo "commit $SHA; baseline $BASELINE"; date -u; } > "$out"
   local touched
-  touched=$(git diff --name-status "$BASELINE" -- 'src/ai-agent4j/src/test' 'src/ai-agent4j-addons/src/test' 'src/ai-agent4j-tools/src/test' 'src/eval4j/src/test' 'src/loom/*/src/test' | grep -v '^A' || true)
+  touched=$(git diff --name-status "$BASELINE" -- 'src/ai-agent4j/src/test' 'src/ai-agent4j-addons/src/test' 'src/tools/ai-agent4j-tools/src/test' 'src/eval4j/src/test' 'src/loom/*/src/test' | grep -v '^A' || true)
   if [ -n "$touched" ]; then echo "existing test files modified or deleted:" | tee -a "$out"; echo "$touched" | tee -a "$out"; FAILED+=("G9 tests touched"); else echo "no existing test file was modified or deleted" | tee -a "$out"; fi
   work=$(mktemp -d)
   git worktree add -q --detach "$work/baseline" "$BASELINE" || { FAILED+=("G9 worktree"); return; }

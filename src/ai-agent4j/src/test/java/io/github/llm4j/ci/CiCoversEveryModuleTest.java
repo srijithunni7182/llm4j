@@ -91,7 +91,7 @@ class CiCoversEveryModuleTest {
                 new String[] {
                     "src/ai-agent4j",
                     "src/ai-agent4j-addons",
-                    "src/ai-agent4j-tools",
+                    "src/tools/ai-agent4j-tools",
                     "src/eval4j",
                     "src/eval4j-report",
                     "src/loom/ai-agent4j-loom",
