@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /** A side-effect tool that only counts what it was asked to do. */
-public final class FakeEffectful implements Effectful {
+public class FakeEffectful implements Effectful {
 
     public final List<Map<String, Object>> performed =
             Collections.synchronizedList(new ArrayList<>());

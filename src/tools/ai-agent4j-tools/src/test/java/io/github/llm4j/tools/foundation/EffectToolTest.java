@@ -114,6 +114,35 @@ class EffectToolTest {
     }
 
     @Test
+    void aCallTheToolSaysIsSafeToRepeatIsRetriedAfterAnUnknownOutcome() {
+        // phase 35, R8: the policy can differ per call (a workspace restore is idempotent, an
+        // append is not)
+        FakeEffectful perCall =
+                new FakeEffectful("Slack") {
+                    @Override
+                    public EffectPolicy policy(Map<String, Object> args) {
+                        return "hi".equals(args.get("text"))
+                                ? new EffectPolicy(EffectPolicy.OnUnknown.SKIP, true, 0)
+                                : policy();
+                    }
+                };
+        // two writes succeed (pending, and the run's id for the idempotency key); the crash comes
+        // after the call acted, before "done" was recorded
+        EffectTool crashing =
+                new EffectTool(perCall, new RecordingEffects(new FaultJournal(journal, 2, false)));
+        assertThatThrownBy(() -> crashing.execute(args("hi")))
+                .isInstanceOf(FaultJournal.SimulatedCrash.class);
+        assertThat(perCall.performed).hasSize(1);
+
+        assertThat(new EffectTool(perCall, ctx).execute(args("hi"))).isEqualTo("done");
+        assertThat(perCall.performed).as("retried").hasSize(2);
+        assertThat(perCall.idempotencyKeys.get(1))
+                .as("with the same key, so a receiver can tell")
+                .isNotNull()
+                .isEqualTo(perCall.idempotencyKeys.get(0));
+    }
+
+    @Test
     @Tag("V2.3")
     void anOutcomeTheToolReportsAsUnknownStaysPending() {
         fake.next = () -> Outcome.unknown("timed out; may have been delivered");

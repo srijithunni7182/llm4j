@@ -74,7 +74,7 @@ public final class EffectTool implements Tool {
         String key =
                 context.identityStep() + "#effect:" + tool + ":" + hash + "#" + nextOrdinal(callId);
         EffectJournal.Entry earlier = journal.get(key).orElse(null);
-        EffectPolicy policy = delegate.policy();
+        EffectPolicy policy = delegate.policy(args);
         long started = context.clock().millis();
 
         if (earlier != null && DONE.equals(earlier.kind())) {
