@@ -73,6 +73,8 @@ If a read shows that a decision cannot be built as written, the session stops at
 2. **`RewindChecks`.** Its list disagrees with the audit. With the audit's answer (`Capabilities.resolve`: the profile and any `effect:` or `reach:`), a tool the audit says changes nothing stops being counted as risky. In `every-kind.loom` (the characterization fixture) the unstated-rewind warning today names `Translate`, `Translit`, `Detect`, `Speak`, `Transcribe`, `translate`, `speak`, `GraphRead` (`read_only: true`), `Skills`, `MineNone`, `MineReads`, `MineFetch`, `Declared` (`effect: reads`) and `Quiet` (`effect: none`); after the change it would not, and `side effects: repeat` would stop requiring their approval. Options: (a) ask the audit and record the new `weave check` output as accepted; (b) keep its list.
 3. The kind-specific option rules in `SecurityAudit`, `SafeDefaults` and `PlanChecker` are not lists of kinds; the build proposes to leave them as rules about that kind.
 
+**C2 (G36, 35a): tools a host registers under a kind's name.** Before the refactor, `Capabilities.ofName` took a tool an agent names with no declaration and called `duckduckgo`, `serpapi` or `google_search` for a web search, by its name; at run time those names are not built-ins (only `web_search` is), so such a tool is the host's own. No profile can say this without a list of names. After the refactor it is "registered by the host", assumed to reach everything (in the fixture: three more LA02, three more LA14, wider trifecta legs). **Answered by the owner (2026-11-13): accepted**; recorded in the characterization, the release notes and `docs/API_COMPATIBILITY.md`.
+
 ## 1. Acceptance: what must be true when the phase is built
 
 Every row is `not built`.
