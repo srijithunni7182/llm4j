@@ -23,12 +23,24 @@ final class ChildSentences {
     /** The sentence for a child statement, or null when the statement is not one. */
     static String of(Statement s) {
         if (s instanceof StartStmt x) return start(x);
-        if (s instanceof WaitStmt x) return wait(x);
+        if (s instanceof WaitStmt x) return x.isAny() ? waitAny(x) : wait(x);
         if (s instanceof CancelStmt x) return cancel(x);
         if (s instanceof SteerStmt x)
             return "The agent " + x.getAgent() + " of " + x.getTarget().describe()
                     + " is told, in these words: \"" + x.getText() + "\"";
         if (s instanceof SuperviseStmt x) return supervise(x);
+        if (s instanceof io.github.llm4j.loom.ast.NotifyStmt x)
+            return "The workflow sends " + (x.toParent() ? "its parent" : x.getTarget().describe()) + " the signal \"" + x.getName() + "\""
+                    + (x.isSticky() ? ", a latch that stays set until it is replaced" : ", a message that is read once")
+                    + (x.getText() == null ? "" : ", with text that the receiver reads as untrusted")
+                    + ". A signal causes nothing by itself.";
+        if (s instanceof io.github.llm4j.loom.ast.SignalWaitStmt x)
+            return "The workflow waits for the signal \"" + x.getName() + "\" from " + (x.getTarget() == null ? "its parent" : x.getTarget().describe())
+                    + (x.getTimeoutMillis() == null ? "" : " for at most " + duration(x.getTimeoutMillis()))
+                    + ". While it waits it holds no thread, and what arrives is read as untrusted text.";
+        if (s instanceof io.github.llm4j.loom.ast.ReportStmt x)
+            return "The workflow reports where it is: " + String.join(", ", x.getValue().fields().keySet())
+                    + ". Whoever started it can read the latest report, as text it cannot trust.";
         return null;
     }
 
@@ -41,6 +53,13 @@ final class ChildSentences {
             b.append(", with ").append(duration(x.getTimeoutMillis())).append(" to finish");
         if (x.getBudget() != null) b.append(", spending at most ").append(budget(x.getBudget()));
         return b.append("; the handle is kept as ").append(x.getTarget().describe()).toString();
+    }
+
+    private static String waitAny(WaitStmt x) {
+        return "The script waits for whichever happens first among " + x.getTarget().describe() + ": a signal from a child, a child finishing, or "
+                + (x.getTimeoutMillis() == null ? "the timeout" : duration(x.getTimeoutMillis()) + " passing")
+                + ". The first return is recorded, so a replay returns the same event; a signal is taken once and a finished child is reported once."
+                + (x.getResultVariable() == null ? "" : " The event goes to " + x.getResultVariable() + ", as untrusted text.");
     }
 
     private static String wait(WaitStmt x) {
@@ -112,6 +131,9 @@ final class ChildSentences {
             case CALLS_BEFORE -> "the child must call " + a.name() + " before " + a.other();
             case REACHES_WITHIN ->
                     "the child must reach the checkpoint " + a.name() + " within " + duration(a.withinMillis());
+            case CHANGES_WITHIN ->
+                    "the child's reported " + a.name() + " must change at least every " + duration(a.withinMillis())
+                            + " of running time (only whether it moves is looked at, never what it says)";
         };
     }
 

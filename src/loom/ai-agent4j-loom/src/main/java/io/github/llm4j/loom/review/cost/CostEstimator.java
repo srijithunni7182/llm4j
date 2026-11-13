@@ -15,7 +15,9 @@ import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.ast.LoopStmt;
 import io.github.llm4j.loom.ast.RewindStmt;
 import io.github.llm4j.loom.ast.Statement;
+import io.github.llm4j.loom.ast.StartStmt;
 import io.github.llm4j.loom.ast.StatementWalker;
+import io.github.llm4j.loom.ast.SuperviseStmt;
 import io.github.llm4j.loom.ast.WorkflowDef;
 import io.github.llm4j.loom.prompt.PromptCatalog;
 import io.github.llm4j.loom.prompt.PromptSupport;
@@ -282,6 +284,8 @@ public final class CostEstimator {
                 block(g.getBody());
                 if (worst) block(g.getOnViolation());
             } else if (s instanceof CallStmt k) call(k);
+            else if (s instanceof StartStmt st) start(st);
+            else if (s instanceof SuperviseStmt sv) supervise(sv);
         }
 
         /**
@@ -464,6 +468,84 @@ public final class CostEstimator {
                                 + WALK_CAP
                                 + " and the rest added by its trend; per-step figures cover the first "
                                 + WALK_CAP);
+            }
+        }
+
+        /** The pseudo-model a child's whole budget is counted under in the worst case. */
+        static final String CHILD_BUDGET = "child budget";
+
+        /** The pseudo-model a judge's whole budget is counted under in the worst case. */
+        static final String JUDGE_BUDGET = "judge budget";
+
+        /** What one judgement reads and writes, in tokens: a facts view and a short verdict. */
+        private static final long JUDGE_INPUT_TOKENS = 400;
+
+        private static final long JUDGE_OUTPUT_TOKENS = 20;
+
+        /**
+         * A started workflow (phase 34, F4). The worst case is the child's whole budget, which is the
+         * most it may spend however it runs, counted once for each start the walk reaches (a loop
+         * multiplies it by its {@code max}). The typical case walks the child's own steps with a
+         * transcript of its own, so its models are priced like any other.
+         */
+        void start(StartStmt st) {
+            note(
+                    "child budget: in the worst case each start counts the whole of its budget (the most the child may spend),"
+                            + " which has no price; the typical figure prices the child's own steps");
+            if (worst) {
+                var budget = st.getBudget();
+                Long tokens = budget == null ? null : budget.getTokens();
+                Long calls = budget == null ? null : budget.getCalls();
+                if (tokens != null || calls != null)
+                    record(
+                            st.getLine(),
+                            "start " + st.getWorkflow(),
+                            CHILD_BUDGET,
+                            Usage.calls(CHILD_BUDGET, calls == null ? 0 : calls, tokens == null ? 0 : tokens, 0),
+                            0);
+                return;
+            }
+            WorkflowDef target = c.workflows.get(st.getWorkflow());
+            if (target == null || !stack.add(target.getName())) return;
+            long outer = transcript;
+            transcript = 0; // a child keeps a transcript of its own
+            try {
+                block(target.getStatements());
+            } finally {
+                transcript = outer;
+                stack.remove(target.getName());
+            }
+        }
+
+        /**
+         * A {@code supervise} with a judged assertion pays for its judge: in the worst case the
+         * statement's own budget, typically its rules' {@code max} judgements on the evaluator's model.
+         */
+        void supervise(SuperviseStmt sv) {
+            if (sv.getJudged().isEmpty()) return;
+            if (worst) {
+                var budget = sv.getBudget();
+                Long tokens = budget == null ? null : budget.getTokens();
+                Long calls = budget == null ? null : budget.getCalls();
+                if (tokens != null || calls != null)
+                    record(
+                            sv.getLine(),
+                            "supervise " + sv.getTarget().describe(),
+                            JUDGE_BUDGET,
+                            Usage.calls(JUDGE_BUDGET, calls == null ? 0 : calls, tokens == null ? 0 : tokens, 0),
+                            0);
+                return;
+            }
+            for (var rule : sv.getJudged()) {
+                var evaluator = c.script.findEvaluator(rule.evaluator());
+                if (evaluator == null || evaluator.getModel() == null) continue;
+                record(
+                        rule.line(),
+                        "judge " + rule.evaluator(),
+                        evaluator.getModel(),
+                        Usage.calls(
+                                evaluator.getModel(), rule.max(), rule.max() * JUDGE_INPUT_TOKENS, rule.max() * JUDGE_OUTPUT_TOKENS),
+                        0);
             }
         }
 

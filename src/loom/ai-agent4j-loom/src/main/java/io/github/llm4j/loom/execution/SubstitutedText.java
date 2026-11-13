@@ -43,6 +43,8 @@ public final class SubstitutedText {
                     "HaltStmt.getMessage",
                     "SetStmt.getValue",
                     "ReturnStmt.getValue",
+                    "ReportStmt.getValue",
+                    "NotifyStmt.getText",
                     "RunStmt.getArgs",
                     "StartStmt.getArgs",
                     "UseStmt.getArgs",
@@ -105,6 +107,9 @@ public final class SubstitutedText {
                     "StartStmt.getWorkflow",
                     "StartStmt.getTarget",
                     "WaitStmt.getResultVariable",
+                    "NotifyStmt.getName",
+                    "SignalWaitStmt.getName",
+                    "SignalWaitStmt.getResultVariable",
                     "CancelStmt.getReason",
                     "CancelStmt.getRewindCheckpoint",
                     "SteerStmt.getAgent",
@@ -132,6 +137,8 @@ public final class SubstitutedText {
         else if (s instanceof HaltStmt h) add(out, "halt message", h.getMessage());
         else if (s instanceof SetStmt v) texts(out, "set value", v.getValue());
         else if (s instanceof ReturnStmt r) texts(out, "return value", r.getValue());
+        else if (s instanceof io.github.llm4j.loom.ast.ReportStmt r) texts(out, "report value", r.getValue());
+        else if (s instanceof io.github.llm4j.loom.ast.NotifyStmt n && n.getText() != null) add(out, "notify text", n.getText());
         else if (s instanceof RunStmt r) {
             for (RunStmt.Arg a : r.getArgs())
                 if (a.kind() == RunStmt.Kind.STRING) add(out, "run argument", a.text());

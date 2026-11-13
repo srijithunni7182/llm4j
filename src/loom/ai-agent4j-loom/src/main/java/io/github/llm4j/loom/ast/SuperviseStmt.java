@@ -79,7 +79,9 @@ public final class SuperviseStmt extends LocatedStatement {
         NEVER_CALLS,
         CALLS_AT_MOST,
         CALLS_BEFORE,
-        REACHES_WITHIN
+        REACHES_WITHIN,
+        /** {@code assert progress.<field> changes within <duration>}: movement, never meaning (D7). */
+        CHANGES_WITHIN
     }
 
     /**
@@ -137,6 +139,24 @@ public final class SuperviseStmt extends LocatedStatement {
         public Judged {
             actions = List.copyOf(actions);
         }
+    }
+
+    /**
+     * {@code when signal "name" { actions }} (phase 34c): fires once for each arrival of a signal of
+     * that name from the child. The actions' text stays fixed: the payload is not available to them,
+     * and a rule never fires on what a signal says, only on its arrival.
+     */
+    public record SignalRule(String name, boolean once, List<SuperviseDef.Action> actions, int line) {
+        public SignalRule {
+            actions = List.copyOf(actions);
+        }
+    }
+
+    private final List<SignalRule> signals = new ArrayList<>();
+
+    /** The rules that fire on a signal's arrival, in the order written. */
+    public List<SignalRule> getSignals() {
+        return signals;
     }
 
     private final HandleRef target;

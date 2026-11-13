@@ -195,6 +195,10 @@ final class NodeDescriber {
             return new Described(Kinds.CHILD_START, "start " + x.getWorkflow())
                     .attrs(Attrs.create().text("workflow", x.getWorkflow()).text("handle", x.getTarget().describe()));
         }
+        if (st instanceof io.github.llm4j.loom.ast.WaitStmt x && x.isAny()) {
+            return new Described(Kinds.CHILD_WAIT_ANY, "wait any " + x.getTarget().describe())
+                    .attrs(Attrs.create().text("handle", x.getTarget().describe()));
+        }
         if (st instanceof io.github.llm4j.loom.ast.WaitStmt x) {
             return new Described(Kinds.CHILD_WAIT, "wait " + (x.isAll() ? "all " : "") + x.getTarget().describe())
                     .attrs(Attrs.create().text("handle", x.getTarget().describe()));
@@ -206,6 +210,20 @@ final class NodeDescriber {
         if (st instanceof io.github.llm4j.loom.ast.SteerStmt x) {
             return new Described(Kinds.CHILD_WATCH, "steer " + x.getTarget().describe())
                     .attrs(Attrs.create().text("handle", x.getTarget().describe()).text("what", "steer " + x.getAgent()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.NotifyStmt x) {
+            String to = x.toParent() ? "parent" : x.getTarget().describe();
+            return new Described(Kinds.CHILD_NOTIFY, "notify " + to + " " + x.getName())
+                    .attrs(Attrs.create().text("to", to).text("signal", x.getName()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.SignalWaitStmt x) {
+            String from = x.getTarget() == null ? "parent" : x.getTarget().describe();
+            return new Described(Kinds.CHILD_SIGNAL_WAIT, "wait signal " + x.getName())
+                    .attrs(Attrs.create().text("from", from).text("signal", x.getName()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.ReportStmt x) {
+            return new Described(Kinds.CHILD_REPORT, "report " + String.join(", ", x.getValue().fields().keySet()))
+                    .attrs(Attrs.create().text("fields", String.join(", ", x.getValue().fields().keySet())));
         }
         if (st instanceof io.github.llm4j.loom.ast.SuperviseStmt x) {
             return new Described(Kinds.CHILD_WATCH, "supervise " + x.getTarget().describe())

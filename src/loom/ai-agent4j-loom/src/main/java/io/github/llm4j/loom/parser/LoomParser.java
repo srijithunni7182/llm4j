@@ -484,6 +484,9 @@ public class LoomParser {
                 } while (match(TokenType.COMMA));
             }
             consume(TokenType.RPAREN, "Expect ')' after parameters.");
+            // contextual (D17): `progress` is a keyword only here, right after ')' and before '{'
+            if (isWord("progress") && peekAt(1).getType() == TokenType.LBRACE)
+                workflow.setProgress(parseProgressDecl());
         }
 
         consume(TokenType.LBRACE, "Expect '{' before workflow body.");
@@ -494,6 +497,44 @@ public class LoomParser {
 
         consume(TokenType.RBRACE, "Expect '}' after workflow body.");
         return workflow;
+    }
+
+    /** {@code progress { field: type, ... }}: one flat level of scalar types (D6). */
+    private io.github.llm4j.loom.ast.ProgressDecl parseProgressDecl() {
+        Token word = advance();
+        consume(TokenType.LBRACE, "Expect '{' after progress.");
+        java.util.Map<String, SchemaDef> fields = new java.util.LinkedHashMap<>();
+        if (check(TokenType.RBRACE))
+            throw error(peek(), "progress { } needs at least one field, such as progress { stage: string, done: number }.");
+        do {
+            Token field = advance();
+            if (field.getValue() == null || !field.getValue().matches("[A-Za-z_][A-Za-z0-9_]*"))
+                throw error(field, "Expect a progress field name.");
+            if (fields.containsKey(field.getValue()))
+                throw error(field, "The progress field " + field.getValue() + " is declared twice.");
+            consume(TokenType.COLON, "Expect ':' after the progress field " + field.getValue() + ".");
+            if (check(TokenType.LBRACE))
+                throw error(peek(), "progress is one flat level: " + field.getValue() + " cannot hold an object. Use string, number, boolean or enum[...].");
+            SchemaDef type = parseSchema();
+            if (type.getType() == SchemaDef.Type.LIST || type.getType() == SchemaDef.Type.OBJECT)
+                throw error(
+                        previous(),
+                        "progress is one flat level: the field " + field.getValue() + " cannot be a list or an object. Use string, number, boolean or enum[...].");
+            fields.put(field.getValue(), type);
+        } while (match(TokenType.COMMA));
+        consume(TokenType.RBRACE, "Expect '}' after the progress fields.");
+        return new io.github.llm4j.loom.ast.ProgressDecl(fields, word.getLine());
+    }
+
+    /** {@code report { field: value, ... }}: flat values only. */
+    private io.github.llm4j.loom.ast.ReportStmt parseReport() {
+        advance();
+        io.github.llm4j.loom.ast.ValueExpr value = parseValue();
+        io.github.llm4j.loom.ast.ValueExpr.Obj obj = (io.github.llm4j.loom.ast.ValueExpr.Obj) value;
+        for (var e : obj.fields().entrySet())
+            if (e.getValue() instanceof io.github.llm4j.loom.ast.ValueExpr.Obj)
+                throw error(previous(), "report is one flat level: " + e.getKey() + " cannot hold an object. Give a text, a number, true or false, or a variable.");
+        return new io.github.llm4j.loom.ast.ReportStmt(obj);
     }
 
     /** Parses one statement and records the line its first token is on. */
@@ -536,6 +577,12 @@ public class LoomParser {
             return parseCallStmt();
         } else if (parseOutcomeAhead()) {
             return pendingOutcome;
+        } else if (isNotifyStatement()) {
+            return parseNotify();
+        } else if (isSignalWaitStatement()) {
+            return parseSignalWait();
+        } else if (isWord("report") && peekAt(1).getType() == TokenType.LBRACE) {
+            return parseReport(); // contextual (D17): only `report {` at the start of a statement
         } else if (isWord("checkpoint") && peekAt(1).getType() == TokenType.IDENTIFIER) {
             return parseCheckpoint();
         } else if (isWord("rewind") && peekAt(1).getType() == TokenType.TO) {
@@ -1685,6 +1732,71 @@ public class LoomParser {
         return isWord("start") && isNameToken(peekAt(1)) && peekAt(2).getType() == TokenType.LPAREN;
     }
 
+    /**
+     * {@code notify handle "name"} or {@code notify parent "name"}: the verb is a word only with a
+     * handle (or {@code parent}) and then a quoted name (D17); anywhere else it is an ordinary name.
+     */
+    private boolean isNotifyStatement() {
+        if (!isWord("notify") || !isNameToken(peekAt(1))) return false;
+        return peekAt(2).getType() == TokenType.STRING_LITERAL || peekAt(2).getType() == TokenType.LBRACKET;
+    }
+
+    /** The offset of the token after a handle that starts at offset 1 ({@code work} or {@code work[key]}). */
+    private int afterHandle() {
+        return peekAt(2).getType() == TokenType.LBRACKET ? 5 : 2;
+    }
+
+    /**
+     * {@code wait signal "name"} (a child) or {@code wait handle signal "name"} (a parent): {@code
+     * signal} is a word only here, with a quoted name after it; a handle called {@code signal} is
+     * still waited for as any handle (D17).
+     */
+    private boolean isSignalWaitStatement() {
+        if (!isWord("wait")) return false;
+        if ("signal".equals(peekAt(1).getValue()) && peekAt(2).getType() == TokenType.STRING_LITERAL) return true;
+        if (!isNameToken(peekAt(1))) return false;
+        int k = afterHandle();
+        return "signal".equals(peekAt(k).getValue()) && peekAt(k + 1).getType() == TokenType.STRING_LITERAL;
+    }
+
+    private io.github.llm4j.loom.ast.NotifyStmt parseNotify() {
+        advance(); // notify
+        io.github.llm4j.loom.ast.HandleRef target = null;
+        if (isWord("parent") && peekAt(1).getType() == TokenType.STRING_LITERAL) advance();
+        else target = parseHandleRef("notify");
+        Token name = consume(TokenType.STRING_LITERAL, "Name the signal in quotes: notify work \"go\"");
+        String text = null;
+        if (check(TokenType.STRING_LITERAL)) text = advance().getValue();
+        boolean sticky = false;
+        if (isWord("sticky")) {
+            advance();
+            sticky = true;
+        }
+        return new io.github.llm4j.loom.ast.NotifyStmt(target, name.getValue(), text, sticky);
+    }
+
+    private io.github.llm4j.loom.ast.SignalWaitStmt parseSignalWait() {
+        advance(); // wait
+        io.github.llm4j.loom.ast.HandleRef target = null;
+        if (!"signal".equals(peek().getValue()) || peekAt(1).getType() != TokenType.STRING_LITERAL)
+            target = parseHandleRef("wait");
+        advance(); // signal
+        Token name = consume(TokenType.STRING_LITERAL, "Name the signal in quotes: wait signal \"go\" timeout 10m -> text");
+        var stmt = new io.github.llm4j.loom.ast.SignalWaitStmt(target, name.getValue());
+        while (true) {
+            if (isWord("timeout")) {
+                Token option = advance();
+                if (stmt.getTimeoutMillis() != null) throw error(option, "A wait can have only one timeout.");
+                stmt.setTimeoutMillis(durationMillis());
+            } else if (check(TokenType.ARROW)) {
+                advance();
+                stmt.setResultVariable(consume(TokenType.IDENTIFIER, "Expect a variable name after '->'.").getValue());
+            } else {
+                return stmt;
+            }
+        }
+    }
+
     /** {@code wait handle} or {@code wait all handles}: a name after the verb. */
     private boolean isWaitStatement() {
         return isWord("wait") && isNameToken(peekAt(1));
@@ -1763,11 +1875,16 @@ public class LoomParser {
     private WaitStmt parseWait() {
         advance();
         boolean all = false;
+        boolean any = false;
         if (isWord("all") && isNameToken(peekAt(1))) {
             advance();
             all = true;
+        } else if (isWord("any") && isNameToken(peekAt(1)) && !"timeout".equals(peekAt(1).getValue())) {
+            advance(); // contextual (D17): `any` is a keyword only directly after wait, with a handle after it
+            any = true;
         }
         WaitStmt stmt = new WaitStmt(parseHandleRef("wait"), all);
+        stmt.setAny(any);
         while (true) {
             if (isWord("timeout")) {
                 Token option = advance();
@@ -1858,7 +1975,9 @@ public class LoomParser {
         consume(TokenType.LBRACE, "Expect '{' after supervise " + stmt.getTarget().describe() + ".");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             Token head = advance();
-            if ("when".equals(head.getValue())) parseCountedRule(stmt, head);
+            if ("when".equals(head.getValue()) && "signal".equals(peek().getValue()) && peekAt(1).getType() == TokenType.STRING_LITERAL)
+                parseSignalRule(stmt, head);
+            else if ("when".equals(head.getValue())) parseCountedRule(stmt, head);
             else if ("assert".equals(head.getValue())) parseAssertion(stmt, head);
             else
                 throw error(
@@ -1866,9 +1985,17 @@ public class LoomParser {
                         "Inside supervise, write a rule: when tokens > 90000 { cancel }, or an assertion: assert never calls shell { cancel }");
         }
         consume(TokenType.RBRACE, "Expect '}' after supervise.");
-        if (stmt.getCounted().isEmpty() && stmt.getCode().isEmpty() && stmt.getJudged().isEmpty())
+        if (stmt.getCounted().isEmpty() && stmt.getCode().isEmpty() && stmt.getJudged().isEmpty() && stmt.getSignals().isEmpty())
             throw error(keyword, "supervise " + stmt.getTarget().describe() + " has no rules.");
         return stmt;
+    }
+
+    /** {@code when signal "name" { actions }}: fires on an arrival, never on what the signal says. */
+    private void parseSignalRule(SuperviseStmt stmt, Token when) {
+        advance(); // signal
+        Token name = advance();
+        ActionBlock block = parseActionBlock("when signal \"" + name.getValue() + "\"", when, false);
+        stmt.getSignals().add(new SuperviseStmt.SignalRule(name.getValue(), block.once(), block.actions(), when.getLine()));
     }
 
     private static final String COUNTERS = "tokens, cost, calls, elapsed or idle";
@@ -1969,10 +2096,23 @@ public class LoomParser {
                             new SuperviseStmt.CodeAssertion(
                                     SuperviseStmt.AssertionKind.REACHES_WITHIN, checkpoint.getValue(),
                                     null, null, within, block.once(), block.actions(), line));
+        } else if (peek().getValue() != null
+                && peek().getValue().startsWith("progress.")
+                && "changes".equals(peekAt(1).getValue())) {
+            String field = advance().getValue().substring("progress.".length());
+            advance(); // changes
+            expectWord("within", "Write: assert progress.done changes within 5m { ... }");
+            long within = durationMillis();
+            ActionBlock block = parseActionBlock("assert progress", assertion, false);
+            stmt.getCode()
+                    .add(
+                            new SuperviseStmt.CodeAssertion(
+                                    SuperviseStmt.AssertionKind.CHANGES_WITHIN, field, null, null,
+                                    within, block.once(), block.actions(), line));
         } else {
             throw error(
                     peek(),
-                    "An assertion is: never calls <name>, calls <name> at most N times, calls A before B, reaches \"checkpoint\" within 10m, or a quoted sentence judged using an evaluator.");
+                    "An assertion is: never calls <name>, calls <name> at most N times, calls A before B, reaches \"checkpoint\" within 10m, progress.<field> changes within 5m, or a quoted sentence judged using an evaluator.");
         }
     }
 

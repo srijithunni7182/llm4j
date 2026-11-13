@@ -47,7 +47,7 @@ final class ChildChecks {
     static final Set<String> FACTS =
             Set.of(
                     "status", "result", "partial", "reason", "failure", "tokens", "cost", "calls",
-                    "elapsed", "idle", "wakes");
+                    "elapsed", "idle", "wakes", "progress", "waits");
 
     /** The shortest cadence of a judge, in milliseconds (D26). */
     static final long JUDGE_FLOOR_MILLIS = 30_000;
@@ -61,6 +61,8 @@ final class ChildChecks {
     static void run(ScriptValidator.Checker c) {
         LoomScript script = c.script();
         for (WorkflowDef w : script.getWorkflows()) workflow(c, script, w);
+        ProgressChecks.run(c);
+        SignalChecks.run(c);
     }
 
     private static void workflow(ScriptValidator.Checker c, LoomScript script, WorkflowDef w) {
@@ -97,11 +99,6 @@ final class ChildChecks {
         for (CancelStmt s : cancels) {
             isHandle(c, known, s.getTarget(), s.getLine(), "cancel");
             if (s.getRewindCheckpoint() != null)
-                c.unsupported(
-                        s.getLine(),
-                        "cancel " + s.getTarget().describe(),
-                        "sending a child back to a checkpoint (cancel ... rewind to) is not available yet: cancel it, or let its own steps rewind it.");
-            if (s.getRewindCheckpoint() != null)
                 checkpointExists(c, script, childOf(script, starts, s.getTarget()), s.getRewindCheckpoint(), s.getLine(), "cancel");
         }
         for (SteerStmt s : steers) {
@@ -125,6 +122,7 @@ final class ChildChecks {
         unwaited(c, handles, waits, cancels, supervises, starts);
         handleUse(c, w, handles);
         resultReads(c, w, handles);
+        ChildLimitChecks.workflow(c, script, w);
     }
 
     // ---- start ----
@@ -231,7 +229,7 @@ final class ChildChecks {
 
     // ---- handles must be started ----
 
-    private static void isHandle(
+    static void isHandle(
             ScriptValidator.Checker c, Set<String> known, HandleRef ref, int line, String verb) {
         if (!known.contains(ref.name()))
             c.error(
@@ -264,9 +262,12 @@ final class ChildChecks {
 
     private static void resultReads(ScriptValidator.Checker c, WorkflowDef w, Set<String> handles) {
         Set<String> guarded = new HashSet<>();
+        Map<String, String> outcomes = new LinkedHashMap<>(); // the variable a single wait fills -> its handle
         StatementWalker.walk(
                 w.getStatements(),
                 s -> {
+                    if (s instanceof WaitStmt x && !x.isAll() && !x.isAny() && x.getResultVariable() != null)
+                        outcomes.put(x.getResultVariable(), x.getTarget().name());
                     String condition =
                             s instanceof AltStmt a ? a.getCondition() : s instanceof LoopStmt l ? l.getCondition() : null;
                     if (condition == null) return;
@@ -280,6 +281,12 @@ final class ChildChecks {
                     for (SubstitutedText.Entry e : SubstitutedText.entries(s)) {
                         Matcher m = PLACEHOLDER.matcher(e.text());
                         while (m.find()) {
+                            if (outcomes.containsKey(m.group(1)) && !guarded.contains(outcomes.get(m.group(1))))
+                                c.warn(
+                                        s.getLine(),
+                                        e.position(),
+                                        m.group(1) + " is read without checking the child finished: it holds no result unless the child completed, and reading it then is an error. Guard it: alt ("
+                                                + outcomes.get(m.group(1)) + " is ok) { ... }.");
                             if (handles.contains(m.group(1))
                                     && m.group(3) != null
                                     && (m.group(3).equals(".result") || m.group(3).equals(".partial"))
@@ -312,6 +319,10 @@ final class ChildChecks {
             switch (a.kind()) {
                 case REACHES_WITHIN -> checkpointExists(c, script, child, a.name(), a.line(), construct);
                 case NEVER_CALLS, CALLS_AT_MOST -> callable(c, script, child, a.name(), a.line(), construct);
+                case CHANGES_WITHIN -> {
+                    String problem = ProgressChecks.assertionProblem(child, a.name());
+                    if (problem != null) c.error(a.line(), construct, "assert progress." + a.name() + " changes within: " + problem);
+                }
                 case CALLS_BEFORE -> {
                     callable(c, script, child, a.name(), a.line(), construct);
                     callable(c, script, child, a.other(), a.line(), construct);

@@ -992,6 +992,11 @@ public class HarnessExecutor implements LoomEngine {
         VariableContext scope = view();
         Object exact = scope.originOf(path);
         int dot = path.indexOf('.');
+        // what a child reports about itself is the child's own words: never trusted (D6)
+        int progress = path.indexOf(".progress");
+        if (progress > 0
+                && ConditionEvaluator.resolvePath(path.substring(0, progress), scope)
+                        instanceof io.github.llm4j.loom.runtime.ChildHandle) return Provenance.UNCHECKED;
         if (dot > 0) {
             Object head = scope.originOf(path.substring(0, dot));
             if (exact != head && exact instanceof Provenance.Tag t) return t; // recorded for this path
@@ -3165,7 +3170,7 @@ public class HarnessExecutor implements LoomEngine {
      * A script's value as a plain Java value: texts have their placeholders filled in, a reference
      * keeps the type of what it names.
      */
-    private Object valueOf(io.github.llm4j.loom.ast.ValueExpr value, String where) {
+    Object valueOf(io.github.llm4j.loom.ast.ValueExpr value, String where) {
         if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Text t)
             return resolvePayload(t.text());
         if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Num n) {
@@ -3193,6 +3198,105 @@ public class HarnessExecutor implements LoomEngine {
             out.put(f.getKey(), valueOf(f.getValue(), where));
         }
         return out;
+    }
+
+    private final ProgressLog progressLog = new ProgressLog();
+    private final SignalRunner signals = new SignalRunner(this);
+
+    /** The signal runner, for the launcher's waits that keep their deadline in the journal. */
+    SignalRunner signalRunner() {
+        return signals;
+    }
+    private volatile Runnable parentSignalled = () -> {};
+
+    /**
+     * Signals a child this run started from outside the script (a host, or a test racing senders):
+     * what {@code notify} does, with {@code fromStep} naming the sender so a repeat sends once.
+     */
+    void signalChild(io.github.llm4j.loom.runtime.ChildHandle handle, String name, String text, boolean sticky, String fromStep) {
+        children.signalChild(handle, name, text, sticky, fromStep);
+    }
+
+    /**
+     * For {@code weave test}'s {@code signals:}: delivers a signal to the parent as if {@code handle}'s
+     * child had sent it, from a step named {@code fromStep} so a repeat sends once.
+     */
+    public void simulateSignalFromChild(io.github.llm4j.loom.runtime.ChildHandle handle, String name, String text, boolean sticky, String fromStep, long atMillis) {
+        children.simulateFromChild(handle, name, text, sticky, fromStep, atMillis);
+    }
+
+    /** The run's clock in milliseconds, for a test that stamps a scripted signal. */
+    public long clockMillis() {
+        return nowMillis();
+    }
+
+    /** The run id of the run that started this one, or null. */
+    String parentRunId() {
+        return parentRunId;
+    }
+
+    /**
+     * Says in the trace that a message was sent to, or read from, the run {@code peer}: the console
+     * pairs the two to show what is unread. The text is never in it; a latch is marked sticky so it
+     * is not counted as unread.
+     */
+    void traceSignal(String op, String peer, String name, boolean sticky) {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("op", op);
+        data.put("peer", peer == null ? "" : peer);
+        data.put("name", name);
+        data.put("sticky", sticky);
+        trace(TraceEvent.SIGNAL, null, "signal " + op + " " + name, data);
+    }
+
+    /** True when another run started this one, so there is a parent to signal and be signalled by. */
+    boolean hasParent() {
+        return parentRunId != null;
+    }
+
+    /** Tells the parent's launcher that this run wrote a signal for it, so a parked {@code wait} looks now. */
+    void signalParent() {
+        parentSignalled.run();
+    }
+
+    /**
+     * A scripted child's report (phase 34b): written as {@code report} writes it, checked against
+     * the declaration of the workflow the child stands in for.
+     */
+    void reportScripted(String stepId, String workflow, Map<String, Object> fields) {
+        io.github.llm4j.loom.ast.WorkflowDef def =
+                script.getWorkflows().stream().filter(w -> w.getName().equals(workflow)).findFirst().orElse(null);
+        if (def == null || def.getProgress() == null)
+            throw new IllegalStateException("the scripted child " + workflow + " reports progress, but the workflow declares none");
+        progressLog.write(journal, stepId, def.getProgress(), new java.util.LinkedHashMap<>(fields), nowMillis());
+    }
+
+    /**
+     * {@code report { ... }} (phase 34b): writes the fields, checked against the workflow's {@code
+     * progress} declaration and the size and count bounds, into this run's own journal. A report
+     * over a bound is dropped and recorded, never an error that stops the run.
+     */
+    @SuppressWarnings("unchecked")
+    private void executeReport(io.github.llm4j.loom.ast.ReportStmt report) {
+        io.github.llm4j.loom.ast.ProgressDecl decl = ProgressDecls.of(script, report);
+        if (decl == null)
+            throw new IllegalStateException("report needs the workflow to declare what it reports: progress { ... }");
+        Tracked<Object> value = tracked(() -> valueOf(report.getValue(), "report"));
+        boolean fresh = journal.get(step.get() + ProgressLog.KEY).isEmpty();
+        ProgressLog.Result result =
+                progressLog.write(journal, step.get(), decl, (Map<String, Object>) value.value(), nowMillis());
+        if (fresh && result.kept()) {
+            Map<String, Object> shown = new java.util.LinkedHashMap<>();
+            ((Map<String, Object>) value.value()).forEach((k, v) -> shown.put("f." + k, v instanceof Number || v instanceof Boolean ? v : String.valueOf(v)));
+            trace(TraceEvent.PROGRESS, null, "report", shown);
+        }
+        if (!result.kept()) {
+            Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("step", step.get());
+            data.put("reason", result.reason());
+            audit("progress_dropped", data);
+            log.warning("a progress report was dropped: " + result.reason());
+        }
     }
 
     static final class HandoffSignal extends RuntimeException {
@@ -3302,6 +3406,14 @@ public class HarnessExecutor implements LoomEngine {
             trace(TraceEvent.NOTE, null, noteText, null);
         } else if (stmt instanceof io.github.llm4j.loom.ast.HaltStmt halt) {
             executeHalt(halt);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.NotifyStmt notify) {
+            if (notify.toParent()) signals.notifyParent(notify);
+            else children.notifyChild(notify);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SignalWaitStmt wait) {
+            if (wait.getTarget() == null) signals.waitForParent(wait);
+            else children.awaitSignal(wait, signals);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.ReportStmt report) {
+            executeReport(report);
         } else if (stmt instanceof io.github.llm4j.loom.ast.SetStmt set) {
             Tracked<Object> value =
                     tracked(() -> valueOf(set.getValue(), "set " + set.getName()));
@@ -4387,12 +4499,35 @@ public class HarnessExecutor implements LoomEngine {
                 java.util.Objects.requireNonNull(scheduler, "scheduler");
     }
 
+    private ChildScripts childScripts = workflow -> java.util.Optional.empty();
+
+    /**
+     * Tells {@code start} to run a scripted behaviour instead of the child's workflow, for the
+     * workflows a test scripts ({@code weave test}'s {@code children:}). Inherited by the children.
+     */
+    public void setChildScripts(ChildScripts scripts) {
+        this.childScripts = java.util.Objects.requireNonNull(scripts, "scripts");
+    }
+
+    ChildScripts childScripts() {
+        return childScripts;
+    }
+
     private final Trajectory trajectory = new Trajectory();
     private final ForbiddenCalls forbidden = new ForbiddenCalls(trajectory);
 
     /** What this run has done, as facts (for the supervisor that watches it). */
     Trajectory.Snapshot trajectory() {
         return trajectory.snapshot();
+    }
+
+    /**
+     * A re-run of a child takes from its earlier run what the journal does not hold: the facts of
+     * its trajectory and what its supervisor forbade it (D12 rule 7).
+     */
+    void carryFrom(HarnessExecutor earlier) {
+        trajectory.carry(earlier.trajectory.snapshot());
+        forbidden.carry(earlier.forbidden);
     }
 
     /** Refuses, before it runs, any later call of {@code name} (a supervisor's {@code never calls}). */
@@ -4563,9 +4698,11 @@ public class HarnessExecutor implements LoomEngine {
         child.classifierFactory = classifierFactory;
         child.childRuns = childRuns;
         child.childScheduler = childScheduler;
+        child.childScripts = childScripts;
         child.childLimits = childLimits;
         child.childDepth = childDepth + 1;
         child.parentRunId = runId;
+        child.parentSignalled = children::signalArrived;
         child.stepListener = stepListener; // a test that counts the steps a run reached counts the child's
         child.statementListener = statementListener;
         child.sinkOracle = sinkOracle; // a test that watches the exits of a run watches the child's too

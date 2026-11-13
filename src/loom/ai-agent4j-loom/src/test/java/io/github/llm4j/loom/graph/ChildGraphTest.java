@@ -43,4 +43,61 @@ class ChildGraphTest {
 
         assertThat(handleEdges).as("the supervise next to the start is joined by the plain edge already").isEqualTo(3);
     }
+
+    @Test
+    void aReportIsItsOwnKindWithTheFieldsItSets() {
+        WorkflowGraph graph =
+                graphOf(
+                        """
+                        workflow W(q) progress { stage: string, done: number } {
+                            report { stage: "a", done: 1 }
+                            set x = "1"
+                        }
+                        """,
+                        "W");
+
+        GraphNode report = graph.nodes().stream().filter(n -> Kinds.CHILD_REPORT.equals(n.kind())).findFirst().orElseThrow();
+        assertThat(report.label()).isEqualTo("report stage, done");
+        assertThat(Kinds.ALL).contains(Kinds.CHILD_REPORT);
+        assertThat(graph.nodes().stream().noneMatch(n -> Kinds.UNKNOWN.equals(n.kind()))).isTrue();
+    }
+
+    @Test
+    void notifyAndWaitSignalAreTheirOwnKindsWithTheSignalAndTheOtherSide() {
+        WorkflowGraph graph =
+                graphOf(
+                        """
+                        workflow Child(x) { wait signal "go" timeout 1m -> t  notify parent "done" "ok" }
+                        workflow W(q) {
+                            start Child(x = q) budget { tokens: 10 } -> work
+                            notify work "go" "now"
+                            wait work signal "done" timeout 1m -> r
+                        }
+                        """,
+                        "W");
+        WorkflowGraph child = graphOf("workflow Child(x) { wait signal \"go\" timeout 1m -> t  notify parent \"done\" \"ok\" }", "Child");
+
+        assertThat(graph.nodes().stream().map(GraphNode::kind).toList()).contains("child_notify", "child_signal_wait");
+        assertThat(child.nodes().stream().map(GraphNode::kind).toList()).containsSubsequence("child_signal_wait", "child_notify");
+        assertThat(Kinds.ALL).contains(Kinds.CHILD_NOTIFY, Kinds.CHILD_SIGNAL_WAIT);
+        assertThat(child.nodes().stream().noneMatch(n -> Kinds.UNKNOWN.equals(n.kind()))).isTrue();
+    }
+
+    @Test
+    void aWaitAnyIsItsOwnKindApartFromWaitAndWaitAll() {
+        WorkflowGraph graph =
+                graphOf(
+                        """
+                        workflow Child(x) { return x }
+                        workflow W(q) {
+                            start Child(x = q) budget { tokens: 10 } -> work["a"]
+                            wait any work timeout 1m -> e
+                            wait all work timeout 1m -> all
+                        }
+                        """,
+                        "W");
+
+        assertThat(graph.nodes().stream().map(GraphNode::kind).toList()).containsSubsequence("child_start", "child_wait_any", "child_wait");
+        assertThat(Kinds.ALL).contains(Kinds.CHILD_WAIT_ANY);
+    }
 }

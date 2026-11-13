@@ -64,10 +64,10 @@ final class PayloadText {
                 Object value =
                         io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(name, scope);
                 if (value != null) host.touched(name);
-                out.append(value != null ? String.valueOf(value) : "");
+                out.append(value != null ? text(name, value) : "");
             } else if (vars.containsKey(name)) {
                 host.touched(name);
-                out.append(String.valueOf(vars.get(name)));
+                out.append(text(name, vars.get(name)));
             } else {
                 out.append(m.group()); // not a variable: left as written
             }
@@ -98,10 +98,30 @@ final class PayloadText {
                 .matcher(text)
                 .replaceAll(
                         r -> {
+                            Object value = vars.get(r.group());
+                            // an ordinary word that happens to be a handle's name is only a word
+                            if (value instanceof io.github.llm4j.loom.runtime.ChildHandle
+                                    || value instanceof io.github.llm4j.loom.runtime.Unavailable)
+                                return java.util.regex.Matcher.quoteReplacement(r.group());
                             host.touched(r.group());
-                            return java.util.regex.Matcher.quoteReplacement(
-                                    String.valueOf(vars.get(r.group())));
+                            return java.util.regex.Matcher.quoteReplacement(String.valueOf(value));
                         });
+    }
+
+    /**
+     * A value as the text it becomes. A handle is held by the script and never written into text a
+     * model could read, and the absent result of a child that did not complete raises the status
+     * error: both fail closed here, at the one place a placeholder is filled (phase 34, F2 and F7),
+     * so the static check is not the only line.
+     */
+    private static String text(String name, Object value) {
+        if (value instanceof io.github.llm4j.loom.runtime.ChildHandle)
+            throw new IllegalStateException(
+                    "{" + name + "} is a handle, and a handle is never written into text a model could read."
+                            + " Read a fact instead, such as {" + name + ".status}.");
+        if (value instanceof io.github.llm4j.loom.runtime.Unavailable gone)
+            throw new IllegalStateException(gone.message());
+        return String.valueOf(value);
     }
 
     static String stringify(SchemaDef schema) {

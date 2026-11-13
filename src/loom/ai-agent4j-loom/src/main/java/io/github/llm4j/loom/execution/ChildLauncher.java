@@ -5,6 +5,8 @@ import io.github.llm4j.budget.Budget;
 import io.github.llm4j.loom.ast.BudgetDef;
 import io.github.llm4j.loom.ast.CancelStmt;
 import io.github.llm4j.loom.ast.HandleRef;
+import io.github.llm4j.loom.ast.NotifyStmt;
+import io.github.llm4j.loom.ast.SignalWaitStmt;
 import io.github.llm4j.loom.ast.OutcomeStmt;
 import io.github.llm4j.loom.ast.RunStmt;
 import io.github.llm4j.loom.ast.StartStmt;
@@ -15,6 +17,7 @@ import io.github.llm4j.loom.ast.WaitStmt;
 import io.github.llm4j.loom.runtime.ChildHandle;
 import io.github.llm4j.loom.runtime.ChildStatus;
 import io.github.llm4j.loom.runtime.ConditionEvaluator;
+import io.github.llm4j.loom.runtime.Generations;
 import io.github.llm4j.loom.runtime.RunHalted;
 import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.loom.runtime.RunStopped;
@@ -27,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -51,19 +55,126 @@ final class ChildLauncher {
     static final String WAIT = "child-wait";
 
     /**
-     * A child this launcher started: where it was started, its task and run, its deadline (wall
-     * clock, or null) and the most it may still spend in each dimension.
+     * What a child needs to be launched again, kept in memory with its {@link Live}: the arguments
+     * the {@code start} resolved (so a re-run binds the same values, with the same provenance), the
+     * budgets it was charged to, the invoker's credentials and the label a console knows it by.
      */
-    private record Live(
-            String stepId,
-            ChildScheduler.Task task,
-            HarnessExecutor run,
-            RunJournal journal,
-            Long deadlineMillis,
-            long timeoutMillis,
-            Long capTokens,
-            Long capCalls,
-            BigDecimal capCost) {}
+    private record Launch(
+            String childRun,
+            String workflow,
+            String label,
+            Map<String, Object> args,
+            Provenance.Tag argsTag,
+            List<Budget> enclosing,
+            io.github.llm4j.secret.InvokerCredentials invoker) {}
+
+    /** One run of a child's body: its executor, its task and whether the body has finished. */
+    private static final class Attempt {
+        final HarnessExecutor run;
+        volatile ChildScheduler.Task task;
+        volatile boolean done;
+
+        Attempt(HarnessExecutor run) {
+            this.run = run;
+        }
+    }
+
+    /**
+     * A child this launcher started: where it was started, its journal, its deadline (wall clock,
+     * or null), the most it may still spend in each dimension, how to launch it again, and its
+     * current attempt. A child is launched once by {@code start} and again whenever it is re-run
+     * over its journal (a rewind; later a signal); the attempt changes and everything else stays,
+     * so a watch on the child keeps seeing the live one.
+     */
+    private static final class Live {
+        private final String stepId;
+        private final RunJournal journal;
+        private final Long deadlineMillis;
+        private final long timeoutMillis;
+        private final Long capTokens;
+        private final Long capCalls;
+        private final BigDecimal capCost;
+        private final BudgetDef judge;
+        private final Launch launch;
+        private volatile Attempt attempt;
+
+        Live(
+                String stepId,
+                RunJournal journal,
+                Long deadlineMillis,
+                long timeoutMillis,
+                Long capTokens,
+                Long capCalls,
+                BigDecimal capCost,
+                BudgetDef judge,
+                Launch launch) {
+            this.stepId = stepId;
+            this.journal = journal;
+            this.deadlineMillis = deadlineMillis;
+            this.timeoutMillis = timeoutMillis;
+            this.capTokens = capTokens;
+            this.capCalls = capCalls;
+            this.capCost = capCost;
+            this.judge = judge;
+            this.launch = launch;
+        }
+
+        /** The budget of the judge paired with this start, reserved with the child's, or null. */
+        BudgetDef judge() {
+            return judge;
+        }
+
+        String stepId() {
+            return stepId;
+        }
+
+        RunJournal journal() {
+            return journal;
+        }
+
+        Long deadlineMillis() {
+            return deadlineMillis;
+        }
+
+        long timeoutMillis() {
+            return timeoutMillis;
+        }
+
+        Long capTokens() {
+            return capTokens;
+        }
+
+        Long capCalls() {
+            return capCalls;
+        }
+
+        BigDecimal capCost() {
+            return capCost;
+        }
+
+        Launch launch() {
+            return launch;
+        }
+
+        HarnessExecutor run() {
+            return attempt.run;
+        }
+
+        /** The current attempt's task, or null for the instant between creating it and queueing it. */
+        ChildScheduler.Task task() {
+            return attempt.task;
+        }
+
+        /** True while the current attempt's body has not finished. */
+        boolean active() {
+            return attempt != null && !attempt.done;
+        }
+    }
+
+    /** The longest a {@code wait} sleeps before it looks at the injected clock again. */
+    static final long POLL_MILLIS = 50;
+
+    private final ChildMonitor monitor = new ChildMonitor();
 
     private final HarnessExecutor executor;
     private final Map<ChildHandle, Live> tasks = new IdentityHashMap<>();
@@ -94,7 +205,9 @@ final class ChildLauncher {
             throw new IllegalStateException(
                     "start " + stmt.getWorkflow() + " has no budget: a child's spending must be capped. Write budget { tokens: 100000 } on the start.");
         checkLimits(stmt);
-        reserve(stmt);
+        SuperviseStmt paired = ChildPairing.superviseOf(executor.loomScript(), stmt);
+        BudgetDef pairedJudge = paired != null && !paired.getJudged().isEmpty() ? paired.getBudget() : null;
+        reserve(stmt, pairedJudge);
         String bound = boundName(stmt.getTarget()); // a key that is not a plain word is refused before anything starts
         String parentRun = executor.getRunId();
         if (parentRun == null)
@@ -127,49 +240,96 @@ final class ChildLauncher {
         runs.record(childRun, parentRun, stmt.getWorkflow());
 
         RunJournal childJournal = runs.openJournal(childRun);
-        HarnessExecutor child = executor.deriveChild(childRun, childJournal);
-        args.value().forEach((name, value) -> child.bind(name, value, args.tag()));
         BudgetDef scripted = executor.loomScript().getBudget();
         Long capTokens = smaller(stmt.getBudget().getTokens(), scripted == null ? null : scripted.getTokens());
         Long capCalls = smaller(stmt.getBudget().getCalls(), scripted == null ? null : scripted.getCalls());
         BigDecimal capCost = smaller(stmt.getBudget().getCost(), scripted == null ? null : scripted.getCost());
-        child.setBudgetOverrides(capTokens, capCalls, capCost);
-        var enclosing = executor.enclosingBudgets();
-
-        ChildHandle handle = new ChildHandle(childRun, stmt.getWorkflow());
-        runs.prepared(childRun, child);
-        child.onProgress(this::tickSafely); // a counter changed: look at once, not only on the tick
-        var invoker = executor.currentInvoker();
         String workflow = stmt.getWorkflow();
         // a console or chat reaches the child by a longer label: parent/handle/workflow
         String label = LiveRuns.shared().labelOf(executor)
                 .map(parentLabel -> parentLabel + "/" + bound.replace('[', '/').replace("]", "") + "/" + workflow)
                 .orElse(null);
-        ChildScheduler.Task task =
-                executor.childScheduler()
-                        .submit(
+        ChildHandle handle = new ChildHandle(childRun, workflow);
+        Live live =
+                new Live(
+                        stepId,
+                        childJournal,
+                        deadline,
+                        timeoutMillis,
+                        capTokens,
+                        capCalls,
+                        capCost,
+                        pairedJudge,
+                        new Launch(
                                 childRun,
-                                () -> {
-                                    AutoCloseable registered = null;
-                                    try {
-                                        if (label != null) registered = LiveRuns.shared().register(label, child);
-                                        child.installOuterBudgets(enclosing);
-                                        runChild(child, handle, workflow, invoker);
-                                    } finally {
-                                        try {
-                                            if (registered != null) registered.close();
-                                        } catch (Exception closing) {
-                                            log.log(java.util.logging.Level.FINE, "could not unregister " + label, closing);
-                                        }
-                                        runs.settled(childRun, handle.status());
-                                    }
-                                });
+                                workflow,
+                                label,
+                                args.value(),
+                                args.tag(),
+                                executor.enclosingBudgets(),
+                                executor.currentInvoker()));
+        handle.progressFrom(() -> ProgressLog.latest(childJournal));
+        launch(handle, live, null);
         if (deadline != null) startTicking();
         synchronized (tasks) {
-            tasks.put(handle, new Live(stepId, task, child, childJournal, deadline, timeoutMillis, capTokens, capCalls, capCost));
+            tasks.put(handle, live);
         }
         executor.bind(bound, handle, Provenance.NOT_MODEL);
         log.info("Started child " + childRun + " (" + workflow + ")");
+    }
+
+    /**
+     * The one place a child's body is launched: an executor over the child's own journal, its
+     * arguments, its caps, the outer budgets it also charges and the console's view of it, queued on
+     * the scheduler. {@code start} calls it once; a re-run of the child over its journal (a
+     * rewind, and later a wake by a signal) calls it again with {@code earlier}, the executor of
+     * the run before, whose trajectory and forbidden calls are carried over, because a replay emits
+     * no events for the steps it skips (D12 rule 7). The attempt it makes replaces the live one.
+     */
+    private void launch(ChildHandle handle, Live live, HarnessExecutor earlier) {
+        ChildRuns runs = executor.childRuns();
+        Launch spec = live.launch();
+        HarnessExecutor child = executor.deriveChild(spec.childRun(), live.journal());
+        spec.args().forEach((name, value) -> child.bind(name, value, spec.argsTag()));
+        child.setBudgetOverrides(live.capTokens(), live.capCalls(), live.capCost());
+        if (earlier != null) child.carryFrom(earlier);
+        runs.prepared(spec.childRun(), child);
+        child.onProgress(this::tickSafely); // a counter changed: look at once, not only on the tick
+        Attempt attempt = new Attempt(child);
+        live.attempt = attempt;
+        attempt.task =
+                executor.childScheduler()
+                        .submit(spec.childRun(), () -> body(child, handle, spec, attempt));
+    }
+
+    /**
+     * What runs on the child's thread: its registration with the console, its run, and the record
+     * of how it stopped. If the run ended by asking to be run again (a rewind), that happens last,
+     * after the child has let go of the console and the host, so the new attempt starts clean.
+     */
+    private void body(HarnessExecutor child, ChildHandle handle, Launch spec, Attempt attempt) {
+        try {
+            AutoCloseable registered = null;
+            Runnable next = null;
+            try {
+                if (spec.label() != null) registered = LiveRuns.shared().register(spec.label(), child);
+                child.installOuterBudgets(spec.enclosing());
+                next = runChild(child, handle, spec.workflow(), spec.invoker());
+            } finally {
+                try {
+                    if (registered != null) registered.close();
+                } catch (Exception closing) {
+                    log.log(java.util.logging.Level.FINE, "could not unregister " + spec.label(), closing);
+                }
+                if (next == null) executor.childRuns().settled(spec.childRun(), handle.status());
+            }
+            if (next != null) next.run();
+        } finally {
+            // even when the run died with an Error: a parent asleep on the monitor must hear of it at once and
+            // must not see a child that is gone as still running
+            attempt.done = true;
+            monitor.changed();
+        }
     }
 
     /** Refuses a start past a limit, naming it; nothing is queued and nothing is journaled (D14). */
@@ -204,45 +364,87 @@ final class ChildLauncher {
     }
 
     /**
-     * Refuses a start the parent could not pay for (D11): the child's cap, with what the other live
-     * children could still spend, must fit in what the parent has left. A child's spending is
-     * already in the parent's budget, so a live child holds back only what it has not yet spent.
-     * Nothing is journaled for a refused start.
+     * Refuses a start the parent could not pay for (D11): the child's cap and, when its supervise
+     * is paired with it, that judge's budget (D3, 33-D27), together with what the other live
+     * children and their judges could still spend, must fit in what the parent has left. A child's
+     * spending is already in the parent's budget, so a live child holds back only what it has not
+     * yet spent. Nothing is journaled for a refused start.
      */
-    private void reserve(StartStmt stmt) {
+    private void reserve(StartStmt stmt, BudgetDef judge) {
         BudgetDef cap = stmt.getBudget();
+        refuseIfShort("start " + stmt.getWorkflow(), cap, judge, null, "");
+    }
+
+    /**
+     * The check behind a reservation: {@code cap} plus {@code judge} (either may be null) against
+     * what each enclosing budget has left after the live children hold back their own. {@code
+     * except} is a child already counted by the caller. {@code hint} ends the message.
+     */
+    private void refuseIfShort(String what, BudgetDef cap, BudgetDef judge, Live except, String hint) {
+        long wantTokens = sum(cap == null ? null : cap.getTokens(), judge == null ? null : judge.getTokens());
+        long wantCalls = sum(cap == null ? null : cap.getCalls(), judge == null ? null : judge.getCalls());
+        BigDecimal wantCost =
+                (cap == null || cap.getCost() == null ? BigDecimal.ZERO : cap.getCost())
+                        .add(judge == null || judge.getCost() == null ? BigDecimal.ZERO : judge.getCost());
+        boolean tokens = (cap != null && cap.getTokens() != null) || (judge != null && judge.getTokens() != null);
+        boolean calls = (cap != null && cap.getCalls() != null) || (judge != null && judge.getCalls() != null);
+        boolean cost = (cap != null && cap.getCost() != null) || (judge != null && judge.getCost() != null);
         long heldTokens = 0;
         long heldCalls = 0;
         BigDecimal heldCost = BigDecimal.ZERO;
-        for (Map.Entry<ChildHandle, Live> e : tasks.entrySet()) {
-            if (e.getKey().status().isSettled()) continue;
-            Live live = e.getValue();
-            var own = live.run().getRunBudget();
-            var spent = own == null ? null : own.spent();
-            if (live.capTokens() != null)
-                heldTokens += Math.max(0, live.capTokens() - (spent == null ? 0 : spent.tokens()));
-            if (live.capCalls() != null)
-                heldCalls += Math.max(0, live.capCalls() - (spent == null ? 0 : spent.calls()));
-            if (live.capCost() != null)
-                heldCost = heldCost.add(live.capCost().subtract(spent == null ? BigDecimal.ZERO : spent.cost()).max(BigDecimal.ZERO));
+        synchronized (tasks) {
+            for (Map.Entry<ChildHandle, Live> e : tasks.entrySet()) {
+                if (e.getKey().status().isSettled() || e.getValue() == except) continue;
+                Live live = e.getValue();
+                var own = live.run().getRunBudget();
+                var spent = own == null ? null : own.spent();
+                if (live.capTokens() != null)
+                    heldTokens += Math.max(0, live.capTokens() - (spent == null ? 0 : spent.tokens()));
+                if (live.capCalls() != null)
+                    heldCalls += Math.max(0, live.capCalls() - (spent == null ? 0 : spent.calls()));
+                if (live.capCost() != null)
+                    heldCost = heldCost.add(live.capCost().subtract(spent == null ? BigDecimal.ZERO : spent.cost()).max(BigDecimal.ZERO));
+                if (live.judge() != null) {
+                    var judged = judgeSpent(live);
+                    if (live.judge().getTokens() != null)
+                        heldTokens += Math.max(0, live.judge().getTokens() - (judged == null ? 0 : judged.tokens()));
+                    if (live.judge().getCalls() != null)
+                        heldCalls += Math.max(0, live.judge().getCalls() - (judged == null ? 0 : judged.calls()));
+                    if (live.judge().getCost() != null)
+                        heldCost = heldCost.add(live.judge().getCost().subtract(judged == null ? BigDecimal.ZERO : judged.cost()).max(BigDecimal.ZERO));
+                }
+            }
         }
+        String part = judge == null ? "" : " (the child's cap and its judge's)";
         for (var budget : executor.enclosingBudgets()) {
             var left = budget.remaining();
             String who = "the budget " + budget.name();
-            if (cap.getTokens() != null && left.tokens().isPresent() && cap.getTokens() > left.tokens().getAsLong() - heldTokens)
-                refuseReservation(stmt, who, cap.getTokens() + " tokens", left.tokens().getAsLong(), heldTokens);
-            if (cap.getCalls() != null && left.calls().isPresent() && cap.getCalls() > left.calls().getAsLong() - heldCalls)
-                refuseReservation(stmt, who, cap.getCalls() + " calls", left.calls().getAsLong(), heldCalls);
-            if (cap.getCost() != null && left.cost().isPresent() && cap.getCost().compareTo(left.cost().get().subtract(heldCost)) > 0)
-                refuseReservation(stmt, who, "$" + cap.getCost().toPlainString(), left.cost().get().longValue(), heldCost.longValue());
+            if (tokens && left.tokens().isPresent() && wantTokens > left.tokens().getAsLong() - heldTokens)
+                refuseReservation(what, who, wantTokens + " tokens" + part, left.tokens().getAsLong(), heldTokens, hint);
+            if (calls && left.calls().isPresent() && wantCalls > left.calls().getAsLong() - heldCalls)
+                refuseReservation(what, who, wantCalls + " calls" + part, left.calls().getAsLong(), heldCalls, hint);
+            if (cost && left.cost().isPresent() && wantCost.compareTo(left.cost().get().subtract(heldCost)) > 0)
+                refuseReservation(what, who, "$" + wantCost.toPlainString() + part, left.cost().get().longValue(), heldCost.longValue(), hint);
         }
     }
 
-    private static void refuseReservation(StartStmt stmt, String who, String wanted, long left, long held) {
+    /** What the judge of a watched child has spent so far, or null before its supervise has run. */
+    private io.github.llm4j.budget.Spent judgeSpent(Live live) {
+        for (Watch w : watches) if (w.live == live && w.judgeBudget != null) return w.judgeBudget.spent();
+        return null;
+    }
+
+    private static long sum(Long a, Long b) {
+        return (a == null ? 0 : a) + (b == null ? 0 : b);
+    }
+
+    private static void refuseReservation(String what, String who, String wanted, long left, long held, String hint) {
         throw new IllegalStateException(
-                "start " + stmt.getWorkflow() + " cannot reserve " + wanted + ": " + who + " has " + left
-                        + " left and the other live children could still spend " + held
-                        + ". Start fewer children, give each a smaller budget, or wait for one to finish first.");
+                what + " cannot reserve " + wanted + ": " + who + " has " + left
+                        + " left and the other live children could still spend " + held + ". "
+                        + (hint.isEmpty()
+                                ? "Start fewer children, give each a smaller budget, or wait for one to finish first."
+                                : hint));
     }
 
     private static <T extends Comparable<T>> T smaller(T a, T b) {
@@ -252,7 +454,7 @@ final class ChildLauncher {
     }
 
     /** The body of a child: its whole run, ending in a status on the handle. */
-    private void runChild(
+    private Runnable runChild(
             HarnessExecutor child,
             ChildHandle handle,
             String workflow,
@@ -261,29 +463,533 @@ final class ChildLauncher {
             Optional<RunJournal.Entry> marker = child.journal().get(CANCEL_MARKER);
             if (marker.isPresent()) { // cancelled before it ran, or before a crash: it stays so
                 settleCancelled(child, handle, marker.get());
-                return;
+                return null;
             }
+            Optional<ScriptedChild> scripted = executor.childScripts().forWorkflow(workflow);
+            if (scripted.isPresent()) { // a test scripted this child: no workflow, no model
+                runScripted(child, handle, scripted.get());
+                return null;
+            }
+            applyPendingRewind(child.journal(), workflow); // a restart between the request and the rewind
             child.initialize();
             child.executeWorkflow(workflow, null, invoker);
             handle.complete(child.getContext().getVariable("result"));
+            lapseRewind(child.journal());
         } catch (RunSuspended paused) {
+            if (paused.reason() == RunSuspended.Reason.SIGNAL) return waitingForSignal(child, handle, paused);
             handle.pause(
                     paused.resumeAt() != null ? ChildStatus.SLEEPING : ChildStatus.WAITING,
                     paused.resumeAt());
+            return rewindIfAsked(child, handle);
         } catch (RunStopped stopped) {
             Optional<RunJournal.Entry> marker = child.journal().get(CANCEL_MARKER);
-            if (marker.isPresent()) settleCancelled(child, handle, marker.get());
-            else handle.end(ChildStatus.STOPPED, stopped.getMessage());
+            if (marker.isPresent()) {
+                settleCancelled(child, handle, marker.get());
+                return null;
+            }
+            Runnable again = rewindIfAsked(child, handle); // stopped by a parent that wants it sent back
+            if (again != null) return again;
+            handle.end(ChildStatus.STOPPED, stopped.getMessage());
         } catch (RunHalted halted) {
             handle.end(ChildStatus.FAILED, "halted: " + halted.reason());
+            lapseRewind(child.journal());
         } catch (io.github.llm4j.budget.BudgetExceeded exhausted) {
             handle.end(ChildStatus.FAILED, "budget: " + exhausted.getMessage());
+            lapseRewind(child.journal());
         } catch (RuntimeException failed) {
             handle.end(ChildStatus.FAILED, String.valueOf(failed.getMessage()));
+            lapseRewind(child.journal());
         } catch (Error died) {
             handle.end(ChildStatus.FAILED, String.valueOf(died.getMessage()));
             throw died;
         }
+        return null;
+    }
+
+    /** Journal key prefix, in a scripted child's journal, of each step it reached. */
+    static final String SCRIPTED = "#scripted.";
+
+    /**
+     * Plays a scripted child (F5): each step waits its {@code after} on the injected sleeper (the
+     * virtual clock in a test, so the supervisor's ticks happen as time passes), then looks for a
+     * stop, as a real child does at each step, then becomes what the step says.
+     */
+    private void runScripted(HarnessExecutor child, ChildHandle handle, ScriptedChild script) {
+        int index = 0;
+        for (ScriptedChild.Step step : script.steps()) {
+            if (!step.after().isZero()) {
+                try {
+                    child.sleeper().sleep(step.after());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RunStopped("interrupted while a scripted child was working");
+                }
+            }
+            child.control().checkpoint("scripted child"); // a cancel reaches it here
+            // reaching a step is something the child did: the supervisor's idle time and a judge's
+            // skip-if-nothing-changed both read the journal's size
+            child.journal().put(SCRIPTED + index, new RunJournal.Entry("scripted", step.state().name()));
+            if (!step.progress().isEmpty()) child.reportScripted(SCRIPTED + index, handle.workflow(), step.progress());
+            if (step.signal() != null) {
+                Mailbox.send(child.journal(), Mailbox.Direction.OUT, step.signal().name(), step.signal().text(), step.signal().sticky(), SCRIPTED + index, executor.nowMillis());
+                child.signalParent();
+            }
+            index++;
+            switch (step.state()) {
+                case WORKING -> {}
+                case COMPLETED -> {
+                    handle.complete(step.result());
+                    return;
+                }
+                case FAILED -> {
+                    handle.end(ChildStatus.FAILED, step.reason() == null ? "failed" : step.reason());
+                    return;
+                }
+                case WAITING -> {
+                    handle.pause(ChildStatus.WAITING, null);
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * The child's body ended because it waits for a signal (D12): it holds no thread and is recorded
+     * as waiting <em>for that name</em>. Then, as rule 3 says (no lost wake-up), it looks at its mailbox
+     * again: a signal written while it was on its way to suspend, or a deadline already due, wakes it at
+     * once, so one side of the race always sees the other.
+     */
+    private Runnable waitingForSignal(HarnessExecutor child, ChildHandle handle, RunSuspended paused) {
+        String name = paused.detail();
+        long deadline = paused.resumeAt().toEpochMilli();
+        handle.pauseOnSignal(name, deadline);
+        startTicking(); // the deadline of the wait is enforced on the tick
+        Runnable again = rewindIfAsked(child, handle);
+        if (again != null) return again;
+        boolean mail = Mailbox.next(child.journal(), Mailbox.Direction.IN, name).isPresent();
+        if (!mail && executor.nowMillis() < deadline) return null;
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        return live == null ? null : () -> wake(handle, live, name);
+    }
+
+    // ---- signals (phase 34c) ----
+
+    /**
+     * {@code notify handle "name" ["text"] [sticky]}: writes the signal into the child's journal first
+     * and then wakes the child if it waits for that name. A send to a settled child is a recorded
+     * no-op (D13); to a child that was cancelled it is written and never read (cancel wins). A limit
+     * fails the statement, naming it. Replayed, it sends nothing again.
+     */
+    void notifyChild(NotifyStmt stmt) {
+        String stepId = executor.currentStepId();
+        if (executor.journal().get(stepId).isPresent()) return; // sent before a restart: not sent again
+        ChildHandle handle = singleHandle(stmt.getTarget());
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        if (live == null)
+            throw new IllegalStateException(
+                    stmt.getTarget().describe() + " is a handle this run did not start, so it cannot signal it");
+        HarnessExecutor.Tracked<String> text = executor.tracked(() -> executor.resolve(stmt.getText()));
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("to", stmt.getTarget().describe());
+        record.put("name", stmt.getName());
+        if (handle.status().isSettled()) {
+            record.put("delivered", false);
+            record.put("reason", "the child had already " + handle.status().word() + ", so it will read nothing");
+            executor.journal().put(stepId, new RunJournal.Entry(SignalRunner.NOTIFY, record));
+            return;
+        }
+        executor.observeExit("notify", text.value(), text); // text leaving for another run is an exit
+        Mailbox.Signal sent = Mailbox.send(live.journal(), Mailbox.Direction.IN, stmt.getName(), text.value(), stmt.isSticky(), stepId, executor.nowMillis());
+        boolean cancelled = live.journal().get(CANCEL_MARKER).isPresent();
+        record.put("delivered", !cancelled);
+        record.put("seq", sent.seq());
+        if (cancelled) record.put("reason", "written, but the child was cancelled, so it will not be read (cancel wins)");
+        executor.journal().put(stepId, new RunJournal.Entry(SignalRunner.NOTIFY, record));
+        executor.audit("signal_sent", Map.of("direction", "to child", "name", stmt.getName()));
+        executor.traceSignal("sent", live.launch().childRun(), stmt.getName(), stmt.isSticky());
+        if (!cancelled) wake(handle, live, stmt.getName());
+    }
+
+    /** A test's stand-in for a child sending its parent a signal: written to the child's OUT mailbox, and a parked wait looks. */
+    void simulateFromChild(ChildHandle handle, String name, String text, boolean sticky, String fromStep, long atMillis) {
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        if (live == null) throw new IllegalStateException("that is a handle this run did not start");
+        Mailbox.send(live.journal(), Mailbox.Direction.OUT, name, text, sticky, fromStep, atMillis);
+        monitor.changed();
+    }
+
+    // ---- wait any (phase 34d, D11) ----
+
+    /** Journal kind of a {@code wait any}: the event it returned and the messages it took. */
+    static final String WAIT_ANY = "wait-any";
+
+    /**
+     * {@code wait any handles timeout T -> event}: returns the first of a <b>signal</b> from any handle,
+     * a handle <b>finishing</b>, or the <b>timeout</b>. When several are ready the order is fixed:
+     * signals before finished children, then the order the handles were started. A message is taken
+     * (so no later wait or rule sees it) and a latch is reported once until it is set again; a
+     * finished child is reported once. The first return is journaled with the messages it took, so
+     * a replay returns the same event and never decides again.
+     */
+    private void awaitAny(WaitStmt stmt, String stepId, Map<String, ChildHandle> handles) {
+        RunJournal journal = executor.journal();
+        Optional<RunJournal.Entry> recorded = journal.get(stepId);
+        if (recorded.isPresent() && WAIT_ANY.equals(recorded.get().kind())) {
+            applyRecordedAny(stmt, recorded.get().value(), handles);
+            return;
+        }
+        if (handles.size() > effectiveMaxChildren())
+            throw new IllegalStateException(
+                    "wait any " + stmt.getTarget().describe() + " names " + handles.size() + " handles, past max_children: " + effectiveMaxChildren()
+                            + ". Wait for fewer at once, or raise max_children.");
+        long deadline = executor.signalRunner().deadlineOf(journal, stepId, stmt.getTimeoutMillis()); // written once: a restart never lengthens it
+        while (true) {
+            long seen = monitor.version();
+            Map<String, Object> done = decideAny(stepId, handles);
+            if (done != null) {
+                finishAny(stmt, stepId, done, handles);
+                return;
+            }
+            long left = deadline - executor.nowMillis();
+            Live running = firstActive(handles);
+            if (left <= 0 || (running == null && !anySignalWaiting(handles) && nothingCanRun(handles))) {
+                finishAny(stmt, stepId, timeoutEvent(handles), handles);
+                return;
+            }
+            if (running == null && !anySignalWaiting(handles)) suspendIfNothingCanRun(stepId, handles); // asleep, or waiting for a person
+            try {
+                parkOnce(running, seen, left);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("interrupted while waiting for children", e);
+            }
+        }
+    }
+
+    /** True when no handle is left that could still produce an event. */
+    private boolean nothingCanRun(Map<String, ChildHandle> handles) {
+        Set<String> reported = reportedFinished();
+        for (ChildHandle h : handles.values()) if (!reported.contains(h.runId())) return false;
+        return true;
+    }
+
+    private int effectiveMaxChildren() {
+        ChildLimits ceiling = executor.childLimits();
+        Integer scripted = executor.loomScript().getMaxChildren();
+        return scripted != null ? scripted : Math.min(ChildLimits.DEFAULT_MAX_CHILDREN, ceiling.ceilingChildren());
+    }
+
+    /** The child runs whose finish an earlier {@code wait any} of this run already reported. */
+    private Set<String> reportedFinished() {
+        Set<String> out = new java.util.HashSet<>();
+        for (RunJournal.Entry e : executor.journal().all().values())
+            if (WAIT_ANY.equals(e.kind()) && e.value() instanceof Map<?, ?> m && m.get("event") instanceof Map<?, ?> ev && "finished".equals(ev.get("kind")))
+                out.add(String.valueOf(m.get("child")));
+        return out;
+    }
+
+    /** The highest sticky sequence of each (child, name) an earlier {@code wait any} reported. */
+    private Map<String, Long> reportedLatches() {
+        Map<String, Long> out = new java.util.HashMap<>();
+        for (RunJournal.Entry e : executor.journal().all().values())
+            if (WAIT_ANY.equals(e.kind()) && e.value() instanceof Map<?, ?> m && m.get("taken") instanceof List<?> taken)
+                for (Object t : taken)
+                    if (t instanceof Map<?, ?> tm && Boolean.TRUE.equals(tm.get("sticky")))
+                        out.merge(tm.get("child") + "/" + tm.get("name"), ((Number) tm.get("seq")).longValue(), Math::max);
+        return out;
+    }
+
+    /**
+     * What is ready now, or null: a signal from a handle (the oldest message, or a latch not yet
+     * reported) in start order, else a settled handle not yet reported in start order.
+     */
+    private Map<String, Object> decideAny(String stepId, Map<String, ChildHandle> handles) {
+        Set<String> reported = reportedFinished();
+        Map<String, Long> latches = reportedLatches();
+        for (Map.Entry<String, ChildHandle> e : handles.entrySet()) {
+            Live live;
+            synchronized (tasks) {
+                live = tasks.get(e.getValue());
+            }
+            if (live == null) continue;
+            Mailbox.Signal oldest = null;
+            for (Mailbox.Signal s : Mailbox.all(live.journal(), Mailbox.Direction.OUT)) {
+                if (s.epoch() != Mailbox.epoch(live.journal())) continue;
+                if (s.sticky()) {
+                    boolean newest = Mailbox.next(live.journal(), Mailbox.Direction.OUT, s.name()).map(n -> n.seq() == s.seq()).orElse(false);
+                    if (!newest || s.seq() <= latches.getOrDefault(live.launch().childRun() + "/" + s.name(), 0L)) continue;
+                } else if (Mailbox.next(live.journal(), Mailbox.Direction.OUT, s.name()).map(n -> n.seq() != s.seq()).orElse(true)) {
+                    continue; // not the oldest unread of its name
+                }
+                if (oldest == null || s.seq() < oldest.seq()) oldest = s;
+            }
+            if (oldest != null) {
+                Map<String, Object> event = baseEvent("signal", e.getKey());
+                event.put("signal", oldest.name());
+                event.put("text", oldest.text());
+                Map<String, Object> done = new LinkedHashMap<>();
+                done.put("event", event);
+                done.put("child", live.launch().childRun());
+                done.put("take", oldest);
+                done.put("live", live);
+                return done;
+            }
+        }
+        for (Map.Entry<String, ChildHandle> e : handles.entrySet()) {
+            ChildHandle h = e.getValue();
+            Live live;
+            synchronized (tasks) {
+                live = tasks.get(h);
+            }
+            if (!h.status().isSettled() || reported.contains(h.runId()) || (live != null && live.active())) continue;
+            Map<String, Object> event = baseEvent("finished", e.getKey());
+            event.put("status", h.status().word());
+            if (h.status() == ChildStatus.COMPLETED) event.put("result", h.fact("result"));
+            if (h.fact("reason") != null) event.put("reason", h.fact("reason"));
+            if (h.fact("failure") != null) event.put("failure", h.fact("failure"));
+            Map<String, Object> done = new LinkedHashMap<>();
+            done.put("event", event);
+            done.put("child", h.runId());
+            return done;
+        }
+        return null;
+    }
+
+    private Map<String, Object> baseEvent(String kind, String name) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("kind", kind);
+        event.put("name", name);
+        return event;
+    }
+
+    private Map<String, Object> timeoutEvent(Map<String, ChildHandle> handles) {
+        Map<String, Object> done = new LinkedHashMap<>();
+        done.put("event", baseEvent("timeout", ""));
+        done.put("child", "");
+        return done;
+    }
+
+    /** Journals the event with what it took, takes the message, binds the event and counts what remains. */
+    @SuppressWarnings("unchecked")
+    private void finishAny(WaitStmt stmt, String stepId, Map<String, Object> done, Map<String, ChildHandle> handles) {
+        Map<String, Object> event = (Map<String, Object>) done.get("event");
+        Set<String> reported = reportedFinished();
+        if ("finished".equals(event.get("kind"))) reported.add(String.valueOf(done.get("child")));
+        long remaining = handles.values().stream().filter(h -> !reported.contains(h.runId())).count();
+        event.put("remaining", remaining);
+        List<Map<String, Object>> taken = new ArrayList<>();
+        Mailbox.Signal signal = (Mailbox.Signal) done.get("take");
+        if (signal != null) {
+            Live live = (Live) done.get("live");
+            Map<String, Object> t = new LinkedHashMap<>();
+            t.put("child", live.launch().childRun());
+            t.put("name", signal.name());
+            t.put("seq", signal.seq());
+            t.put("sticky", signal.sticky());
+            taken.add(t);
+        }
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("event", event);
+        value.put("child", done.get("child"));
+        value.put("taken", taken);
+        value.put("n", executor.journal().all().values().stream().filter(e -> WAIT_ANY.equals(e.kind())).count() + 1); // the order they came in
+        executor.journal().put(stepId, new RunJournal.Entry(WAIT_ANY, value));
+        if (signal != null) {
+            Mailbox.take(((Live) done.get("live")).journal(), Mailbox.Direction.OUT, signal);
+            executor.traceSignal("read", ((Live) done.get("live")).launch().childRun(), signal.name(), signal.sticky());
+        }
+        bindEvent(stmt, event, handles);
+        executor.audit("wait_any", Map.of("kind", String.valueOf(event.get("kind"))));
+    }
+
+    /** A replayed {@code wait any}: the recorded event, and the taken marker put back if a crash lost it. */
+    @SuppressWarnings("unchecked")
+    private void applyRecordedAny(WaitStmt stmt, Object recorded, Map<String, ChildHandle> handles) {
+        if (!(recorded instanceof Map<?, ?> m) || !(m.get("event") instanceof Map<?, ?> ev)) return;
+        if (m.get("taken") instanceof List<?> taken)
+            for (Object t : taken)
+                if (t instanceof Map<?, ?> tm)
+                    for (ChildHandle h : handles.values()) {
+                        Live live;
+                        synchronized (tasks) {
+                            live = tasks.get(h);
+                        }
+                        if (live != null && live.launch().childRun().equals(String.valueOf(tm.get("child"))))
+                            Mailbox.take(live.journal(), Mailbox.Direction.OUT,
+                                    new Mailbox.Signal(String.valueOf(tm.get("name")), "", ((Number) tm.get("seq")).longValue(), Boolean.TRUE.equals(tm.get("sticky")), 0, ""));
+                    }
+        bindEvent(stmt, new LinkedHashMap<>((Map<String, Object>) ev), handles);
+    }
+
+    /** Binds the event: unchecked, because it carries a child's result or a signal's text; a result exists only for a completed child. */
+    private void bindEvent(WaitStmt stmt, Map<String, Object> event, Map<String, ChildHandle> handles) {
+        if (stmt.getResultVariable() == null) return;
+        Map<String, Object> bound = new LinkedHashMap<>(event);
+        if ("finished".equals(event.get("kind")) && !"completed".equals(event.get("status"))) {
+            ChildHandle h = handles.get(String.valueOf(event.get("name")));
+            bound.put("result", io.github.llm4j.loom.runtime.Unavailable.of(h == null ? "the child" : h.workflow(), String.valueOf(event.get("status"))));
+        }
+        executor.bind(stmt.getResultVariable(), bound, Provenance.UNCHECKED);
+    }
+
+    /** The send and the wake of a {@code notify}, for a caller that is not a statement. */
+    void signalChild(ChildHandle handle, String name, String text, boolean sticky, String fromStep) {
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        if (live == null) throw new IllegalStateException("that is a handle this run did not start, so it cannot signal it");
+        if (handle.status().isSettled()) return;
+        Mailbox.send(live.journal(), Mailbox.Direction.IN, name, text, sticky, fromStep, executor.nowMillis());
+        if (live.journal().get(CANCEL_MARKER).isEmpty()) wake(handle, live, name);
+    }
+
+    /**
+     * Runs a child again over its journal because it waits for {@code name} and a signal or its
+     * deadline has come (D12). <b>Idempotent and single flight</b>: under one lock, and only for a
+     * child that is waiting for exactly that name, so a repeated or stale wake finds the child running
+     * or settled and does nothing, and two {@code notify}s start one run. Cancel wins: a cancelled
+     * child is never woken.
+     */
+    private void wake(ChildHandle handle, Live live, String name) {
+        synchronized (tasks) {
+            if (handle.status() != ChildStatus.WAITING || !name.equals(handle.waitsFor())) return;
+            if (live.journal().get(CANCEL_MARKER).isPresent()) return;
+            handle.resume();
+            try {
+                launch(handle, live, live.run());
+            } catch (RuntimeException notLaunched) {
+                // the claim is already made (the handle says RUNNING), so a launch that fails must end the child here:
+                // left as it is, nothing would ever run it and the parent would wait out its whole timeout
+                log.log(java.util.logging.Level.WARNING, "could not run " + live.launch().childRun() + " again", notLaunched);
+                handle.end(ChildStatus.FAILED, "could not be run again after its signal: " + notLaunched.getMessage());
+                executor.childRuns().settled(live.launch().childRun(), handle.status());
+            }
+        }
+        monitor.changed();
+    }
+
+    /** A child wrote a signal for its parent: a parked {@code wait} looks now. */
+    void signalArrived() {
+        monitor.changed();
+    }
+
+    /**
+     * {@code wait handle signal "name" timeout T -> text} in a parent: reads the child's OUT mailbox,
+     * driving or parking until a signal comes, the child can send no more (it settled), or the
+     * timeout passes on the injected clock. What it read is journaled, so a replay reads the same.
+     */
+    void awaitSignal(SignalWaitStmt stmt, SignalRunner runner) {
+        if (stmt.getTimeoutMillis() == null)
+            throw new IllegalStateException(
+                    "wait " + stmt.getTarget().describe() + " signal \"" + stmt.getName() + "\" needs a timeout, so nothing waits for ever");
+        String stepId = executor.currentStepId();
+        ChildHandle handle = singleHandle(stmt.getTarget());
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        if (live == null)
+            throw new IllegalStateException(
+                    stmt.getTarget().describe() + " is a handle this run did not start, so it cannot wait for its signal");
+        Optional<RunJournal.Entry> recorded = executor.journal().get(stepId);
+        if (recorded.isPresent() && SignalRunner.WAIT.equals(recorded.get().kind())) {
+            runner.apply(stmt, recorded.get().value(), live.journal(), Mailbox.Direction.OUT);
+            return;
+        }
+        long deadline = runner.deadlineOf(executor.journal(), stepId, stmt.getTimeoutMillis());
+        while (true) {
+            long seen = monitor.version();
+            Optional<Mailbox.Signal> next = Mailbox.next(live.journal(), Mailbox.Direction.OUT, stmt.getName());
+            // a signal that came after the wait's deadline is not an answer to it (the clock may have run on while a child was driven)
+            if (next.isPresent() && next.get().atMillis() > deadline) next = Optional.empty();
+            if (next.isPresent()) {
+                runner.receive(stmt, stepId, live.journal(), Mailbox.Direction.OUT, next.get(), handle.runId());
+                return;
+            }
+            long left = deadline - executor.nowMillis();
+            if (left <= 0 || (handle.status().isSettled() && !live.active())) { // time is up, or nothing more can arrive
+                runner.timeOut(stmt, stepId);
+                return;
+            }
+            try {
+                parkOnce(live.active() ? live : null, seen, left);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("interrupted while waiting for a signal", e);
+            }
+        }
+    }
+
+    /**
+     * One step of waiting. With a child running, drive it (a queued one on a controlled scheduler) or
+     * sleep on the monitor. With nothing running, time has to pass: the scheduler that owns the clock
+     * moves it to the next thing that can happen, else the monitor sleeps a slice and the tick thread
+     * wakes any wait that is due.
+     */
+    private void parkOnce(Live running, long seen, long leftMillis) throws InterruptedException {
+        if (running != null) {
+            ChildScheduler.Task task = running.task();
+            if (task != null) task.await(0);
+            if (running.active()) monitor.awaitChange(seen, Math.min(leftMillis, POLL_MILLIS));
+            return;
+        }
+        if (wakeDueSignalWaiters(executor.nowMillis())) return; // something became runnable
+        long step = Math.min(leftMillis, untilNextSignalDeadline());
+        if (!executor.childScheduler().idle(step)) monitor.awaitChange(seen, Math.min(leftMillis, POLL_MILLIS));
+    }
+
+    /** Milliseconds until the earliest deadline of a child waiting for a signal, or a very large number. */
+    private long untilNextSignalDeadline() {
+        long now = executor.nowMillis();
+        long best = Long.MAX_VALUE;
+        synchronized (tasks) {
+            for (ChildHandle h : tasks.keySet())
+                if (h.status() == ChildStatus.WAITING && h.waitsFor() != null) best = Math.min(best, Math.max(1, h.waitsDeadlineMillis() - now));
+        }
+        return best;
+    }
+
+    /** Wakes every child whose signal wait has reached its deadline; true when any was woken. */
+    private boolean wakeDueSignalWaiters(long now) {
+        List<Map.Entry<ChildHandle, Live>> due = new ArrayList<>();
+        synchronized (tasks) {
+            for (Map.Entry<ChildHandle, Live> e : tasks.entrySet())
+                if (e.getKey().status() == ChildStatus.WAITING && e.getKey().waitsFor() != null && now >= e.getKey().waitsDeadlineMillis()) due.add(e);
+        }
+        boolean woke = false;
+        for (Map.Entry<ChildHandle, Live> e : due) {
+            String name = e.getKey().waitsFor();
+            if (name == null) continue;
+            wake(e.getKey(), e.getValue(), name);
+            woke = true;
+        }
+        return woke;
+    }
+
+    /** True when any of these children waits for a signal, so the parent parks until its own timeout (rule 6). */
+    private boolean anySignalWaiting(Map<String, ChildHandle> handles) {
+        for (ChildHandle h : handles.values()) if (h.status() == ChildStatus.WAITING && h.waitsFor() != null) return true;
+        return false;
+    }
+
+    /** What to do after the body when a parent asked for the child to be sent back, or null. */
+    private Runnable rewindIfAsked(HarnessExecutor child, ChildHandle handle) {
+        if (pendingRewind(child.journal()) == null) return null;
+        Live live;
+        synchronized (tasks) {
+            live = tasks.get(handle);
+        }
+        return live == null ? null : () -> completeRewind(handle, live);
     }
 
     private Map<String, Object> argumentValues(StartStmt stmt) {
@@ -318,12 +1024,16 @@ final class ChildLauncher {
             throw new IllegalStateException("wait needs a timeout: " + stmt.getTarget().describe());
         String stepId = executor.currentStepId();
         Map<String, ChildHandle> handles = handlesOf(stmt);
+        if (stmt.isAny()) {
+            awaitAny(stmt, stepId, handles);
+            return;
+        }
 
         Optional<RunJournal.Entry> recorded = executor.journal().get(stepId);
         if (recorded.isPresent() && WAIT.equals(recorded.get().kind())) {
             applyRecorded(handles, recorded.get().value());
         } else {
-            settle(handles, stmt.getTimeoutMillis());
+            settle(stepId, handles, stmt.getTimeoutMillis());
             suspendIfNothingCanRun(stepId, handles);
             executor.journal().put(stepId, new RunJournal.Entry(WAIT, outcomesOf(handles)));
         }
@@ -331,22 +1041,38 @@ final class ChildLauncher {
         runHandlers(stmt, handles);
     }
 
-    private void settle(Map<String, ChildHandle> handles, long timeoutMillis) {
-        long deadline = executor.nowMillis() + timeoutMillis;
-        for (ChildHandle h : handles.values()) {
-            ChildScheduler.Task task;
-            synchronized (tasks) {
-                Live live = tasks.get(h);
-                task = live == null ? null : live.task();
-            }
-            if (task == null) continue; // a settled child's task may still be recording its end
+    /**
+     * Parks until none of the handles has a body still running, or the timeout has passed on the
+     * injected clock (F3). It sleeps on the monitor, so a child's change of state wakes it at once,
+     * and for at most {@link #POLL_MILLIS} at a time, so the clock is looked at again. A queued
+     * child on a controlled scheduler is driven from here, as before.
+     */
+    private void settle(String stepId, Map<String, ChildHandle> handles, long timeoutMillis) {
+        long deadline = executor.signalRunner().deadlineOf(executor.journal(), stepId, timeoutMillis); // written once: a restart never lengthens it
+        while (true) {
+            long seen = monitor.version();
+            Live running = firstActive(handles);
+            if (running == null && !anySignalWaiting(handles)) return;
+            long left = deadline - executor.nowMillis();
+            if (left <= 0) return;
             try {
-                task.await(Math.max(0, deadline - executor.nowMillis()));
+                parkOnce(running, seen, left); // a child waiting for a signal is parked on, not suspended for (rule 6)
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException("interrupted while waiting for " + h, e);
+                throw new IllegalStateException("interrupted while waiting for children", e);
             }
         }
+    }
+
+    /** The first of these children whose body is still running, or null. */
+    private Live firstActive(Map<String, ChildHandle> handles) {
+        synchronized (tasks) {
+            for (ChildHandle h : handles.values()) {
+                Live live = tasks.get(h);
+                if (live != null && live.active()) return live;
+            }
+        }
+        return null;
     }
 
     /** The suspension this launcher's own {@code wait} threw, so the executor can tell it from any other. */
@@ -365,6 +1091,7 @@ final class ChildLauncher {
         for (ChildHandle h : handles.values()) {
             if (h.status().isSettled()) continue;
             if (h.status() == ChildStatus.RUNNING) return; // it may still finish: the wait timed out
+            if (h.waitsFor() != null) continue; // a signal wait is not a pause for a person: only the parent's own timeout ends it
             paused = true;
             if (h.wakes() == null) person = true;
             else if (earliest == null || h.wakes().isBefore(earliest)) earliest = h.wakes();
@@ -422,6 +1149,11 @@ final class ChildLauncher {
             ChildHandle only = handles.values().iterator().next();
             if (only.status() == ChildStatus.COMPLETED)
                 executor.bind(stmt.getResultVariable(), only.fact("result"), unchecked);
+            else // not nothing: a value that raises the status error when it is read (33-D9, F2)
+                executor.bind(
+                        stmt.getResultVariable(),
+                        io.github.llm4j.loom.runtime.Unavailable.of(only.workflow(), only.status().word()),
+                        Provenance.NOT_MODEL);
         }
     }
 
@@ -456,6 +1188,16 @@ final class ChildLauncher {
         long runningMillis;
         long lastProgress = -1;
         long signature = -1;
+        /** The progress fields a {@code changes within} assertion watches, the last value seen and the running time it changed at. */
+        java.util.Set<String> progressFields = java.util.Set.of();
+        /** {@code when signal} rules (phase 34c): their index base, whether each is spent, the last arrival each saw. */
+        List<SuperviseStmt.SignalRule> signalRules = List.of();
+        int signalBase;
+        boolean[] signalSpent = new boolean[0];
+        long[] signalSeen = new long[0];
+        Map<String, Object> currentSignal;
+        final Map<String, Object> progressSeen = new java.util.HashMap<>();
+        final Map<String, Long> progressChangedAt = new java.util.HashMap<>();
         List<JudgeSchedule> schedules = List.of();
         boolean[] judgedFiredOnce = new boolean[0];
         Budget judgeBudget;
@@ -505,6 +1247,15 @@ final class ChildLauncher {
             if (a.kind() == SuperviseStmt.AssertionKind.NEVER_CALLS)
                 live.run().forbid(a.name()); // preventive: refused before it runs, narrowing the child
         Watch watch = new Watch(handle, live, new SuperviseEvaluator(stmt, before), stepId, count);
+        java.util.Set<String> watched = new java.util.LinkedHashSet<>();
+        for (SuperviseStmt.CodeAssertion a : stmt.getCode())
+            if (a.kind() == SuperviseStmt.AssertionKind.CHANGES_WITHIN) watched.add(a.name());
+        watch.progressFields = watched;
+        watch.signalRules = stmt.getSignals();
+        watch.signalBase = stmt.getCounted().size() + stmt.getCode().size() + stmt.getJudged().size();
+        watch.signalSpent = new boolean[watch.signalRules.size()];
+        watch.signalSeen = new long[watch.signalRules.size()];
+        reconcileSignalRules(watch, prefix);
         watch.lastTick = executor.nowMillis(); // the child's time with this block begins now
         watch.lastProgress = watch.lastTick;
         watch.signature = signatureOf(live);
@@ -513,6 +1264,14 @@ final class ChildLauncher {
                 throw new IllegalStateException(
                         "supervise " + stmt.getTarget().describe() + " has a judged assertion and no budget to pay for the judge: write supervise "
                                 + stmt.getTarget().describe() + " budget { tokens: 20000 } { ... }");
+            if (live.judge() == null) // not reserved by its start: it is paid for now, if there is room
+                refuseIfShort(
+                        "supervise " + stmt.getTarget().describe(),
+                        null,
+                        stmt.getBudget(),
+                        null,
+                        "The child is already running and is now unsupervised. Start and supervise it in the same block, so the start"
+                                + " reserves the judge's budget, or give the parent budget enough for both.");
             watch.judgeBudget = executor.newJudgeBudget("judge of " + stmt.getTarget().describe(), stmt.getBudget());
             watch.enclosing = executor.enclosingBudgets();
             List<JudgeSchedule> schedules = new ArrayList<>();
@@ -527,6 +1286,69 @@ final class ChildLauncher {
         }
         watches.add(watch);
         startTicking();
+    }
+
+    /**
+     * A resume: what the signal rules did before is read back from the parent's journal, so a {@code
+     * once} rule stays spent, a latch that already fired does not fire again, and a message a rule had
+     * recorded but a crash left unmarked is marked taken (the record is the authority, the marker follows).
+     */
+    private void reconcileSignalRules(Watch w, String prefix) {
+        for (Map.Entry<String, RunJournal.Entry> e : executor.journal().all().entrySet()) {
+            if (!e.getKey().startsWith(prefix) || !(e.getValue().value() instanceof Map<?, ?> m) || !(m.get("rule") instanceof Number r)) continue;
+            int j = r.intValue() - w.signalBase;
+            if (j < 0 || j >= w.signalRules.size() || !("fired".equals(m.get("outcome")) || INTENT.equals(m.get("outcome")))) continue;
+            if (w.signalRules.get(j).once()) w.signalSpent[j] = true;
+            if (m.get("signal") instanceof Map<?, ?> sig && sig.get("seq") instanceof Number seq) {
+                w.signalSeen[j] = Math.max(w.signalSeen[j], seq.longValue());
+                Mailbox.take(w.live.journal(), Mailbox.Direction.OUT,
+                        new Mailbox.Signal(String.valueOf(sig.get("name")), "", seq.longValue(), Boolean.TRUE.equals(sig.get("sticky")), 0, ""));
+            }
+        }
+    }
+
+    /**
+     * The {@code when signal} rules of one look (D10). A rule fires <b>once for each arrival</b> of a
+     * signal of its name, never on what it says: it takes a message (so a wait and a rule never take
+     * the same one twice) or sees a latch once (setting it is an arrival, replacing it another). The
+     * actions' text is fixed in the script and the payload is not available to them. A {@code once}
+     * rule that has fired takes no more. Returns true when an action ended the evaluation.
+     */
+    private boolean runSignalRules(Watch w, SuperviseEvaluator.Facts facts) {
+        boolean ended = false;
+        for (int j = 0; j < w.signalRules.size() && !ended; j++) {
+            SuperviseStmt.SignalRule rule = w.signalRules.get(j);
+            for (int n = 0; n < Mailbox.MAX_PER_NAME && !ended; n++) {
+                if (rule.once() && w.signalSpent[j]) break;
+                Optional<Mailbox.Signal> next = Mailbox.next(w.live.journal(), Mailbox.Direction.OUT, rule.name());
+                if (next.isEmpty()) break;
+                Mailbox.Signal sig = next.get();
+                if (sig.sticky() && sig.seq() <= w.signalSeen[j]) break; // a latch is one arrival until it is set again
+                w.signalSeen[j] = sig.seq();
+                Map<String, Object> arrival = new LinkedHashMap<>();
+                arrival.put("name", sig.name());
+                arrival.put("seq", sig.seq());
+                arrival.put("sticky", sig.sticky());
+                w.currentSignal = arrival;
+                boolean steered = false;
+                for (SuperviseDef.Action action : rule.actions()) {
+                    if (action.kind() == SuperviseDef.Do.STEER) {
+                        if (steered) continue; // one steer a tick
+                        steered = true;
+                    }
+                    apply(w, new SuperviseEvaluator.Firing(w.signalBase + j, action, "fired", action.kind() != SuperviseDef.Do.STEER), facts);
+                    if (action.kind() != SuperviseDef.Do.STEER) {
+                        ended = true;
+                        break;
+                    }
+                }
+                w.currentSignal = null;
+                Mailbox.take(w.live.journal(), Mailbox.Direction.OUT, sig);
+                executor.traceSignal("read", w.live.launch().childRun(), sig.name(), sig.sticky());
+                if (rule.once()) w.signalSpent[j] = true;
+            }
+        }
+        return ended;
     }
 
     /** Journal key infix of a judgement, in the parent's journal: {@code <step>#judge.<rule>.<n>}. */
@@ -652,6 +1474,7 @@ final class ChildLauncher {
     void tick() {
         long now = executor.nowMillis();
         checkDeadlines(now);
+        wakeDueSignalWaiters(now); // the deadline of a signal wait is enforced here, as a start's is
         for (Watch w : watches) {
             boolean settled = w.handle.status().isSettled();
             synchronized (w) {
@@ -662,6 +1485,7 @@ final class ChildLauncher {
                     apply(w, firing, facts);
                     ended |= firing.endsEvaluation() && firing.delivered();
                 }
+                if (!ended) ended = runSignalRules(w, facts);
                 if (!ended && !settled) runJudges(w, facts);
             }
             if (settled) watches.remove(w);
@@ -670,7 +1494,11 @@ final class ChildLauncher {
         synchronized (tasks) {
             deadlines = tasks.entrySet().stream().anyMatch(e -> e.getValue().deadlineMillis() != null && !e.getKey().status().isSettled());
         }
-        if (watches.isEmpty() && !deadlines) stopTicking();
+        boolean signalWaiters;
+        synchronized (tasks) {
+            signalWaiters = tasks.keySet().stream().anyMatch(h -> h.status() == ChildStatus.WAITING && h.waitsFor() != null);
+        }
+        if (watches.isEmpty() && !deadlines && !signalWaiters) stopTicking();
     }
 
     /**
@@ -724,7 +1552,28 @@ final class ChildLauncher {
         w.lastTick = now;
         return new SuperviseEvaluator.Facts(
                 tokens, calls, cost, w.runningMillis, running ? now - w.lastProgress : 0,
-                w.live.run().trajectory());
+                w.live.run().trajectory(), standingStill(w));
+    }
+
+    /**
+     * How long, in the child's running time, each watched progress field has stood still (D7). The
+     * clock starts when the block begins and starts again whenever the field's value is not what
+     * it was at the last look; only <em>whether</em> it moved is used, never what it says. Sleep
+     * does not count, because running time does not.
+     */
+    private Map<String, Long> standingStill(Watch w) {
+        if (w.progressFields.isEmpty()) return Map.of();
+        Map<String, Object> latest = ProgressLog.latest(w.live.journal());
+        Map<String, Long> out = new LinkedHashMap<>();
+        for (String field : w.progressFields) {
+            Object now = latest.get(field);
+            if (!java.util.Objects.equals(now, w.progressSeen.get(field))) {
+                w.progressSeen.put(field, now);
+                w.progressChangedAt.put(field, w.runningMillis);
+            }
+            out.put(field, w.runningMillis - w.progressChangedAt.getOrDefault(field, 0L));
+        }
+        return out;
     }
 
     /**
@@ -744,6 +1593,7 @@ final class ChildLauncher {
         record.put("elapsedMillis", facts.elapsedMillis());
         record.put("idleMillis", facts.idleMillis());
         record.put("at", w.live.journal().all().size()); // the child's position: how many steps it had recorded
+        if (w.currentSignal != null) record.put("signal", new LinkedHashMap<>(w.currentSignal)); // which arrival, never its text
         if (firing.delivered()) {
             record.put("outcome", INTENT);
             record.put("detail", "delivery unknown: the run stopped before it was recorded");
@@ -850,10 +1700,6 @@ final class ChildLauncher {
     static final String CANCEL = "child-cancel";
 
     void cancel(CancelStmt stmt) {
-        if (stmt.getRewindCheckpoint() != null)
-            throw new IllegalStateException(
-                    "cancel " + stmt.getTarget().describe() + " rewind to " + stmt.getRewindCheckpoint()
-                            + " cannot run yet: sending a child back to a checkpoint is not available in this build.");
         String stepId = executor.currentStepId();
         ChildHandle handle = singleHandle(stmt.getTarget());
         Live live;
@@ -867,6 +1713,10 @@ final class ChildLauncher {
                 stmt.getReason() != null
                         ? stmt.getReason()
                         : "cancelled by the parent script, line " + stmt.getLine();
+        if (stmt.getRewindCheckpoint() != null) {
+            rewindChild(stmt, stepId, handle, live, reason);
+            return;
+        }
         cancelChild(handle, live, stmt.getOutcome(), reason);
         if (executor.journal().get(stepId).isEmpty())
             executor.journal()
@@ -874,6 +1724,149 @@ final class ChildLauncher {
                             stepId,
                             new RunJournal.Entry(
                                     CANCEL, Map.of("status", handle.status().word(), "reason", reason)));
+    }
+
+    // ---- cancel ... rewind to (F1) ----
+
+    /** Journal key, in the child's own journal, of a parent's request to send it back to a checkpoint. */
+    static final String REWIND_REQUEST = "#rewind-request";
+
+    /** Who a boundary written for a parent's cancel names as its author. */
+    private static final String REWOUND_BY = "parent";
+
+    /**
+     * Sends a child back to a checkpoint it declared and lets it go on (33-D13, F1). The child goes
+     * into a new generation of its steps, so what it did stays as history and nothing is deleted;
+     * a step identical to one that already ran is not repeated ({@code effects: keep}); and it is
+     * sent back to one checkpoint at most as many times as the statement says, counted in the
+     * child's own journal so a loop cannot get round it.
+     *
+     * <p>A child that is asleep or waiting has no thread, so it is re-run at once on the launch
+     * method. A running child is asked to stop, which it does at its next step (an effect under way
+     * finishes and is journaled first) and is re-run from there. The request is written to the
+     * child's journal first, so a restart between the two finishes the job and never repeats it.
+     */
+    private void rewindChild(CancelStmt stmt, String stepId, ChildHandle handle, Live live, String reason) {
+        if (executor.journal().get(stepId).isPresent()) return; // sent back before a restart: not again
+        String checkpoint = stmt.getRewindCheckpoint();
+        String outcome;
+        if (handle.status().isSettled()) {
+            outcome = "not sent back: the child had already " + handle.status().word();
+        } else if (!reached(live, checkpoint)) {
+            outcome = "not sent back: the child has not reached " + checkpoint + " yet";
+        } else {
+            int used = rewindsTo(live.journal(), checkpoint);
+            if (used >= stmt.getRewindAtMost())
+                throw new IllegalStateException(
+                        "cancel " + stmt.getTarget().describe() + " rewind to " + checkpoint + " at most "
+                                + stmt.getRewindAtMost() + " times: the child has already been sent back to " + checkpoint
+                                + " " + used + " times. Raise the limit, or cancel it with an outcome instead.");
+            Map<String, Object> request = new LinkedHashMap<>();
+            request.put("checkpoint", checkpoint);
+            request.put("reason", reason);
+            request.put("sequence", used + 1);
+            live.journal().put(REWIND_REQUEST, new RunJournal.Entry("rewind-request", request));
+            outcome = "sent back to " + checkpoint;
+            executor.journal()
+                    .put(
+                            stepId,
+                            new RunJournal.Entry(
+                                    CANCEL, Map.of("status", handle.status().word(), "reason", reason, "rewind", checkpoint)));
+            executor.audit("child_rewind", Map.of("child", live.launch().childRun(), "checkpoint", checkpoint, "reason", reason));
+            deliverRewind(handle, live);
+            return;
+        }
+        executor.journal()
+                .put(stepId, new RunJournal.Entry(CANCEL, Map.of("status", handle.status().word(), "reason", outcome)));
+        executor.audit("child_rewind", Map.of("child", live.launch().childRun(), "checkpoint", checkpoint, "outcome", outcome));
+    }
+
+    /** Whether the child's journal says it has passed {@code checkpoint}. */
+    private static boolean reached(Live live, String checkpoint) {
+        for (Map.Entry<String, RunJournal.Entry> e : live.journal().all().entrySet())
+            if (e.getKey().endsWith("#checkpoint")
+                    && e.getValue().value() instanceof Map<?, ?> m
+                    && checkpoint.equals(m.get("name"))) return true;
+        return false;
+    }
+
+    /** How many times the journal's boundaries record a parent sending the child back to {@code checkpoint}. */
+    private static int rewindsTo(RunJournal journal, String checkpoint) {
+        int n = 0;
+        for (Generations.Boundary b : new Generations(journal).all())
+            if (REWOUND_BY.equals(b.by()) && checkpoint.equals(b.name())) n++;
+        return n;
+    }
+
+    /**
+     * Acts on a request just written: a child with no thread is rewound and re-run now, one that is
+     * running is asked to stop and picks the request up when its body ends.
+     */
+    private void deliverRewind(ChildHandle handle, Live live) {
+        synchronized (tasks) {
+            if (handle.status() == ChildStatus.RUNNING) {
+                live.run().control().request(RunControl.Action.STOP, "parent: sent back to a checkpoint");
+                return;
+            }
+        }
+        completeRewind(handle, live);
+    }
+
+    /**
+     * The parent's request as it still stands, or null: absent, already carried out (the journal's
+     * boundaries have caught up with its sequence) or given up on because the child ended first.
+     */
+    private static Map<?, ?> pendingRewind(RunJournal journal) {
+        Optional<RunJournal.Entry> entry = journal.get(REWIND_REQUEST);
+        if (entry.isEmpty() || !(entry.get().value() instanceof Map<?, ?> m) || m.get("state") != null) return null;
+        int sequence = ((Number) m.get("sequence")).intValue();
+        return rewindsTo(journal, String.valueOf(m.get("checkpoint"))) >= sequence ? null : m;
+    }
+
+    /**
+     * Writes the boundary a pending request asks for, if it has not been written, and runs the
+     * child again over its journal. Idempotent and single flight: under one lock, and only for a
+     * child that is not settled and has not been cancelled (cancel wins).
+     */
+    private void completeRewind(ChildHandle handle, Live live) {
+        synchronized (tasks) {
+            if (handle.status().isSettled() || live.journal().get(CANCEL_MARKER).isPresent()) return;
+            if (!applyPendingRewind(live.journal(), live.launch().workflow())) return;
+            handle.resume();
+            launch(handle, live, live.run());
+        }
+        monitor.changed();
+    }
+
+    /** True when a request was pending and its boundary is now written. */
+    private static boolean applyPendingRewind(RunJournal journal, String workflow) {
+        Map<?, ?> request = pendingRewind(journal);
+        if (request == null) return false;
+        String checkpoint = String.valueOf(request.get("checkpoint"));
+        io.github.llm4j.loom.travel.RunTravel.Target target =
+                io.github.llm4j.loom.travel.RunTravel.resolve(journal, workflow, checkpoint);
+        new Generations(journal)
+                .start(
+                        target.block(),
+                        target.from(),
+                        checkpoint,
+                        REWOUND_BY,
+                        null,
+                        String.valueOf(request.get("reason")),
+                        Map.of(),
+                        io.github.llm4j.loom.ast.RewindStmt.Effects.KEEP.phrase(),
+                        false);
+        return true;
+    }
+
+    /** The child ended with a request still pending: it finished first, so the request lapses and is recorded so. */
+    private static void lapseRewind(RunJournal journal) {
+        Map<?, ?> request = pendingRewind(journal);
+        if (request == null) return;
+        Map<String, Object> done = new LinkedHashMap<>();
+        request.forEach((k, v) -> done.put(String.valueOf(k), v));
+        done.put("state", "lapsed: the child ended before it could be stopped");
+        journal.put(REWIND_REQUEST, new RunJournal.Entry("rewind-request", done));
     }
 
     /**
@@ -948,7 +1941,7 @@ final class ChildLauncher {
             ChildHandle handle = e.getKey();
             if (handle.status().isSettled()) continue;
             try {
-                e.getValue().task().await(Math.max(0, deadline - executor.nowMillis()));
+                awaitBody(e.getValue(), Math.max(0, deadline - executor.nowMillis()));
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
             }
@@ -981,11 +1974,17 @@ final class ChildLauncher {
         for (Map.Entry<ChildHandle, Live> e : old) cancelChild(e.getKey(), e.getValue(), null, reason);
         for (Map.Entry<ChildHandle, Live> e : old) {
             try {
-                e.getValue().task().await(executor.childLimits().settleGrace().toMillis());
+                awaitBody(e.getValue(), executor.childLimits().settleGrace().toMillis());
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    /** Blocks until the child's current body has finished or {@code millis} have passed. */
+    private static void awaitBody(Live live, long millis) throws InterruptedException {
+        ChildScheduler.Task task = live.task();
+        if (task != null) task.await(millis);
     }
 
     /** The one handle {@code ref} names, for a statement that acts on a single child. */
@@ -1027,19 +2026,19 @@ final class ChildLauncher {
         Object base = executor.view().getVariable(ref.name());
         Map<String, ChildHandle> out = new LinkedHashMap<>();
         // nothing was started under this name (a loop over an empty list): waiting for all of none is waiting for nothing
-        if (stmt.isAll() && !ref.isKeyed() && (base == null || "".equals(base) || (base instanceof Map<?, ?> none && none.isEmpty())))
+        if ((stmt.isAll() || stmt.isAny()) && !ref.isKeyed() && (base == null || "".equals(base) || (base instanceof Map<?, ?> none && none.isEmpty())))
             return out;
         if (ref.isKeyed()) {
             String key = ref.keyIsLiteral() ? ref.key() : String.valueOf(ConditionEvaluator.resolvePath(ref.key(), executor.view()));
             if (base instanceof Map<?, ?> map && map.get(key) instanceof ChildHandle h) out.put(key, h);
         } else if (base instanceof ChildHandle h) {
             out.put(ref.name(), h);
-        } else if (stmt.isAll() && base instanceof Map<?, ?> map) {
+        } else if ((stmt.isAll() || stmt.isAny()) && base instanceof Map<?, ?> map) {
             map.forEach((k, v) -> {
                 if (v instanceof ChildHandle h) out.put(String.valueOf(k), h);
             });
         }
-        if (out.isEmpty() && !(stmt.isAll() && !ref.isKeyed() && base instanceof Map<?, ?>))
+        if (out.isEmpty() && !((stmt.isAll() || stmt.isAny()) && !ref.isKeyed() && base instanceof Map<?, ?>))
             throw new IllegalStateException(
                     ref.describe() + " holds no handle at this point: start the child before waiting for it");
         return out;

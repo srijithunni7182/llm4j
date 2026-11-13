@@ -129,7 +129,7 @@ No public API changes. New facts in the review fact model (`AgentFacts`, a new `
 | Chapter | Change |
 |---|---|
 | [5. Structured answers and failure](../../tutorial/05-structured-answers-and-failure.md) | New section **"Reason first, then extract"** after the extractor section of phase 24: why "JSON only" hurts an agent that must think, the two-step shape, a side-by-side of the trapped and the fixed script, and a short list of when a small `output_schema` on an agent is still right. "Try it yourself" gains: run `weave review` on the trapped version, read LP10, apply the split with `--dry-run`. |
-| [14. Cookbook](../../tutorial/14-cookbook.md) | Recipe **"Let the reasoning agent think, then extract"**; "mistakes and their fixes" gains LP10 and the new wording of LR05 and LP02. |
+| [14. Cookbook](../../tutorial/15-cookbook.md) | Recipe **"Let the reasoning agent think, then extract"**; "mistakes and their fixes" gains LP10 and the new wording of LR05 and LP02. |
 | [4. Control flow](../../tutorial/04-control-flow.md) | `for each` gains **`max N` and `on_too_many`**: the bound, what happens when a planner returns far more than it should, and why that points upstream (R7). |
 | [11. Advanced orchestration](../../tutorial/11-advanced-orchestration.md) | New section **"Keep progress in the workflow, not the conversation"** beside context and compaction: why a long agent loses track, the recipe, and starter 16 walked through. |
 | [README](../../tutorial/README.md) | Chapter 5's row mentions "reason, then extract"; chapter 11's row mentions keeping progress in the workflow; the starter table gains starter 16. |

@@ -578,7 +578,7 @@ Stages that matter: 2 (a reply that breaks each rule), 7 (audit), 8 (a violation
 ```loom
 // 18-supervise-workflows: start a workflow without waiting for it, then watch it. A planner names the topics; each topic
 // becomes a researcher that runs as a child of its own, all at once. While they run, rules count what each one spends and
-// how long it sits idle, and a judge asks whether it stays on topic. A child that spends too much is cancelled and keeps
+// how long it sits idle, and a judge asks whether it stays on topic. A researcher that finds nothing asks its supervisor for help with a signal, and the supervisor steers it. A child that spends too much is cancelled and keeps
 // what it had; one that drifts is steered. Every child has its own budget, and a restart finds the same children again.
 
 substitution: braces
@@ -604,6 +604,7 @@ agent Editor { model: "gemini-2.5-flash"  system: "Combine the findings into one
 
 workflow Research(topic) {
     delegate "Research: {topic}" to Researcher -> notes
+    alt (notes == "") { notify parent "need_help" "found nothing on {topic}" }
     checkpoint collected
     return notes
 }
@@ -618,6 +619,7 @@ workflow Main(question) {
             when tokens > 60000 { steer "You are using a lot. Narrow the topic and answer with what you have." once }
             when idle > 3m      { steer "You seem stuck. Narrow the topic." once }
             assert "searches only for the topic" using TopicJudge every 2m max 4 { steer "Go back to the topic." once }
+            when signal "need_help" { steer "Try a narrower reading of the topic." once }
         }
     }
 
@@ -631,9 +633,11 @@ workflow Main(question) {
 
 - `start` needs somewhere to keep each child's run: use `--journal` with `weave run`, or a `LoomHost` with persistence. Kill the parent and run it again and it finds the same children.
 - A handle is never written into a prompt and never given to a task; read `work.status` or `work is ok` instead.
+- To know where a child is, have it declare `progress { stage: string }` and `report { }` as it goes; the parent reads `work.progress.stage` (unchecked text) and may assert that a field `changes within` a time.
+- A child that may need its supervisor says so with `notify parent "need_help" "..."`; the parent answers with `when signal "need_help" { steer "..." once }` (the steer's text is fixed in the script; a signal's text can never become it) or `notify work "go"` to a child that did `wait signal "go" timeout 10m`. To react to whichever child needs you first, `wait any work timeout 10m -> event` in a bounded loop and branch on `event.kind`.
 - `never calls` refuses the call before it runs; a steer needs an agent marked `steerable`. `weave audit` lists who may steer a child (LA28) and each judged rule (LA29).
 
-Stages that matter: 5 (cost per child, the reservation), 7 (audit), 8 (trajectory tests with `children:` and `fired:`), 15 (stop and supervise).
+Stages that matter: 5 (cost per child, the reservation), 7 (audit, rule LA30 for a signal read), 8 (trajectory tests with `children:`, `signals:`, `events:` and `fired:`), 15 (stop and supervise).
 
 ## Shapes that are not a pattern of their own
 

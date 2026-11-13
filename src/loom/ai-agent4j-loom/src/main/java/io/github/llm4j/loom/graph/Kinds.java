@@ -91,6 +91,18 @@ public final class Kinds {
     /** A {@code steer} statement or a {@code supervise} block on a handle. */
     public static final String CHILD_WATCH = "child_watch";
 
+    /** A {@code wait any} statement: returns on the first signal, finish or timeout of several children (phase 34d). */
+    public static final String CHILD_WAIT_ANY = "child_wait_any";
+
+    /** A {@code notify} statement: a signal to a child or to the parent (phase 34c). */
+    public static final String CHILD_NOTIFY = "child_notify";
+
+    /** A {@code wait signal} statement: waits for a signal from the parent or from a child (phase 34c). */
+    public static final String CHILD_SIGNAL_WAIT = "child_signal_wait";
+
+    /** A {@code report} statement: a workflow says where it is, for whoever started it (phase 34b). */
+    public static final String CHILD_REPORT = "child_report";
+
     public static final String UNKNOWN = "unknown";
 
     public static final List<String> ALL =
@@ -125,6 +137,10 @@ public final class Kinds {
                     CHILD_WAIT,
                     CHILD_CANCEL,
                     CHILD_WATCH,
+                    CHILD_REPORT,
+                    CHILD_WAIT_ANY,
+                    CHILD_NOTIFY,
+                    CHILD_SIGNAL_WAIT,
                     OUTCOME,
                     UNKNOWN);
 

@@ -123,6 +123,7 @@ public class ConditionEvaluator {
      */
     static boolean ok(String path, VariableContext context) {
         if (variable(path, context) instanceof ChildHandle handle) return handle.isOk();
+        if (variable(path, context) instanceof Unavailable) return false;
         int dot = path.indexOf('.');
         return Boolean.TRUE.equals(
                 context.getVariable("_ok:" + (dot < 0 ? path : path.substring(0, dot))));
@@ -189,6 +190,7 @@ public class ConditionEvaluator {
     }
 
     private static Object getProperty(Object obj, String field) {
+        if (obj instanceof Unavailable gone) throw new IllegalStateException(gone.message());
         if (obj instanceof ChildHandle handle) {
             return handle.fact(field);
         }

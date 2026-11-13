@@ -1,0 +1,25 @@
+// Canonical CTK test: signal_to_child (also an oracle case for provenance, phase 34c)
+// A parent sends a child a signal whose text a model wrote. The child reads it as untrusted text, whatever the
+// sender knew: it is returned and written into a prompt, and a runtime that treated it as plain script text
+// would leak model-written words. A signal sent before the child waits is not lost.
+
+agent Planner { model: "m" system: "Plan the job." }
+agent Worker { model: "m" system: "Do the job." }
+
+workflow Child(topic) {
+    wait signal "go" timeout 5m -> instruction
+    delegate "Do this: {instruction}" to Worker -> done
+    return instruction
+}
+
+workflow main() {
+    delegate "Plan a job" to Planner -> plan
+    start Child(topic = "x") budget { tokens: 10000 } -> work
+    notify work "go" "{plan}"
+    wait work timeout 10m -> out
+    alt (work is ok) {
+        return out
+    } else {
+        halt "the child did not finish"
+    }
+}

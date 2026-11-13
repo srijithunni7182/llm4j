@@ -157,6 +157,10 @@ Each ends with `make test-core` (and `make docs-check` where docs, a command, a 
 | 33g | Judged assertions | The facts view; the evaluator call; cadence, floor, `max`, skip-if-unchanged; the journaled verdict; the judge budget and reservation; `judges:` scripting; the audit listing. |
 | 33h | The ecosystem and closure | Fabric and `loom-inspect-core`; `timeline` and `why`; VS Code; CTK; starter 18 and the tutorial; docs and skills; the oracle cases; the mutation profile; `docs/API_COMPATIBILITY.md`; the release notes. |
 
+### Scope: v1, v2 and v3
+
+D1 and D20 stage the work as v1, v2 and v3; the sub-phases above are how it was built. **v1** is 33a to 33e plus the ecosystem (`start`, `wait`, `cancel`, `steer`, readable facts, `supervise` with counted rules, budgets and limits); **v2** is 33f and 33g (assertions in code, judged assertions); **v3**, which is a later phase, is declared progress (`report`), signals (`notify`) and `wait any`, and has no sub-phase here. The state of each is in [VERIFICATION.md](VERIFICATION.md) (the build state, §1b and §3).
+
 ## 6. Decisions
 
 All taken; the log is in [DECISIONS.md](DECISIONS.md). Deferred to the later phase: D6, D7, and the declared-progress and pushed-event halves of D22.

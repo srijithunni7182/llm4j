@@ -43,13 +43,18 @@ public final class StatementText {
         if (s instanceof io.github.llm4j.loom.ast.StartStmt x)
             return "start " + x.getWorkflow();
         if (s instanceof io.github.llm4j.loom.ast.WaitStmt x)
-            return "wait " + (x.isAll() ? "all " : "") + x.getTarget().describe();
+            return "wait " + (x.isAll() ? "all " : x.isAny() ? "any " : "") + x.getTarget().describe();
         if (s instanceof io.github.llm4j.loom.ast.CancelStmt x)
             return "cancel " + x.getTarget().describe();
         if (s instanceof io.github.llm4j.loom.ast.SteerStmt x)
             return "steer " + x.getTarget().describe();
         if (s instanceof io.github.llm4j.loom.ast.SuperviseStmt x)
             return "supervise " + x.getTarget().describe();
+        if (s instanceof io.github.llm4j.loom.ast.ReportStmt) return "report";
+        if (s instanceof io.github.llm4j.loom.ast.NotifyStmt n)
+            return "notify " + (n.toParent() ? "parent" : n.getTarget().describe()) + " \"" + n.getName() + "\"";
+        if (s instanceof io.github.llm4j.loom.ast.SignalWaitStmt w)
+            return "wait " + (w.getTarget() == null ? "" : w.getTarget().describe() + " ") + "signal \"" + w.getName() + "\"";
         if (s instanceof NoteStmt) return "note";
         if (s instanceof SleepStmt) return "sleep";
         if (s instanceof ParallelStmt) return "parallel";

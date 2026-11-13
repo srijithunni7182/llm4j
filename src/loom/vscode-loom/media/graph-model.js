@@ -47,7 +47,7 @@
     delegate: 'agent', handoff: 'agent', broadcast: 'agent', task: 'task', loop: 'loop', foreach: 'loop',
     human_prompt: 'human', note: 'note', start: 'term', end: 'term', parallel: 'parallel', call: 'call',
     guardrail: 'guardrail', decide: 'decide', checkpoint: 'checkpoint', rewind: 'rewind', observe: 'observe', sleep: 'sleep', outcome: 'outcome',
-    child_start: 'child', child_wait: 'human', child_cancel: 'exit', child_watch: 'observe',
+    child_start: 'child', child_wait: 'human', child_cancel: 'exit', child_watch: 'observe', child_report: 'note', child_notify: 'note', child_wait_any: 'human', child_signal_wait: 'human',
     halt: 'exit', set: 'note', return: 'term'
   };
 

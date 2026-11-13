@@ -1,6 +1,6 @@
 // 18-supervise-workflows: start a workflow without waiting for it, then watch it. A planner names the topics; each topic
 // becomes a researcher that runs as a child of its own, all at once. While they run, rules count what each one spends and
-// how long it sits idle, and a judge asks whether it stays on topic. A child that spends too much is cancelled and keeps
+// how long it sits idle, and a judge asks whether it stays on topic. A researcher that finds nothing asks its supervisor for help with a signal, and the supervisor steers it. A child that spends too much is cancelled and keeps
 // what it had; one that drifts is steered. Every child has its own budget, and a restart finds the same children again.
 
 substitution: braces
@@ -26,6 +26,7 @@ agent Editor { model: "gemini-2.5-flash"  system: "Combine the findings into one
 
 workflow Research(topic) {
     delegate "Research: {topic}" to Researcher -> notes
+    alt (notes == "") { notify parent "need_help" "found nothing on {topic}" }
     checkpoint collected
     return notes
 }
@@ -40,6 +41,7 @@ workflow Main(question) {
             when tokens > 60000 { steer "You are using a lot. Narrow the topic and answer with what you have." once }
             when idle > 3m      { steer "You seem stuck. Narrow the topic." once }
             assert "searches only for the topic" using TopicJudge every 2m max 4 { steer "Go back to the topic." once }
+            when signal "need_help" { steer "Try a narrower reading of the topic." once }
         }
     }
 

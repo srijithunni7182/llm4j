@@ -1,0 +1,18 @@
+// Canonical CTK test: signal_to_parent (also an oracle case for provenance, phase 34c)
+// A child tells its parent something a model wrote. The parent reads it as untrusted text and returns it. A child
+// can signal only its parent, and a signal's payload never becomes a steer's text.
+
+agent Worker { model: "m" system: "Research the topic." }
+
+workflow Child(topic) {
+    delegate "Research {topic}" to Worker -> notes
+    notify parent "found" "{notes}"
+    return "done"
+}
+
+workflow main() {
+    start Child(topic = "x") budget { tokens: 10000 } -> work
+    wait work signal "found" timeout 10m -> got
+    wait work timeout 10m -> out
+    return got
+}

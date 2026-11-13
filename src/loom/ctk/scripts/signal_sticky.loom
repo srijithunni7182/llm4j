@@ -1,0 +1,20 @@
+// Canonical CTK test: signal_sticky
+// A sticky signal is a latch: it stays set, any wait for it returns at once without consuming it, and the child's
+// two waits for the same name both see it. A message is consumed once, in order.
+
+workflow Child(topic) {
+    wait signal "approved" timeout 5m -> first
+    wait signal "approved" timeout 5m -> second
+    wait signal "note" timeout 5m -> one
+    wait signal "note" timeout 5m -> two
+    return "{first} {second} {one} {two}"
+}
+
+workflow main() {
+    start Child(topic = "x") budget { tokens: 1000 } -> work
+    notify work "approved" "yes" sticky
+    notify work "note" "m1"
+    notify work "note" "m2"
+    wait work timeout 10m -> out
+    return out
+}

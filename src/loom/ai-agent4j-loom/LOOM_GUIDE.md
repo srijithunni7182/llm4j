@@ -4,7 +4,7 @@
 
 Loom is a **Neuro-Symbolic Domain Specific Language (DSL)** designed to bridge the gap between the probabilistic world of LLMs (**Neural**) and the deterministic world of business logic (**Symbolic**). 
 
-This guide provides a comprehensive technical reference for setting up, writing, and executing Loom-based agentic workflows. **New to Loom?** Start with the [tutorial](../../../docs/tutorial/README.md) (fourteen chapters with diagrams, from a first workflow to production) and the [starter set](../starters/README.md) (fifteen small, tested workflows to copy). This page is the reference you come back to for every option.
+This guide provides a comprehensive technical reference for setting up, writing, and executing Loom-based agentic workflows. **New to Loom?** Start with the [tutorial](../../../docs/tutorial/README.md) (fifteen chapters with diagrams, from a first workflow to production) and the [starter set](../starters/README.md) (fifteen small, tested workflows to copy). This page is the reference you come back to for every option.
 
 ### ⚒️ The 'weave' CLI Utility
 Loom comes with a built-in CLI called `weave` to simplify the developer experience.
@@ -2936,20 +2936,21 @@ workflow Main(question) {
 | `start W(args) [timeout D] budget { ... } -> h` | Starts workflow `W` as a child and binds a handle to `h` (a variable, or one key of a keyed variable: `-> work[topic.name]`). The `budget` is required, and so is `timeout` on every `wait`. |
 | `wait h timeout D -> r` | Parks until the child settles or the timeout passes, then returns either way. `wait all work timeout D -> results` waits for every child in a keyed variable and records every outcome, failed ones too. `on_timeout { }` and `on_failure { }` are optional. |
 | `cancel h [use partial \| skip \| discard \| conclude] [reason "..."]` | Stops a child. An effect under way finishes and is journaled first; the child then stops at its next step. `use partial` keeps what it had produced as `h.partial`. Cancelling a child that already settled changes nothing. |
+| `cancel h rewind to <checkpoint> at most N times [reason "..."]` | Does not stop the child: sends it back to a checkpoint **it declared** and lets it go on. The child starts a new generation of its steps from there (the old one stays as history, nothing is deleted), an effect identical to one that already ran is not repeated, and it is sent back to one checkpoint at most N times (the N+1th is refused with a message). A child that is asleep or waiting is re-run at once; a running one finishes the effect under way, stops at its next step and is re-run from the checkpoint. `weave check` refuses a checkpoint the child does not declare. |
 | `steer h Agent "text"` | Tells one agent of the child what to do next. Only agents the child's author marked `steerable: true` can be steered, and the text is literal: a placeholder in it is a load error. If no such agent is running, nothing is delivered, which is recorded and is not an error. |
 | `supervise h [budget { }] { rules }` | Watches the child for as long as it runs. One block for each handle. |
 
 **A handle is opaque.** It is held by the script, never by a model: `{h}` in a prompt, a handle given to a task or a tool, or a handle returned from a workflow is a load error. You read facts about it instead: `h.status`, `h.result`, `h.partial`, `h.reason`, `h.failure`, and `h is ok`.
 
-**What a child's status can be:** `running`, `sleeping`, `waiting` (on a person), `completed`, `failed`, `stopped`, `cancelled`, `timed out`. `h is ok` is true only for `completed`. The result exists only for a completed child: reading `h.result` of any other is an error that names the status, so guard it with `alt (h is ok)`. A child's result and `h.partial` come back marked `unchecked`, like any model-written text.
+**What a child's status can be:** `running`, `sleeping`, `waiting` (on a person), `completed`, `failed`, `stopped`, `cancelled`, `timed out`. `h is ok` is true only for `completed`. The result exists only for a completed child: reading `h.result` of any other is an error that names the status, so guard it with `alt (h is ok)`. The same holds for what `wait h timeout D -> r` binds: for a child that did not complete, `r` holds no text but a value that raises that same error when it is read into a prompt or a field is taken (it is not an empty string that could be mistaken for an answer), and `weave check` warns about a read that is not guarded. A handle is also refused at run time, where text is built, if it ever reached a prompt past the static check. A child's result and `h.partial` come back marked `unchecked`, like any model-written text.
 
 **Waiting.** A `wait` parks while a child is running, and the children keep running and stay supervised. When nothing can run (every child is asleep or waiting for a person) the whole tree suspends and the process may exit; running the parent again finds each child by its run id and carries on, with no effect repeated. A parent suspended for anything else, such as its own `human_prompt`, pauses its children at their next step.
 
 **When a parent ends**, in any way (it finishes, `halt`s, fails or is stopped), every child still going is cancelled with the reason "parent ended" and the end waits for them to settle for a grace period (30 seconds unless the host says otherwise). `weave check` warns about a handle that is never waited on, cancelled or supervised.
 
-**Budgets.** A child has its own budget, the smaller of the `start`'s and the script's, and what it spends counts against the parent too. A `start`'s `timeout` is a wall-clock deadline from the first start, and it counts sleep: a child still going when it passes is `timed out`, stopped the way a cancel stops it (checked every tick, so up to about 10 seconds late). A `start` is refused, at run time and with a message, when the parent could not pay for it after what the other live children may still spend. A child that runs out of budget ends `failed`, with `budget:` in `h.failure`.
+**Budgets.** A child has its own budget, the smaller of the `start`'s and the script's, and what it spends counts against the parent too. A `start`'s `timeout` is a wall-clock deadline from the first start, and it counts sleep: a child still going when it passes is `timed out`, stopped the way a cancel stops it (checked every tick, so up to about 10 seconds late). A `start` is refused, at run time and with a message, when the parent could not pay for it after what the other live children and their judges may still spend. `weave check` pairs a `start` with the `supervise` of the same handle in the same block (matched by how the handle is written, such as `work[t.name]` in one `for each` body), and the reservation covers the child **and** that block's judge budget. A judged `supervise` that cannot be paired (the child was started in one place and is supervised in another) reserves when it runs and can fail then, saying the child is already running and unsupervised; `weave check` warns about it. A child that runs out of budget ends `failed`, with `budget:` in `h.failure`.
 
-**Limits.** `max_children: N` (default 8) and `max_depth: N` (default 2 levels below the top workflow) can be lowered or raised up to the host's ceiling. A `start` past a limit fails and names it; it does not queue. A `start` inside a loop needs the loop's `max`.
+**Limits.** `max_children: N` (default 8) and `max_depth: N` (default 2 levels below the top workflow) can be lowered or raised up to the host's ceiling. A `start` past a limit fails and names it; it does not queue. A `start` inside a loop needs the loop's `max`. `weave check` warns where it can prove a block or a bounded loop starts more children at once than `max_children` allows (nothing waited on in between), and about two steers to one agent in a row or in one rule (only one steer an agent is delivered a tick).
 
 **Rules in `supervise`.** Three kinds, checked in this order every tick (about every 10 seconds):
 
@@ -2963,9 +2964,102 @@ A `cancel` or `wrap_up` ends the evaluation of that tick, and at most one steer 
 
 **Where it runs.** `start` needs somewhere to keep the child's run, so it works under `weave run --journal DIR` (each child is a sibling folder of the run folder with its own `journal.json`) and under a `LoomHost` with a persistence (file or JDBC; a child is a sibling run whose record names its parent, and `LoomRun.children()` lists them). It fails closed with a clear message where there is none. `weave fork` copies a run's children under the ids the copy will look for, and `weave timeline` draws them as a tree. A console or chat reaches a running child by a longer label (`#digest/work/a/Child`), and Fabric lists it under its parent with the cost of the whole tree.
 
-**Testing it.** `weave test` runs a child for real under scripted models and the virtual clock, one child at a time when the parent waits, and a model call of a child makes the supervisor look. A case can script a judge with `judges: { TopicJudge: [pass, fail] }` and expect `starts: [Research]`, `children: { Research: { status: cancelled, reason: "..." } }`, `fired: [ { rule: 0, action: cancel } ]` and `steers: { delivered: 1 }`. Starter 18 shows all of it. A scripted *stub* of a child (a child with no script of its own) is not available yet.
+**Testing it.** `weave test` runs a child for real under scripted models and the virtual clock, one child at a time when the parent waits, and a model call of a child makes the supervisor look. A case can script a judge with `judges: { TopicJudge: [pass, fail] }` and expect `starts: [Research]`, `children: { Research: { status: cancelled, reason: "..." } }`, `fired: [ { rule: 0, action: cancel } ]` and `steers: { delivered: 1 }`. Starter 18 shows all of it.
 
-**What is not there yet.** `cancel h rewind to <checkpoint>` is refused by `weave check`. A parent's wait timeout uses wall time, not the injected clock. A rewind of the parent does cancel the children of the generation it left.
+A child can also be **scripted instead of run**, with `children:` (in the style of `remotes:`): `children: { Research: [ { state: working, after: 2m }, { state: completed, result: "Lima.", after: 1m } ] }`. The child has no workflow and calls no model; each step waits its `after` on the virtual clock (so the supervisor's ticks and a judge's looks happen as time passes) and then becomes the step's state, and the last step settles the child or pauses it. The states are `working`, `completed` (with `result:`), `failed` (with `reason:`) and `waiting` (for a person). A step may also report progress on the way (`progress: { stage: reading, done: 1 }`, for a workflow that declares those fields), so the parent's reads and a progress assertion are tested the same way. Each step the child reaches counts as work it did, so `idle` and a judge's skip-when-nothing-changed behave as for a real child. A stub has no agent running, so a steer to it is recorded as not delivered. A supervisor's rules, judge looks and timeouts are then tested with no model, no real clock and nothing racing.
+
+**Declared progress (`progress`, `report`).** A child can say where it is, typed, so its parent (or a person) can read it. A workflow declares what it may report after its parameters, and reports with a statement:
+
+```loom
+agent Researcher { model: "gemini-2.5-flash" system: "Research the topic." }
+
+workflow Research(topic) progress { stage: string, done: number, of: number } {
+    report { stage: "searching", done: 0, of: 3 }
+    delegate "Find sources on {topic}" to Researcher -> notes
+    report { stage: "writing", done: 2, of: 3 }
+    return notes
+}
+
+workflow Main(question) {
+    start Research(topic = question) budget { tokens: 100000 } -> work
+    supervise work { assert progress.done changes within 5m { steer "Say what you are doing." once } }
+    wait work timeout 20m -> findings
+    set where = work.progress.stage
+}
+```
+
+The types are `string`, `number`, `boolean` and `enum["a", "b"]`, one flat level (no lists or objects). `report` and `progress` are words only in these two places (`report` as `report {` at the start of a statement, `progress` right after a workflow's `)`): everywhere else they are ordinary names, so `-> report` and `set progress = ...` keep working. `weave check` refuses a field the workflow did not declare, a value it can see is the wrong type, and a `report` in a workflow that declares no progress, and warns about progress that is never reported; a value that is a variable is checked when it runs, and a wrong one fails the step. Each report is an entry in the **child's own journal**, so it survives a restart and a rewind shows the value as of the checkpoint; a report holds at most 2000 characters and a run keeps 1000 reports, and one beyond either bound is **dropped and recorded** (`weave why` says so), not an error that stops the child.
+
+The parent reads the latest report as `work.progress.stage`, `work.progress.done` and so on (empty before the first report). It is the child's own words, so it is `unchecked` like any model-written text. It is **data, not control**: `assert progress.<field> changes within <duration> { ... }` fires when the field has not changed within the duration of the child's running time (sleep does not count) and never reads what the value says; there is no `when progress.done > 3` rule, because a rule that cancels or steers never rests on a value the child wrote. The assertion uses the same actions as `when`.
+
+**Signals (`notify`, `wait signal`, `when signal`).** A parent and a child can tell each other things while the child runs. A signal is a named entry in the **receiver's journal**, so one sent before the receiver waits is not lost, none is delivered twice across a crash, and reading it is journaled where it happens.
+
+```loom
+agent Researcher { model: "gemini-2.5-flash" system: "Research the topic." steerable: true streaming: true }
+
+workflow Research(topic) {
+    wait signal "go" timeout 10m -> instruction
+    alt (instruction is ok) {
+        delegate "Research {topic}. Note: {instruction}" to Researcher -> notes
+        notify parent "found" "{notes}"
+        return notes
+    }
+    return "never told to start"
+}
+
+workflow Main(question) {
+    start Research(topic = question) budget { tokens: 100000 } -> work
+    supervise work { when signal "need_help" { steer "Try a narrower reading of the topic." once } }
+    notify work "go" "prefer recent sources"
+    notify work "approved" "yes" sticky
+    wait work signal "found" timeout 10m -> notes
+    alt (notes is ok) { return notes }
+    return "the research did not report"
+}
+```
+
+- **`notify <handle> "name" ["text"] [sticky]`** (a parent to a child it started) and **`notify parent "name" ["text"] [sticky]`** (a child to the workflow that started it). The text may use `{placeholders}`. A **message** is read once, in the order sent, per name; a **`sticky`** signal is a latch: it stays set, any wait for it returns at once without consuming it, and a later `notify` of the same name replaces it (there is no way to unset one). `notify parent` always means the workflow's own parent, so a handle that is itself called `parent` cannot be signalled: give it another name.
+- **`wait signal "name" timeout T -> text`** in a child, and **`wait <handle> signal "name" timeout T -> text`** in a parent, wait for one signal of that name. A timeout is required. If it passes first, `text` holds no text and raises an error when read (`text is ok` is false), as an unfinished child's result does. A parent's wait ends at once if the child has settled and sent nothing: no signal can come.
+- **`when signal "name" { actions }`** in a `supervise` block fires once for each arrival (`once` limits it to one), takes the message as a wait does (so a rule and a wait never take the same one twice), and its actions' text stays fixed: the payload is not available to them.
+- **What the receiver reads is `unchecked`**, in both directions, whatever the sender knew, and **a signal never causes anything by itself and can never become a steer's text** (a placeholder in a steer is a load error). `weave audit` lists each workflow that reads a signal (LA30): medium when the text reaches a prompt or a task's argument, directly or through a copy made with `set`, info otherwise. A child can signal only its parent and a parent only the handles it started (checked by `weave check` and again at run time).
+- **A waiting child holds no thread.** It is recorded as `waiting` with `h.waits == "signal go"`, and the parent's `notify` runs it again over its journal (once, however many `notify`s race; a cancelled child is never woken). The wait's timeout is enforced by the supervisor's tick on the run's clock. A parent waiting for a child that waits on a signal is **not** suspended: it parks until its own timeout, because nothing will wake that child but the parent.
+- **Limits, all failing loudly when passed:** 16 unread messages per name and 64 in all, a name of at most 40 characters (letters, digits and `_`), 2000 characters of text. A `notify` to a child that has settled is a recorded no-op; to one that was cancelled it is written and never read. A rewound child starts with an empty mailbox (what was sent before is history, so send a sticky signal again). A `notify parent` in a run that has no parent is a recorded no-op, and a `wait signal` there **fails** with a message, because it would wait for ever; `weave check` warns about a workflow that does either and that nothing in the script starts. Two waits for the same name that can be active at once (in different branches of one `parallel`, or inside a `parallel for each`) are an error.
+- **Testing it.** `weave test` scripts a signal's arrival on the virtual clock with `signals: { work: [ { at: 2m, name: stuck, text: "no sources" } ] }` (the key is the handle's variable, `work_a` for `work["a"]`), a scripted child sends one with a step `{ signal: stuck, text: "...", after: 1m }`, and `expect: signals: { sent: [go], received: [stuck], timed_out: [other] }` says what the run sent, read and waited for in vain. Nothing sleeps: a wait with nothing to run moves the virtual clock to the next thing that can happen.
+
+**`wait any`.** `wait all` joins every child. A supervisor that wants to react to *whichever child needs it first* uses `wait any`, which returns on the first of a signal from any handle, a handle finishing, or the timeout, as an **event**:
+
+```loom
+agent Researcher { model: "gemini-2.5-flash" system: "Research the topic." }
+
+workflow Research(topic) {
+    delegate "Research {topic}" to Researcher -> notes
+    notify parent "found" "{notes}"
+    return notes
+}
+
+workflow Main(question) {
+    start Research(topic = "panels") budget { tokens: 100000 } -> work["panels"]
+    start Research(topic = "costs") budget { tokens: 100000 } -> work["costs"]
+    set report = ""
+    set event = "start"
+    loop until (event.remaining == 0) max 8 {
+        wait any work timeout 10m -> event
+        alt (event.kind == "signal") { set report = "{report}{event.name}: {event.text}\n" }
+        alt (event.kind == "finished") { set report = "{report}{event.name} finished: {event.status}\n" }
+        alt (event.kind == "timeout") { set report = "{report}timed out\n" }
+    }
+    return report
+}
+```
+
+- **The event** is a keyed value: `kind` (`finished`, `signal` or `timeout`), `name` (the handle's key, such as `panels`), `remaining`, and by kind: for `finished`, `status` and `result` (readable only for a completed child, like `h.result`); for `signal`, `signal` (the signal's own name) and `text`. The whole event is `unchecked`. `remaining` counts the children whose finish has not been reported yet, so `loop until (event.remaining == 0)` collects every child, even one that finished before the first `wait any`.
+- **Order when several are ready:** signals before finished children, then the order the handles were started. A **message is taken once** (so no later `wait any`, `wait h signal` or `when signal` rule sees it), a **sticky** signal is reported once until it is set again, and a **finished** child is reported once. Unread messages stay for the next wait.
+- **A timeout is required** and returns a `timeout` event with the children still running, as `wait` does. There is no `on_timeout` block: branch on `event.kind`. At most `max_children` handles in one `wait any`; a loop that reads events is bounded by its own `max`. If every child asleep or waiting for a person makes the tree suspend, it suspends as for `wait`.
+- **The first return is journaled** with the messages it took, so a replay returns the same event and never decides again, and a crash at any point of the loop reports each event once, in the same order. `weave test` checks it with `expect: events: [ { kind: signal, name: a }, { kind: finished, name: a } ]`, in the order the events came.
+
+**Time.** A `wait`'s timeout counts the injected clock (the run's clock; a test's virtual one), so a wait that times out while a child still runs is a test on virtual time, not a real minute.
+
+**What is not there yet.** A signal cannot come from outside a run (a person, a host) and siblings cannot signal each other. A sleeping child is still woken only when its parent is run again or by `weave daemon`.
 
 ### Workflow Composition & Modularity
 Loom supports building complex multi-agent systems by composing workflows from multiple files. This is achieved using the `import` statement and the `call` statement.

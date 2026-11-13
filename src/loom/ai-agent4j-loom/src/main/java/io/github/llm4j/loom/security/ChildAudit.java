@@ -6,11 +6,13 @@ import io.github.llm4j.loom.ast.CallStmt;
 import io.github.llm4j.loom.ast.DelegateStmt;
 import io.github.llm4j.loom.ast.HandoffStmt;
 import io.github.llm4j.loom.ast.LoomScript;
+import io.github.llm4j.loom.ast.SetStmt;
 import io.github.llm4j.loom.ast.StartStmt;
 import io.github.llm4j.loom.ast.StatementWalker;
 import io.github.llm4j.loom.ast.SteerStmt;
 import io.github.llm4j.loom.ast.SuperviseDef;
 import io.github.llm4j.loom.ast.SuperviseStmt;
+import io.github.llm4j.loom.ast.ValueExpr;
 import io.github.llm4j.loom.ast.WorkflowDef;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -98,6 +100,134 @@ final class ChildAudit {
                                             "Prefer a counted rule or an assertion in code where a count can say it; keep seeing content for a judge you trust with that text; give the judge a small budget."));
                         }
                     });
+    }
+
+    /**
+     * LA30 (phase 34c, D14): a workflow that <em>reads</em> a signal (a {@code wait signal}, a
+     * {@code wait handle signal}, or a {@code when signal} rule) can have text from another run enter
+     * its variables. The finding names the signal and the side that can send it, in the shape of LA28.
+     * It is medium when the text can reach a model's prompt or a task's argument, directly or through a
+     * copy ({@code set copy = text}, followed to the end), info otherwise. There
+     * is no rule for sending: the parent already gets the child's result, so the channel is not new.
+     */
+    static void signals(LoomScript script, List<Finding> findings) {
+        for (WorkflowDef w : script.getWorkflows()) {
+            Map<String, WorkflowDef> startedAs = new LinkedHashMap<>();
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof StartStmt st) startedAs.put(st.getTarget().name(), find(script, st.getWorkflow()));
+                    });
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof io.github.llm4j.loom.ast.SignalWaitStmt wait) {
+                            if (wait.getTarget() == null)
+                                signal(script, findings, w, wait.getLine(), wait.getName(), wait.getResultVariable(), parentsOf(script, w));
+                            else
+                                signal(script, findings, w, wait.getLine(), wait.getName(), wait.getResultVariable(),
+                                        childSide(startedAs.get(wait.getTarget().name())));
+                        } else if (s instanceof SuperviseStmt sv) {
+                            for (SuperviseStmt.SignalRule r : sv.getSignals())
+                                signal(script, findings, w, r.line(), r.name(), null, childSide(startedAs.get(sv.getTarget().name())));
+                        }
+                    });
+        }
+    }
+
+    private static String parentsOf(LoomScript script, WorkflowDef child) {
+        List<String> parents = new ArrayList<>();
+        for (WorkflowDef p : script.getWorkflows())
+            StatementWalker.walk(p.getStatements(), s -> {
+                if (s instanceof StartStmt st && st.getWorkflow().equals(child.getName()) && !parents.contains(p.getName()))
+                    parents.add(p.getName());
+            });
+        return parents.isEmpty()
+                ? "the parent that starts it (no workflow of this script does, so it is whatever starts it)"
+                : "its parent, the workflow " + String.join(" or ", parents);
+    }
+
+    private static String childSide(WorkflowDef child) {
+        return child == null ? "the child it started" : "the child, the workflow " + child.getName();
+    }
+
+    private static void signal(
+            LoomScript script, List<Finding> findings, WorkflowDef reader, int line, String name, String variable, String sender) {
+        boolean reaches = variable != null && reaches(reader, variable);
+        findings.add(
+                new Finding(
+                        "LA30",
+                        reaches ? Severity.MEDIUM : Severity.INFO,
+                        List.of(Owasp.LLM01),
+                        reader.getName() + " / signal " + name,
+                        line,
+                        "A workflow reads a signal from another run",
+                        "The workflow " + reader.getName() + " reads the signal \"" + name + "\", which " + sender
+                                + " can send. Its text is written by another run and may carry instructions: it is read as unchecked"
+                                + (reaches ? ", and here it reaches a model's prompt or a task's argument" : "")
+                                + ". A signal causes nothing by itself and can never become a steer's text.",
+                        "Treat the text as untrusted: check it before it reaches an agent that can act, and prefer a signal's arrival (a rule or a branch) over its content."));
+    }
+
+    /**
+     * True when the text read from a signal is written into a prompt, a payload or an argument of the
+     * workflow, directly or through a copy: {@code set copy = text}, or a text that holds it. A copy
+     * is followed to the end (a chain of copies too), and a {@code set} is not itself taken for a use:
+     * it only passes the text on. The match is the placeholder itself, so {@code {textual}} is not
+     * {@code {text}}.
+     */
+    private static boolean reaches(WorkflowDef w, String variable) {
+        Set<String> carriers = carriers(w, variable);
+        boolean[] found = {false};
+        StatementWalker.walk(
+                w.getStatements(),
+                s -> {
+                    if (s instanceof SetStmt) return;
+                    for (io.github.llm4j.loom.execution.SubstitutedText.Entry e : io.github.llm4j.loom.execution.SubstitutedText.entries(s))
+                        if (mentions(e.text(), carriers)) found[0] = true;
+                });
+        return found[0];
+    }
+
+    /** The variable and every variable a {@code set} makes from it, by name, until nothing more is added. */
+    private static Set<String> carriers(WorkflowDef w, String seed) {
+        Set<String> names = new LinkedHashSet<>(List.of(seed));
+        boolean[] grew = {true};
+        while (grew[0]) {
+            grew[0] = false;
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof SetStmt set && !names.contains(set.getName()) && carries(set.getValue(), names)) {
+                            names.add(set.getName());
+                            grew[0] = true;
+                        }
+                    });
+        }
+        return names;
+    }
+
+    private static boolean carries(ValueExpr value, Set<String> names) {
+        if (value instanceof ValueExpr.Ref ref) return names.contains(head(ref.path()));
+        if (value instanceof ValueExpr.Text text) return mentions(text.text(), names);
+        if (value instanceof ValueExpr.Obj obj) return obj.fields().values().stream().anyMatch(v -> carries(v, names));
+        return false;
+    }
+
+    private static String head(String path) {
+        int cut = path.length();
+        for (char c : new char[] {'.', '['}) {
+            int at = path.indexOf(c);
+            if (at >= 0) cut = Math.min(cut, at);
+        }
+        return path.substring(0, cut);
+    }
+
+    /** True when the text has a placeholder for one of the names, alone or with a field after it ({@code {name}}, {@code {name.field}}). */
+    private static boolean mentions(String text, Set<String> names) {
+        for (String name : names)
+            if (java.util.regex.Pattern.compile("\\{\\s*" + java.util.regex.Pattern.quote(name) + "(?!\\w)").matcher(text).find()) return true;
+        return false;
     }
 
     private static boolean steers(SuperviseStmt s) {

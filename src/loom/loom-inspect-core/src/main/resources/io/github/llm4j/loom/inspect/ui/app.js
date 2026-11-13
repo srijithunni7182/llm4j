@@ -961,6 +961,10 @@
       st.appendChild(document.createTextNode(' ' + c.status));
       cell(tr, num((c.totals && c.totals.tokens) || 0), 'r mono');
       cell(tr, c.startedAt ? hms(c.startedAt) : '\u2013', 'mono');
+      // what it last reported, and how many signals each side has not read (additive; text only, never markup: it is the child's own words)
+      cell(tr, c.progress ? Object.keys(c.progress).map(function (k) { return k + ': ' + c.progress[k]; }).join(' \u00b7 ') : '\u2013', 'mono prog');
+      var sg = c.signals || {}, up = Number(sg.toParent || 0), down = Number(sg.toChild || 0);
+      cell(tr, up || down ? [down ? down + ' to it' : '', up ? up + ' to you' : ''].filter(Boolean).join(' \u00b7 ') : '\u2013', 'mono sig');
       tr.addEventListener('click', function () { openRunTab(c.traceId, runTab); });
       body.appendChild(tr);
     });

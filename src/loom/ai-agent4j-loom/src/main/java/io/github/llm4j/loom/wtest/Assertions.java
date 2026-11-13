@@ -58,6 +58,8 @@ final class Assertions {
         if (expect.has("elapsed_virtual")) elapsed(expect.get("elapsed_virtual"), o, failures);
         if (expect.has("starts")) starts(expect.get("starts"), o, failures);
         if (expect.has("children")) children(expect.get("children"), o, failures);
+        if (expect.has("signals")) signals(expect.get("signals"), o, failures);
+        if (expect.has("events")) events(expect.get("events"), o, failures);
         if (expect.has("fired")) fired(expect.get("fired"), o, failures);
         if (expect.has("steers")) steers(expect.get("steers"), o, failures);
         if (expect.has("tokens")) tokens(expect.get("tokens"), o, failures);
@@ -126,6 +128,46 @@ final class Assertions {
                 }
             }
         }
+    }
+
+    /**
+     * {@code signals: { sent: [go], received: [stuck], timed_out: [other] }}: the names of the signals the
+     * run sent (delivered), read, and waited for in vain, in order. A list that is given must match exactly.
+     */
+    private static void signals(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        List<String> sent = new ArrayList<>();
+        for (var e : entriesOf(o, "notify"))
+            if (e.getValue().value() instanceof Map<?, ?> m && Boolean.TRUE.equals(m.get("delivered"))) sent.add(String.valueOf(m.get("name")));
+        List<String> received = new ArrayList<>();
+        List<String> timedOut = new ArrayList<>();
+        for (var e : entriesOf(o, "signal-wait"))
+            if (e.getValue().value() instanceof Map<?, ?> m)
+                (Boolean.TRUE.equals(m.get("timedOut")) ? timedOut : received).add(String.valueOf(m.get("name")));
+        compare("sent", want, sent, failures);
+        compare("received", want, received, failures);
+        compare("timed_out", want, timedOut, failures);
+    }
+
+    /** {@code events: [ { kind: signal, name: a }, { kind: finished, name: a } ]}: what each {@code wait any} returned, in the order they came. */
+    private static void events(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        List<Map.Entry<Long, String>> got = new ArrayList<>();
+        for (var e : entriesOf(o, "wait-any"))
+            if (e.getValue().value() instanceof Map<?, ?> m && m.get("event") instanceof Map<?, ?> ev)
+                got.add(Map.entry(m.get("n") instanceof Number n ? n.longValue() : 0L, ev.get("kind") + (String.valueOf(ev.get("name")).isEmpty() ? "" : ":" + ev.get("name"))));
+        got.sort(java.util.Map.Entry.comparingByKey());
+        List<String> actual = got.stream().map(Map.Entry::getValue).toList();
+        List<String> expected = new ArrayList<>();
+        want.forEach(n -> expected.add(n.path("kind").asText() + (n.has("name") ? ":" + n.get("name").asText() : "")));
+        if (!expected.equals(actual))
+            failures.add(new Failure("events", "events: expected " + expected + " (kind:name), the run had " + actual));
+    }
+
+    private static void compare(String key, JsonNode want, List<String> actual, List<Failure> failures) {
+        if (!want.has(key)) return;
+        List<String> expected = new ArrayList<>();
+        want.get(key).forEach(n -> expected.add(n.asText()));
+        if (!expected.equals(actual))
+            failures.add(new Failure("signals", "signals." + key + ": expected " + expected + ", the run had " + actual));
     }
 
     /** {@code fired: [ { rule: 0, action: cancel } ]}: the supervise rules that acted, in order; an empty list means none did. */

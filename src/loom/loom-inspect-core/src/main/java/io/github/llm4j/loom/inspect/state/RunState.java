@@ -367,6 +367,8 @@ public final class RunState {
         }
         touch(r.timeNanos());
         switch (r.eventName()) {
+            case Semconv.EV_SIGNAL -> signalSeen(r);
+            case Semconv.EV_PROGRESS -> progressSeen(r);
             case Semconv.EV_RUN_START -> runStart(r);
             case Semconv.EV_RUN_END -> runEnd(r);
             case Semconv.EV_RUN_SUSPENDED -> runSuspended(r);
@@ -450,6 +452,41 @@ public final class RunState {
             }
             default -> {}
         }
+    }
+
+    /** Signals this run sent, by the run they went to, and signals it read, by the run they came from (messages only: a latch is not consumed). */
+    private final Map<String, Integer> signalsSent = new java.util.HashMap<>();
+
+    private final Map<String, Integer> signalsRead = new java.util.HashMap<>();
+
+    /** What this run last reported about itself, field by field (declared progress, phase 34b). */
+    private final Map<String, Object> progress = new LinkedHashMap<>();
+
+    /**
+     * A signal record: counts a message sent to, or read from, another run. A record missing its peer
+     * or op is ignored, so a newer or odd process never breaks the page.
+     */
+    private void signalSeen(LogRec r) {
+        String op = r.text("loom.data.op");
+        String peer = r.text("loom.data.peer");
+        if (op == null || peer == null || Boolean.TRUE.equals(r.attr("loom.data.sticky"))) return;
+        if ("sent".equals(op)) signalsSent.merge(peer, 1, Integer::sum);
+        else if ("read".equals(op)) signalsRead.merge(peer, 1, Integer::sum);
+    }
+
+    private void progressSeen(LogRec r) {
+        for (Map.Entry<String, Object> a : r.attributes().entrySet())
+            if (a.getKey().startsWith("loom.data.f.")) progress.put(a.getKey().substring("loom.data.f.".length()), a.getValue());
+    }
+
+    /** How many messages this run sent to {@code peerRunId}. */
+    public synchronized int signalsSentTo(String peerRunId) {
+        return signalsSent.getOrDefault(peerRunId, 0);
+    }
+
+    /** How many messages this run read from {@code peerRunId}. */
+    public synchronized int signalsReadFrom(String peerRunId) {
+        return signalsRead.getOrDefault(peerRunId, 0);
     }
 
     private void runStart(LogRec r) {
@@ -1424,6 +1461,7 @@ public final class RunState {
         totals.put("calls", calls);
         totals.put("cost", cost.toPlainString());
         v.put("totals", totals);
+        if (!progress.isEmpty()) v.put("progress", new LinkedHashMap<>(progress));
         v.put(
                 "runningAgents",
                 open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());

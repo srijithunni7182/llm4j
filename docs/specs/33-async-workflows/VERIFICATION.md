@@ -1,6 +1,6 @@
 # Phase 33 verification plan: starting and supervising workflows
 
-Status: **draft for review. Nothing is built; every row is `not built`.** This is the list of things to **read** before the design is final (§0) and the list of things to **prove** when the phase is built (§1). Companions: [DESIGN.md](DESIGN.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [DECISIONS.md](DECISIONS.md).
+Status: **the phase is built (PR 118); §1b records what the build reached, and §3 lists what it did not do. Nothing is at E4.** This is the list of things to **read** before the design is final (§0) and the list of things to **prove** when the phase is built (§1). Companions: [DESIGN.md](DESIGN.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [DECISIONS.md](DECISIONS.md).
 
 **Evidence levels** (the one-liner used in the report): **E0** read in the source or documents; **E1** a unit test; **E2** an engine test with scripted models on the controlled executor; **E3** a kill-and-resume or concurrency test; **E4** run by hand on a real provider or a real process (the owner's gate).
 No live provider key is needed for this phase and `make test-live` is never run.
@@ -62,18 +62,21 @@ Depth is stated per note. "Read" means the code named was opened; "grep only" me
 2. **D4 says the child id carries "the parent's attempt number"; DESIGN 4.2 says the generation already in the step id is that number and no new counter is needed.** I follow DESIGN 4.2 (it is the later text and is consistent with D4's meaning: a resume keeps it, a rewind changes it). Raised here so it is not a silent choice.
 3. **"A cost rule with no price table" is a `weave check` finding (D23), but the validator's `Context` carries no price table** (prices arrive at run and review time, `CostEstimator`). The check is therefore a warning that always fires for a `cost` rule and says what to run with (`--prices FILE`). If the owner wants it to be silent when a table is given, the validator needs the price table in its context.
 
-### Build status by sub-phase
+### Scope and build state (v1, v2, v3)
 
-| Sub-phase | State | Notes |
-|---|---|---|
-| 33c Budgets and limits | **built, except the worst-case cost in `weave review`/`generate`** | The child's cap is the smaller of the start's and the script's, its spend is charged to the parent's budgets, a start is refused when the parent cannot cover it after the other live children (`reserve`, under one lock), `max_children`/`max_depth` and the host ceilings (`LoomHost.Builder.childLimits`), a child out of budget ends `failed` with `budget:`. **Departure from DESIGN risk 1:** the reservation is computed from the children's own budgets, so no new `Budget` hold in the core was needed; the core is unchanged. Not built: the judge budget reservation (33g), the review/generate worst case. |
-| 33d Cancel and steer | **built, except rewind of a child, the rewind-cancels-previous-generation rule, `start ... timeout` (TIMED_OUT), and delivering a steer inside `supervise` (33e)** | `cancel` and its outcomes (marker in the child's journal, `h.partial`, a settled child is a no-op, a sleeping or waiting child settles at once, a running child stops at its next step so an effect finishes first), a parent that ends cancels its children with the grace period (not on a suspension or a crash), a parent suspended for anything but `wait` pauses its children, the `steer` statement (journaled once, "not delivered" is not an error), LA28 (`ChildAudit`), `A2AAudit.reach` follows `start`. **Not done:** `cancel h rewind to cp` refuses at run time ("cannot run yet"); the previous generation's children are not cancelled on a rewind; the `start` deadline is parsed but nothing enforces it; `weave audit` lists the child as part of its parent only through `A2AAudit.reach` (the trifecta itself is per agent and a child does not share the parent's transcript, so `TranscriptTaint` is deliberately unchanged). |
-| 33b Child runs | **partly built** (see below) | `ChildRuns` SPI, `ChildIds`, `ChildHandle`/`ChildStatus`, `ChildScheduler` and the controlled one, `ChildLauncher` (journal-first `start`, parking `wait`, tree suspension when a child sleeps or waits for a person), `LoomHost`'s `ChildRuns`, `RunRecord.parentRunId` with the old constructor kept, the JDBC column and its migration. **Not built in 33b yet:** the CLI sibling-folder `ChildRuns` for `weave run --journal`, `weave fork` following links, `LiveRuns` labels, `LoomRun` children and the `LoomRun.Status` mapping, a `wait` timeout on the injected clock (it uses wall time), a read of `-> r` after a non-completed `wait` is empty, not an error (only `h.result` errors). |
-| 33a The language | **built, except the graph kinds (finding 1), the keyed-variable additions and the fact reads in conditions, which need the runtime (33b)** | Parser, AST, walker, `StatementText`, `SubstitutedText`, explain, the checks (`ChildChecks`), a fail-closed refusal in the executor. |
+The plan names three stages (D1, D20); the build worked to the sub-phases 33a to 33h and the acceptance rows, so the two are mapped here. **This replaces a mid-build status table that had gone stale** (it said timeouts were not enforced and the CLI layout was not built; §1b and the code say otherwise).
+
+| Stage | What | Sub-phases | State |
+|---|---|---|---|
+| **v1** | `start`, `wait` (one and all), `cancel`, readable facts, `steer`, `supervise` with counted rules, budgets and limits, the ecosystem | 33a to 33e, 33h | **Built**, with the gaps in §3 (F1 to F11) |
+| **v2** | Assertions in code (preventive `never calls`), judged assertions | 33f, 33g | **Built**, with the gaps in §3 (F12 to F13) |
+| **v3** | Declared progress (`report`), signals (`notify`), `wait any` | none | **Not started, by design** (a later phase; D6, D7 and D22 B and C are still open) |
+
+Spot-checked in the code after the merge (E0): none of `notify`, `report`, `wait any` or `detach` appears in the parser or the AST; the `start` deadline is enforced (`ChildLauncher`) and `TIMED_OUT` exists; `cancel ... rewind to` is refused by `weave check` and at run time; `children:` exists only as an `expect:` key, not as a way to script a child.
 
 ## 1. Acceptance: what must be true when the phase is built
 
-Every row is `not built`. "How" says what proves it; the level is the minimum accepted.
+This table is the **plan**: "How" says what proves each claim and the level is the minimum accepted. What the build actually reached is in §1b.
 
 | # | The claim | How | Level |
 |---|---|---|---|
@@ -148,3 +151,27 @@ Levels: E0 read, E1 unit test, E2 engine test on scripted models, E3 kill-and-re
 ## 2. How the report is written
 
 At the end of the session the report states, for each row, the level actually reached and the evidence (the test names), **what was not run** (`make test-full` and the other `slow` tests, anything at E4), the risks of §8 of DESIGN that turned out to be real, and any decision that was changed and why. A row is never marked verified at a higher level than its test.
+
+## 3. What the build did not do, and the departures from decisions
+
+Taken from the build report (§1b) and spot-checked where noted. Each row names the decision it departs from; none changed a decision, so each is a **follow-up**, not a new decision. F1 to F3 and F5 depart from what the owner accepted and are the ones to fix first.
+
+| # | Gap | Departs from | Stage |
+|---|---|---|---|
+| F1 | `cancel ... rewind to <checkpoint>` is refused by `weave check` and at run time ("cannot run yet") | D13 | v1 |
+| F2 | `wait -> r` on a child that did not complete binds nothing, so `{r}` reads empty; only `h.result` raises the error D9 asks for | D9 | v1 |
+| F3 | The wait timeout uses wall time, not the injected clock, and a `wait` that times out while a child is still running has no test | D8, D17 | v1 |
+| F4 | The worst-case cost of a supervisor is not shown by `weave review` or `weave generate` | D11, D26 | v1 |
+| F5 | A stubbed child (`children:` as a script of states) in `weave test` is not built | D17 | v1 |
+| F6 | `weave why` on a child folder does not work (a child folder has no `run.json`) | D16 | v1 |
+| F7 | No runtime check stops a handle reaching a prompt if the static check were bypassed | D2, G8 | v1 |
+| F8 | No test drives a sleeping child, so the exclusion of sleep from `idle` and `elapsed` is untested | D28 | v1 |
+| F9 | The warning for a `start` that exceeds `max_children` where it can be proven, and the warning for a conflict between two steers, are not built | D14, D30 | v1 |
+| F10 | Not tested: the live page's JavaScript (the Children section), and an old console against a new process (P6) | D16 | v1 |
+| F11 | Not done in the ecosystem: the root `README.md` overview, the `llm4j-workflow-guide` skill row, the VS Code parser-parity baseline; the tutorial section is in chapter 11, not a chapter of its own | D16 | v1 |
+| F12 | The judge budget is charged but not reserved at `start` | D27 | v2 |
+| F13 | The judge's facts view comes from the child's own trace (`Trajectory`), not from the evaluation dataset's rendering of a trajectory (risk 7 was not followed) | DESIGN §8 risk 7 | v2 |
+| F14 | Guards G7 and G13 were not broken on purpose, and G2 has no engine test of its own | TEST_STRATEGY §4 | both |
+| F15 | The 60-second demo (A27, starter 18) is at E2: "steer one that drifts" is shown by a token rule, not by the judge, which needs time to pass. **E4, running it by hand with a real key, is the owner's** | A27 | both |
+
+**Departures that are improvements.** The reservation is computed from the children's own budgets, so the core `Budget` did not change (DESIGN §4.5 expected a hold in the core); the graph node kinds are `child_start`, `child_wait`, `child_cancel` and `child_watch` because `start` already names the graph's entry node (settled by the owner).

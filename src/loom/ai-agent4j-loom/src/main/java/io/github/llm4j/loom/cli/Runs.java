@@ -74,6 +74,10 @@ final class Runs {
      * @param runId how resume triggers name this run (null: the run directory's path)
      */
     static Result execute(RunSpec spec, Path runDir, String runId, WeaveEnv env) {
+        if (runDir != null && FolderChildRuns.isChildFolder(runDir))
+            throw new IllegalArgumentException(
+                    runDir + " is a child run, started by another run: it cannot be run on its own, because its"
+                            + " arguments are not kept here. Resume its parent instead, which re-attaches to it.");
         java.util.Optional<RunLock> lock = java.util.Optional.empty();
         if (runDir != null) {
             lock = RunLock.tryAcquire(runDir);

@@ -21,7 +21,7 @@ function expand(body: string[]): string {
 }
 
 // Statement-level snippets go inside a workflow; the rest are whole top-level definitions.
-const TOP = new Set(['extractor', 'evaluator', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import', 'agent-channel']);
+const TOP = new Set(['progress-report', 'extractor', 'evaluator', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import', 'agent-channel']);
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
 // halt and return end the path (the frame's own statements after them would never run), and `is ok` needs a real run result.
 // remote, agent-channel and ask carry warnings by design: the card is read at run time and the host supplies the channel.
@@ -72,7 +72,21 @@ function frame(name: string, text: string): string {
     }
     if (name === 'start-supervised') {
         // the child is the frame's Analyze; the handle is read by its status, never written into text
-        return PRELUDE + 'workflow Main(topic_text) {\n' + text.split('\n').map((l) => '    ' + l).join('\n') + '\n    note "{findings}"\n}\n';
+        return PRELUDE + 'workflow Main(topic_text) {\n' + text.split('\n').map((l) => '    ' + l).join('\n') + '\n    alt (work is ok) { note "{findings}" }\n}\n';
+    }
+    if (name === 'notify-child') {
+        // a child that waits for the signal, started by the frame; the handle is the snippet's default name
+        return PRELUDE + 'workflow Listener(topic_text) {\n    wait signal "go" timeout 5m -> heard\n    note "{heard}"\n}\nworkflow Main(topic_text) {\n    start Listener(topic_text = topic_text) budget { tokens: 1000 } -> work\n' +
+            text.split('\n').map((l) => '    ' + l).join('\n') + '\n    wait work timeout 5m -> done_result\n    alt (work is ok) { note "{done_result}" }\n}\n';
+    }
+    if (name === 'wait-signal') {
+        // in a child: started by the frame's Main, which signals it
+        return PRELUDE + 'workflow Child(topic_text) {\n' + text.split('\n').map((l) => '    ' + l).join('\n') +
+            '\n    note "{instruction}"\n}\nworkflow Main(topic_text) {\n    start Child(topic_text = topic_text) budget { tokens: 1000 } -> kid\n    notify kid "go" "now"\n    wait kid timeout 5m -> kid_result\n    alt (kid is ok) { note "{kid_result}" }\n}\n';
+    }
+    if (name === 'wait-any') {
+        return PRELUDE + 'workflow Main(topic_text) {\n    start Analyze(topic_text = topic_text) budget { tokens: 1000 } -> work["a"]\n' +
+            text.split('\n').map((l) => '    ' + l).join('\n') + '\n    note "{event.kind}"\n}\n';
     }
     if (name === 'extract') {
         // a statement that needs an extractor declared above it

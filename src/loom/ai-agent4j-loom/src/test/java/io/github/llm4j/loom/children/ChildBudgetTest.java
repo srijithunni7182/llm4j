@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class ChildBudgetTest {
 
     /** Every model call answers at once and uses 15 tokens. */
-    private static LLMClient client(String model) {
+    static LLMClient client(String model) {
         return new LLMClient() {
             @Override
             public LLMResponse chat(LLMRequest request) {

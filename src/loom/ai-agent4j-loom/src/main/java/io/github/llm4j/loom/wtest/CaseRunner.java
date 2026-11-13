@@ -70,6 +70,7 @@ final class CaseRunner {
             Map<String, RunJournal> childJournals = new java.util.concurrent.ConcurrentHashMap<>();
             io.github.llm4j.loom.execution.ControlledChildScheduler childScheduler =
                     new io.github.llm4j.loom.execution.ControlledChildScheduler();
+            ScriptedSignals scriptedSignals = new ScriptedSignals(c.get("signals"));
             Failures failures = new Failures(c.get("fail"));
             boolean repeatLast = c.has("repeat") && "last".equals(c.get("repeat").asText());
             boolean lenient = c.has("lenient") && c.get("lenient").asBoolean();
@@ -125,9 +126,16 @@ final class CaseRunner {
                 executor.setRunId("case");
                 executor.setChildRuns(id -> childJournals.computeIfAbsent(id, k -> RunJournal.inMemory()));
                 executor.setChildScheduler(childScheduler); // children run one at a time, when waited for
+                executor.setChildScripts(scriptedChildren(c.get("children")));
                 executor.setSuperviseTick(Duration.ZERO); // the virtual clock is the tick
                 final HarnessExecutor ticked = executor;
-                clock.afterAdvance(ticked::tickChildren);
+                clock.afterAdvance(
+                        () -> {
+                            scriptedSignals.deliverDue(clock.elapsed(), ticked);
+                            ticked.tickChildren();
+                        });
+                // a parent's wait with nothing to run lets virtual time pass, up to the next arrival
+                childScheduler.onIdle(ms -> clock.sleep(Duration.ofMillis(Math.min(ms, scriptedSignals.untilNext(clock.elapsed())))));
                 executor.setClock(clock);
                 executor.setSleeper(clock);
                 executor.setBaseDir(script.toAbsolutePath().getParent());
@@ -192,6 +200,41 @@ final class CaseRunner {
                     journal,
                     fallbacks);
         }
+    }
+
+    /**
+     * {@code children:} of a case: the workflows whose started children play a script of states
+     * instead of running (F5). Each key is a workflow, each value a list of steps {@code { state,
+     * after, result, reason }}; the checker has already refused a malformed one.
+     */
+    /** {@code progress: { stage: reading, done: 1 }} of a scripted step: numbers and booleans keep their type. */
+    private static Map<String, Object> progressOf(JsonNode node) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (node == null || !node.isObject()) return out;
+        node.fields().forEachRemaining(e -> out.put(e.getKey(), e.getValue().isNumber() ? (Object) e.getValue().numberValue() : e.getValue().isBoolean() ? (Object) e.getValue().booleanValue() : e.getValue().asText()));
+        return out;
+    }
+
+    private static io.github.llm4j.loom.execution.ChildScripts scriptedChildren(JsonNode scripts) {
+        Map<String, io.github.llm4j.loom.execution.ScriptedChild> byWorkflow = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonNode> e : fields(scripts).entrySet()) {
+            List<io.github.llm4j.loom.execution.ScriptedChild.Step> steps = new ArrayList<>();
+            for (JsonNode step : e.getValue()) {
+                java.time.Duration after = step.has("after") ? Durations.parse(step.get("after").asText()) : java.time.Duration.ZERO;
+                steps.add(
+                        new io.github.llm4j.loom.execution.ScriptedChild.Step(
+                                io.github.llm4j.loom.execution.ScriptedChild.State.valueOf((step.has("state") ? step.get("state").asText() : "working").toUpperCase(java.util.Locale.ROOT)),
+                                after,
+                                step.has("result") ? step.get("result").asText() : null,
+                                step.has("reason") ? step.get("reason").asText() : null,
+                                progressOf(step.get("progress")),
+                                step.has("signal")
+                                        ? new io.github.llm4j.loom.execution.ScriptedChild.Signal(step.get("signal").asText(), step.has("text") ? step.get("text").asText() : "", step.path("sticky").asBoolean(false))
+                                        : null));
+            }
+            byWorkflow.put(e.getKey(), new io.github.llm4j.loom.execution.ScriptedChild(steps));
+        }
+        return workflow -> java.util.Optional.ofNullable(byWorkflow.get(workflow));
     }
 
     /** The agents that stream their replies. */

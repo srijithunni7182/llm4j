@@ -18,6 +18,9 @@
       "include": "#classifier-words"
     },
     {
+      "include": "#contextual-words"
+    },
+    {
       "include": "#keywords"
     },
     {
@@ -110,6 +113,10 @@
           "name": "variable.other.property.loom"
         }
       }
+    },
+    "contextual-words": {
+      "name": "keyword.control.loom",
+      "match": "(?<![.\\w\"])report(?=\\s*\\{)|(?<=\\)\\s{0,3})progress(?=\\s*\\{)|(?<![.\\w\"])notify(?=\\s+[A-Za-z_][\\w.-]*(?:\\[[^\\]]*\\])?\\s*\")|(?<=\\bnotify\\s)parent(?=\\s*\")|(?<=\"\\s+)sticky\\b(?=\\s*$)|(?<=\\bwait\\s)signal(?=\\s*\")|(?<=\\bwait\\s+[A-Za-z_][\\w.-]*(?:\\[[^\\]]*\\])?\\s+)signal(?=\\s*\")|(?<=\\bwhen\\s)signal(?=\\s*\")|(?<=\\bwait\\s)any(?=\\s+(?!timeout\\b)[A-Za-z_])|(?<=\\bassert\\s)progress(?=\\.\\w+\\s+changes\\b)|(?<=\\bassert\\s+progress\\.\\w+\\s)changes(?=\\s+within\\b)"
     }
   }
 }

@@ -1,0 +1,177 @@
+package io.github.llm4j.loom.children;
+
+import io.github.llm4j.agent.task.Task;
+import io.github.llm4j.agent.task.TaskEffect;
+import io.github.llm4j.agent.task.TaskRegistry;
+import io.github.llm4j.agent.task.TaskResult;
+import io.github.llm4j.agent.tool.EffectPolicy;
+import io.github.llm4j.loom.execution.ChildRuns;
+import io.github.llm4j.loom.execution.ChildScheduler;
+import io.github.llm4j.loom.execution.HarnessExecutor;
+import io.github.llm4j.loom.execution.ToolRegistry;
+import io.github.llm4j.loom.runtime.ChildStatus;
+import io.github.llm4j.loom.runtime.RunJournal;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+
+/**
+ * What the phase 34 tests of the launcher share: a parent over in-memory journals, a clock the test
+ * moves, a task registry the test adds to, and a record of what the host was told about each
+ * child. Nothing here sleeps or races: a test chooses the scheduler.
+ */
+public final class ChildHarness {
+
+    /** A clock that moves only when the test says so. */
+    public static final class MovingClock extends java.time.Clock {
+        private volatile Instant now = Instant.parse("2026-01-01T00:00:00Z");
+
+        @Override
+        public java.time.ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public java.time.Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+
+        public void advance(Duration by) {
+            now = now.plus(by);
+        }
+    }
+
+    public final MovingClock clock = new MovingClock();
+    public final Map<String, RunJournal> journals = new ConcurrentHashMap<>();
+    public final List<String> settled = Collections.synchronizedList(new ArrayList<>());
+    public final Map<String, String> parents = new ConcurrentHashMap<>();
+    public final TaskRegistry tasks = new TaskRegistry();
+    /** Every trace event of the parent and of each child, tagged with the run that traced it. */
+    public final List<String> traces = Collections.synchronizedList(new ArrayList<>());
+    public final List<io.github.llm4j.loom.execution.TraceEvent> traceEvents = Collections.synchronizedList(new ArrayList<>());
+    /** Each executor the launcher built for a child, in order: a re-run makes a new one. */
+    public final List<HarnessExecutor> attempts = Collections.synchronizedList(new ArrayList<>());
+    public HarnessExecutor parent;
+
+    public ChildHarness() {
+        task("Fine", ctx -> TaskResult.value("ok"));
+        task(
+                "Explode",
+                ctx -> {
+                    throw new IllegalStateException("the source is down");
+                });
+    }
+
+    /** Adds a task that changes nothing, so it is never held back by an effect policy. */
+    public ChildHarness task(String name, Function<io.github.llm4j.agent.task.TaskContext, TaskResult> body) {
+        tasks.register(Task.of(name, TaskEffect.NONE, EffectPolicy.DEFAULT, body::apply));
+        return this;
+    }
+
+    /**
+     * A journal that says it is durable, so a sleep or a wait for a person suspends the run instead
+     * of being waited out in place, as it does under a host with persistence.
+     */
+    static RunJournal durable(RunJournal base) {
+        return new RunJournal() {
+            @Override
+            public java.util.Optional<Entry> get(String stepId) {
+                return base.get(stepId);
+            }
+
+            @Override
+            public void put(String stepId, Entry entry) {
+                base.put(stepId, entry);
+            }
+
+            @Override
+            public Map<String, Entry> all() {
+                return base.all();
+            }
+
+            @Override
+            public boolean isDurable() {
+                return true;
+            }
+        };
+    }
+
+    /**
+     * A controlled scheduler whose idle time is virtual: when a parent's wait has nothing to run, the
+     * test's clock moves forward by what the wait would have slept and the supervisor looks, so a wait
+     * with a timeout is a test of virtual time and never a real sleep.
+     */
+    public io.github.llm4j.loom.execution.ControlledChildScheduler controlled() {
+        var scheduler = new io.github.llm4j.loom.execution.ControlledChildScheduler();
+        scheduler.onIdle(
+                millis -> {
+                    clock.advance(Duration.ofMillis(millis));
+                    if (parent != null) parent.tickChildren();
+                });
+        return scheduler;
+    }
+
+    /** A parent run named {@code p} over {@code source}, its children on {@code scheduler}. */
+    public HarnessExecutor parent(String source, ChildScheduler scheduler) {
+        return parent(source, scheduler, new io.github.llm4j.loom.eval.MockModels());
+    }
+
+    /** As {@link #parent(String, ChildScheduler)}, with the models the test chooses. */
+    public HarnessExecutor parent(
+            String source, ChildScheduler scheduler, io.github.llm4j.loom.execution.LLMClientFactory models) {
+        parent =
+                new HarnessExecutor(StartParseTest.parse(source), new ToolRegistry(), models);
+        parent.setTaskRegistry(tasks);
+        parent.setClock(clock);
+        parent.setSuperviseTick(Duration.ZERO);
+        parent.setRunId("p");
+        parent.setJournal(journals.computeIfAbsent("p", k -> durable(RunJournal.inMemory())));
+        parent.setChildRuns(
+                new ChildRuns() {
+                    @Override
+                    public RunJournal openJournal(String childRunId) {
+                        return journals.computeIfAbsent(childRunId, k -> durable(RunJournal.inMemory()));
+                    }
+
+                    @Override
+                    public void record(String childRunId, String parentRunId, String workflow) {
+                        parents.put(childRunId, parentRunId);
+                    }
+
+                    @Override
+                    public void prepared(String childRunId, HarnessExecutor child) {
+                        attempts.add(child);
+                        child.addTraceListener(traceEvents::add);
+                    }
+
+                    @Override
+                    public void settled(String childRunId, ChildStatus status) {
+                        settled.add(status.word());
+                    }
+                });
+        parent.setChildScheduler(scheduler);
+        parent.addTraceListener(traceEvents::add);
+        parent.initialize();
+        return parent;
+    }
+
+    /** The journal of the one child this parent started. */
+    public RunJournal onlyChild() {
+        return journals.entrySet().stream()
+                .filter(e -> !e.getKey().equals("p"))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElseThrow();
+    }
+}

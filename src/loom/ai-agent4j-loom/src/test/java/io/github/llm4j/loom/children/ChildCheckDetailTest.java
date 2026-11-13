@@ -134,8 +134,164 @@ class ChildCheckDetailTest {
     }
 
     @Test
-    void aRewindOfAChildIsRefusedAndNamesTheCheckpointThatDoesNotExist() {
+    void aRewindOfAChildToACheckpointItDidNotDeclareIsRefusedAndListsTheOnesItHas() {
         var problems = main(START + "cancel work rewind to nowhere at most 2 times\nwait work timeout 1m");
-        assertThat(errors(problems)).anyMatch(e -> e.contains("not available yet")).anyMatch(e -> e.contains("\"nowhere\""));
+        assertThat(errors(problems)).anyMatch(e -> e.contains("\"nowhere\"") && e.contains("collected"));
+        assertThat(errors(problems)).noneMatch(e -> e.contains("not available yet"));
+    }
+
+    @Test
+    void aRewindOfAChildToACheckpointItDeclaredPassesTheCheck() {
+        assertThat(errors(main(START + "cancel work rewind to collected at most 2 times\nwait work timeout 1m")))
+                .noneMatch(e -> e.contains("rewind") || e.contains("collected") || e.contains("cancel"));
+    }
+
+    // ---- F9: two warnings (phase 34a) ----
+
+    private static final String SMALL = "start Research(topic = q) budget { tokens: 10 } -> ";
+
+    @Test
+    void aBlockThatStartsMoreChildrenThanMaxChildrenAllowsIsWarnedWhereItIsProvable() {
+        String body = SMALL + "a\n" + SMALL + "b\n" + SMALL + "c\nwait all a timeout 1m";
+        var three = check("max_children: 2\n" + BASE + "workflow Main(q) {\n" + body + "\n}");
+
+        assertThat(warnings(three)).anyMatch(w -> w.contains("max_children") && w.contains("2") && w.contains("3"));
+    }
+
+    @Test
+    void aWaitBetweenStartsFreesASlotSoNoWarningIsGiven() {
+        String body = SMALL + "a\nwait a timeout 1m\n" + SMALL + "b\nwait b timeout 1m\n" + SMALL + "c\nwait c timeout 1m";
+        var spread = check("max_children: 1\n" + BASE + "workflow Main(q) {\n" + body + "\n}");
+
+        assertThat(warnings(spread)).noneMatch(w -> w.contains("max_children"));
+    }
+
+    @Test
+    void aBoundedLoopThatStartsMoreChildrenThanTheLimitWithNothingWaitedOnIsWarned() {
+        String loop = "for each t in q.topics max 5 {\nstart Research(topic = t.name) budget { tokens: 10 } -> work[t.name]\n}\nwait all work timeout 1m";
+        assertThat(warnings(check("max_children: 3\n" + BASE + "workflow Main(q) {\n" + loop + "\n}")))
+                .anyMatch(w -> w.contains("max_children") && w.contains("5") && w.contains("3"));
+        assertThat(warnings(check("max_children: 5\n" + BASE + "workflow Main(q) {\n" + loop + "\n}")))
+                .noneMatch(w -> w.contains("max_children"));
+    }
+
+    @Test
+    void aLoopThatWaitsInsideItsBodyDoesNotExceedTheLimitAtOnce() {
+        String loop = "for each t in q.topics max 5 {\nstart Research(topic = t.name) budget { tokens: 10 } -> work[t.name]\nwait work[t.name] timeout 1m\n}";
+        assertThat(warnings(check("max_children: 1\n" + BASE + "workflow Main(q) {\n" + loop + "\n}")))
+                .noneMatch(w -> w.contains("max_children"));
+    }
+
+    @Test
+    void theDefaultLimitOfEightCountsWhenTheScriptSetsNone() {
+        String loop = "for each t in q.topics max 9 {\nstart Research(topic = t.name) budget { tokens: 10 } -> work[t.name]\n}\nwait all work timeout 1m";
+        assertThat(warnings(check(BASE + "workflow Main(q) {\n" + loop + "\n}"))).anyMatch(w -> w.contains("max_children") && w.contains("8"));
+    }
+
+    @Test
+    void twoSteersToOneAgentOfOneChildInOneBlockAreWarnedAboutBecauseTheLaterOverridesTheEarlier() {
+        var two = main(START + "steer work Researcher \"narrow it\"\nsteer work Researcher \"widen it\"\nwait work timeout 1m");
+        var different = main(START + "steer work Researcher \"narrow it\"\nrun Calc() -> c\nwait work timeout 1m");
+
+        assertThat(warnings(two)).anyMatch(w -> w.contains("steer") && w.contains("Researcher") && w.contains("one block"));
+        assertThat(warnings(different)).noneMatch(w -> w.contains("steer") && w.contains("one block"));
+    }
+
+    @Test
+    void twoSteersInOneRulesActionsAreWarnedAboutBecauseOnlyOneIsDeliveredATick() {
+        var twice = main(START + "supervise work { when tokens > 5 { steer \"a\"  steer \"b\" } }\nwait work timeout 1m");
+        var once = main(START + "supervise work { when tokens > 5 { steer \"a\" } }\nwait work timeout 1m");
+
+        assertThat(warnings(twice)).anyMatch(w -> w.contains("one steer") && w.contains("tick"));
+        assertThat(warnings(once)).noneMatch(w -> w.contains("one steer"));
+    }
+
+    // ---- F12, guard G26: the judge's budget is paired with its start ----
+
+    private static final String JUDGED =
+            "supervise work budget { tokens: 5 } { assert \"on topic\" using J every 2m max 2 { wrap_up } }\n";
+
+    @Test
+    void aSuperviseOfAHandleStartedInTheSameBlockIsPairedAndNeedsNoWarning() {
+        assertThat(warnings(main(START + JUDGED + "wait work timeout 1m"))).noneMatch(w -> w.contains("unsupervised"));
+    }
+
+    @Test
+    void aJudgedSuperviseThatCannotBePairedWithItsStartIsWarnedAboutBecauseItReservesLate() {
+        String source =
+                BASE
+                        + "workflow Helper(q) {\n"
+                        + START
+                        + "wait work timeout 1m\n}\n"
+                        + "workflow Main(q) {\n"
+                        + "start Research(topic = q) budget { tokens: 10 } -> work\nalt (q == \"x\") {\n"
+                        + JUDGED
+                        + "}\nwait work timeout 1m\n}";
+
+        assertThat(warnings(check(source)))
+                .anyMatch(w -> w.contains("already running") && w.contains("unsupervised") && w.contains("same block"));
+    }
+
+    // ---- phase 34b: declared progress ----
+
+    private static List<ScriptValidator.Problem> progress(String workflow, String main) {
+        return check(BASE + workflow + "\nworkflow Main(q) {\n" + main + "\n}");
+    }
+
+    private static final String DECLARED =
+            "workflow Worker(topic) progress { stage: string, done: number, phase: enum[\"a\", \"b\"] } {\n";
+
+    @Test
+    void aReportOfAFieldTheWorkflowDidNotDeclareIsAnErrorThatListsTheOnesItDid() {
+        var p = progress(DECLARED + "report { stagee: \"x\" }\n}", "set x = \"1\"");
+
+        assertThat(errors(p)).anyMatch(e -> e.contains("stagee") && e.contains("stage") && e.contains("done"));
+    }
+
+    @Test
+    void aReportInAWorkflowWithNoDeclarationIsAnError() {
+        var p = progress("workflow Plain(topic) { report { stage: \"x\" } }", "set x = \"1\"");
+
+        assertThat(errors(p)).anyMatch(e -> e.contains("progress {") && e.contains("report"));
+    }
+
+    @Test
+    void aValueOfATypeItCanSeeIsWrongIsAnError() {
+        assertThat(errors(progress(DECLARED + "report { done: \"many\" }\n}", "set x = \"1\"")))
+                .anyMatch(e -> e.contains("done") && e.contains("number"));
+        assertThat(errors(progress(DECLARED + "report { stage: 3 }\n}", "set x = \"1\"")))
+                .anyMatch(e -> e.contains("stage") && e.contains("text"));
+        assertThat(errors(progress(DECLARED + "report { phase: \"c\" }\n}", "set x = \"1\"")))
+                .anyMatch(e -> e.contains("phase") && e.contains("\"a\""));
+        assertThat(errors(progress(DECLARED + "report { stage: \"ok\", done: 2, phase: \"a\" }\n}", "set x = \"1\"")))
+                .noneMatch(e -> e.contains("report"));
+    }
+
+    @Test
+    void aWorkflowThatDeclaresProgressAndNeverReportsIsWarnedAbout() {
+        var p = progress(DECLARED + "note \"x\"\n}", "set x = \"1\"");
+
+        assertThat(warnings(p)).anyMatch(w -> w.contains("declares progress") && w.contains("never reports"));
+        assertThat(warnings(progress(DECLARED + "report { stage: \"x\" }\n}", "set x = \"1\""))).noneMatch(w -> w.contains("never reports"));
+    }
+
+    @Test
+    void aProgressAssertionNeedsTheChildToDeclareThatField() {
+        String start = "start Worker(topic = q) budget { tokens: 10 } -> work\n";
+        var good = progress(DECLARED + "report { stage: \"x\" }\n}", start + "supervise work { assert progress.done changes within 3m { cancel } }\nwait work timeout 1m");
+        var noField = progress(DECLARED + "report { stage: \"x\" }\n}", start + "supervise work { assert progress.nothing changes within 3m { cancel } }\nwait work timeout 1m");
+        var noDecl = progress("workflow Worker(topic) { note \"x\" }", start + "supervise work { assert progress.done changes within 3m { cancel } }\nwait work timeout 1m");
+
+        assertThat(errors(good)).noneMatch(e -> e.contains("progress"));
+        assertThat(errors(noField)).anyMatch(e -> e.contains("nothing") && e.contains("stage"));
+        assertThat(errors(noDecl)).anyMatch(e -> e.contains("declares no progress"));
+    }
+
+    @Test
+    void readingAChildsProgressFieldInTextIsNotTakenForWritingTheHandle() {
+        String start = "start Worker(topic = q) budget { tokens: 10 } -> work\n";
+        var p = progress(DECLARED + "report { stage: \"x\" }\n}", start + "wait work timeout 1m\nnote \"at {work.progress.stage}\"");
+
+        assertThat(errors(p)).noneMatch(e -> e.contains("handle"));
     }
 }

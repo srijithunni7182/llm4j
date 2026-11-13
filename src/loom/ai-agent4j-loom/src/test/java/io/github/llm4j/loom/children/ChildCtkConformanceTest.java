@@ -120,6 +120,22 @@ class ChildCtkConformanceTest {
     }
 
     @Test
+    void childProgressIsReportedByTheChildAndReadByTheParentAndSurvivesARunAgain() throws Exception {
+        HarnessExecutor e = executor("child_progress.loom");
+        e.executeWorkflow("main", Map.of());
+        long reports = journals.entrySet().stream().filter(en -> !en.getKey().equals("ctk"))
+                .flatMap(en -> en.getValue().all().values().stream()).filter(en -> "progress".equals(en.kind())).count();
+
+        HarnessExecutor again = executor("child_progress.loom"); // the same journals: a restart
+        again.executeWorkflow("main", Map.of());
+
+        assertThat(reports).isEqualTo(2);
+        assertThat(((ChildHandle) again.getContext().getVariable("work")).fact("progress"))
+                .asString().contains("writing");
+        assertThat(lookups).as("the effect happened once across the run again").hasValue(1);
+    }
+
+    @Test
     void childCancelledBeforeItRanNeverRunsAndIsCancelledWithItsReason() throws Exception {
         HarnessExecutor e = executor("child_cancel.loom");
 

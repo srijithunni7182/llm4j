@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 43ed0ea15414220de1d11d7269c4c8444999671528c9d9bbe9f7b6feee1db07f -->
+<!-- source-sha256: db19d910766eec9fa282b300c8c6a6eeb30e5055b02c5fe25b1bedab3f6eca4c -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -131,7 +131,8 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
     <option value="c11">11. Advanced orchestration</option>
     <option value="c12">12. Running it for real</option>
     <option value="c13">13. Plain Java</option>
-    <option value="c14">14. Cookbook and cheat sheet</option>
+    <option value="c14">14. Workflows that report, signal and wait for each other</option>
+    <option value="c15">15. Cookbook and cheat sheet</option>
   </select>
   <span class="where" id="where">Start here</span>
 </header>
@@ -151,7 +152,8 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <li><a href="#c11"><span class="n">11</span>Advanced orchestration</a></li>
 <li><a href="#c12"><span class="n">12</span>Running it for real</a></li>
 <li><a href="#c13"><span class="n">13</span>Plain Java</a></li>
-<li><a href="#c14"><span class="n">14</span>Cookbook and cheat sheet</a></li>
+<li><a href="#c14"><span class="n">14</span>Workflows that report, signal and wait for each other</a></li>
+<li><a href="#c15"><span class="n">15</span>Cookbook and cheat sheet</a></li>
   </ol></nav>
   <main>
 <section class="chapter" id="c00">
@@ -265,7 +267,13 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 </tr>
 <tr>
 <td>14</td>
-<td><a href="#c14">Cookbook and cheat sheet</a></td>
+<td><a href="#c14">Supervising: progress, signals and <code>wait any</code></a></td>
+<td><code>progress</code> and <code>report</code>, <code>notify</code>, <code>wait signal</code>, <code>when signal</code>, <code>wait any</code>, scripted children and signals in <code>weave test</code></td>
+<td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/18-supervise-workflows" target="_blank" rel="noopener">18</a></td>
+</tr>
+<tr>
+<td>15</td>
+<td><a href="#c15">Cookbook and cheat sheet</a></td>
 <td>Recipes, mistakes and their fixes, one page of syntax</td>
 <td></td>
 </tr>
@@ -3863,13 +3871,120 @@ public final class ReviewLoopCheck {
 <li>Write a <code>Task</code> for something in one of your workflows that must be exact, and unit test it with no model.</li>
 <li>Write the <code>LoomTest</code> equivalent of one case from a starter&#39;s YAML and compare.</li>
 </ol>
-<p>Next: <a href="#c14">Cookbook and cheat sheet</a>.</p>
+<p>Next: <a href="#c14">Workflows that report, signal and wait for each other</a>.</p>
 
 </section>
 <section class="chapter" id="c14">
-<h1 id="c14-14-cookbook-and-cheat-sheet">14. Cookbook and cheat sheet</h1>
+<h1 id="c14-14-workflows-that-report-signal-and-wait-for-each-other">14. Workflows that report, signal and wait for each other</h1>
+<p><a href="#c11">Chapter 11</a> showed how to <code>start</code> a workflow as a child, <code>wait</code> for it and <code>supervise</code> it with counted rules. This chapter adds the three things a supervisor needs once the child runs for a while: <strong>where is it</strong> (declared progress), <strong>tell it something, hear something back</strong> (signals), and <strong>react to whichever child needs me first</strong> (<code>wait any</code>).</p>
+<p>None of them gives a model more authority. What a child writes is data your script may read, never something that makes your script act.</p>
+<figure class="diagram"><div class="plate"><svg role="img" aria-label="Diagram 27" aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="-8 -7 534.154296875 230.7138671875" height="230.7138671875" xmlns="http://www.w3.org/2000/svg" width="534.154296875" id="d26"><style>#d26{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;fill:#161a2b;}#d26 .error-icon{fill:#f5f6fa;}#d26 .error-text{fill:#0a0905;stroke:#0a0905;}#d26 .edge-thickness-normal{stroke-width:2px;}#d26 .edge-thickness-thick{stroke-width:3.5px;}#d26 .edge-pattern-solid{stroke-dasharray:0;}#d26 .edge-pattern-dashed{stroke-dasharray:3;}#d26 .edge-pattern-dotted{stroke-dasharray:2;}#d26 .marker{fill:#5a6078;stroke:#5a6078;}#d26 .marker.cross{stroke:#5a6078;}#d26 svg{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;}#d26 .label{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;color:#161a2b;}#d26 .cluster-label text{fill:#0a0905;}#d26 .cluster-label span,#d26 p{color:#0a0905;}#d26 .label text,#d26 span,#d26 p{fill:#161a2b;color:#161a2b;}#d26 .node rect,#d26 .node circle,#d26 .node ellipse,#d26 .node polygon,#d26 .node path{fill:#d9efec;stroke:#0f766e;stroke-width:1px;}#d26 .flowchart-label text{text-anchor:middle;}#d26 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d26 .node .label{text-align:center;}#d26 .node.clickable{cursor:pointer;}#d26 .arrowheadPath{fill:#0b0b0b;}#d26 .edgePath .path{stroke:#5a6078;stroke-width:2.0px;}#d26 .flowchart-link{stroke:#5a6078;fill:none;}#d26 .edgeLabel{background-color:#eef0f7;text-align:center;}#d26 .edgeLabel rect{opacity:0.5;background-color:#eef0f7;fill:#eef0f7;}#d26 .labelBkg{background-color:rgba(238, 240, 247, 0.5);}#d26 .cluster rect{fill:#f5f6fa;stroke:#b9c0d4;stroke-width:1px;}#d26 .cluster text{fill:#0a0905;}#d26 .cluster span,#d26 p{color:#0a0905;}#d26 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:12px;background:#f5f6fa;border:1px solid hsl(228, 0%, 87.0588235294%);border-radius:2px;pointer-events:none;z-index:100;}#d26 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#161a2b;}#d26 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#d26 .step rect{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d26 .step polygon{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d26 .step ellipse{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d26 .step circle{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d26 .step path{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d26 .step tspan{fill:#0b3b37!important;}#d26 .decision rect{fill:#fdecc8!important;stroke:#b45309!important;color:#5a2e04!important;}#d26 .decision polygon{fill:#fdecc8!important;stroke:#b45309!important;color:#5a2e04!important;}#d26 .decision ellipse{fill:#fdecc8!important;stroke:#b45309!important;color:#5a2e04!important;}#d26 .decision circle{fill:#fdecc8!important;stroke:#b45309!important;color:#5a2e04!important;}#d26 .decision path{fill:#fdecc8!important;stroke:#b45309!important;color:#5a2e04!important;}#d26 .decision tspan{fill:#5a2e04!important;}</style><g><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="6" viewBox="0 0 10 10" class="marker flowchart" id="d26_flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart" id="d26_flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart" id="d26_flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart" id="d26_flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart" id="d26_flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart" id="d26_flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#d26_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-P LE-C" id="L-P-C-0" d="M145.546,31.328L161.267,27.606C176.989,23.885,208.431,16.443,238.994,14.235C269.558,12.027,299.242,15.055,314.085,16.568L328.927,18.082"></path><path marker-end="url(#d26_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-P" id="L-C-P-0" d="M334.2,37.38L318.479,38.984C302.757,40.587,271.315,43.793,240.756,45.535C210.197,47.276,180.522,47.552,165.684,47.69L150.846,47.828"></path><path marker-end="url(#d26_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-C LE-P" id="L-C-P-1" d="M360.951,48.5L340.771,54.842C320.591,61.184,280.232,73.869,245.193,76.832C210.154,79.795,180.434,73.036,165.574,69.657L150.714,66.278"></path><path marker-end="url(#d26_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;" class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-P LE-D" id="L-P-D-0" d="M108.251,69.053L130.188,81.729C152.125,94.405,195.999,119.756,236.419,132.511C276.839,145.266,313.804,145.425,332.287,145.505L350.77,145.584"></path></g><g class="edgeLabels"><g transform="translate(239.873046875, 9)" class="edgeLabel"><g transform="translate(-48.79248046875, -9)" class="label"><rect height="18.000839233398438" width="97.4910888671875" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">notify child 'go'</tspan></text></g></g><g transform="translate(239.873046875, 47)" class="edgeLabel"><g transform="translate(-59.625, -9)" class="label"><rect height="18.000839233398438" width="119.13055419921875" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">report { stage: ... }</tspan></text></g></g><g transform="translate(239.873046875, 86.553466796875)" class="edgeLabel"><g transform="translate(-81.32666015625, -9)" class="label"><rect height="18.000839233398438" width="162.4947509765625" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">notify parent 'need_help'</tspan></text></g></g><g transform="translate(239.873046875, 145.10693359375)" class="edgeLabel"><g transform="translate(-74.1240234375, -9)" class="label"><rect height="18.000839233398438" width="148.11004638671875" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">when signal / wait any</tspan></text></g></g></g><g class="nodes"><g transform="translate(72.773193359375, 48.553466796875)" data-id="P" data-node="true" id="flowchart-P-250" class="node default step flowchart-label"><rect height="41" width="145.54638671875" y="-20.5" x="-72.773193359375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">parent</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">start, supervise, wait</tspan></text></g></g><g transform="translate(426.177001953125, 28)" data-id="C" data-node="true" id="flowchart-C-251" class="node default step flowchart-label"><rect height="41" width="183.95458984375" y="-20.5" x="-91.977294921875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">child run</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">its own journal and budget</tspan></text></g></g><g transform="translate(426.177001953125, 145.10693359375)" data-id="D" data-node="true" id="flowchart-D-257" class="node default decision flowchart-label"><polygon style="" transform="translate(-70.60693359375,70.60693359375)" class="label-container" points="70.60693359375,0 141.2138671875,-70.60693359375 70.60693359375,-141.2138671875 0,-70.60693359375"></polygon><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">your rule</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">fixed text only</tspan></text></g></g></g></g></g></svg></div><button type="button" class="bigger" aria-label="Show the diagram larger">Larger</button></figure>
+
+<h2 id="c14-say-where-you-are-progress-and-report">Say where you are: <code>progress</code> and <code>report</code></h2>
+<p>A workflow declares what it may report, after its parameters, and reports with a statement. The fields are typed (<code>string</code>, <code>number</code>, <code>boolean</code> or <code>enum[&quot;a&quot;, &quot;b&quot;]</code>) and flat.</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span> system: <span class="tk-s">"Research the topic."</span> }
+
+<span class="tk-k">workflow</span> Research(topic) progress { stage: string, done: number, of: number } {
+    report { stage: <span class="tk-s">"searching"</span>, done: <span class="tk-n">0</span>, of: <span class="tk-n">3</span> }
+    <span class="tk-k">delegate</span> <span class="tk-s">"Find sources on <span class="tk-v">{topic}</span>"</span> <span class="tk-k">to</span> Researcher -&gt; notes
+    report { stage: <span class="tk-s">"writing"</span>, done: <span class="tk-n">2</span>, of: <span class="tk-n">3</span> }
+    <span class="tk-k">return</span> notes
+}
+
+<span class="tk-k">workflow</span> Main(question) {
+    start Research(topic = question) <span class="tk-k">budget</span> { tokens: <span class="tk-n">100000</span> } -&gt; work
+    <span class="tk-k">supervise</span> work { assert progress.done changes within <span class="tk-n">5m</span> { steer <span class="tk-s">"Say what you are doing."</span> once } }
+    wait work <span class="tk-k">timeout</span> <span class="tk-n">20m</span> -&gt; findings
+    <span class="tk-k">set</span> where = work.progress.stage
+    <span class="tk-k">alt</span> (work is ok) { <span class="tk-k">return</span> <span class="tk-s">"<span class="tk-v">{findings}</span> (last stage: <span class="tk-v">{where}</span>)"</span> }
+    <span class="tk-k">return</span> <span class="tk-s">"unfinished at stage <span class="tk-v">{where}</span>"</span>
+}</code></pre></figure>
+<ul>
+<li>The parent reads the latest report as <code>work.progress.stage</code>. It is the child&#39;s own words, so Loom treats it as <strong>unchecked</strong>, like any model-written text.</li>
+<li><code>assert progress.done changes within 5m { ... }</code> fires when the field has not changed for five minutes of running time. It never reads what the value says. There is no <code>when progress.done &gt; 3</code>: a rule that steers or cancels never rests on a number the child wrote.</li>
+<li>A report lives in the child&#39;s own journal, so it survives a restart. Too many reports, or one that is too long, is dropped and recorded; it never stops the child.</li>
+<li><code>report</code> and <code>progress</code> are words only in those two places. Everywhere else they stay ordinary names, so <code>-&gt; report</code> still works.</li>
+</ul>
+<h2 id="c14-tell-it-something-hear-something-back-signals">Tell it something, hear something back: signals</h2>
+<p>A signal is a named entry in the <strong>receiver&#39;s journal</strong>. One sent before the receiver is waiting is not lost, and none is read twice across a crash.</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span> system: <span class="tk-s">"Research the topic."</span> steerable: true streaming: true }
+
+<span class="tk-k">workflow</span> Research(topic) {
+    wait signal <span class="tk-s">"go"</span> <span class="tk-k">timeout</span> <span class="tk-n">10m</span> -&gt; instruction
+    <span class="tk-k">alt</span> (instruction is ok) {
+        <span class="tk-k">delegate</span> <span class="tk-s">"Research <span class="tk-v">{topic}</span>. Note: <span class="tk-v">{instruction}</span>"</span> <span class="tk-k">to</span> Researcher -&gt; notes
+        notify parent <span class="tk-s">"found"</span> <span class="tk-s">"<span class="tk-v">{notes}</span>"</span>
+        <span class="tk-k">return</span> notes
+    }
+    <span class="tk-k">return</span> <span class="tk-s">"never told to start"</span>
+}
+
+<span class="tk-k">workflow</span> Main(question) {
+    start Research(topic = question) <span class="tk-k">budget</span> { tokens: <span class="tk-n">100000</span> } -&gt; work
+    <span class="tk-k">supervise</span> work { <span class="tk-k">when</span> signal <span class="tk-s">"need_help"</span> { steer <span class="tk-s">"Try a narrower reading of the topic."</span> once } }
+    notify work <span class="tk-s">"go"</span> <span class="tk-s">"prefer recent sources"</span>
+    notify work <span class="tk-s">"approved"</span> <span class="tk-s">"yes"</span> sticky
+    wait work signal <span class="tk-s">"found"</span> <span class="tk-k">timeout</span> <span class="tk-n">10m</span> -&gt; notes
+    <span class="tk-k">alt</span> (notes is ok) { <span class="tk-k">return</span> notes }
+    <span class="tk-k">return</span> <span class="tk-s">"the research did not report"</span>
+}</code></pre></figure>
+<ul>
+<li><code>notify work &quot;go&quot; &quot;text&quot;</code> sends from the parent; <code>notify parent &quot;found&quot; &quot;text&quot;</code> sends from the child. A plain signal is read once, in order. A <strong><code>sticky</code></strong> one is a latch: it stays set and every wait for it returns at once.</li>
+<li><code>wait signal &quot;go&quot; timeout 10m -&gt; instruction</code> waits in the child; <code>wait work signal &quot;found&quot; ...</code> waits in the parent. A timeout is required, and when it passes <code>instruction is ok</code> is false.</li>
+<li>A child that waits for a signal <strong>holds no thread</strong>. It is saved as waiting and run again when the signal arrives.</li>
+<li><code>when signal &quot;need_help&quot; { ... }</code> is a supervise rule. Its steer text is fixed in your script: the payload of a signal <strong>can never become a steer&#39;s text</strong>, and <code>weave check</code> refuses a placeholder there.</li>
+<li>What the receiver reads is unchecked in both directions. <code>weave audit</code> lists every workflow that reads a signal (rule LA30).</li>
+<li>Limits: 16 unread per name, 64 in all, a name of 40 characters, 2000 characters of text. Passing one fails loudly.</li>
+</ul>
+<h2 id="c14-react-to-whichever-child-needs-you-first-wait-any">React to whichever child needs you first: <code>wait any</code></h2>
+<p><code>wait all</code> joins every child. <code>wait any</code> returns on the first of a signal, a child finishing, or the timeout, as an <strong>event</strong>.</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span> system: <span class="tk-s">"Research the topic."</span> }
+
+<span class="tk-k">workflow</span> Research(topic) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"Research <span class="tk-v">{topic}</span>"</span> <span class="tk-k">to</span> Researcher -&gt; notes
+    notify parent <span class="tk-s">"found"</span> <span class="tk-s">"<span class="tk-v">{notes}</span>"</span>
+    <span class="tk-k">return</span> notes
+}
+
+<span class="tk-k">workflow</span> Main(question) {
+    start Research(topic = <span class="tk-s">"panels"</span>) <span class="tk-k">budget</span> { tokens: <span class="tk-n">100000</span> } -&gt; work[<span class="tk-s">"panels"</span>]
+    start Research(topic = <span class="tk-s">"costs"</span>) <span class="tk-k">budget</span> { tokens: <span class="tk-n">100000</span> } -&gt; work[<span class="tk-s">"costs"</span>]
+    <span class="tk-k">set</span> report = <span class="tk-s">""</span>
+    <span class="tk-k">set</span> event = <span class="tk-s">"start"</span>
+    <span class="tk-k">loop</span> <span class="tk-k">until</span> (event.remaining == <span class="tk-n">0</span>) <span class="tk-k">max</span> <span class="tk-n">8</span> {
+        wait any work <span class="tk-k">timeout</span> <span class="tk-n">10m</span> -&gt; event
+        <span class="tk-k">alt</span> (event.kind == <span class="tk-s">"signal"</span>) { <span class="tk-k">set</span> report = <span class="tk-s">"<span class="tk-v">{report}</span><span class="tk-v">{event.name}</span>: <span class="tk-v">{event.text}</span>\n"</span> }
+        <span class="tk-k">alt</span> (event.kind == <span class="tk-s">"finished"</span>) { <span class="tk-k">set</span> report = <span class="tk-s">"<span class="tk-v">{report}</span><span class="tk-v">{event.name}</span> finished: <span class="tk-v">{event.status}</span>\n"</span> }
+        <span class="tk-k">alt</span> (event.kind == <span class="tk-s">"timeout"</span>) { <span class="tk-k">set</span> report = <span class="tk-s">"<span class="tk-v">{report}</span>timed out\n"</span> }
+    }
+    <span class="tk-k">return</span> report
+}</code></pre></figure>
+<p>The event has a <code>kind</code>, the handle&#39;s <code>name</code>, and <code>remaining</code> (children not yet reported). When several things are ready, signals come before finished children, then the order you started them. A message is taken once, so no later wait sees it. The first return is journaled, so a restart reports each event once, in the same order.</p>
+<h2 id="c14-test-it-with-no-model-and-no-waiting">Test it with no model and no waiting</h2>
+<p><code>weave test</code> can script a child and the signals that reach it, on a virtual clock, so a wait of ten minutes takes no time:</p>
+<figure class="code"><figcaption>yaml</figcaption><pre><code>cases:
+  - name: the child asks for help and is steered
+    children:
+      Research:
+        - { state: working, after: 2m }
+        - { signal: need_help, text: "no sources", after: 1m }
+        - { state: completed, result: "Lima.", after: 1m }
+    expect:
+      signals: { received: [need_help] }</code></pre></figure>
+<p>Starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/18-supervise-workflows" target="_blank" rel="noopener">18-supervise-workflows</a> uses a <code>need_help</code> signal rule, and its tests show both the signal and a child that stays silent. The full reference is <a href="https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise" target="_blank" rel="noopener">the guide</a>.</p>
+<h2 id="c14-try-it-yourself">Try it yourself</h2>
+<ol>
+<li>In the signals example, remove <code>once</code> from the <code>need_help</code> rule. What does the audit say, and how many steers can one child now cause?</li>
+<li>Change the <code>notify work &quot;approved&quot; &quot;yes&quot; sticky</code> line to a plain one, then add two <code>wait work signal &quot;approved&quot;</code> lines. Which one times out?</li>
+<li>In starter 18&#39;s tests, add a case where no <code>need_help</code> arrives and the researcher finishes. Which <code>expect: signals</code> list is empty?</li>
+</ol>
+<p>Next: <a href="#c15">Cookbook and cheat sheet</a>.</p>
+
+</section>
+<section class="chapter" id="c15">
+<h1 id="c15-15-cookbook-and-cheat-sheet">15. Cookbook and cheat sheet</h1>
 <p>Recipes for common jobs, the mistakes people make and what Loom says about them, and one page of syntax to keep open while you write.</p>
-<h2 id="c14-recipes">Recipes</h2>
+<h2 id="c15-recipes">Recipes</h2>
 <p>Each recipe names the starter that implements it. Open the starter, run <code>weave test</code> on it, and change it.</p>
 <table>
 <thead>
@@ -3965,7 +4080,7 @@ public final class ReviewLoopCheck {
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/17-compliance-boundary" target="_blank" rel="noopener">17</a></td>
 </tr>
 </tbody></table>
-<h3 id="c14-recipe-pull-fields-out-of-text">Recipe: pull fields out of text</h3>
+<h3 id="c15-recipe-pull-fields-out-of-text">Recipe: pull fields out of text</h3>
 <figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 extractor Contact {
@@ -3989,7 +4104,7 @@ extractor Contact {
     }
 }</code></pre></figure>
 <p>The extractor sees only the email, never the run so far or the shared prompt. A required field the text does not state fails the step; an optional one is <code>missing</code>.</p>
-<h3 id="c14-recipe-let-the-reasoning-agent-think-then-extract">Recipe: let the reasoning agent think, then extract</h3>
+<h3 id="c15-recipe-let-the-reasoning-agent-think-then-extract">Recipe: let the reasoning agent think, then extract</h3>
 <figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 <span class="tk-k">agent</span> Researcher {
@@ -4010,7 +4125,7 @@ extractor ResearchFields {
     <span class="tk-k">return</span> notes.summary
 }</code></pre></figure>
 <p>The agent that has to think is not forced into JSON; the cheap extractor does the formatting. Use it whenever LP10 fires.</p>
-<h3 id="c14-recipe-read-a-receipt-from-a-photo">Recipe: read a receipt from a photo</h3>
+<h3 id="c15-recipe-read-a-receipt-from-a-photo">Recipe: read a receipt from a photo</h3>
 <figure class="code"><figcaption>excerpt</figcaption><pre><code>media_root: <span class="tk-s">"./assets"</span>
 
 extractor Receipt {
@@ -4024,7 +4139,7 @@ extractor Receipt {
     <span class="tk-k">return</span> fields
 }</code></pre></figure>
 <p>Files come only from <code>media_root</code>. See chapter 3 and chapter 5.</p>
-<h3 id="c14-recipe-a-cheaper-model-when-money-runs-low">Recipe: a cheaper model when money runs low</h3>
+<h3 id="c15-recipe-a-cheaper-model-when-money-runs-low">Recipe: a cheaper model when money runs low</h3>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 <span class="tk-k">budget</span> { tokens: <span class="tk-n">100000</span> }
@@ -4040,7 +4155,7 @@ extractor Receipt {
     }
     <span class="tk-k">return</span> draft
 }</code></pre></figure>
-<h3 id="c14-recipe-ask-a-person-only-when-the-model-is-unsure">Recipe: ask a person only when the model is unsure</h3>
+<h3 id="c15-recipe-ask-a-person-only-when-the-model-is-unsure">Recipe: ask a person only when the model is unsure</h3>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 <span class="tk-k">intentclassifier</span> Intent {
@@ -4067,7 +4182,7 @@ extractor Receipt {
         <span class="tk-k">note</span> <span class="tk-s">"Answered: <span class="tk-v">{reply}</span>"</span>
     }
 }</code></pre></figure>
-<h3 id="c14-recipe-split-a-big-script-into-files">Recipe: split a big script into files</h3>
+<h3 id="c15-recipe-split-a-big-script-into-files">Recipe: split a big script into files</h3>
 <figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-c">// main.loom</span>
 <span class="tk-k">import</span> <span class="tk-s">"agents.loom"</span>
 <span class="tk-k">import</span> <span class="tk-s">"flows/review.loom"</span>
@@ -4078,9 +4193,9 @@ extractor Receipt {
     <span class="tk-k">return</span> verdict
 }</code></pre></figure>
 <p>An imported file is checked together with the script that imports it. Keep agents in one file and reusable workflows in another.</p>
-<h3 id="c14-recipe-a-safe-way-to-try-something-new">Recipe: a safe way to try something new</h3>
+<h3 id="c15-recipe-a-safe-way-to-try-something-new">Recipe: a safe way to try something new</h3>
 <p>Run <code>weave fork</code> on a real run to copy it, and try a different script on the copy with <code>--effects simulate</code>. Nothing is performed; you see what would have happened (<a href="#c11-from-outside-timeline-rewind-reset-fork">Chapter 11</a>).</p>
-<h2 id="c14-mistakes-and-what-loom-says">Mistakes and what Loom says</h2>
+<h2 id="c15-mistakes-and-what-loom-says">Mistakes and what Loom says</h2>
 <p>These are real messages from <code>weave check</code>. Each one is something you will meet in your first week.</p>
 <p><strong>A name you mistyped.</strong> Loom suggests the nearest one:</p>
 <figure class="code"><figcaption>this one is meant to fail</figcaption><pre><code><span class="tk-k">agent</span> Helper { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You help."</span> }
@@ -4108,7 +4223,7 @@ extractor Receipt {
     <span class="tk-k">return</span> answer
 }</code></pre></figure>
 <figure class="code"><figcaption>text</figcaption><pre><code>line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, claude-… (or anthropic/&lt;model&gt;), ollama/&lt;model&gt;, ...</code></pre></figure>
-<h3 id="c14-things-weave-check-allows-but-weave-review-flags">Things <code>weave check</code> allows but <code>weave review</code> flags</h3>
+<h3 id="c15-things-weave-check-allows-but-weave-review-flags">Things <code>weave check</code> allows but <code>weave review</code> flags</h3>
 <table>
 <thead>
 <tr>
@@ -4193,7 +4308,7 @@ extractor Receipt {
 <td><code>side effects:</code> says what you mean; put the check before the effects</td>
 </tr>
 </tbody></table>
-<h2 id="c14-syntax-cheat-sheet">Syntax cheat sheet</h2>
+<h2 id="c15-syntax-cheat-sheet">Syntax cheat sheet</h2>
 <figure class="code"><figcaption>text</figcaption><pre><code>// comment
 substitution: braces
 import "other.loom"
@@ -4254,7 +4369,7 @@ workflow Name(p1, p2) {
     note "message"     observe "label" {x}     halt "why"     return value
     guardrail (PII) { ... } on_violation { ... }
 }</code></pre></figure>
-<h2 id="c14-command-cheat-sheet">Command cheat sheet</h2>
+<h2 id="c15-command-cheat-sheet">Command cheat sheet</h2>
 <figure class="code"><figcaption>text</figcaption><pre><code>weave init &lt;template&gt; [dir] --flat      start a project (pipeline, approval, classifier, empty)
 weave check  main.loom [--no-env]        does it load? (free)
 weave next                                what should I do now?
@@ -4273,7 +4388,7 @@ weave capture | regress | gate            production -&gt; tests -&gt; one CI ve
 weave metamorphic | judge validate | security generate | probe eviction    stronger evaluation
 weave man &lt;command&gt;                       the manual page for any command
 weave guide                               the built-in language guide</code></pre></figure>
-<h2 id="c14-glossary">Glossary</h2>
+<h2 id="c15-glossary">Glossary</h2>
 <table>
 <thead>
 <tr>
@@ -4346,7 +4461,7 @@ weave guide                               the built-in language guide</code></pr
 <td>Untrusted input + private data + the power to send: the dangerous combination</td>
 </tr>
 </tbody></table>
-<h2 id="c14-where-to-go-from-here">Where to go from here</h2>
+<h2 id="c15-where-to-go-from-here">Where to go from here</h2>
 <ul>
 <li>Build something: pick the starter nearest your idea and change it.</li>
 <li>Know every option: <a href="https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md" target="_blank" rel="noopener">LOOM_GUIDE.md</a> and <code>weave man &lt;command&gt;</code>.</li>

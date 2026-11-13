@@ -50,7 +50,9 @@ public final class TestChecker {
                     "stop",
                     "remotes",
                     "channels",
-                    "judges");
+                    "judges",
+                    "children",
+                    "signals");
 
     /** The keys of {@code expect}. */
     static final List<String> EXPECT_KEYS =
@@ -78,6 +80,8 @@ public final class TestChecker {
                     "actions",
                     "starts",
                     "children",
+                    "signals",
+                    "events",
                     "fired",
                     "steers");
 
@@ -225,6 +229,8 @@ public final class TestChecker {
         scripts(c, "tasks", tasks, problems);
         a2a(c, problems);
         children(c, problems);
+        scriptedChildren(c, problems);
+        signalsOf(c, problems);
         real(c, problems);
         fail(c, problems);
         for (String key : List.of("humans", "resume"))
@@ -720,6 +726,109 @@ public final class TestChecker {
                     String name = it.next();
                     if (!names.contains(name))
                         problems.add(where(c) + "expect.children: '" + name + "' is not a workflow of the script" + Suggest.hint(name, names));
+                }
+        }
+    }
+
+    /** The states a scripted child can be in: what {@link io.github.llm4j.loom.execution.ScriptedChild.State} offers. */
+    static final List<String> CHILD_STATES = List.of("working", "completed", "failed", "waiting");
+
+    /** The keys of {@code expect.signals}. */
+    static final List<String> SIGNAL_EXPECT_KEYS = List.of("sent", "received", "timed_out");
+
+    /** {@code children:}: workflows of the script, each a list of steps that ends by settling or pausing the child. */
+    private void scriptedChildren(TestFile.Case c, List<String> problems) {
+        JsonNode scripts = c.get("children");
+        if (scripts == null) return;
+        if (!scripts.isObject()) {
+            problems.add(where(c) + "children: a map of workflow names to a list of steps, such as Research: [ { state: completed, result: \"…\" } ]");
+            return;
+        }
+        Set<String> names = new LinkedHashSet<>(workflowNames());
+        for (Iterator<String> it = scripts.fieldNames(); it.hasNext(); ) {
+            String name = it.next();
+            JsonNode steps = scripts.get(name);
+            if (!names.contains(name)) {
+                problems.add(where(c) + "children: '" + name + "' is not a workflow of the script" + Suggest.hint(name, names));
+                continue;
+            }
+            if (!steps.isArray() || steps.isEmpty()) {
+                problems.add(where(c) + "children." + name + ": a list of steps, such as [ { state: completed, result: \"…\" } ]");
+                continue;
+            }
+            for (int i = 0; i < steps.size(); i++) {
+                JsonNode step = steps.get(i);
+                String at = where(c) + "children." + name + "[" + (i + 1) + "]: ";
+                String state = step.path("state").asText("");
+                if (step.has("signal")) {
+                    String sig = step.get("signal").asText();
+                    if (!sig.matches("[A-Za-z0-9_]{1,40}"))
+                        problems.add(at + "signal '" + sig + "' is not a signal name: a plain word (letters, digits and _) of at most 40 characters");
+                } else if (!step.isObject() || !CHILD_STATES.contains(state))
+                    problems.add(at + "state '" + state + "' is not one of " + String.join(", ", CHILD_STATES) + Suggest.hint(state, CHILD_STATES));
+                if (step.has("progress")) {
+                    var def = script.getWorkflows().stream().filter(x -> x.getName().equals(name)).findFirst().orElse(null);
+                    if (def != null && def.getProgress() == null)
+                        problems.add(at + "progress: the workflow " + name + " declares no progress. Declare it: workflow " + name + "(...) progress { stage: string } { ... }");
+                    else if (def != null && step.get("progress").isObject())
+                        for (Iterator<String> f = step.get("progress").fieldNames(); f.hasNext(); ) {
+                            String field = f.next();
+                            if (!def.getProgress().fields().containsKey(field))
+                                problems.add(at + "progress: " + field + " is not a progress field of " + name + ". It declares: " + String.join(", ", def.getProgress().fields().keySet()) + ".");
+                        }
+                }
+                if (step.has("after") && Durations.parse(step.get("after").asText()) == null)
+                    problems.add(at + "after '" + step.get("after").asText() + "' is not a duration such as 30s, 5m or 2h");
+            }
+            String last = steps.get(steps.size() - 1).path("state").asText("");
+            if (last.equals("working"))
+                problems.add(where(c) + "children." + name + ": the last step must settle the child or pause it (completed, failed or waiting), not leave it working");
+        }
+    }
+
+    /** {@code signals:} and {@code expect.signals:}: arrivals on the virtual clock, and what the run sent, read and waited for. */
+    private void signalsOf(TestFile.Case c, List<String> problems) {
+        JsonNode signals = c.get("signals");
+        if (signals != null) {
+            if (!signals.isObject())
+                problems.add(where(c) + "signals: a map of handles to a list of arrivals, such as work_a: [ { at: 2m, name: stuck, text: \"no sources\" } ]");
+            else
+                for (Iterator<String> it = signals.fieldNames(); it.hasNext(); ) {
+                    String handle = it.next();
+                    JsonNode list = signals.get(handle);
+                    if (!list.isArray()) {
+                        problems.add(where(c) + "signals." + handle + ": a list of arrivals, such as [ { at: 2m, name: stuck } ]");
+                        continue;
+                    }
+                    for (int i = 0; i < list.size(); i++) {
+                        JsonNode a = list.get(i);
+                        String at = where(c) + "signals." + handle + "[" + (i + 1) + "]: ";
+                        if (!a.has("at") || Durations.parse(a.get("at").asText()) == null)
+                            problems.add(at + "at is a duration on the virtual clock such as 30s, 2m or 1h");
+                        if (!a.has("name")) problems.add(at + "name the signal: name: stuck");
+                        else if (!a.get("name").asText().matches("[A-Za-z0-9_]{1,40}"))
+                            problems.add(at + "name '" + a.get("name").asText() + "' is not a plain word (letters, digits and _) of at most 40 characters");
+                    }
+                }
+        }
+        JsonNode expectEvents = c.get("expect");
+        if (expectEvents != null && expectEvents.has("events")) {
+            JsonNode ev = expectEvents.get("events");
+            if (!ev.isArray()) problems.add(where(c) + "expect.events: a list such as [ { kind: signal, name: a }, { kind: finished, name: a } ]");
+            else
+                for (int i = 0; i < ev.size(); i++)
+                    if (!List.of("signal", "finished", "timeout").contains(ev.get(i).path("kind").asText()))
+                        problems.add(where(c) + "expect.events[" + (i + 1) + "]: kind is one of signal, finished or timeout");
+        }
+        JsonNode expect = c.get("expect");
+        if (expect != null && expect.has("signals")) {
+            JsonNode s = expect.get("signals");
+            if (!s.isObject()) problems.add(where(c) + "expect.signals: a map such as { sent: [go], received: [stuck], timed_out: [other] }");
+            else
+                for (Iterator<String> it = s.fieldNames(); it.hasNext(); ) {
+                    String key = it.next();
+                    if (!SIGNAL_EXPECT_KEYS.contains(key))
+                        problems.add(where(c) + "expect.signals: unknown key '" + key + "'" + Suggest.hint(key, SIGNAL_EXPECT_KEYS));
                 }
         }
     }

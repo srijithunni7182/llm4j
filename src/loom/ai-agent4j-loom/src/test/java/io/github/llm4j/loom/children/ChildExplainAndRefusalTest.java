@@ -31,6 +31,75 @@ class ChildExplainAndRefusalTest {
             """;
 
     @Test
+    void theExplanationSaysWhatAReportAndAProgressAssertionMean() {
+        String text =
+                ScriptExplainer.explain(
+                        StartParseTest.parse(
+                                """
+                                workflow Research(topic) progress { stage: string, done: number } {
+                                    report { stage: "reading", done: 1 }
+                                }
+                                workflow Main(q) {
+                                    start Research(topic = q) budget { tokens: 10 } -> work
+                                    supervise work { assert progress.done changes within 5m { steer "move on" once } }
+                                    wait work timeout 10m -> result
+                                }
+                                """),
+                        "w.loom",
+                        "Main");
+        String child =
+                ScriptExplainer.explain(
+                        StartParseTest.parse(
+                                """
+                                workflow Research(topic) progress { stage: string } { report { stage: "reading" } }
+                                """),
+                        "w.loom",
+                        "Research");
+
+        assertThat(text).contains("the child's reported done must change at least every 5 minutes").contains("never what it says");
+        assertThat(child).contains("The workflow reports where it is: stage").contains("as text it cannot trust");
+    }
+
+    @Test
+    void theExplanationSaysWhatNotifyAndWaitSignalMean() {
+        String text =
+                ScriptExplainer.explain(
+                        StartParseTest.parse(
+                                """
+                                workflow Child(x) { wait signal "go" timeout 5m -> t  notify parent "done" "ok" }
+                                workflow Main(q) {
+                                    start Child(x = q) budget { tokens: 10 } -> work
+                                    notify work "approved" "yes" sticky
+                                    wait work signal "done" timeout 1m -> r
+                                }
+                                """),
+                        "w.loom",
+                        "Main");
+        String child = ScriptExplainer.explain(StartParseTest.parse("workflow Child(x) { wait signal \"go\" timeout 5m -> t  notify parent \"done\" \"ok\" }"), "w.loom", "Child");
+
+        assertThat(text).contains("sends work the signal \"approved\"").contains("a latch").contains("waits for the signal \"done\" from work").contains("at most 1 minute");
+        assertThat(child).contains("waits for the signal \"go\" from its parent").contains("holds no thread").contains("sends its parent the signal \"done\"");
+    }
+
+    @Test
+    void theExplanationSaysWhatWaitAnyDoes() {
+        String text =
+                ScriptExplainer.explain(
+                        StartParseTest.parse(
+                                """
+                                workflow Child(x) { return x }
+                                workflow Main(q) {
+                                    start Child(x = q) budget { tokens: 10 } -> work["a"]
+                                    wait any work timeout 5m -> event
+                                }
+                                """),
+                        "w.loom",
+                        "Main");
+
+        assertThat(text).contains("whichever happens first among work").contains("5 minutes").contains("same event").contains("taken once");
+    }
+
+    @Test
     void theExplanationSaysWhatEachStatementDoes() {
         String text = ScriptExplainer.explain(StartParseTest.parse(SOURCE), "w.loom", "Main");
 
