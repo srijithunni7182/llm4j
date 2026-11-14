@@ -82,12 +82,6 @@ public record Capabilities(
                 reason);
     }
 
-    /** The effect of {@code operation} of a tool that holds several, else the tool's own. */
-    public static TaskEffect operationEffect(ToolDef def, String operation, Capabilities whole) {
-        TaskEffect declared = def.getOperationEffects().get(operation);
-        return declared != null ? declared : whole.level();
-    }
-
     static Capabilities unknown(String note) {
         return new Capabilities(true, true, true, true, false, note);
     }

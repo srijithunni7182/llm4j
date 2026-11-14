@@ -104,9 +104,12 @@ final class LegacyTool extends GenericTool {
                                         "Endpoint '" + method + " " + endpoint + "' not found in API specification"));
     }
 
-    /** What the developer declared for the operation, else what its method says. */
+    /**
+     * What the developer declared for the operation, else for the tool as a whole ({@code *}), else
+     * what its HTTP method says.
+     */
     private boolean changes(ApiOperation op) {
-        TaskEffect effect = declared.get(op.id());
+        TaskEffect effect = declared.getOrDefault(op.id(), declared.get("*"));
         return effect != null ? effect == TaskEffect.CHANGES : !op.isRead();
     }
 

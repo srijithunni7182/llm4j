@@ -723,8 +723,13 @@ public final class ToolFactory {
                         });
         lateBound.keySet().forEach(options::remove);
         // the effects of a tool that holds several operations, for a kind that takes them
-        if (kind.optional().contains("effects") && !def.getOperationEffects().isEmpty()) {
+        if (kind.optional().contains("effects")
+                && (!def.getOperationEffects().isEmpty() || def.getEffect().isPresent())) {
             List<String> pairs = new java.util.ArrayList<>();
+            // the tool's own effect: is what an operation not listed falls back to
+            def.getEffect()
+                    .ifPresent(
+                            e -> pairs.add("*=" + e.name().toLowerCase(java.util.Locale.ROOT)));
             def.getOperationEffects()
                     .forEach(
                             (operation, effect) ->

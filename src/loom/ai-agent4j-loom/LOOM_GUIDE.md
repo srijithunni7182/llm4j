@@ -419,9 +419,9 @@ tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }
 
 **Every tool has an effect**, in the three words a task uses: `effect: none` (touches nothing outside the run), `effect: reads` (looks something up and changes nothing) or `effect: changes` (writes, sends, posts, pays or runs a program). You decide, and your word is final for the runtime, `weave check`, `weave audit` and `weave review`. Where the data comes from and whether it leaves the system stay the audit's separate trifecta legs.
 
-A tool that holds several operations declares each one: `effects: { listOrders: reads, createRefund: changes }` on an `openapi` tool (by `operationId`) and on an `mcp` server (by tool name). An operation not listed falls back to the tool's own effect.
+A tool that holds several operations declares each one: `effects: { listOrders: reads, createRefund: changes }` on an `openapi` tool that names no `operation:` (by `operationId`, the older all-operations form) and on an `mcp` server (by tool name). An operation not listed falls back to the tool's own `effect:`, and without one to what its HTTP method says (a `GET` reads). A tool that names one `operation:` simply declares its own `effect:`; that is the shape `weave connect` writes and the one to prefer.
 
-When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime, `compute` and the other harmless built-ins `none` (so are `verify` and `scan` without a `root`); search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, `verify` and `scan` with a `root`, `workspace` in `read` mode, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` or `workspace` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
+When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime, `compute` and the other harmless built-ins `none` (so are `verify` and `scan` without a `root`); search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, `verify` and `scan` with a `root`, `workspace` in `read` mode, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` or `workspace` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. A tool of an MCP server changes unless the `mcp` block's `effects:` says otherwise: the server's own annotations (`readOnlyHint` and the rest) are untrusted, so they are never used as an effect on their own. `weave mcp list` shows what they suggest, labelled as the server's word, and `weave mcp list --write` puts the effects you approve into the block.
 
 `reach:` on a `class` tool (`none`, `reads`, `fetches`, `writes`, `sends`) is the older form and keeps working: `none` and `reads` give that effect, `fetches` gives `reads` plus the untrusted leg, `writes` and `sends` give `changes` (and `sends` the outward leg). Giving `effect:` and `reach:` on one tool is an error; keep `effect:`. A tool mapped in a `.loot` file takes `Name.reach = reads`, read by `weave audit --loot tools.loot`.
 
@@ -430,7 +430,7 @@ When you declare nothing, Loom assumes an effect from the kind of tool and says 
 | `duckduckgo` | `base_url?` |
 | `serpapi` | `api_key` (env), `base_url?` |
 | `google_search` | `api_key` (env), `cx` |
-| `openapi` | `spec` (path or URL), and optionally `auth_header` or `auth_query` with `auth_value` (`env.`, `secret.` or [`invoker.`](#running-as-the-person-who-runs-the-workflow)) |
+| `openapi` | `spec` (path or https address), and optionally `operation`, `base_url`, `server`, `auth_header` or `auth_query` with `auth_value` (`env.`, `secret.` or [`invoker.`](#running-as-the-person-who-runs-the-workflow)), `pin`, `max_bytes`, `save_dir` and the shared network options (see [openapi](#openapi)) |
 | `calculator`, `datetime`, `current_time` | none |
 | `class` | `class` |
 | `translate`, `transliterate`, `detect_language`, `speak`, `transcribe` | see [Memory, Voice and Languages](#memory-voice-and-languages) |
@@ -670,6 +670,41 @@ result is the status line, the content type and the body; only text, JSON, XML a
 is retried on a 429, a 5xx or a dropped connection; other methods only with `idempotency: true`. Use `approve:` on
 the agent for any tool that allows a method other than GET.
 
+#### openapi
+
+```loom
+tool Pet_get { use: openapi  spec: "specs/petstore.json"  operation: "getPetById"  effect: reads }
+tool Pet_add { use: openapi  spec: "specs/petstore.json"  operation: "addPet"  effect: changes }
+agent Shop { model: "claude-haiku-5-5"  tools: [Pet_get, Pet_add]  approve: [Pet_add] }
+```
+
+One declared tool is one operation of an OpenAPI 3 description. One description describes both a `GET` and a `POST`, and they
+do different things, so they are two tools, each with its own `effect:`, `approve:` and audit entry; an agent gets only the
+operations you declared. The tool's arguments are that operation's own parameters, typed from the description (a missing or
+mistyped one is refused before any request), plus `body` for an operation that takes one. The model never writes a path or a
+method.
+
+| Option | Meaning |
+|---|---|
+| `spec` | Required. A path (beside the script, or absolute) or an https address; JSON or YAML |
+| `operation` | The `operationId`. Without it the tool exposes **every** operation (arguments `endpoint`, `method`, `parameters`, `body`), as the older tool did: it keeps working, `weave audit` reports it (LA34) and it ends at the next major version |
+| `base_url` | The address the calls go to; wins over the description's `servers`. A host you name here is your own choice, so a local server is reachable |
+| `server` | One of the description's `servers`, instead of the first |
+| `auth_header` or `auth_query`, with `auth_value` | Exactly one; `auth_value` is a **secret** (`env.`, `secret.` or `invoker.`) |
+| `pin` | A hash of this operation's signature, as `weave connect` and `weave mcp list --write` write it; `weave check` warns when the local description no longer matches (LA35) |
+| `max_bytes` | What one answer shows the model, default 64k, at most 4m; a longer answer is cut and says so |
+| `save_dir` | A folder inside the script's that keeps an answer that is long or not text, whole, under a name made from the tool and a hash of the content; the tool returns the path, size, type and the start of it |
+| `save_max_bytes` | The most `save_dir` keeps, default 16m, at most 128m |
+| `timeout`, `retries`, `idempotency`, `on_unknown`, `follow_redirects`, `hosts`, `allow_http`, `allow_private` | as above |
+
+Every request goes through the same layer as `http`: the address rules, a timeout, a size cap and retries that know "never
+sent" from "may have been delivered". **The description is untrusted input.** It is read by llm4j, never fetched by the parser
+on its own, and its `servers` entry is not trusted: unless you write `base_url:` a loopback, private or metadata address is
+refused (add `allow_private: true` for an internal API, with `allow_http: true` if it is not https). A credential is asked for
+on every request; a `401` asks for a fresh one once, and a second refusal, or a `403` for a missing scope, fails the call with
+`credential_rejected` and the server's challenge (secrets removed), so the application can obtain a new token and resume. See
+[Securing integrations](../../../docs/security/integrations.md).
+
 #### file
 
 ```loom
@@ -763,6 +798,48 @@ notifies by `email` (and, in a second script, `webhook`), scheduled with `schedu
 weave schedule sync digest.loom --store ~/.loom/triggers
 weave triggers install ~/.loom/triggers --env-file ~/.loom/env --apply
 ```
+
+### MCP servers (`mcp`)
+
+```loom
+mcp Files {
+    transport: "stdio"
+    cmd: "npx"
+    args: ["-y", "@example/files-server", "--root", "data"]
+    isolation: process
+    env: { FILES_TOKEN: secret.FILES_TOKEN, MODE: "read" }
+    effects: { read_file: reads, list_dir: reads, write_file: changes }
+    reach: reads
+    pin: "sha256-0123456789abcdef"
+}
+agent Clerk { model: "claude-haiku-5-5"  mcp_servers: [Files]  approve: [write_file] }
+```
+
+An `mcp` block starts a program and gives an agent the tools it lists. That program runs with your permissions, so the block says how it is isolated.
+
+| Option | Meaning |
+|---|---|
+| `transport` | `"stdio"` (the only one today) |
+| `cmd` | The program. With `isolation:` it is one program; without, it is split on spaces as before |
+| `args` | A list; each entry is one argument and is never split, whatever it holds |
+| `isolation` | `process` starts the server with only the environment you give it and its error stream captured, redacted and bounded; `none` says you accept running it on the host. With no `isolation:` line the server runs as it always did, with this process's whole environment, and `weave check` warns and `weave audit` reports it (LA31). `container` follows with the sandbox |
+| `env` | The variables the server is given: `env.NAME` or `secret.NAME` (resolved when it starts), or a literal for a setting. A name that looks like a credential (`TOKEN`, `KEY`, `SECRET`, `PASSWORD`, `AUTH`) must be a reference |
+| `env_inherit` | Names of host variables an isolated server may inherit (for example `PATH`) |
+| `timeout` | How long one request waits, default 30s |
+| `effects` | What each tool does: `none`, `reads` or `changes`, by tool name. A tool you do not list is assumed to change things |
+| `reach` | What the server can do (`none`, `reads`, `fetches`, `writes`, `sends`), so the audit need not assume the worst |
+| `pin` | A hash of the server's tool list (names, input schemas, annotations), written by `weave mcp list --write` |
+
+The servers start when the run starts, so one that cannot list its tools is a load error; a server that crashes is started again
+a few times and then reported, and a call that was in flight is never repeated. A call whose result says `isError` is a failure,
+and what the server printed on its error stream is shown (redacted) with it. The tools of a server go through the same wrappers
+as any tool: `approve: all`, or `approve: [write_file]` naming one of the server's tools, asks a person first, and the agent's
+policies check the calls.
+
+**A server's annotations are untrusted.** The MCP specification says a client must treat a tool's annotations as untrusted unless
+it trusts the server, so they are never used as an effect by themselves. `weave mcp list script.loom` starts each server, lists
+its tools with what the annotations suggest (labelled as the server's word) and the pin of the list; `--write` shows the change
+to the block and, after you agree, writes the proposed `effects:` for tools you have not described, and the `pin:`.
 
 ### Tools that compute and check (`compute`, `verify`, `scan`)
 
