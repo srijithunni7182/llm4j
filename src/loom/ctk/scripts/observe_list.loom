@@ -1,0 +1,13 @@
+// Canonical CTK test: observe_list
+// An observe expression may join values with + or list them with commas: {a, b} is the text "{a}, {b}"
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+workflow main() {
+    delegate "Process data" to TestAgent -> result
+    delegate "Name it" to TestAgent -> label
+    observe "Values listed" {result, label}
+    observe "Values joined" {result + " and " + label}
+}

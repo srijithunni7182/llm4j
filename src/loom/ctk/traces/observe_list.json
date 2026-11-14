@@ -1,0 +1,26 @@
+{
+  "scriptName": "observe_list.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Process data",
+      "outputVariable": "result"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Name it",
+      "outputVariable": "label"
+    },
+    {
+      "kind": "observe",
+      "payload": "Values listed"
+    },
+    {
+      "kind": "observe",
+      "payload": "Values joined"
+    }
+  ]
+}

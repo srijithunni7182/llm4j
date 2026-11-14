@@ -237,14 +237,24 @@ public final class SandboxKind extends GenericKind {
     /**
      * The store of the workspace a sandbox works on, where its leases live: the workspace tool's
      * {@code store:}, or its default. {@code prefix} is "" for the sandbox's own options and
-     * {@code reaches.} for a tool that names the sandbox.
+     * {@code reaches.} for a tool that names the sandbox. It is checked here too, not only by the
+     * workspace tool: a store inside the root the sandbox mounts would let its program forge a
+     * lease, a port a reaching tool is then granted.
      */
     static Path store(Options o, String prefix, Path baseDir) {
         Path base = baseDir.toAbsolutePath().normalize();
         String given = o.get(prefix + "workspace.store");
-        return given != null
-                ? base.resolve(given).normalize()
-                : base.resolve(".loom-workspace").resolve(o.string(prefix + "workspace", "workspace"));
+        Path store =
+                given != null
+                        ? base.resolve(given).normalize()
+                        : base.resolve(".loom-workspace").resolve(o.string(prefix + "workspace", "workspace"));
+        Path root = base.resolve(o.string(prefix + "workspace.root", ".")).normalize();
+        if (store.startsWith(root))
+            throw new OptionException(
+                    "workspace: the store of "
+                            + o.string(prefix + "workspace", "the workspace")
+                            + " is inside its root, which the sandbox mounts; give the workspace a root: of its own, or a store: outside it");
+        return store;
     }
 
     /**

@@ -54,7 +54,7 @@ class ServedPortGrantTest {
     }
 
     Map<String, String> options(String... pairs) {
-        Map<String, String> o = new HashMap<>(Map.of("reaches", "Py", "reaches.workspace", "Data"));
+        Map<String, String> o = new HashMap<>(Map.of("reaches", "Py", "reaches.workspace", "Data", "reaches.workspace.root", "work"));
         for (int i = 0; i < pairs.length; i += 2) o.put(pairs[i], pairs[i + 1]);
         return o;
     }

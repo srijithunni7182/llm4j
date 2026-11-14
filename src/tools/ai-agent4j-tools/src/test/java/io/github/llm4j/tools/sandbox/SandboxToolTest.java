@@ -262,6 +262,16 @@ class SandboxToolTest {
         assertThat(fake.requests.get(0).protect()).containsExactlyInAnyOrder("tests", "src/oracle.json");
     }
 
+    /** The sandbox checks the store itself, whatever the workspace tool did. */
+    @Test
+    void aStoreInsideTheMountedRootIsRefusedByTheSandboxToo() {
+        assertThat(new SandboxKind(s -> fake).check(options("workspace.root", "."), dir))
+                .contains("store")
+                .contains("inside its root");
+        assertThat(new SandboxKind(s -> fake).check(options("workspace.root", "work", "workspace.store", "work/snaps"), dir))
+                .contains("inside its root");
+    }
+
     /** A program could plant a filter driver in .git/config, which git would run later. */
     @Test
     void aRepositorysGitFolderIsAlwaysMountedReadOnly() throws Exception {
