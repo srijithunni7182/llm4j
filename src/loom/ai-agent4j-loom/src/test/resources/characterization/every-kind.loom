@@ -39,6 +39,10 @@ tool ScanText  { use: scan }
 tool ScanFiles { use: scan  root: "out"  rules: "secrets" }
 tool WsRead    { use: workspace  root: "out"  allow: "**" }
 tool WsEdit    { use: workspace  root: "out"  allow: "**"  mode: readwrite  protect: "tests/**"  store: "snaps" }
+tool BoxNone   { use: sandbox  workspace: WsEdit  isolation: container  image: "python:3.12-slim"  allow: "python3"  unattended: true }
+tool BoxAllow  { use: sandbox  workspace: WsEdit  isolation: container  image: "python:3.12-slim"  allow: "pytest"  network: allow  hosts: "pypi.org, *.pythonhosted.org"  serve_port: 8000  unattended: true }
+tool BoxLocal  { use: sandbox  workspace: WsEdit  isolation: process  network: open  allow: "ls"  env.TOKEN: secret.TOKEN  unattended: true }
+tool Served    { use: http  reaches: BoxAllow }
 
 tool Mine      { use: class  class: "com.example.Mine" }
 tool MineNone  { use: class  class: "com.example.Mine"  reach: none }
@@ -71,7 +75,7 @@ agent Sender {
 agent Worker {
     model: "m"
     system: "s"
-    tools: [FilesDefault, FilesRead, FilesWrite, Run, RunAny, Db, Graph, GraphRead, Skills, Calc2, CheckText, CheckFiles, ScanText, ScanFiles, WsRead, WsEdit]
+    tools: [FilesDefault, FilesRead, FilesWrite, Run, RunAny, Db, Graph, GraphRead, Skills, Calc2, CheckText, CheckFiles, ScanText, ScanFiles, WsRead, WsEdit, BoxNone, BoxAllow, BoxLocal, Served]
     approve: all
 }
 

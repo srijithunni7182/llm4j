@@ -160,6 +160,21 @@ public final class AuditCatalog {
             "A workflow reads a signal from another run",
             "A wait signal in a child, a wait handle signal or a when signal rule in a parent lets text written by another run enter the workflow's variables. Names the signal and the side that can send it; it is read as unchecked. Medium when the text is written into a model's prompt or a task's argument, directly or through a copy such as set copy = text, info otherwise. A signal causes nothing by itself and can never become a steer's text. There is no rule for sending a signal: the parent already gets the child's result."
         },
+        {
+            "LA31",
+            "A program runs without a sandbox",
+            "A sandbox with isolation: process runs its programs as a child process of the run, with the run's user, files and network; only time and output are bounded, and it always reaches the network. Names the tool, its programs (an interpreter such as python3 or sh can run any command) and the secrets it is given, by name. Medium; high when a secret is passed in its environment. isolation: container is the sandbox."
+        },
+        {
+            "LA32",
+            "A workflow reaches a process it started",
+            "An http tool with reaches: calls the program a sandbox serves, on 127.0.0.1 and that program's one port, only while its lease lives. Names the tool and the sandbox that owns the port. Info: the grant is exactly one port, never a loopback switch."
+        },
+        {
+            "LA33",
+            "A sandbox reaches the network",
+            "A sandbox with network: allow reaches the listed hosts through the egress proxy and nothing else (info; a wildcard host is called out as wide); with network: open it reaches any host (medium)."
+        },
     };
 
     /** One entry per audit rule. The severity varies with the situation, so none is given. */
