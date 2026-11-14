@@ -388,6 +388,7 @@ src/loom/ctk/scripts/intervention_timeout_changed.loom	84e75066cc3b3c68	c9baa527
 src/loom/ctk/scripts/intervention_timeout_retry.loom	030537e1f387a29e	0ad060537ef76a12	b4b93dd74013ece8
 src/loom/ctk/scripts/intervention_user_cancel_ask.loom	3654f349ba880813	89dc8e3eb5c71f3d	b4b93dd74013ece8
 src/loom/ctk/scripts/intervention_wrap_up.loom	d6ae865287b3d93d	da8aa9c1eb172657	b4b93dd74013ece8
+src/loom/ctk/scripts/observe_list.loom	335b25a90cd4863d	8b86b602bc33c4fb	e3b0c44298fc1c14
 src/loom/ctk/scripts/provider_declarations.loom	a9b2aa930cc58f78	b70394a029fcac35	e3b0c44298fc1c14
 src/loom/ctk/scripts/signal_sticky.loom	e1b3c4726c53c8ad	d7d69a959fe52cad	e3b0c44298fc1c14
 src/loom/ctk/scripts/signal_to_child.loom	eba9c4d4ac11d31a	f48854c4057149e0	c763d4e3ef8063e6
