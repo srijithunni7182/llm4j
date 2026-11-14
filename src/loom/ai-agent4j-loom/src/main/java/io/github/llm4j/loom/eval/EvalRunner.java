@@ -272,7 +272,8 @@ public final class EvalRunner {
     /**
      * Runs a scenario's steps in order, each a run of its own on the same project (what one step
      * leaves in its files is what the next finds), with each step's checks named after it. The
-     * scenario's own expectations read the last step's answer. A step that fails stops the rest.
+     * scenario's own expectations read the last step's answer and the tools of all its steps, so a
+     * tool the case forbids fails it whichever step used it. A step that fails stops the rest.
      */
     private ScenarioResult stepped(
             String kind, String target, String file, List<String> parameters, EvalScenario s, String judgeModel) {
@@ -281,6 +282,7 @@ public final class EvalRunner {
             return finish(kind, target, file, s, checks, null, "a scenario with steps gives each step its input: move input: and inputs: into the steps");
         BigDecimal total = null;
         String output = "";
+        Set<String> allTools = new HashSet<>();
         List<io.github.llm4j.eval.dataset.EvalStep> steps = s.stepList();
         for (int i = 0; i < steps.size(); i++) {
             int number = i + 1;
@@ -309,6 +311,7 @@ public final class EvalRunner {
                     });
                 }
                 total = add(total, cost(executor));
+                allTools.addAll(tools);
                 if (output.isBlank())
                     return finish(kind, target, file, s, checks, total, "step " + number + ": it produced no output, so the steps after it did not run");
                 answerChecks(step, output, tools, stepChecks);
@@ -324,7 +327,7 @@ public final class EvalRunner {
             for (ScenarioResult.Check c : stepChecks)
                 checks.add(new ScenarioResult.Check("step " + number + " · " + c.kind(), c.text(), c.status(), c.detail(), c.dimension()));
         }
-        answerChecks(s, output, Set.of(), checks);
+        answerChecks(s, output, allTools, checks);
         judge("rubric", s.rubricLines(), output, s, judgeModel, checks);
         return finish(kind, target, file, s, checks, total, null);
     }

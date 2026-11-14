@@ -47,6 +47,8 @@ A case that takes more than one turn ("create a page, then add a form to it") li
 `input` (or `inputs`) and its own expectations. `scenario.stepList()` gives them in order, and
 `step.asScenario(scenario, n)` turns one into a scenario of its own (named `<case> · step n`) for code that reads
 scenarios. `weave eval` runs them in order, each as a run of its own on the same project, and names each step's checks.
+The case's own expectations read the last step's answer and the tools of all its steps: a tool the case forbids
+(`unacceptable_actions`) fails it whichever step used it, and one it expects (`expected_tools`) passes if any step did.
 
 ```yaml
 - name: page then form

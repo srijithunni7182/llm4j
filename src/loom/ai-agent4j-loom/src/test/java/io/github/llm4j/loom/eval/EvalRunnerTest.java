@@ -120,6 +120,45 @@ class EvalRunnerTest {
                 .isEqualTo(Status.FAIL);
     }
 
+    /**
+     * A case in steps: its own tool expectations read the tools of all its steps. Only step 1
+     * calls Lookup here, so neither an empty set nor the last step's tools would be right.
+     */
+    @Test
+    void aCaseInStepsReadsTheToolsOfAllItsSteps() throws Exception {
+        Models firstStepLooksUp =
+                new Models(
+                        (system, n) ->
+                                n == 0 ? useTool("Lookup", "{\"q\": \"x\"}") : finalAnswer("done"));
+        EvalScenario expects =
+                new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(
+                                "{\"name\":\"n\",\"expected_tools\":[\"Lookup\"],"
+                                        + "\"steps\":[{\"input\":\"a\"},{\"input\":\"b\"}]}",
+                                EvalScenario.class);
+        ScenarioResult used = runner(firstStepLooksUp, null).agent("f", "Helper", expects);
+        assertThat(used.checks())
+                .filteredOn(c -> c.kind().equals("tools used"))
+                .singleElement()
+                .satisfies(c -> assertThat(c.status()).isEqualTo(Status.PASS));
+
+        EvalScenario forbids =
+                new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(
+                                "{\"name\":\"n\",\"unacceptable_actions\":[\"Lookup\"],"
+                                        + "\"steps\":[{\"input\":\"a\"},{\"input\":\"b\"}]}",
+                                EvalScenario.class);
+        Models again =
+                new Models(
+                        (system, n) ->
+                                n == 0 ? useTool("Lookup", "{\"q\": \"x\"}") : finalAnswer("done"));
+        ScenarioResult took = runner(again, null).agent("f", "Helper", forbids);
+        assertThat(took.checks())
+                .filteredOn(c -> c.kind().equals("answer never takes"))
+                .singleElement()
+                .satisfies(c -> assertThat(c.status()).isEqualTo(Status.FAIL));
+    }
+
     @Test
     void expectedToolsMustHaveBeenUsedAndAMissingOneIsNamed() {
         Models used =
