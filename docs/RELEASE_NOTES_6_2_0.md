@@ -45,6 +45,7 @@ All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX
   `AutoCloseable` at the end of a run, however it ends, and builds it again for the next.
 - **The light tools module cannot grow a dependency unnoticed.** A test pins what it depends on (the core, Jackson and the optional mail library); a tool that needs more goes in its own module under `src/tools/extras`.
 - **A tools catalog.** [One page](TOOLS_CATALOG.md) describes the fifteen ready-made tools, the `openapi` and `mcp` connectors and the core's simple tools, what each can do and what limits it, with a table for choosing one. Every README under `src/tools` and the root README link to it.
+- **"Writing a tool" is a walkthrough.** [The guide](../src/tools/ai-agent4j-tools/docs/writing-a-tool.md) now takes you step by step from nothing to a tested, audited tool, with two worked examples (one that reads, one that changes something and must be safe to retry), how to test each part, the commands to run and a troubleshooting table. The examples are real classes under test, and a test fails if the page and the code differ.
 
 ## Starting workflows and supervising them (phase 33, Loom)
 
