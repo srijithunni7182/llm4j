@@ -236,13 +236,49 @@ final class WorkspaceTool extends GenericTool {
         Path p = jail.resolve(given);
         String relative = jail.relative(p);
         requireAllowed(relative, given);
-        for (String segment : relative.split("/"))
-            if (segment.equals(".git"))
-                throw new ToolRefusal(
-                        "refused: nothing under .git may be written (a hook there would run on the host)");
+        if (isGit(relative))
+            throw new ToolRefusal(
+                    "refused: nothing under .git may be written (a hook there would run on the host)");
         if (config.protect().matches(relative))
             throw new ToolRefusal("refused: " + given + " is protected (read only)");
         return p;
+    }
+
+    /**
+     * A path in a snapshot's manifest, checked before a restore changes anything: only a path a
+     * snapshot of this workspace could hold (relative, in plain form, inside the root, not under
+     * .git, not protected, ignored or reserved). The store can be forged, so its paths are not
+     * trusted.
+     */
+    private void restorable(String key) {
+        // Lexical on purpose: a link in the workspace is removed by the restore, not followed.
+        Path target;
+        try {
+            target = jail.root().resolve(key).normalize();
+        } catch (java.nio.file.InvalidPathException e) {
+            throw unrestorable(key);
+        }
+        String relative = jail.relative(target);
+        if (key.isEmpty()
+                || !target.startsWith(jail.root())
+                || !relative.equals(key)
+                || isGit(relative)
+                || config.protect().matches(relative)
+                || config.ignore().matches(relative)
+                || jail.isReserved(target)
+                || target.startsWith(store)) throw unrestorable(key);
+    }
+
+    private static ToolRefusal unrestorable(String key) {
+        return new ToolRefusal(
+                "refused: the snapshot names "
+                        + key
+                        + ", a path no snapshot of this workspace holds, so it cannot be restored");
+    }
+
+    private static boolean isGit(String relative) {
+        for (String segment : relative.split("/")) if (segment.equals(".git")) return true;
+        return false;
     }
 
     private void requireAllowed(String relative, String given) {
@@ -335,6 +371,7 @@ final class WorkspaceTool extends GenericTool {
                         String relative = jail.relative(dir);
                         if (jail.isReserved(dir)
                                 || dir.startsWith(store)
+                                || dir.getFileName().toString().equals(".git")
                                 || config.ignore().coversDirectory(relative))
                             return FileVisitResult.SKIP_SUBTREE;
                         return FileVisitResult.CONTINUE;
@@ -664,8 +701,10 @@ final class WorkspaceTool extends GenericTool {
         SnapshotStore.Manifest m =
                 snapshots.load(SnapshotStore.checkName(optionalText(args, "name")));
         Map<String, Path> stored = new TreeMap<>();
-        for (Map.Entry<String, SnapshotStore.Stored> f : m.files().entrySet())
+        for (Map.Entry<String, SnapshotStore.Stored> f : m.files().entrySet()) {
+            restorable(f.getKey());
             stored.put(f.getKey(), snapshots.verified(f.getKey(), f.getValue()));
+        }
         Tree now = tree(false);
         int deleted = 0;
         for (String link : now.links()) {
@@ -726,6 +765,7 @@ final class WorkspaceTool extends GenericTool {
                         String relative = jail.relative(dir);
                         if (jail.isReserved(dir)
                                 || dir.startsWith(store)
+                                || dir.getFileName().toString().equals(".git")
                                 || config.ignore().coversDirectory(relative)
                                 || config.protect().coversDirectory(relative))
                             return FileVisitResult.SKIP_SUBTREE;

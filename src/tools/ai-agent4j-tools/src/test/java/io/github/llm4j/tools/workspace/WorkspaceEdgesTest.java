@@ -1,6 +1,8 @@
 package io.github.llm4j.tools.workspace;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -276,6 +278,62 @@ class WorkspaceEdgesTest {
                 .contains("links are not followed");
     }
 
+    /**
+     * A program in a sandbox can write into the workspace, so a manifest in the store may be
+     * forged: restore must refuse a path that no snapshot of this workspace could hold, and change
+     * nothing.
+     */
+    @ParameterizedTest
+    @CsvSource({
+        "../escape.txt",
+        "/abs.txt",
+        "sub/../a.md",
+        "./a.md",
+        ".git/hooks/pre-commit",
+        "sub/.git/config",
+        "notes.lock"
+    })
+    void restoreRefusesAManifestPathNoSnapshotCouldHold(String forged) throws Exception {
+        Map<String, String> o = options("protect", "notes.lock");
+        call(o, "action", "snapshot", "name", "s");
+        Path manifest = dir.resolve("snaps/snapshots/s.json");
+        com.fasterxml.jackson.databind.node.ObjectNode m =
+                (com.fasterxml.jackson.databind.node.ObjectNode) JSON.readTree(manifest.toFile());
+        JsonNode real = m.get("files").get("a.md");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) m.get("files")).set(forged, real);
+        JSON.writeValue(manifest.toFile(), m);
+        Files.writeString(ws.resolve("a.md"), "changed\n");
+
+        assertThat(call(o, "action", "restore", "name", "s").asText())
+                .contains("refused")
+                .contains("cannot be restored");
+        assertThat(dir.resolve("escape.txt")).doesNotExist();
+        assertThat(ws.resolve(".git")).doesNotExist();
+        assertThat(ws.resolve("notes.lock")).doesNotExist();
+        assertThat(ws.resolve("a.md")).hasContent("changed\n");
+    }
+
+    @Test
+    void aSnapshotNeverHoldsGitEvenWhenIgnoreIsReplaced() throws Exception {
+        Files.createDirectories(ws.resolve(".git/hooks"));
+        Files.writeString(ws.resolve(".git/hooks/pre-commit"), "echo hi\n");
+        Map<String, String> o = options("ignore", "target/**");
+        call(o, "action", "snapshot", "name", "s");
+        assertThat(Files.readString(dir.resolve("snaps/snapshots/s.json"))).doesNotContain(".git");
+        Files.writeString(ws.resolve("a.md"), "changed\n");
+        assertThat(call(o, "action", "restore", "name", "s").get("restored").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void theDefaultStoreMustBeOutsideTheRootSoASandboxCannotForgeIt() {
+        Map<String, String> whole = new HashMap<>(Map.of("root", ".", "allow", "**"));
+        assertThatThrownBy(() -> tool(whole))
+                .hasMessageContaining("store:")
+                .hasMessageContaining("inside the workspace root");
+        Map<String, String> sub = new HashMap<>(Map.of("root", "ws", "allow", "**"));
+        assertThatCode(() -> tool(sub)).doesNotThrowAnyException();
+    }
+
     @Test
     void theRunsOwnFilesAndTheStoreAreOutOfReach() throws Exception {
         effects.reserved.add(ws.resolve("journal").toAbsolutePath().normalize());
@@ -287,22 +345,10 @@ class WorkspaceEdgesTest {
                 .doesNotContain("journal");
         assertThat(call(options(), "action", "list").get("entries").toString())
                 .doesNotContain("journal");
-        Map<String, String> inside =
-                new HashMap<>(Map.of("root", "ws", "allow", "**", "mode", "readwrite"));
-        Files.createDirectories(dir.resolve("whole"));
-        inside.put("root", ".");
-        call(inside, "action", "snapshot", "name", "s");
-        assertThat(
-                        call(
-                                        inside,
-                                        "action",
-                                        "read",
-                                        "path",
-                                        ".loom-workspace/Data/snapshots/s.json")
-                                .asText())
-                .contains("belongs to the run");
-        assertThat(call(inside, "action", "find", "pattern", "**").get("paths").toString())
-                .doesNotContain(".loom-workspace");
+        // the store is outside the root, so the workspace never lists or reads it
+        call(options(), "action", "snapshot", "name", "s");
+        assertThat(call(options(), "action", "find", "pattern", "**").get("paths").toString())
+                .doesNotContain("snapshots");
         assertThat(call(options(), "action", "read", "path", "a\nb.md").asText())
                 .contains("control");
     }

@@ -91,16 +91,20 @@ public final class WorkspaceKind extends GenericKind {
     }
 
     /**
-     * Where snapshots are kept: {@code store:}, outside the root, or a reserved folder of the
-     * tool's own.
+     * Where snapshots and a sandbox's leases are kept: {@code store:}, or a folder of the tool's
+     * own beside the script. Either way it is outside the root: a sandbox mounts the root
+     * read-write, and a program there that could write the store could forge a lease (a port to
+     * reach) or a snapshot (files a restore writes on the host).
      */
     static Path store(Options o, Path baseDir, Path root, String toolName) {
-        if (!o.has("store"))
-            return baseDir.toAbsolutePath()
-                    .normalize()
-                    .resolve(".loom-workspace")
-                    .resolve(toolName);
         Path store;
+        if (!o.has("store")) {
+            store = baseDir.toAbsolutePath().normalize().resolve(".loom-workspace").resolve(toolName);
+            if (store.startsWith(root))
+                throw new OptionException(
+                        "store: is needed: the default store (.loom-workspace beside the script) is inside the workspace root, where a sandbox's programs could rewrite snapshots and leases; give root: a folder of its own, e.g. root: \"work\"");
+            return store;
+        }
         try {
             store = SafePaths.inside(baseDir, o.get("store"));
         } catch (IllegalArgumentException e) {

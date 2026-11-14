@@ -49,7 +49,7 @@ Use this when an attempt touches only the workspace (and a sandbox); an attempt 
 | `overwrite` | Whether `write` may replace a file, default `false` |
 | `protect` | Path globs that are read only (`tests/**, oracle/**`): what judges the agent's work stays out of its reach |
 | `ignore` | Path globs left out of `list`, `find`, `grep`, snapshots and `diff`. Default `node_modules/**, target/**, build/**, dist/**, .git/**, __pycache__/**, .venv/**` |
-| `store` | Where snapshots are kept, inside the script's directory but outside `root`. Default a folder of the tool's own, kept out of the agent's reach |
+| `store` | Where snapshots (and a sandbox's leases) are kept, inside the script's directory but always outside `root`, since a sandbox mounts the root read-write. Default `.loom-workspace/<tool>` beside the script; when that would be inside `root` (as with `root: "."`), the tool does not load and asks for a `root:` of its own |
 | `max_bytes` | Largest file read, written or searched, default 256k, at most 8m |
 | `max_files`, `max_snapshot_bytes` | The snapshot cap: default 5000 files and 64m, at most 100000 and 2g |
 | `snapshots` | How many snapshots may be kept, default 8, at most 32; the same name replaces the older one |
@@ -78,7 +78,9 @@ Use this when an attempt touches only the workspace (and a sandbox); an attempt 
   `git` does), and `.env*`, `*.pem`, `*.key` and `id_*` are never read.
 - **Protected paths are read only** through every action, so a model cannot edit the test that judges it.
 - **Snapshots are checked:** files are stored once by their SHA-256, and a restore checks every stored file before it changes
-  anything; a store changed since fails the restore and names the file. A workspace over the cap takes no snapshot at all.
+  anything; a store changed since fails the restore and names the file. Every path in a snapshot is checked too: a path no
+  snapshot of this workspace could hold (outside the root, not in plain form, under `.git`, protected or ignored) refuses
+  the whole restore. A snapshot never holds `.git`, whatever `ignore:` says. A workspace over the cap takes no snapshot at all.
 - **Exactly once:** writes, patches, snapshots and restores are journaled, so a resumed run does not do them twice and reuses
   the recorded snapshot; a restore cut short by a crash is run again (it is safe to repeat).
 - **Bounded:** a regular expression longer than 200 characters is refused, and a search that takes too long stops.

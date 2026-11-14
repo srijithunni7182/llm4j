@@ -30,6 +30,7 @@ final class SnapshotStore {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.-]{0,63}");
+    private static final Pattern SHA = Pattern.compile("[0-9a-f]{64}");
 
     /** One stored file: its hash and size. */
     record Stored(String sha, long size) {}
@@ -128,6 +129,9 @@ final class SnapshotStore {
 
     /** The stored bytes of a file, checked against its hash; a mismatch names the file. */
     Path verified(String relative, Stored stored) throws IOException {
+        if (stored.sha() == null || !SHA.matcher(stored.sha()).matches())
+            throw new ToolRefusal(
+                    relative + " has no valid hash in the snapshot, so it cannot be restored");
         Path object = objects().resolve(stored.sha());
         if (!Files.isRegularFile(object, LinkOption.NOFOLLOW_LINKS)
                 || !stored.sha().equals(sha256(object)))

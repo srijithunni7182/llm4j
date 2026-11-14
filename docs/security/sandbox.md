@@ -69,7 +69,8 @@ flags it: medium, and high when a secret is passed in.
 ## Programs that keep running: `serve`
 
 `serve` starts a program and keeps it running under a **lease**: a handle, the loopback port the runtime published it
-on, a deadline (the same bounded limit as a run) and its owner, recorded in the workspace's store. It is stopped on
+on, a deadline (the same bounded limit as a run) and its owner, recorded in the workspace's store, which is always outside the
+workspace root, so a program in the sandbox cannot write a lease or a snapshot of its own. It is stopped on
 `stop`, at its deadline, and, when a run crashed, when the tool is next built. `workspace restore` is refused while a
 lease is live.
 
