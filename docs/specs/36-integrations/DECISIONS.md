@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D15 are taken, three decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D16 are taken, two decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -22,7 +22,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D13 | The documentation and the code agree | **taken** (wire the two orphaned effect paths in 36a, and test the guide's claims through the production path) |
 | D14 | Security rules and documents | **taken** (LA31 extended, LA34, LA35; a `reach:` on `mcp` blocks; four documents) |
 | D15 | Testing: fakes, guards, canaries | **taken** (the proposed fakes and guards, plus eight fidelity rules so the fakes are as close to real as possible) |
-| D16 | Names | open |
+| D16 | Names | **taken** (the names below; `credential_rejected` as a new failure category; `transport: "http"`) |
 | D17 | Visibility: the ecosystem and the time-to-first-safe-call benchmark | open |
 | D18 | What stays out of this phase | open |
 
@@ -330,13 +330,21 @@ tool Resize {
 
 ## D16. Names
 
-**Why.** Words in a script and in a tool's options are public from the day they ship.
+**Why.** Words in a script and in a tool's options are public from the day they ship. Where an option means the same as one in `http` or `sandbox`, it keeps that name.
 
-Proposed: kinds `openapi` (the options `spec`, `operation`, `effect`, `on_unknown`, `pin`, `base_url`, `server`, `max_bytes`, `timeout`, `retries`, and the auth options of `http`), `command`; the `mcp` block gains `args`, `env`, `isolation`, `workspace`, `network`, `url` (for a remote server) and `auth` and `pin`; commands `weave connect` and `weave mcp list`; the extras module `ai-agent4j-tools-openapi`. Option names follow `http` and `sandbox` wherever they mean the same thing.
-
-**Recommendation: these.**
-
-**Decision (owner):** open.
+**Decision (owner): accepted as proposed, with both points.**
+| Thing | Names |
+|---|---|
+| **`openapi`** (extras module `ai-agent4j-tools-openapi`) | `spec`, `operation`, `effect`, `on_unknown`, `idempotency`, `pin`, `base_url`, `server`, `max_bytes`, `save_dir`, `save_max_bytes`, `timeout`, `retries`, `paginate` (`link`, `cursor` or `page`) with `max_pages`, `cursor_path`, `cursor_param`, `page_param`; auth options `auth_header`, `auth_query`, `auth_value` (`env.`, `secret.` or `invoker.`) |
+| **`http`** gains | `save_dir`, `save_max_bytes`, the `paginate` options, and `invoker.NAME` in `auth_value` |
+| **`command`** (in `ai-agent4j-tools`) | `run`, `description`, `param.<name>`, `output`, `ok_exit`, `effect`, `on_unknown`, `isolation`, `image`, `workspace`, `network`, `hosts`, `timeout`, `max_output` |
+| **`mcp` block**, existing | `transport`, `cmd`, `effects` |
+| **`mcp` block**, new | `args`, `env`, `env_inherit`, `isolation`, `image`, `workspace`, `network`, `hosts`, `url` (a remote server), `auth` (`invoker.NAME`), `reach`, `pin`, `timeout`, and `protocol` (an optional dated revision, for a server the probe misjudges) |
+| **Commands** | `weave connect openapi`, `mcp`, `command` and `http`, with `--operations`, `--read-only`, `--write <script>`, `--yes`, `--refresh`, `--check`, `--budget` and `--isolation`; `weave mcp list`, with `--write` |
+| **A failure** | `credential_rejected`: a new failure category and a `tool_call` outcome, so `on_failure`, `weave test`'s `fail:` and a host's trace listener can tell it apart |
+| **Documentation** | `docs/security/integrations.md`, and a guide section on passing a credential |
+**Point 1, `credential_rejected` is a new failure category.** Loom's categories are a closed list of seven (`rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused`, `quota`), each mapped to an exception and to the core's public `ErrorCategory` enum; the new value is an **additive change to a public enum**, recorded in `docs/API_COMPATIBILITY.md` (the alternative, `tool_error` with a message prefix, was refused because the case could not be caught cleanly).
+**Point 2, `transport` gains `"http"`** (Streamable HTTP) beside `"stdio"`, so one block says where the server is and how it is reached; no new option.
 
 ## D17. Visibility: the ecosystem and the time-to-first-safe-call benchmark
 
