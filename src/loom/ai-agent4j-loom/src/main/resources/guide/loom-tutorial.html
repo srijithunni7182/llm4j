@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 0d16185d2c6d2b4c28e793d9f804badf01571ebbf531e8ca2bcb65bbd8a57916 -->
+<!-- source-sha256: 2d9a91de20344371105778160868f0c39c3d52520fba66074ee4d5ba309d5c06 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -2754,7 +2754,7 @@ weave test main.loom --coverage         # and list the steps no case reached</co
       degraded: true
       fallbacks: [ WebResearcher ]
       told: { Writer: [ "nothing found on the web" ] }</code></pre></figure>
-<p><code>fail:</code> takes <code>times: N</code>, <code>on_calls: [..]</code> or <code>always: true</code>, and a <code>category</code>: <code>rate_limit</code>, <code>timeout</code>, <code>server_error</code>, <code>invalid_output</code>, <code>tool_error</code>, <code>refused</code> or <code>quota</code>. This is how you prove a retry recovers (<code>times: 1</code>), a fallback is used (<code>always: true</code>), a run halts, or a budget is respected.</p>
+<p><code>fail:</code> takes <code>times: N</code>, <code>on_calls: [..]</code> or <code>always: true</code>, and a <code>category</code>: <code>rate_limit</code>, <code>timeout</code>, <code>server_error</code>, <code>invalid_output</code>, <code>tool_error</code>, <code>refused</code>, <code>quota</code> or <code>credential_rejected</code>. This is how you prove a retry recovers (<code>times: 1</code>), a fallback is used (<code>always: true</code>), a run halts, or a budget is respected.</p>
 <h3 id="c10-time-and-people-in-tests">Time and people in tests</h3>
 <figure class="code"><figcaption>yaml</figcaption><pre><code>  - name: a yes sends, waits two days (virtually) and checks for a reply
     input: { customer: "Asha", topic: "renewal" }

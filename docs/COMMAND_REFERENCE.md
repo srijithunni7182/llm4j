@@ -92,6 +92,10 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave serve`](#weave-serve) — Serves check, graph and review to an editor over standard input and output (JSON-RPC with Content-Length framing).
 - [`weave dap`](#weave-dap) — Speaks the Debug Adapter Protocol on standard input and output, so an editor can debug a workflow.
 
+### Other
+
+- [`weave mcp`](#weave-mcp) — Looks at the MCP servers a script declares.
+
 ## Pages
 
 ### `weave run`
@@ -2445,6 +2449,48 @@ weave tools fetch [OPTIONS] <fabric|inspect|all>
 - `--dir=<folder>` — Where to put them (default: ~/.llm4j/tools).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--yes` — Do not ask first.
+
+### `weave mcp`
+
+Looks at the MCP servers a script declares.
+
+```
+weave mcp [OPTIONS] <command>
+```
+
+**Commands**
+
+- `list` — Starts each mcp server of a script as its block says, lists its tools with what their annotations suggest (the server's own, untrusted word) and the pin of the tool list.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave mcp list`
+
+Starts each mcp server of a script as its block says, lists its tools with what their annotations suggest (the server's own, untrusted word) and the pin of the tool list.
+
+With --write, shows the change and, after you agree, writes the proposed effects: and the pin: into the block. Calls no tool.
+
+```
+weave mcp list [OPTIONS] <script>
+```
+
+**Arguments**
+
+- `<script>` — The script.
+
+**Options**
+
+- `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--no-env-file` — Do not read a .env file, even if one is beside the script.
+- `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
+- `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
+- `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `--server=<name>` — Only this mcp block.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--write` — Write the proposed effects: (for tools the block does not describe) and the pin: into the script, after showing the change and asking.
+- `--yes` — With --write, do not ask first (the change is still shown).
 
 ### `weave fabric`
 
