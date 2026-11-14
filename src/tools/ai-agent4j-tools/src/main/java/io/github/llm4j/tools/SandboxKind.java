@@ -227,6 +227,27 @@ public final class SandboxKind extends GenericKind {
                 : base.resolve(".loom-workspace").resolve(o.string(prefix + "workspace", "workspace"));
     }
 
+    /**
+     * The one-port grant of D7 for a tool that names a sandbox with {@code reaches:} (an
+     * {@code http} or {@code browser} tool): true for a port on which that sandbox serves a program
+     * now, read from its leases on every call. An unreadable lease grants nothing.
+     *
+     * @param options the reaching tool's options, with the sandbox's under {@code reaches.}
+     */
+    public static java.util.function.IntPredicate servedPorts(
+            Map<String, String> options, Path baseDir, java.time.Clock clock) {
+        Options o = new Options(options);
+        String owner = o.require("reaches");
+        Leases leases = new Leases(store(o, "reaches.", baseDir), clock);
+        return port -> {
+            try {
+                return leases.of(owner).stream().anyMatch(l -> l.port() == port && leases.live(l));
+            } catch (java.io.IOException e) {
+                return false;
+            }
+        };
+    }
+
     static String level(Isolation i) {
         return i.name().toLowerCase(Locale.ROOT);
     }

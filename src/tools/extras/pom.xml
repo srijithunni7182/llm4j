@@ -27,6 +27,7 @@
         <module>ai-agent4j-tools-search</module>
         <module>ai-agent4j-tools-documents</module>
         <module>ai-agent4j-tools-git</module>
+        <module>ai-agent4j-tools-browser</module>
     </modules>
 
     <properties>

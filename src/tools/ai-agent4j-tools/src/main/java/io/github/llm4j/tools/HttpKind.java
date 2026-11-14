@@ -80,19 +80,11 @@ public final class HttpKind extends GenericKind {
             return new HttpTool(name, c, http, null, redactor(o), context);
         }
         Leases leases = new Leases(SandboxKind.store(o, REACHES + ".", baseDir), context.clock());
-        String owner = c.reaches();
         NetPolicy policy =
                 NetPolicy.servedPort(
                         c.net().rules(),
                         NetPolicy.Resolver.SYSTEM,
-                        port -> {
-                            try {
-                                return leases.of(owner).stream()
-                                        .anyMatch(l -> l.port() == port && leases.live(l));
-                            } catch (java.io.IOException e) {
-                                return false; // an unreadable lease grants nothing
-                            }
-                        });
+                        SandboxKind.servedPorts(o.values(), baseDir, context.clock()));
         HttpSupport http =
                 new HttpSupport(
                         policy, context, c.net().timeout(), c.maxBytes(), c.net().retries());
