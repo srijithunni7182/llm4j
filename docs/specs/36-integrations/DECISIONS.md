@@ -205,7 +205,8 @@ tool Resize {
 3. **Output:** `output: text | json | lines`, a bounded size, and `ok_exit:` for the exit codes that count as success; anything else is a failure carrying a redacted excerpt of the error stream.
 4. **Effect** is declared with `effect:`; a tool with any `path out` parameter defaults to a local write, and `weave check` hints when it is missing.
 5. **Isolation is required,** with the levels and fail-closed rules of `sandbox` and of D7's MCP servers (`image:`, `workspace:`, `network:`); it runs through `SandboxBackend`, is a journaled effect, and is simulated in `weave test`.
-6. **Three kinds, one rule for choosing,** written into the docs: `shell` for a few host commands with free arguments, `command` for a command to be typed and validated, `sandbox` for general program execution.
+6. **The placeholders belong to the kind, not to Loom's variable replacement.** The `{name}` in a `run:` template is resolved once at load against the declared `param.` options. The template text is **never passed through Loom's replacement of variables in runtime texts**, so a workflow variable with the same name cannot change it, and the kind does not depend on, or bring back, any `substitution` setting (the owner removed it in phase 35).
+7. **Three kinds, one rule for choosing,** written into the docs: `shell` for a few host commands with free arguments, `command` for a command to be typed and validated, `sandbox` for general program execution.
 **Costs, accepted:** it needs 35's sandbox and so lands after 35d; path parameters rely on the workspace jail; the `workspace:` link to another tool is subject to the unread question of whether an option can name another tool (35's R2), with the same fallback as `sandbox`.
 
 ## D10. `weave connect`: authoring an integration

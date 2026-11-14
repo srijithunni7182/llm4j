@@ -41,6 +41,7 @@ All facts are in [DESIGN §1](DESIGN.md#1-what-the-code-does-today-read); the pl
 | R15 | The state of phase 35 at the start: that `profile`, the kind registry, `sandbox`, `workspace` and the extras structure exist as specified | the dependency of this whole phase | before 36a |
 | R16 | Which reference MCP servers and public OpenAPI services are usable for the integration tier and the benchmark, and their licences | D15, D17 | 36a, 36f |
 | R17 | The dependency direction and the self-contained jar of the new extras module (35-D4 rule 4); the release configuration for it (35's R4) | D2 | 36a |
+| R18 | **What phase 35 left of the `substitution` setting** and how variables are replaced in the merged language; that no new example, fixture, starter or guide text in this phase uses the removed setting; and that tool option values (the `run:` template of D9) are never passed through variable replacement | D9 rule 6, the ecosystem pass | before 36a, and again in 36f |
 
 ### Where the code contradicts a decision or the design (filled in by the build)
 
