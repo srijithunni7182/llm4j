@@ -13,6 +13,7 @@ are in the [module README](../README.md); this folder is the reference.
 | [`shell`](shell.md) | Run a few named programs, with no shell |
 | [`sql`](sql.md) | Run read-only queries |
 | [`workspace`](workspace.md) | Read and edit a directory: exact patches, search, snapshots to try again |
+| [`sandbox`](sandbox.md) | Run allow-listed programs on a workspace, isolated in a container; keep one serving |
 | [`compute`](compute.md) | Exact arithmetic, dates, a value out of JSON, statistics over CSV |
 | [`verify`](verify.md) | A test report or a schema check, as counts a workflow can rely on |
 | [`scan`](scan.md) | Find secrets and personal data, and say where, never what |

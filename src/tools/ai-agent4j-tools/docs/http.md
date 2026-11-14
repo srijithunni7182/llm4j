@@ -35,7 +35,8 @@ tool Status { use: http  base_url: "https://status.example.com"  methods: "GET, 
 
 | Option | Meaning |
 |---|---|
-| `base_url` | Required. The agent can only choose a path below it. |
+| `base_url` | Required, unless `reaches` is given. The agent can only choose a path below it. |
+| `reaches` | In place of `base_url`: the name of a [`sandbox`](sandbox.md) whose served program the tool calls, on `127.0.0.1` and that program's one port, only while it runs. With two programs served the agent passes `handle`. Goes without `hosts` and `allow_private`; every call is audited (LA32). |
 | `methods` | Allowed methods: `GET` (default), `POST`, `PUT`, `PATCH`, `DELETE`. Anything else is refused. |
 | `allow_paths` | Path patterns (`*` within a segment, `**` across). Default: everything below `base_url`. |
 | `auth_header` or `auth_query`, with `auth_value` | Exactly one; `auth_value` is a **secret** |

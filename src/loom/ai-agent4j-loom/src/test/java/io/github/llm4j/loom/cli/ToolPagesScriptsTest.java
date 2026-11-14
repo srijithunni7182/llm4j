@@ -28,7 +28,7 @@ class ToolPagesScriptsTest {
     @TempDir Path dir;
 
     @ParameterizedTest
-    @ValueSource(strings = {"compute.md", "verify.md", "scan.md", "workspace.md"})
+    @ValueSource(strings = {"compute.md", "verify.md", "scan.md", "workspace.md", "sandbox.md"})
     void theScriptOnThePagePassesTheCheck(String page) throws Exception {
         Matcher m = SCRIPT.matcher(Files.readString(DOCS.resolve(page)));
         assertThat(m.find()).as("a script under \"From a Loom script\" in " + page).isTrue();

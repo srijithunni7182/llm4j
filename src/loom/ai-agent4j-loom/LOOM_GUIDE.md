@@ -801,6 +801,39 @@ and `side effects: repeat` lets the attempt's writes run again. With `keep`, the
 first one already done and is skipped, so the files are not put back. Snapshots and restores are journaled: a resumed run
 reuses the recorded snapshot, and a restore cut short by a crash is run again.
 
+### Running programs (`sandbox`)
+
+`use: sandbox` runs a program from its `allow:` list on a workspace's files: the tests of the code an agent fixes, a build,
+a script. The program is a name and an argument list (no shell), and the tool names its workspace, whose root and protected
+paths it takes. `isolation:` has no default: `container` (Docker or Podman: the workspace is the only mount, protected paths
+are read only, no network unless `network: allow` lists hosts) or `process` (a child process, which is not isolation; it
+needs `network: open`, and the audit flags it). The reference is [sandbox](../../tools/ai-agent4j-tools/docs/sandbox.md), and
+what it stops and what it does not is in [the threat model](../../../docs/security/sandbox.md).
+
+```loom
+tool Code  { use: workspace  root: "project"  allow: "**"  mode: readwrite  overwrite: true  protect: "tests/**" }
+tool Tests { use: sandbox  workspace: Code  isolation: container  image: "python:3.12-slim"  allow: "python3"  timeout: "5m" }
+tool Check { use: verify  root: "project" }
+agent Coder { model: "gemini-2.5-flash"  system: "You fix the code until the tests pass."  tools: [Code, Tests]  approve: [Code, Tests] }
+
+workflow Fix(issue) {
+    delegate "Fix this: {issue}" to Coder -> done
+    use Tests(program = "python3", args = "[\"-m\", \"pytest\", \"--junitxml=report.xml\"]") -> run
+    use Check(format = "junit", source = "report.xml") -> tests
+    return tests.failed
+}
+```
+
+- **A script gives `args` as the text of a JSON list** (a script has no list literal); an agent gives a list. Anything else
+  is refused, never split like a command line.
+- **Secrets by name:** `env.NAME: secret.REF` gives the program one variable, looked up on each call and scrubbed from its
+  output; nothing else of the environment is passed.
+- **Built when the run starts:** a missing container runtime stops the run before its first step, and `container` never
+  falls back to `process`. `weave check` looks at the script, not the machine, so it passes where Docker is not installed.
+- **Every run is journaled**, so a resumed or rewound run does not run a program again; `stdout` and `stderr` stay unchecked.
+- **`serve`** keeps a program running under a lease (`serve_port:` on the tool); `use: http  reaches: Tests` calls it on
+  that one loopback port while it runs, and `workspace restore` waits until it is stopped.
+
 ### Checkpoints, Rewind and Fork
 
 A run can stop and carry on, but only forward. If a late step shows that an early one was wrong, you would have to start over and pay for everything again. **Checkpoints and rewinds** let a workflow go back to a named point, keep what it learned, and try again: the script says what "going bad" means, and what to do about it.

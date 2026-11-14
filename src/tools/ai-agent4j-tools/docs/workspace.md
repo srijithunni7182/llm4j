@@ -67,7 +67,7 @@ Use this when an attempt touches only the workspace (and a sandbox); an attempt 
 | `find` | `pattern` (a glob) | `paths` |
 | `grep` | `text` (a literal) or `regex`, optional `path` (a glob) and `context` (lines, at most 5) | `matches`: path, line, text |
 | `diff` | `name` (the latest snapshot when left out) | `added`, `changed`, `deleted` |
-| `snapshot`, `restore` | `name` | A restore puts the snapshot's files back and deletes files made since; it leaves ignored and protected paths alone, and restoring twice gives the same state |
+| `snapshot`, `restore` | `name` | A restore puts the snapshot's files back and deletes files made since; it leaves ignored and protected paths alone, and restoring twice gives the same state. A restore is refused while a [`sandbox`](sandbox.md) serves a program from the workspace |
 
 ## What keeps it safe
 
