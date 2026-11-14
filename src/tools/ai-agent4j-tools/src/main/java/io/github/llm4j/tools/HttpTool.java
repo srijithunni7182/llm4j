@@ -31,17 +31,33 @@ final class HttpTool extends GenericTool {
             String authValue,
             Map<String, String> headers,
             long maxBytes,
-            NetOptions net) {
+            NetOptions net,
+            String reaches) {
+
+        /** A served program is reached on loopback, over plain http: the port comes per call. */
+        static final HttpUrl SERVED = HttpUrl.get("http://127.0.0.1/");
 
         static Config parse(Options o) {
-            HttpUrl base = HttpUrl.parse(o.require("base_url"));
+            String reaches = o.get(HttpKind.REACHES);
+            if (reaches != null && o.has("base_url"))
+                throw new OptionException(
+                        "base_url: goes away with reaches: (the address is the served program's)");
+            if (reaches == null && !o.has("base_url"))
+                throw new OptionException(
+                        "needs base_url (or reaches: naming a sandbox whose served program it calls)");
+            if (reaches != null && (o.has("hosts") || o.has("allow_private")))
+                throw new OptionException(
+                        "hosts: and allow_private: don't go with reaches: (it reaches one port and nothing else)");
+            HttpUrl base = reaches != null ? SERVED : HttpUrl.parse(o.get("base_url"));
             if (base == null) throw new OptionException("base_url: is not a valid URL");
             if (base.query() != null || base.fragment() != null)
                 throw new OptionException("base_url: must not contain a query or fragment");
             NetOptions net = NetOptions.parse(o, 2, true);
             String problem =
-                    new NetPolicy(net.rules(), NetPolicy.Resolver.SYSTEM, base.host())
-                            .checkUrl(base);
+                    reaches != null
+                            ? null
+                            : new NetPolicy(net.rules(), NetPolicy.Resolver.SYSTEM, base.host())
+                                    .checkUrl(base);
             if (problem != null) throw new OptionException("base_url: " + problem);
 
             List<String> methodList =
@@ -73,26 +89,36 @@ final class HttpTool extends GenericTool {
                     o.get("auth_value"),
                     o.headers(),
                     o.size("max_bytes", 64 * 1024, 4L * 1024 * 1024),
-                    net);
+                    net,
+                    reaches);
         }
     }
 
     private final Config config;
     private final HttpSupport http;
+    private final Leases leases;
+    private final EffectContext context;
 
+    /** {@code leases} is null unless the tool reaches a served program. */
     HttpTool(
             String name,
             Config config,
             HttpSupport http,
+            Leases leases,
             Redactor redactor,
             EffectContext context) {
         super(name, "http", description(config), redactor, context);
         this.config = config;
         this.http = http;
+        this.leases = leases;
+        this.context = context;
     }
 
     private static String description(Config c) {
-        String base = c.baseUrl().scheme() + "://" + c.baseUrl().host() + c.baseUrl().encodedPath();
+        String base =
+                c.reaches() != null
+                        ? "the program " + c.reaches() + " serves (give handle when it serves more than one)"
+                        : c.baseUrl().scheme() + "://" + c.baseUrl().host() + c.baseUrl().encodedPath();
         return "Calls an HTTP API at "
                 + base
                 + ". Arguments: path (required, starts with /, relative to that address"
@@ -151,7 +177,7 @@ final class HttpTool extends GenericTool {
         if (!config.paths().matches(path))
             throw new ToolRefusal("path " + path + " is not one this tool may call");
 
-        HttpUrl url = buildUrl(path, args.get("query"));
+        HttpUrl url = buildUrl(base(args), path, args.get("query"));
         Request.Builder request = new Request.Builder().url(url);
         config.headers().forEach(request::header);
         if (config.authHeader() != null) request.header(config.authHeader(), config.authValue());
@@ -170,10 +196,31 @@ final class HttpTool extends GenericTool {
         return result;
     }
 
-    private HttpUrl buildUrl(String path, Object query) {
-        String basePath = config.baseUrl().encodedPath();
+    /**
+     * The address of this call: the declared base URL, or the served program's port from its live
+     * lease (D7), with the grant journaled in the audit as a process the run started.
+     */
+    private HttpUrl base(Map<String, Object> args) {
+        if (leases == null) return config.baseUrl();
+        Leases.Lease lease;
+        try {
+            lease = leases.reach(config.reaches(), optionalText(args, "handle"));
+        } catch (java.io.IOException e) {
+            throw new ToolRefusal("could not read the served program's lease: " + e.getMessage());
+        }
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("tool", getName());
+        data.put("owner", lease.owner());
+        data.put("handle", lease.handle());
+        data.put("port", lease.port());
+        context.audit("served_port_reached", data);
+        return config.baseUrl().newBuilder().port(lease.port()).build();
+    }
+
+    private HttpUrl buildUrl(HttpUrl base, String path, Object query) {
+        String basePath = base.encodedPath();
         if (basePath.endsWith("/")) basePath = basePath.substring(0, basePath.length() - 1);
-        HttpUrl.Builder b = config.baseUrl().newBuilder().encodedPath(basePath + path);
+        HttpUrl.Builder b = base.newBuilder().encodedPath(basePath + path);
         if (query instanceof Map<?, ?> m) {
             m.forEach(
                     (k, v) -> {

@@ -16,6 +16,9 @@ import okhttp3.HttpUrl;
  */
 public final class HttpKind extends GenericKind {
 
+    /** The option that names a sandbox whose served program the tool calls instead of a base URL. */
+    static final String REACHES = "reaches";
+
     @Override
     public String name() {
         return "http";
@@ -23,7 +26,7 @@ public final class HttpKind extends GenericKind {
 
     @Override
     public Set<String> required() {
-        return Set.of("base_url");
+        return Set.of();
     }
 
     @Override
@@ -37,7 +40,9 @@ public final class HttpKind extends GenericKind {
                         "auth_query",
                         "auth_value",
                         "max_bytes",
-                        "follow_redirects"));
+                        "follow_redirects",
+                        "base_url",
+                        REACHES));
         return s;
     }
 
@@ -48,7 +53,13 @@ public final class HttpKind extends GenericKind {
 
     @Override
     public Set<String> prefixes() {
-        return Set.of(Options.HEADER_PREFIX);
+        return Set.of(Options.HEADER_PREFIX, REACHES + ".");
+    }
+
+    /** {@code reaches: Py}: the sandbox whose served program this tool calls (D7). */
+    @Override
+    public Map<String, String> references() {
+        return Map.of(REACHES, "sandbox");
     }
 
     @Override
@@ -60,17 +71,42 @@ public final class HttpKind extends GenericKind {
     protected Tool build(String name, Options o, Path baseDir, EffectContext context) {
         HttpTool.Config c = HttpTool.Config.parse(o);
         HttpUrl base = c.baseUrl();
-        NetPolicy policy = new NetPolicy(c.net().rules(), NetPolicy.Resolver.SYSTEM, base.host());
+        if (c.reaches() == null) {
+            NetPolicy policy =
+                    new NetPolicy(c.net().rules(), NetPolicy.Resolver.SYSTEM, base.host());
+            HttpSupport http =
+                    new HttpSupport(
+                            policy, context, c.net().timeout(), c.maxBytes(), c.net().retries());
+            return new HttpTool(name, c, http, null, redactor(o), context);
+        }
+        Leases leases = new Leases(SandboxKind.store(o, REACHES + ".", baseDir), context.clock());
+        String owner = c.reaches();
+        NetPolicy policy =
+                NetPolicy.servedPort(
+                        c.net().rules(),
+                        NetPolicy.Resolver.SYSTEM,
+                        port -> {
+                            try {
+                                return leases.of(owner).stream()
+                                        .anyMatch(l -> l.port() == port && leases.live(l));
+                            } catch (java.io.IOException e) {
+                                return false; // an unreadable lease grants nothing
+                            }
+                        });
         HttpSupport http =
                 new HttpSupport(
                         policy, context, c.net().timeout(), c.maxBytes(), c.net().retries());
-        return new HttpTool(name, c, http, redactor(o), context);
+        return new HttpTool(name, c, http, leases, redactor(o), context);
     }
 
     /** What a tool of this kind reaches, for an audit; its calls go through the effect journal. */
     @Override
     public ToolProfile profile(Map<String, String> options) {
-        String baseUrl = options.get("base_url");
+        String reaches = options.get(REACHES);
+        String baseUrl =
+                reaches != null
+                        ? "the program " + reaches + " serves on this machine (one port, while it runs)"
+                        : options.get("base_url");
         String methods = options.get("methods");
         boolean writes = writes(methods);
         return ToolProfile.of(

@@ -39,6 +39,7 @@ public final class NetPolicy {
     private final Rules rules;
     private final Resolver resolver;
     private final String configuredHost;
+    private final java.util.function.IntPredicate grant;
 
     /**
      * @param configuredHost the host the declaration itself names (a webhook's host, an http tool's
@@ -46,10 +47,31 @@ public final class NetPolicy {
      *     loopback connections to it are allowed too
      */
     public NetPolicy(Rules rules, Resolver resolver, String configuredHost) {
+        this(rules, resolver, configuredHost, null);
+    }
+
+    private NetPolicy(
+            Rules rules,
+            Resolver resolver,
+            String configuredHost,
+            java.util.function.IntPredicate grant) {
         this.rules = rules;
         this.resolver = resolver;
         this.configuredHost =
                 configuredHost == null ? null : configuredHost.toLowerCase(Locale.ROOT);
+        this.grant = grant;
+    }
+
+    /**
+     * A policy that reaches a program the run serves (D7) and nothing else on this machine: {@code
+     * 127.0.0.1} on a port {@code grant} admits, which is the port of a live lease, asked again on
+     * every request and every redirect. Every other loopback address or port, and every private
+     * address, is refused as before. Not a loopback switch: there is no way to widen it.
+     */
+    public static NetPolicy servedPort(
+            Rules rules, Resolver resolver, java.util.function.IntPredicate grant) {
+        return new NetPolicy(
+                rules, resolver, "127.0.0.1", java.util.Objects.requireNonNull(grant, "grant"));
     }
 
     public Rules rules() {
@@ -62,6 +84,13 @@ public final class NetPolicy {
         if (!url.username().isEmpty() || !url.password().isEmpty())
             return "the URL must not carry a user name or password";
         boolean loopbackHost = isLoopbackName(host);
+        if (grant != null) {
+            if (!host.equals(configuredHost))
+                return "this tool reaches the program the run serves on 127.0.0.1 and nothing else, not "
+                        + host;
+            if (!grant.test(url.port()))
+                return "port " + url.port() + " is not the port of a program this run serves now";
+        }
         if (!url.isHttps() && !(rules.allowHttp() || loopbackHost)) {
             return "only https is allowed (http needs allow_http: true, or a localhost address)";
         }
