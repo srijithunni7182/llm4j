@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * What this module adds to an application (phase 36, D2): the core, the light tools module, Jackson
- * and the OpenAPI parser, which brings its own tree (about forty jars, among them guava, Apache
+ * (with its YAML and time modules, all at the repository's one version) and the OpenAPI parser, which brings its own tree (about forty jars, among them guava, Apache
  * HttpClient and Rhino, through its Swagger 2 converter). All Apache 2.0 or compatible. Maven writes
  * the list before the tests run.
  */
@@ -21,7 +21,11 @@ class WeightTest {
                     "io.github.srijithunni7182:ai-agent4j:compile",
                     "io.github.srijithunni7182:ai-agent4j-tools:compile",
                     "com.fasterxml.jackson.core:jackson-databind:compile",
-                    "io.swagger.parser.v3:swagger-parser:compile");
+                    "io.swagger.parser.v3:swagger-parser:compile",
+                    // the parser's own Jackson modules are older than the repository's one version, so they are
+                    // excluded and these two are declared at jackson.version
+                    "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:compile",
+                    "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:compile");
 
     @Test
     void theModuleDependsOnTheCoreTheLightToolsJacksonAndTheParserOnly() throws Exception {

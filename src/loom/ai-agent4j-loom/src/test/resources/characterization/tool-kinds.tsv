@@ -214,7 +214,7 @@ src/loom/ai-agent4j-loom/src/test/resources/concurrency-test.loom	2f779b33ccf5a6
 src/loom/ai-agent4j-loom/src/test/resources/docs/depth_examples.loom	0b0b37c9b31bc858	8362062400b2bd90	12880cacdfe7f4af
 src/loom/ai-agent4j-loom/src/test/resources/docs/readme_examples.loom	7ff5253bfc55d702	9dc415cfa6098204	51ac49445243b079
 src/loom/ai-agent4j-loom/src/test/resources/docs/resume_examples.loom	5414e005faa076c1	2c8eabdf1efdba0e	4c638852c36083c7
-src/loom/ai-agent4j-loom/src/test/resources/docs/tools_examples.loom	97a7d9aced6d4f65	44b402823093353e	e3b0c44298fc1c14
+src/loom/ai-agent4j-loom/src/test/resources/docs/tools_examples.loom	5ad0c62a2f0d0648	23ffa8979a8db52a	e3b0c44298fc1c14
 src/loom/ai-agent4j-loom/src/test/resources/frontier-test.loom	40686436fcd62e08	195f5676b7ca158b	6cc58ca9d1147c7c
 src/loom/ai-agent4j-loom/src/test/resources/generate/synth/gated/main.loom	e1a4a24cfda7826f	931e97e901f1e4a1	dfd06fd18b8c242c
 src/loom/ai-agent4j-loom/src/test/resources/graph/all_statements.loom	270a069455ffb31d	2d209b8c7a5a4bf7	fe192bd9b751b05b

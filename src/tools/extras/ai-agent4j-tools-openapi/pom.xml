@@ -18,10 +18,37 @@
     <description>The openapi tool kind: one tool per operation of an OpenAPI description, called through the shared HTTP layer (address rules, timeouts, size caps, retries that know "never sent" from "may have been"). The specification is read through the same guarded layer; the parser never fetches on its own. Brings swagger-parser.</description>
 
     <dependencies>
+        <!-- The parser's own Jackson modules are older than the one version this repository uses (jackson.version), and an
+             older one on a consumer's class path would make Maven pick a different jackson-core. They are left out here and
+             the two the parser needs are declared below at jackson.version. -->
         <dependency>
             <groupId>io.swagger.parser.v3</groupId>
             <artifactId>swagger-parser</artifactId>
             <version>${swagger-parser.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.dataformat</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.datatype</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
     </dependencies>
 
