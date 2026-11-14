@@ -288,11 +288,24 @@ public class KindDiscoveryTest {
     @Test
     void aKindThatIsNotThereSaysHowToAddAModule() {
         ToolFactory factory = new ToolFactory(getClass().getClassLoader());
-        assertThat(factory.problems(def("B", "browser"), n -> null, dir))
+        assertThat(factory.problems(def("X", "no_such_kind"), n -> null, dir))
                 .singleElement()
                 .asString()
-                .contains("unknown tool kind 'browser'")
+                .contains("unknown tool kind 'no_such_kind'")
                 .contains("--classes");
+    }
+
+    /** G39, second half: a kind of an extras module, absent, names the module to add. */
+    @Test
+    void anExtrasKindThatIsNotThereNamesItsModule() {
+        ToolFactory factory = new ToolFactory(getClass().getClassLoader());
+        for (String kind : List.of("search", "documents", "git", "browser"))
+            assertThat(factory.problems(def("B", kind), n -> null, dir))
+                    .singleElement()
+                    .asString()
+                    .contains("'" + kind + "' comes in the optional module ai-agent4j-tools-" + kind)
+                    .contains("io.github.srijithunni7182:ai-agent4j-tools-" + kind)
+                    .contains("--classes ai-agent4j-tools-" + kind);
     }
 
     @Test

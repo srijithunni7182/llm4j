@@ -230,6 +230,18 @@ public final class ToolFactory {
     }
 
     /** What a search kind's results are: content from the web, nothing else. */
+    /**
+     * The kinds of the optional extras modules (phase 35, D4), by the module that brings each: only
+     * so a script that uses one without its jar is told which module to add (G39). Loom depends on
+     * none of them.
+     */
+    static final Map<String, String> EXTRAS =
+            Map.of(
+                    "search", "ai-agent4j-tools-search",
+                    "documents", "ai-agent4j-tools-documents",
+                    "git", "ai-agent4j-tools-git",
+                    "browser", "ai-agent4j-tools-browser");
+
     private static final ToolProfile SEARCH_RESULTS =
             ToolProfile.of(true, false, false, false, "web search results");
 
@@ -438,13 +450,26 @@ public final class ToolFactory {
         List<String> out = new java.util.ArrayList<>();
         ToolKind kind = kinds.get(def.getKind());
         if (kind == null) {
+            String module = EXTRAS.get(def.getKind());
             out.add(
-                    "unknown tool kind '"
-                            + def.getKind()
-                            + "'; use one of "
-                            + kinds()
-                            + " (a kind from an optional module needs its jar: weave --classes"
-                            + " <jar>, or a dependency of your project)");
+                    module != null
+                            ? "the tool kind '"
+                                    + def.getKind()
+                                    + "' comes in the optional module "
+                                    + module
+                                    + ", which is not on the class path: add the dependency"
+                                    + " io.github.srijithunni7182:"
+                                    + module
+                                    + " to your project, or give weave its jar (weave --classes "
+                                    + module
+                                    + "-<version>-weave.jar, or the plain jar for a module with no"
+                                    + " dependency of its own)"
+                            : "unknown tool kind '"
+                                    + def.getKind()
+                                    + "'; use one of "
+                                    + kinds()
+                                    + " (a kind from an optional module needs its jar: weave --classes"
+                                    + " <jar>, or a dependency of your project)");
             return out;
         }
         for (String req : kind.required()) {
