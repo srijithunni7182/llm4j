@@ -25,7 +25,24 @@
     -->
     <modules>
         <module>ai-agent4j-tools-search</module>
+        <module>ai-agent4j-tools-documents</module>
     </modules>
+
+    <properties>
+        <!-- Apache License 2.0; brings pdfbox-io, fontbox and commons-logging (all Apache 2.0). Its Bouncy Castle
+             dependencies are optional and not brought. -->
+        <pdfbox.version>3.0.8</pdfbox.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.apache.pdfbox</groupId>
+                <artifactId>pdfbox</artifactId>
+                <version>${pdfbox.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <!-- What every extras module needs: the core, the light tools module (the tool base classes and NetPolicy) and Jackson -->
     <dependencies>
