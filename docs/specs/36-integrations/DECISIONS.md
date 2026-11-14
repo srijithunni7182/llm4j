@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D9 are taken, nine decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D10 are taken, eight decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -16,7 +16,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D7 | An MCP server or a command as a program: isolation, arguments, secrets | **taken** (the `sandbox` rules, in three states so existing scripts do not break; six rules) |
 | D8 | Authentication: the consumer brings the token | **taken** (pass-in only: every door accepts `invoker.NAME`, per request and per run, with typed credential errors; llm4j never acquires, stores or refreshes a token) |
 | D9 | Typed command adapters | **taken** (a `command` kind on the sandbox backend: an author's template, typed `param.<name>` options, isolation required) |
-| D10 | `weave connect`: authoring an integration | open |
+| D10 | `weave connect`: authoring an integration | **taken** (deterministic first for OpenAPI and MCP, then model-assisted for a system with no spec, reusing the `generate` gates; four safety rules) |
 | D11 | Recording and replaying tool results | open |
 | D12 | Health and drift | open |
 | D13 | The documentation and the code agree | open |
@@ -210,15 +210,25 @@ tool Resize {
 
 ## D10. `weave connect`: authoring an integration
 
-**Why.** The ease of integration is the moat; today a tool declaration is written by hand.
+**Why.** The ease of integration is the moat, and today a tool declaration is written by hand. **Read:** `weave generate` already has a `Gate` interface ("a check a generated project must pass before it is called done"), a language-check gate, a tests gate, a review gate, a repair loop, test synthesis and an interview step; the model-assisted half of `connect` reuses them.
 
-- **A. Deterministic first.** From an OpenAPI file or an MCP server: list the operations, let the person choose them, write the tool declaration with the effects proposed and, once a person approves them, written as declared values, and the pin (D4), write test fakes from the spec's examples, run `weave check` and `weave audit`. **A model-assisted mode** for a system with no spec: from a command's help, documentation or sample files, a model drafts a `command` adapter or an `http` tool; **code verifies the draft against the samples** in a fake and the draft is never emitted if it fails; a person approves every effect classification.
+- **A. Deterministic first, then model-assisted** for a system with no spec.
 - **B. Deterministic only.**
 - **C. Model-assisted only.**
 
-**Recommendation: A, in two steps:** the deterministic part in 36d with the pins, the model-assisted part after it in the same sub-phase if the first works. It is principle 36 applied to authoring: a model drafts, code proves, a person approves.
-
-**Decision (owner):** open.
+**Decision (owner): option A, in two steps within 36d.**
+**Step 1, deterministic (no model):**
+1. **`weave connect openapi <spec>`:** lists the operations with method, path and the proposed effect; the person chooses (an interactive list, or `--operations a,b`, or `--read-only`); it writes **one tool declaration per chosen operation** with `effect:`, `on_unknown:`, `idempotency:` and `pin:` (D4) and `auth_value: invoker.NAME` as chosen; it writes a test file with fakes (from the spec's examples where it has them, otherwise schema-conformant sample data built deterministically and labelled as synthesized); it runs `weave check` and `weave audit` and prints each new tool as the audit sees it.
+2. **`weave connect mcp <command or url>`:** starts the server under the isolation the person names (D7), lists its tools and annotations (labelled as the server's untrusted word), lets the person choose, and writes the `mcp` block with `isolation:`, `effects:` and `pin:`. `weave mcp list` is the read-only form and the caller `McpEffects` lacked.
+3. **`--refresh`** re-reads the spec or the server and shows what changed against the declarations and pins (new, removed or altered operations); a person approves the update.
+**Step 2, model-assisted, for a system with no spec:** `weave connect command <name>` from a command's `--help` text, or `weave connect http` from a documentation page, a file or sample requests and responses. The model drafts a `command` adapter (D9) or an `http` tool. **The gates are reused from `generate`:** the declaration passes `weave check`, `weave audit` and `weave review` with no new high finding, and the draft is exercised against **the person's own sample inputs** under the declared isolation, with the output compared to what the person expected. A draft that fails the gates after a bounded number of repairs is **never written**; the findings are printed. **Effects are always the person's:** the model's classification is shown as proposed and nothing is written until it is approved. A small model budget cap is the default.
+**Safety rules**
+1. **Specs, help text and documentation are untrusted input.** The drafting model has no tools and can only produce a declaration; the gates and the person's approval are the controls.
+2. **A remote spec is fetched through `HttpSupport` and `NetPolicy`,** not a bare client.
+3. **Nothing is written to the script without a diff the person has seen,** using the patch machinery of `generate`.
+4. **No secret is ever written:** an authentication placeholder is `invoker.NAME` or `env.NAME`.
+**Not done:** acquiring tokens (D8); choosing which operations are safe; running an MCP server without an explicit isolation level.
+**Cost, accepted:** the model-assisted half is the largest new attack surface in the phase, which is why every gate is mandatory and a failed draft is dropped.
 
 ## D11. Recording and replaying tool results
 
