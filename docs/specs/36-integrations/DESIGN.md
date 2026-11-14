@@ -1,6 +1,6 @@
 # Phase 36: design
 
-Status: **final for phase 36 (all decisions taken); not yet built.** Facts marked (read) come from the source on the phase 35 branch at the time of writing; anything marked (not read) must be read before the work that depends on it starts. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md). **This phase builds on phase 35** (`ToolProfile`, the kind registry, `sandbox`, `workspace`) and starts only after 35 is merged.
+Status: **final for phase 36 (all decisions taken); not yet built.** Facts marked (read) come from the source on the phase 35 branch at the time of writing; anything marked (not read) must be read before the work that depends on it starts. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md). Tests: [TEST_STRATEGY.md](TEST_STRATEGY.md). What was read and what must be proved: [VERIFICATION.md](VERIFICATION.md). **This phase builds on phase 35** (`ToolProfile`, the kind registry, `sandbox`, `workspace`) and starts only after 35 is merged.
 
 ## 1. What the code does today (read)
 
