@@ -22,6 +22,13 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 - A script declares `mcp Name { transport: "stdio"  cmd: "..."  effects: {...} }`. The parser accepts nothing else: `cmd` is one string split on whitespace, and **there is no clause for the environment**, so a script cannot give a server an API key. Servers start at engine boot; a failure is a load error.
 - `McpEffects` (`security/McpEffects.java`) maps `readOnlyHint` and `destructiveHint` to an effect, and the guide says the hints are used when read. **Nothing in production code calls it; only `McpHintsTest` does.** Its message tells the user to run `weave mcp list`, **a command that does not exist.**
 
+**The MCP specification today (read from the official pages, 2026-07-28 revision; the latest revision found, no page labels any revision "stable"):**
+- **Two eras.** The revision removes the `initialize` handshake and protocol-level sessions; each request carries `io.modelcontextprotocol/protocolVersion` in its metadata and, over HTTP, the `MCP-Protocol-Version` header; a mismatch returns `UnsupportedProtocolVersionError` (-32022) with a `supported` list; servers must implement `server/discover`. A modern client talking to a legacy server "fails" (the spec's compatibility matrix); a dual-era client probes (stdio: `server/discover`; HTTP: a modern request, falling back to `initialize` on a 400) and caches the result per server.
+- **Transports:** stdio and Streamable HTTP (each message an HTTP POST to one endpoint, answered by JSON or a request-scoped event stream; `Mcp-Method` and `Mcp-Name` headers; no sessions; HTTP+SSE deprecated since 2025-03-26).
+- **Authorization** is optional: for HTTP servers OAuth 2.1 with protected-resource-metadata discovery (RFC 9728), authorization-server metadata, client identity by metadata document (dynamic registration deprecated) or pre-registration, a resource indicator (RFC 8707), an issuer check (RFC 9207); for stdio servers the spec says to take credentials from the environment.
+- **Tools:** a tool error is a result with `isError: true`; `structuredContent` conforms to an `outputSchema`; `tools/list` pages with `cursor` and `nextCursor`; **clients MUST treat annotations as untrusted unless the server is trusted.** Roots, sampling and logging are deprecated; `ping` and `logging/setLevel` are removed.
+- **Not read:** the annotation field names and defaults (on the schema page), the Streamable HTTP binding page.
+
 **Credentials** (`src/ai-agent4j/.../secret/`): `SecretStore` implementations (environment, encrypted file, in memory, chained), `SecretRef` and `CredentialSource`, and `InvokerCredentials`, an interface the host implements to hand a run the credentials of whoever started it (for example an OAuth access token, refreshed on every request). **No OAuth flow ships in the library;** the only OAuth code is in an unpublished example application.
 
 **Record and replay:** `weave capture` turns a run into a test case with the recorded models, classifiers, people, tasks and failures; `weave regress` tries a candidate on past runs with recorded answers only. **No tool results are recorded.**
@@ -51,7 +58,7 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 ## 4. Risks (for the owner to weigh against the decisions)
 
 1. **Moving OpenAPI out of the core is a compatibility break** for Java users of `io.github.llm4j.agent.tools.openapi` (D2). It is the price of a light core and of one set of guards.
-2. **The MCP specification moves.** The client's version is two years of drift behind; the current transports and authorization must be read from the specification, not from memory (R-items in VERIFICATION).
+2. **The MCP specification moves.** The client speaks a 2024 revision; the current one removes the handshake. Both eras are supported (D6), and the exact requirements are re-read from the specification when 36b starts (R-items in VERIFICATION).
 3. **OAuth is easy to get subtly wrong:** storing refresh tokens, rotating them, scopes, and never logging a token. The guards and the canary tests carry it.
 4. **A model-drafted adapter is the largest new attack surface in the phase.** The draft is verified against samples and its effects are a person's decision (principle 36); a draft that fails verification is never emitted.
 5. **The phase is large and is the last for a while.** The gate after 36a and the order are meant to let the owner stop after any sub-phase with something whole.

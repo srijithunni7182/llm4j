@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D5 are taken, thirteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D6 are taken, twelve decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -12,7 +12,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D3 | The OpenAPI call model: one generic tool, or one tool per operation | **taken** (one declared tool per operation, with `operation:`; the legacy all-operations tool kept and warned about until the next major) |
 | D4 | Effects and idempotency taken from the system's own description, and the pins | **taken** (the tooling infers and a person approves; the result is written into the script as declared values with a pin; no lockfile) |
 | D5 | Large answers and pagination | **taken** (a cap that says it cut and a `save_dir` in 36a; bounded read-only pagination in 36b) |
-| D6 | The MCP client: transports, versions, what it reads | open |
+| D6 | The MCP client: transports, versions, what it reads | **taken** (both eras, stdio and Streamable HTTP, tools only; stdio and fixes in 36a, the modern era, HTTP and authorization in 36b) |
 | D7 | An MCP server or a command as a program: isolation, arguments, secrets | open |
 | D8 | Authentication: OAuth and signed requests | open |
 | D9 | Typed command adapters | open |
@@ -97,7 +97,7 @@ agent Shop { tools: [Pet_get, Pet_add]  approve: [Pet_add] }
 | MCP `readOnlyHint: true` | reads | `effects: { tool: reads }` |
 | MCP `destructiveHint` set, or no hint | changes | `effects: { tool: changes }` |
 | MCP `idempotentHint: true` | safe to repeat | `on_unknown: retry` |
-MCP's `openWorldHint` is left unmapped (the audit's three legs do not correspond to it cleanly) and is shown in the audit note.
+**The specification says clients MUST treat tool annotations as untrusted unless the server is trusted** (D6), so the tooling shows an annotation as the server's word and a person approves the effect it writes; the annotation field names and defaults were not read from the schema page and are checked when 36a starts. MCP's `openWorldHint` is left unmapped (the audit's three legs do not correspond to it cleanly) and is shown in the audit note.
 **Pins for drift.** A `pin` option on an `openapi` tool and on an `mcp` block holds a hash of the spec or of the server's tool list including its annotations. `weave check` verifies a local spec file against its pin offline and warns on a mismatch; `weave doctor --network` compares the pin with a remote spec or a live server (D12).
 **What this gives the MCP hints:** `weave mcp list` (the missing command) becomes the caller of `McpEffects`, and the guide is corrected to say the hints are read by that command and written into the script, not "used when read" (D13).
 **Cost, accepted:** scripts are more explicit and a little longer, and someone who hand-writes a tool without running `connect` gets the cautious default.
@@ -124,15 +124,19 @@ MCP's `openWorldHint` is left unmapped (the audit's three legs do not correspond
 
 ## D6. The MCP client: transports, versions, what it reads
 
-**Why.** The client speaks one protocol version from 2024, reaches only local stdio servers, and reads tools only; most hosted MCP servers are remote and need authorization (DESIGN §1).
+**Why.** The client speaks one protocol version from 2024, reaches only local stdio servers, and reads tools only (DESIGN §1). The specification has since changed in kind, not only in degree (DESIGN §1, "The MCP specification today").
 
-- **A. Stdio and streamable HTTP;** version negotiation (offer the latest the client knows, accept the server's counter, fail with a clear message); tools with paging and `isError`; the server's annotations; per-call timeouts; crash recovery of a stdio server. Resources, prompts and sampling are out (D18).
-- **B. Fixes to the stdio client only** (errors, paging, timeouts), no remote transport.
-- **C. Everything the specification defines.**
+- **A. Both eras, stdio and Streamable HTTP, tools only:** probe each server and cache the answer, keep the legacy handshake and add the modern one, handle `isError`, `structuredContent`, paging and timeouts, and add HTTP authorization.
+- **B. The legacy era only,** updated to a current legacy version, over both transports.
+- **C. The modern era only:** the simplest long term and it fails on every legacy server (the spec's own compatibility matrix).
+- **D. Stdio only,** with fixes.
 
-**Recommendation: A.** Remote servers are where the ecosystem is; resources and prompts are separate features and have no use yet in the verticals. **The current specification must be read when 36b starts** (what the transports and the authorization require); nothing here is taken from memory.
-
-**Decision (owner):** open.
+**Decision (owner): option A, in two stages, and the authorization-code flow for remote MCP belongs to D8.** The owner's words: *move with the times*.
+**36a (stdio, legacy era, as it works today):** a tool result with `isError: true` becomes a failure; `tools/list` paging (`cursor`, `nextCursor`); per-call timeouts; a failed `tools/list` is a load error and not a log line; a crashed stdio server is restarted or reported; **MCP tools get the approval and decision wrappers other tools have** (a 36a read first: whether they honour `approve:` some other way); the offered protocol version is brought up to date and the server's counter-offer accepted. The script surface (`args`, `env`, isolation) is D7.
+**36b (the rest):** the **modern era** (`server/discover`, the protocol version in each request's metadata, and `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` over HTTP; an `UnsupportedProtocolVersionError` is answered by selecting a version from the server's `supported` list); **Streamable HTTP** in both eras (a POST to one endpoint, a JSON or event-stream reply, sessions only in the legacy era); the **probe and its per-server cache** (stdio: `server/discover`; HTTP: a modern request, falling back to `initialize` on a 400 without a recognised modern error); `structuredContent` and `outputSchema`; and **authorization for HTTP servers** (D8).
+**Trust:** per the specification, tool annotations are **untrusted unless the server is trusted** and tool descriptions and results are untrusted content; results are `unchecked`, and annotations are only a proposal a person approves (D4).
+**Out:** resources, prompts, sampling, roots, logging, elicitation, and the multi-round-trip `input_required` result (a tool call that returns it fails with a clear message).
+**Risks, accepted:** 36b's MCP piece is the largest single item of the phase (mostly authorization); how many servers have moved to the modern era is unknown, which is why both are supported; no page was found that labels a revision "stable", so no code assumes one.
 
 ## D7. An MCP server or a command as a program: isolation, arguments, secrets
 
@@ -154,7 +158,7 @@ MCP's `openWorldHint` is left unmapped (the audit's three legs do not correspond
 - **B. Client credentials and refresh only,** no sign-in command (the host obtains the first token).
 - **C. Leave it to the host,** as now.
 
-Signed requests (AWS Signature V4) and client certificates (mTLS) are **out**: a consumer supplies a `CredentialSource` (D18).
+**Amended by D6:** remote MCP servers expect OAuth 2.1 with the **authorization-code flow and PKCE** (a loopback redirect for a command-line user), discovery through protected-resource metadata, a client identity by metadata document or a pre-registered client ID, a resource indicator and a check of the issuer; the device-code command above does not cover it, so the authorization-code flow is part of this decision. Signed requests (AWS Signature V4) and client certificates (mTLS) are **out**: a consumer supplies a `CredentialSource` (D18).
 
 **Recommendation: A.** Without a way to sign in, "easy" stops at the first SaaS. The implementation lives in the tools module with the JDK and Jackson only (principle 8), uses `HttpSupport` (so `NetPolicy` applies to the token endpoint), and is tested against a scripted token server.
 
