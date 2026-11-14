@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D12 are taken, six decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D13 are taken, five decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -19,7 +19,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D10 | `weave connect`: authoring an integration | **taken** (deterministic first for OpenAPI and MCP, then model-assisted for a system with no spec, reusing the `generate` gates; four safety rules) |
 | D11 | Recording and replaying tool results | **taken** (a small change: `Capture` reads the `use` results already in the journal into `tools:`) |
 | D12 | Health and drift | **taken** (pins checked offline by `check`; `doctor` for reachability only; live drift through `connect --refresh --check`) |
-| D13 | The documentation and the code agree | open |
+| D13 | The documentation and the code agree | **taken** (wire the two orphaned effect paths in 36a, and test the guide's claims through the production path) |
 | D14 | Security rules and documents | open |
 | D15 | Testing: fakes, guards, canaries | open |
 | D16 | Names | open |
@@ -265,13 +265,20 @@ tool Resize {
 
 ## D13. The documentation and the code agree
 
-**Why.** The guide says MCP hints are used when read; the code does not call them. Principle 39.
+**Why.** Principle 39. **Read:** two documented behaviours are tested in isolation but never reach production. (1) `McpEffects.resolve` (the MCP annotations and the `effects:` map of an `mcp` block) has only a unit test (`McpHintsTest`) as a caller: nothing in the audit, the review or the runtime reads an `mcp` block's `effects:` map, so even a declared effect is ignored. (2) `Capabilities.operationEffect` (the per-operation `effects:` of an `openapi` tool, keyed by `operationId`) has only a unit test (`OpenApiOperationEffectsTest`) as a caller: the map is parsed and stored and nothing uses it. A crude scan of the security, execution, tools, effects and review packages for public static helpers with no production reference found only the second (the first escapes it because `resolve` is a common name), so this is two confirmed cases and not a pattern. It matters for D4: `weave mcp list --write` would otherwise write an `effects:` map the runtime ignores.
 
-Proposed: (1) give `McpEffects` its caller in the missing `weave mcp list --write` (D4) and correct the guide; (2) a **docs test** that runs the guide's table of default effects against `Capabilities`, so a documented default that is not wired fails; (3) a test that `weave mcp list --write` turns a hint into a declared effect in the script; (4) the same treatment for every claim the guide makes about tool behaviour that a test can state.
+- **A. Wire what is documented, and add the tests that prove it** at the production entry point.
+- **B. Fix the guide to say what the code does** and leave the behaviour.
+- **C. Leave it.**
 
-**Recommendation: all four.** The cheapest way to stop this recurring is a test that reads the claim.
-
-**Decision (owner):** open.
+**Decision (owner): option A.**
+1. **Wire the MCP map:** a declared `effects:` entry for an MCP tool decides that tool's effect in the audit, `weave review`, tracing and the approval and policy hooks; `weave mcp list --write` and `connect mcp` (D10) are the callers of `McpEffects`, and annotations remain a proposal a person approves (D6, D4).
+2. **Wire the OpenAPI map for the legacy mode** (D3's one tool with every operation), so the effect and its journaling follow the operation called, until that mode ends at the next major; the new per-operation tools (D3) carry their effect directly.
+3. **A docs test through the production path:** `EffectDefaultsDocsTest` takes the guide's statements about default and declared effects (`http` GET reads, an undeclared `openapi` operation changes, an MCP tool's declared effect wins, and so on) and checks them by loading a script and asking the audit and the review for the effect, **not by calling a helper**; the guide's phrases are pinned, in the style of `InvokerDocsTest`, so editing the doc forces the test to change.
+4. **A break-it test:** removing the wiring must make a test fail, so the test is known not to be another unit test of a helper.
+5. **One report in 36a:** a scan of the packages that carry documented behaviour for helpers with no production caller, each one found either wired, removed or documented.
+6. **The guide, the prompt file, the wiki and the extension's hover text** are corrected so none says "used when read" for something that is not.
+**Cost:** small (a few call sites and tests), and a correctness fix that belongs in 36a before anything builds on it.
 
 ## D14. Security rules and documents
 
