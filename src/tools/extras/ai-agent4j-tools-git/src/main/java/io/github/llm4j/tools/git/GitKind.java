@@ -35,12 +35,12 @@ public final class GitKind extends GenericKind {
 
     /** Runs git with the standard sandbox backends. */
     public GitKind() {
-        this(new SandboxKind());
+        this(SandboxKind.forGit());
     }
 
     /** Runs git with the backends {@code backends} makes: a seam for tests (a {@code FakeSandbox}). */
     public GitKind(Function<SandboxKind.Settings, SandboxBackend> backends) {
-        this(new SandboxKind(backends));
+        this(SandboxKind.forGit(backends));
     }
 
     private GitKind(SandboxKind sandbox) {
@@ -181,7 +181,8 @@ public final class GitKind extends GenericKind {
     protected Tool build(String name, Options o, Path baseDir, EffectContext context) throws Exception {
         Config c = config(o);
         Tool runner = sandbox.create(name, sandboxOptions(o.values()), baseDir, new RunnerContext(context));
-        return new GitTool(name, c, runner, context);
+        Path repository = baseDir.toAbsolutePath().normalize().resolve(o.string("workspace.root", ".")).normalize();
+        return new GitTool(name, c, runner, context, repository);
     }
 
     static List<String> actions() {

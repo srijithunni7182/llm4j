@@ -23,11 +23,13 @@ final class GitTool extends GenericTool {
 
     private final GitKind.Config config;
     private final Tool runner;
+    private final java.nio.file.Path repository;
 
-    GitTool(String name, GitKind.Config config, Tool runner, EffectContext context) {
+    GitTool(String name, GitKind.Config config, Tool runner, EffectContext context, java.nio.file.Path repository) {
         super(name, "git", description(config), Redactor.NONE, context);
         this.config = config;
         this.runner = runner;
+        this.repository = repository;
     }
 
     private static String description(GitKind.Config c) {
@@ -64,6 +66,8 @@ final class GitTool extends GenericTool {
     @Override
     protected String run(Map<String, Object> args, String idempotencyKey) throws Exception {
         String action = action(args);
+        String refused = GitCommands.refusal(repository);
+        if (refused != null) throw new ToolRefusal(refused);
         Map<String, Object> out =
                 switch (action) {
                     case "status" -> git(GitCommands.status());

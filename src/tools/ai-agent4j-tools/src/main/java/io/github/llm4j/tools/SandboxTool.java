@@ -35,10 +35,12 @@ final class SandboxTool extends GenericTool {
     private final WorkspaceJail jail;
     private final Leases leases;
     private final String owner;
+    private final boolean gitWritable;
 
-    SandboxTool(String name, SandboxKind.Checked checked, EffectContext context) {
+    SandboxTool(String name, SandboxKind.Checked checked, EffectContext context, boolean gitWritable) {
         super(name, "sandbox", description(checked), Redactor.NONE, context);
         this.c = checked;
+        this.gitWritable = gitWritable;
         this.context = context;
         this.jail = new WorkspaceJail(checked.workspace(), Set.of());
         this.leases = new Leases(checked.store(), context.clock());
@@ -183,9 +185,13 @@ final class SandboxTool extends GenericTool {
         return out;
     }
 
-    /** The protected globs as the paths to mount read only: a covered folder once, else each file. */
+    /**
+     * The paths to mount read only: the protected globs (a covered folder once, else each file) and
+     * every {@code .git} folder, unless this is the git tool's own sandbox.
+     */
     private List<String> protectedPaths() throws IOException {
-        if (c.protect().isEmpty() || !Files.isDirectory(c.workspace())) return List.of();
+        if ((c.protect().isEmpty() && gitWritable) || !Files.isDirectory(c.workspace()))
+            return List.of();
         Globs protect = new Globs(c.protect());
         List<String> out = new ArrayList<>();
         Files.walkFileTree(
@@ -195,7 +201,8 @@ final class SandboxTool extends GenericTool {
                     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                         if (dir.equals(c.workspace())) return FileVisitResult.CONTINUE;
                         String relative = jail.relative(dir);
-                        if (protect.coversDirectory(relative)) {
+                        if ((!gitWritable && dir.getFileName().toString().equals(".git"))
+                                || protect.coversDirectory(relative)) {
                             out.add(relative);
                             return FileVisitResult.SKIP_SUBTREE;
                         }

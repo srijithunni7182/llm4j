@@ -102,6 +102,64 @@ class GitKindTest {
         assertThat(call(options()).get("action").asText()).as("status by default").isEqualTo("status");
     }
 
+    /**
+     * A repository's own configuration can name programs git runs during add, status and diff (a
+     * filter driver, a textconv) or send the token elsewhere (a credential helper for one URL,
+     * url.insteadOf). Code in a sandbox may have written it, so the tool refuses before any run.
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(
+            strings = {
+                "[filter \"x\"]\n\tclean = sh -c 'cat'\n",
+                "[FILTER \"x\"]\n\tprocess = run\n",
+                "[filter.x]\n\tsmudge = run\n",
+                "[diff \"t\"]\n\ttextconv = run\n",
+                "[merge \"m\"]\n\tdriver = run\n",
+                "[credential \"https://github.com\"]\n\thelper = store\n",
+                "[url \"https://example.org/\"]\n\tinsteadOf = https://github.com/\n",
+                "[include]\n\tpath = ../extra\n",
+                "[includeIf \"gitdir:/\"]\n\tpath = ../extra\n"
+            })
+    void aRepositoryWhoseConfigurationRunsProgramsIsRefusedBeforeAnyRun(String section)
+            throws Exception {
+        Files.createDirectories(dir.resolve("work/.git"));
+        Files.writeString(
+                dir.resolve("work/.git/config"),
+                "[core]\n\tbare = false\n" + section);
+        assertThat(call(options(), "action", "status").asText())
+                .contains("refused")
+                .contains(".git/config");
+        assertThat(fake.requests).isEmpty();
+    }
+
+    @Test
+    void anOrdinaryRepositoryConfigurationIsFine() throws Exception {
+        Files.createDirectories(dir.resolve("work/.git"));
+        Files.writeString(
+                dir.resolve("work/.git/config"),
+                "[core]\n\trepositoryformatversion = 0\n\tbare = false\n"
+                        + "[remote \"origin\"]\n\turl = https://github.com/acme/app.git\n"
+                        + "\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+                        + "[branch \"main\"]\n\tremote = origin\n\tmerge = refs/heads/main\n"
+                        + "[diff]\n\talgorithm = histogram\n");
+        assertThat(call(options(), "action", "status").get("exit").asInt()).isZero();
+        assertThat(fake.requests).hasSize(1);
+    }
+
+    @Test
+    void aGitFolderThatIsAFileIsRefused() throws Exception {
+        Files.writeString(dir.resolve("work/.git"), "gitdir: /elsewhere\n");
+        assertThat(call(options(), "action", "status").asText()).contains("refused");
+        assertThat(fake.requests).isEmpty();
+    }
+
+    @Test
+    void theToolsOwnRunnerMayWriteTheGitFolder() throws Exception {
+        Files.createDirectories(dir.resolve("work/.git"));
+        call(options(), "action", "status");
+        assertThat(fake.requests.get(0).protect()).doesNotContain(".git");
+    }
+
     @Test
     void aCommitAddsThenCommitsAsTheDeclaredAuthorAndFailsLoudly() throws Exception {
         call(options("author_name", "Release bot", "author_email", "bot@example.com"), "action", "commit", "message", "Fix it", "paths", List.of("a.txt"));

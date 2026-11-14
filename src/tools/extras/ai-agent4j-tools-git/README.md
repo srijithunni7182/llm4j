@@ -55,7 +55,11 @@ is an error, so it is not recorded as done.
 
 - **A repository's configuration runs nothing:** every call turns off hooks (`core.hooksPath=/dev/null`), fsmonitor, the
   pager, the editor, external diffs and text conversion, and every transport but https. A hook the repository holds never
-  runs, even with `isolation: process` (a test proves it with a real `git`). The `workspace` tool never writes `.git`.
+  runs, even with `isolation: process` (a test proves it with a real `git`). Signing is off, and global attribute files
+  are not read. A driver a repository defines (`filter`, a named `diff` or `merge`), a credential helper for one URL,
+  a URL rewrite or an included file cannot be turned off for every name it might use, so a `.git/config` with one of
+  those sections is refused before git runs, and so is a `.git` that is a file or a link. Code in the sandbox cannot
+  add one: every other sandbox mounts `.git` read only, and the `workspace` tool never writes it.
 - **Names and paths are checked:** a branch name or path that is an option (`--force`), climbs out (`..`) or uses git's
   path magic (`:(top)`) is refused.
 - **Exactly once:** a commit, a new branch and a push are journaled effects; a resumed run does not push again.

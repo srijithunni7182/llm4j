@@ -17,7 +17,8 @@ class GitCommandsTest {
         List<String> h = GitCommands.hardened(false);
         assertThat(h).containsSubsequence("-c", "core.hooksPath=/dev/null");
         assertThat(h).contains("core.fsmonitor=false", "core.pager=cat", "core.editor=false", "diff.external=",
-                "protocol.allow=never", "protocol.https.allow=always", "credential.helper=", "--no-pager");
+                "protocol.allow=never", "protocol.https.allow=always", "credential.helper=", "--no-pager",
+                "core.attributesFile=/dev/null", "commit.gpgSign=false", "tag.gpgSign=false");
         assertThat(h).noneMatch(s -> s.contains("GIT_TOKEN"));
         assertThat(GitCommands.hardened(true)).anyMatch(s -> s.contains("$GIT_TOKEN")).noneMatch(s -> s.contains("sk-"));
     }

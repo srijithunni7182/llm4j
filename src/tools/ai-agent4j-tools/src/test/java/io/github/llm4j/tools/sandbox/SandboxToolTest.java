@@ -262,6 +262,15 @@ class SandboxToolTest {
         assertThat(fake.requests.get(0).protect()).containsExactlyInAnyOrder("tests", "src/oracle.json");
     }
 
+    /** A program could plant a filter driver in .git/config, which git would run later. */
+    @Test
+    void aRepositorysGitFolderIsAlwaysMountedReadOnly() throws Exception {
+        Files.createDirectories(dir.resolve("work/.git/hooks"));
+        Files.createDirectories(dir.resolve("work/vendor/lib/.git"));
+        call(options(), "program", "ls");
+        assertThat(fake.requests.get(0).protect()).containsExactlyInAnyOrder(".git", "vendor/lib/.git");
+    }
+
     // ---- G51: a run is journaled and not repeated on resume
 
     @Test

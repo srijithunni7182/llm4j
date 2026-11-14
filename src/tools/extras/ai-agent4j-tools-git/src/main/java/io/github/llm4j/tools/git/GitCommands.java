@@ -1,8 +1,14 @@
 package io.github.llm4j.tools.git;
 
 import io.github.llm4j.tools.ToolRefusal;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -35,7 +41,10 @@ final class GitCommands {
                         "diff.external=",
                         "protocol.allow=never",
                         "protocol.https.allow=always",
-                        "credential.helper=")) {
+                        "credential.helper=",
+                        "core.attributesFile=/dev/null",
+                        "commit.gpgSign=false",
+                        "tag.gpgSign=false")) {
             a.add("-c");
             a.add(setting);
         }
@@ -46,6 +55,47 @@ final class GitCommands {
         }
         a.add("--no-pager");
         return a;
+    }
+
+    /**
+     * Sections of a repository's configuration that make git run a program or send the token
+     * somewhere: a filter, diff or merge driver (run by add, status and diff whatever the command
+     * line says), a credential helper for one URL, a URL rewrite, an included file. They cannot be
+     * turned off from the command line for every name a repository might choose, so a repository
+     * that has one is refused. A section is its name before the first space, dot or quote.
+     */
+    private static final Set<String> RUNS_PROGRAMS =
+            Set.of("filter", "credential", "url", "include", "includeif");
+
+    private static final Set<String> NAMED_DRIVERS = Set.of("diff", "merge");
+
+    private static final Pattern SECTION = Pattern.compile("^\\s*\\[\\s*([A-Za-z0-9.-]+)(\\s*\"|\\.|\\s*\\])?");
+
+    /**
+     * Why git must not run on this repository, or null: its {@code .git} is a file that points
+     * elsewhere, or its configuration names a program (see {@link #RUNS_PROGRAMS}).
+     */
+    static String refusal(Path repository) throws java.io.IOException {
+        Path git = repository.resolve(".git");
+        if (!Files.exists(git, LinkOption.NOFOLLOW_LINKS)) return null;
+        if (!Files.isDirectory(git, LinkOption.NOFOLLOW_LINKS))
+            return "refused: the workspace's .git is not a folder (a link or a file pointing elsewhere); the git tool works only on a repository inside the workspace";
+        Path config = git.resolve("config");
+        if (!Files.exists(config, LinkOption.NOFOLLOW_LINKS)) return null;
+        if (!Files.isRegularFile(config, LinkOption.NOFOLLOW_LINKS))
+            return "refused: .git/config is not a plain file";
+        for (String line : Files.readAllLines(config, java.nio.charset.StandardCharsets.UTF_8)) {
+            Matcher m = SECTION.matcher(line);
+            if (!m.find()) continue;
+            String name = m.group(1).toLowerCase(Locale.ROOT);
+            String section = name.contains(".") ? name.substring(0, name.indexOf('.')) : name;
+            boolean named = name.contains(".") || (m.group(2) != null && m.group(2).contains("\""));
+            if (RUNS_PROGRAMS.contains(section) || (NAMED_DRIVERS.contains(section) && named))
+                return "refused: .git/config has a ["
+                        + section
+                        + "] section, which can make git run a program or send the token elsewhere; remove it to use the git tool";
+        }
+        return null;
     }
 
     static List<String> status() {

@@ -40,6 +40,7 @@ public final class SandboxKind extends GenericKind {
             Set.of("sh", "bash", "zsh", "dash", "ash", "busybox", "node", "deno", "bun", "python", "python3", "ruby", "perl", "php", "java", "jshell", "env", "xargs", "npx");
 
     private final Function<Settings, SandboxBackend> backends;
+    private final boolean gitWritable;
 
     /** Backends as D8 names them: {@code process}, {@code container}; a {@code vm} needs one of the consumer's. */
     public SandboxKind() {
@@ -48,7 +49,26 @@ public final class SandboxKind extends GenericKind {
 
     /** With a chosen way to make backends: a test's {@link FakeSandbox}, or a consumer's own. */
     public SandboxKind(Function<Settings, SandboxBackend> backends) {
+        this(backends, false);
+    }
+
+    private SandboxKind(Function<Settings, SandboxBackend> backends, boolean gitWritable) {
         this.backends = backends;
+        this.gitWritable = gitWritable;
+    }
+
+    /**
+     * The sandbox the git tool runs git in: the only one that may write a repository's
+     * {@code .git} folder. Every other sandbox mounts it read only, so a program there cannot plant
+     * a filter driver or a hook that git would run later. No script option turns this on.
+     */
+    public static SandboxKind forGit(Function<Settings, SandboxBackend> backends) {
+        return new SandboxKind(backends, true);
+    }
+
+    /** {@link #forGit(Function)} with the standard backends. */
+    public static SandboxKind forGit() {
+        return forGit(SandboxKind::standardBackend);
     }
 
     /** What a backend is made from: the declared isolation and the container settings. */
@@ -288,7 +308,7 @@ public final class SandboxKind extends GenericKind {
 
     @Override
     protected Tool build(String name, Options o, Path baseDir, EffectContext context) {
-        return new SandboxTool(name, checked(o, baseDir, true), context);
+        return new SandboxTool(name, checked(o, baseDir, true), context, gitWritable);
     }
 
     /** Reaches the workspace; with a network it reads from and sends to the outside; it changes things. */

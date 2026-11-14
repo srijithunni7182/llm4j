@@ -39,6 +39,7 @@ The container runtime is driven through its command line (`docker` or `podman`, 
 |---|---|
 | The workspace as the **only mount**, at `/workspace` | The program sees none of the host's files but the workspace's |
 | Protected paths (`protect:` on the workspace) **mounted read only** over it | A program that edits the tests it is judged by |
+| Every `.git` folder **mounted read only** (only the `git` tool's own sandbox writes it) | A program that plants a hook, a filter driver or a URL rewrite in `.git/config` for git to run later |
 | `--read-only` root and a small `/tmp` | Changes to the image that outlive the run |
 | `--cap-drop ALL`, `no-new-privileges`, the workspace owner's user id | Privilege inside the container; files the host user can't remove |
 | `--network none` (the default) | Any network at all |
