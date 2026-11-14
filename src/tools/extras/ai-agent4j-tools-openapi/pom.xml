@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.srijithunni7182</groupId>
+        <artifactId>ai-agent4j-tools-extras-parent</artifactId>
+        <version>6.2.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ai-agent4j-tools-openapi</artifactId>
+    <packaging>jar</packaging>
+
+    <name>AI Agent4J - Tools: openapi</name>
+    <description>The openapi tool kind: one tool per operation of an OpenAPI description, called through the shared HTTP layer (address rules, timeouts, size caps, retries that know "never sent" from "may have been"). The specification is read through the same guarded layer; the parser never fetches on its own. Brings swagger-parser.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.swagger.parser.v3</groupId>
+            <artifactId>swagger-parser</artifactId>
+            <version>${swagger-parser.version}</version>
+        </dependency>
+    </dependencies>
+</project>

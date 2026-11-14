@@ -28,12 +28,16 @@
         <module>ai-agent4j-tools-documents</module>
         <module>ai-agent4j-tools-git</module>
         <module>ai-agent4j-tools-browser</module>
+        <module>ai-agent4j-tools-openapi</module>
     </modules>
 
     <properties>
         <!-- Apache License 2.0; brings pdfbox-io, fontbox and commons-logging (all Apache 2.0). Its Bouncy Castle
              dependencies are optional and not brought. -->
         <pdfbox.version>3.0.8</pdfbox.version>
+        <!-- Apache License 2.0; the parser of OpenAPI 3 descriptions. About 1.7 MB in 13 jars under io/swagger, plus the
+             transitive jars of other groups (swagger-core, jackson-dataformat-yaml and others). -->
+        <swagger-parser.version>2.1.19</swagger-parser.version>
     </properties>
 
     <dependencyManagement>
@@ -67,6 +71,13 @@
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
+            <version>5.3.2</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- a test certificate authority, so a test server speaks real TLS and verification stays on -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp-tls</artifactId>
             <version>5.3.2</version>
             <scope>test</scope>
         </dependency>

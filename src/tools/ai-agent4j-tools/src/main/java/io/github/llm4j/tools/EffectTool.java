@@ -122,7 +122,7 @@ public final class EffectTool implements Tool {
                 delegate.perform(args, policy.idempotent() ? idempotencyKey(journal, key) : null);
         switch (outcome.status()) {
             case OK -> journal.put(key, new EffectJournal.Entry(DONE, outcome.text()));
-            case FAILED -> {
+            case FAILED, CREDENTIAL_REJECTED -> {
                 journal.put(key, new EffectJournal.Entry(FAILED, outcome.text()));
                 giveBackOrdinal(callId); // the retry of a failed call is the same call
             }

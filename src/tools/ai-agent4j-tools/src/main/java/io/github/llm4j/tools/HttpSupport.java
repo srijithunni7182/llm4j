@@ -75,11 +75,31 @@ public final class HttpSupport {
 
     public HttpSupport(
             NetPolicy policy, EffectContext context, Duration timeout, long maxBytes, int retries) {
+        this(policy, context, timeout, maxBytes, retries, null, null);
+    }
+
+    /**
+     * As above, trusting {@code trust} (and the matching socket factory) instead of the JDK's
+     * default certificate authorities: for a service behind a private authority, or a test server
+     * with its own. Certificate and host-name checks stay on whatever is passed; there is no way
+     * here to turn them off.
+     *
+     * @param sslSocketFactory made from {@code trust}, or null for the JDK's defaults
+     * @param trust the authorities to trust, or null for the JDK's defaults
+     */
+    public HttpSupport(
+            NetPolicy policy,
+            EffectContext context,
+            Duration timeout,
+            long maxBytes,
+            int retries,
+            javax.net.ssl.SSLSocketFactory sslSocketFactory,
+            javax.net.ssl.X509TrustManager trust) {
         this.policy = policy;
         this.context = context;
         this.maxBytes = maxBytes;
         this.retries = retries;
-        this.client =
+        OkHttpClient.Builder builder =
                 new OkHttpClient.Builder()
                         .followRedirects(false)
                         .followSslRedirects(false)
@@ -87,8 +107,10 @@ public final class HttpSupport {
                         .connectTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
                         .readTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
                         .writeTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
-                        .callTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
-                        .build();
+                        .callTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        if (sslSocketFactory != null && trust != null)
+            builder.sslSocketFactory(sslSocketFactory, trust);
+        this.client = builder.build();
     }
 
     /**
@@ -253,8 +275,11 @@ public final class HttpSupport {
             }
             t = t.getCause();
         }
-        return new MaybeSentFailure(
-                e instanceof SocketTimeoutException ? "timed out" : "connection lost");
+        // OkHttp's whole-call timeout surfaces as an InterruptedIOException, not a SocketTimeoutException
+        boolean timedOut = false;
+        for (Throwable c = e; c != null && !timedOut; c = c.getCause())
+            timedOut = c instanceof SocketTimeoutException || c instanceof java.io.InterruptedIOException;
+        return new MaybeSentFailure(timedOut ? "timed out" : "connection lost");
     }
 
     private void backoff(int attempt, Duration retryAfter) {
