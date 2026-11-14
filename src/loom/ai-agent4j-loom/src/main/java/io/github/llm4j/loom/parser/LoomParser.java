@@ -4455,15 +4455,19 @@ public class LoomParser {
     private ObserveStmt parseObserveStatement() {
         Token labelToken = consume(TokenType.STRING_LITERAL, "Expect observation label.");
         consume(TokenType.LBRACE, "Expect '{' before expression.");
-        // The expression is variables, dotted paths and strings joined by +: it becomes a text
-        // with a {path} for each variable, filled like any other.
+        // The expression is variables, dotted paths and strings joined by + (or listed with
+        // commas, kept as ", "): it becomes a text with a {path} for each variable, filled like
+        // any other.
         StringBuilder expression = new StringBuilder();
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             Token t = advance();
             if (t.getType() == TokenType.STRING_LITERAL) expression.append(t.getValue());
             else if (t.getType() == TokenType.IDENTIFIER) expression.append(placeholder(t.getValue())); // a.b is one token
+            else if (t.getType() == TokenType.COMMA) expression.append(", ");
             else if (t.getType() != TokenType.PLUS)
-                throw error(t, "Expect variables and strings joined by + in an observe expression.");
+                throw error(
+                        t,
+                        "Expect variables and strings joined by + (or listed with commas) in an observe expression.");
         }
         consume(TokenType.RBRACE, "Expect '}' after expression.");
         return new ObserveStmt(labelToken.getValue(), expression.toString());

@@ -97,6 +97,16 @@ class PlaceholderRuleTest {
         assertThat(((CallStmt) body.get(1)).getArguments()).containsEntry("topic", "{out}");
         assertThat(((ObserveStmt) body.get(2)).getExpression()).isEqualTo("{out} and {r.field}");
         assertThat(((HandoffStmt) body.get(3)).getPayload()).isEqualTo("{r}");
+        assertThat(
+                        ((ObserveStmt)
+                                        parse("workflow W(a, b) {\n observe \"x\" {a, b.kind}\n}\n")
+                                                .getWorkflows()
+                                                .get(0)
+                                                .getStatements()
+                                                .get(0))
+                                .getExpression())
+                .as("a list of values, as a model writes it")
+                .isEqualTo("{a}, {b.kind}");
         assertThatThrownBy(() -> parse("workflow W(a) { observe \"x\" {a 1} }\n"))
                 .hasMessageContaining("joined by +");
     }

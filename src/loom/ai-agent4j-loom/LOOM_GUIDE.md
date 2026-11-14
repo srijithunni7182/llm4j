@@ -1774,7 +1774,7 @@ workflow ApprovedTransfer(amount) {
 
 A variable is replaced where a text says `{name}` or `{name.field}`, and nowhere else. A plain word is always a word, even when a variable has that name: with a variable `out`, `"length out of range: {out}"` keeps "out of range" as written and fills in only `{out}`. This holds in every text the runtime fills in: the payloads of `delegate`, `broadcast` and `handoff`, the messages of `human_prompt`, `note` and `halt`, `set` and `return` values, task and `call` arguments, observe labels and expressions, and the `checkpoint` and `rewind` texts.
 
-Where a text is expected, a variable can also be written on its own, and then it means its value: `delegate draft to Editor`, `handoff reply to Support`, `call Helper(topic = topic)` and `observe "Inputs" {first + " and " + second}` are the same as `"{draft}"`, `"{reply}"`, `topic = "{topic}"` and `"{first} and {second}"`.
+Where a text is expected, a variable can also be written on its own, and then it means its value: `delegate draft to Editor`, `handoff reply to Support`, `call Helper(topic = topic)` and `observe "Inputs" {first + " and " + second}` are the same as `"{draft}"`, `"{reply}"`, `topic = "{topic}"` and `"{first} and {second}"`. An observe expression may also list values with commas: `{first, second}` is `"{first}, {second}"`.
 
 ```loom
 agent Checker { model: "gemini-2.5-flash"  system: "You check lengths." }
