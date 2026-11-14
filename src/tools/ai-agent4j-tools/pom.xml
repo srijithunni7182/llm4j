@@ -200,6 +200,11 @@
                                 <param>io.github.llm4j.tools.PatchApplier*</param>
                                 <param>io.github.llm4j.tools.SnapshotStore*</param>
                                 <param>io.github.llm4j.tools.WorkspaceTool*</param>
+                                <param>io.github.llm4j.tools.SandboxKind*</param>
+                                <param>io.github.llm4j.tools.SandboxTool*</param>
+                                <param>io.github.llm4j.tools.Leases*</param>
+                                <param>io.github.llm4j.tools.HeadAndTail*</param>
+                                <param>io.github.llm4j.tools.EgressProxy*</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.tools.compute.*Test</param>
@@ -207,7 +212,11 @@
                                 <param>io.github.llm4j.tools.scan.*Test</param>
                                 <param>io.github.llm4j.tools.CsvTest</param>
                                 <param>io.github.llm4j.tools.workspace.*Test</param>
+                                <param>io.github.llm4j.tools.sandbox.*Test</param>
+                                <param>io.github.llm4j.tools.ContainerSandboxArgumentsTest</param>
                             </targetTests>
+                            <!-- the Docker tests need a daemon and are not part of the score -->
+                            <excludedGroups><param>integration</param></excludedGroups>
                             <mutationThreshold>85</mutationThreshold>
                             <threads>4</threads>
                             <timeoutFactor>3</timeoutFactor>

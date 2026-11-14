@@ -578,6 +578,7 @@
                                 <param>io.github.llm4j.loom.security.Capabilities</param>
                                 <param>io.github.llm4j.loom.tools.ReachDeclaration</param>
                                 <param>io.github.llm4j.loom.tools.DiscoveredKinds</param>
+                                <param>io.github.llm4j.loom.security.SandboxAudit</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.loom.autonomy.expr.*Test</param>
@@ -596,6 +597,7 @@
                                 <param>io.github.llm4j.loom.tools.KindDiscoveryTest</param>
                                 <param>io.github.llm4j.loom.cli.KindsFromJarsTest</param>
                                 <param>io.github.llm4j.loom.cli.ToolKindCharacterizationTest</param>
+                                <param>io.github.llm4j.loom.security.SandboxAuditTest</param>
                             </targetTests>
                             <excludedTests>
                                 <param>io.github.llm4j.loom.ladder.LadderAuditTest</param>
