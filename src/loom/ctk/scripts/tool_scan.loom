@@ -1,0 +1,11 @@
+// Canonical CTK test: tool_scan
+// A scan tool reports what it found as a rule and a place, never the match. mocks/tool_scan.json holds the text.
+
+substitution: braces
+
+tool Scan { use: scan }
+
+workflow main(text) {
+    use Scan(text = text) -> found
+    note "{found.count} found"
+}

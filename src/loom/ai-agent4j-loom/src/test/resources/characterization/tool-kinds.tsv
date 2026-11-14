@@ -401,6 +401,11 @@ src/loom/ctk/scripts/string_escapes.loom	dcc03be1590b7e8c	8cacacb6c2156f90	e3b0c
 src/loom/ctk/scripts/substitution_braces.loom	c742e2c9acb70b92	27cae09436a926fd	e3b0c44298fc1c14
 src/loom/ctk/scripts/task_basic.loom	99dcf0d77122829f	c626dc7ec3c107f6	e3b0c44298fc1c14
 src/loom/ctk/scripts/task_rejected.loom	0e5c3e2ff9dd4671	19e230a24f30d13a	e3b0c44298fc1c14
+src/loom/ctk/scripts/tool_compute.loom	0c50e7e44a3549fb	0ab51251374f0049	e3b0c44298fc1c14
+src/loom/ctk/scripts/tool_sandbox.loom	c3af1077556aba85	fc142be0952d9e42	e3b0c44298fc1c14
+src/loom/ctk/scripts/tool_scan.loom	7f6f0732525432db	a1a62dfc4cdaec9b	e3b0c44298fc1c14
+src/loom/ctk/scripts/tool_verify.loom	131341726ca0c85b	71bc27857fc58c62	e3b0c44298fc1c14
+src/loom/ctk/scripts/tool_workspace.loom	7071ff5fcb6fc685	125c6e1febc589ed	e3b0c44298fc1c14
 src/loom/ctk/scripts/use_tool.loom	3dd1119ba0a0826d	483ad710d3bc3cf0	480d0ba6c44a0bdf
 src/loom/loom-inspect/src/main/resources/io/github/llm4j/loom/inspect/sim/sim.loom	51f872bc1640fac8	8c152ac4a77d406f	e3b0c44298fc1c14
 src/loom/starters/01-hello/main.loom	2c2a095bb05cde19	dcd7bc702bda33b7	e3b0c44298fc1c14

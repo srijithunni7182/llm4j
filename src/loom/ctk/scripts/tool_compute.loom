@@ -1,0 +1,12 @@
+// Canonical CTK test: tool_compute
+// A compute tool works in exact decimals: 0.1 + 0.2 is 0.3, and a CSV column sums exactly. mocks/tool_compute.json holds the input.
+
+substitution: braces
+
+tool Calc { use: compute }
+
+workflow main(text) {
+    use Calc(action = "calc", expression = "0.1 + 0.2") -> sum
+    use Calc(action = "csv", text = text, column = "amount", op = "sum") -> total
+    note "{sum.value} {total.value}"
+}

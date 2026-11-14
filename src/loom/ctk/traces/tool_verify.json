@@ -1,0 +1,9 @@
+{
+  "scriptName": "tool_verify.loom",
+  "workflowName": "main",
+  "steps": [
+    { "kind": "use", "tool": "Check" },
+    { "kind": "use", "tool": "Check" },
+    { "kind": "note", "text": "1 of 2 failed; unreadable: 1 failed" }
+  ]
+}

@@ -1,0 +1,14 @@
+// Canonical CTK test: tool_sandbox
+// A sandbox runs an allow-listed program by name with its input, and reports the isolation it applied. It uses isolation: process
+// (which needs network: open) so the kit runs without a container runtime; a runtime may run it at a stronger level.
+// mocks/tool_sandbox.json holds the input.
+
+substitution: braces
+
+tool Data { use: workspace  root: "ctk-work"  allow: "**" }
+tool Box  { use: sandbox  workspace: Data  isolation: process  network: open  allow: "cat"  unattended: true }
+
+workflow main(text) {
+    use Box(program = "cat", stdin = text) -> printed
+    note "{printed.exit} {printed.stdout}"
+}

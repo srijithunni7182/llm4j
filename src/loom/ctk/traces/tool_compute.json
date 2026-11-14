@@ -1,0 +1,9 @@
+{
+  "scriptName": "tool_compute.loom",
+  "workflowName": "main",
+  "steps": [
+    { "kind": "use", "tool": "Calc" },
+    { "kind": "use", "tool": "Calc" },
+    { "kind": "note", "text": "0.3 3.30" }
+  ]
+}

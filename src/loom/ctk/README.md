@@ -48,6 +48,15 @@ the list. A runtime emits one `fanout_exceeded` trace event carrying `count`, `m
 is the canonical scenario; `mocks/for_each_max.json` holds a plan within the bound and one over it, and `traces/for_each_max.json` the expected outcome of each. The
 Java runtime runs it in `ForEachMaxCtkConformanceTest` (module `ai-agent4j-loom`).
 
+## Tools that compute, check, edit and run (phase 35)
+
+`scripts/tool_compute.loom`, `tool_verify.loom`, `tool_scan.loom`, `tool_workspace.loom` and `tool_sandbox.loom` are the canonical scenarios
+of the `compute`, `verify`, `scan`, `workspace` and `sandbox` kinds, run with the real kinds and inputs from `mocks/tool_*.json`; `traces/`
+holds the tools used, in order, and the note each script writes from the results: exact decimals (`0.1 + 0.2` is `0.3`), a report's
+counts and an unreadable report counted as one failure, a finding counted without its match, a restore that puts a file back exactly,
+and a program run by name with its input at the isolation it reports. The sandbox scenario uses `isolation: process` so the kit runs
+without a container runtime. The Java runtime runs them in `ToolKindsCtkConformanceTest` (module `ai-agent4j-loom`).
+
 ## Remote agents (A2A)
 
 `delegate "…" to Remote -> result` sends a task to an agent reached over A2A, and `ask Channel "…" -> result` asks the people behind an agent channel. A runtime emits `remote` trace events (`send`, `state`, `done`, a cancel) and `exchange` events (`question`, `reply`, `authorization`, `file`) that hold a digest and sizes, never the remote's text. `scripts/a2a_call.loom` is the canonical scenario; `mocks/a2a_call.json` holds three cases (a remote that completes, one that asks a question first, and a card that names another host) as the states the remote moves through and what the channel answers; `traces/a2a_call.json` holds what each must give: the bound text, the number of messages sent (a resume never sends again), the questions asked and the trace kinds. A card on another host is refused before anything is sent. The Java runtime runs it in `A2ACtkConformanceTest` (module `ai-agent4j-loom`) against the mock A2A agent of `src/a2a-testkit`. `scripts/a2a_expose.loom` and `traces/a2a_expose.json` are the scenario for an exposed workflow: the card an `expose` block shows outsiders, built from the script alone, in terms of what a client reads (name, description, accepted media types, skills, address), with words that must not appear in it (the channel, the workflow's text) and an address that is not https, which is refused. The Java runtime runs it in `A2AExposeCtkConformanceTest`. No other runtime in this repository implements Loom, so there is nothing else to extend (verification P9).

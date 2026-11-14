@@ -1,0 +1,8 @@
+{
+  "scriptName": "tool_sandbox.loom",
+  "workflowName": "main",
+  "steps": [
+    { "kind": "use", "tool": "Box" },
+    { "kind": "note", "text": "0 hello from the kit" }
+  ]
+}
