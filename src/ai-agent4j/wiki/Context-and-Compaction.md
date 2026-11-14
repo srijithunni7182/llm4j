@@ -4,10 +4,17 @@ An agent's prompt grows with every step: each thought, tool call and result is a
 later it no longer fits the model's **context window**. This page is about keeping it small enough, on purpose, with
 the parts you choose: **how much room is left**, **what to do about it**, and **what must never be touched**.
 
-> **Status: complete for ai-agent4j; the layers above (Loom, the observability pages) are the next phases.** The strategies, the window catalogue and the policy (sections 2 to 8); an agent that measures its
-> context before every model call, reports it, and compacts automatically, in both loops (sections 9 to 11); a `summarize` strategy
-> (section 3); recovery from a provider's "prompt too long" error and early refusal of a prompt that cannot fit (section 12); and a
-> conversation history with a window in tokens (section 13) all work, and a short list of models ships in the window catalogue (section 7).
+> **Status: complete for ai-agent4j; the layers above (Loom, the observability pages) are the next phases.** All of this works:
+>
+> | What | Section |
+> |---|---|
+> | The strategies, the window catalogue and the policy | 2 to 8 |
+> | An agent that measures its context before every model call, reports it, and compacts automatically, in both loops | 9 to 11 |
+> | A `summarize` strategy | 3 |
+> | Recovery from a provider's "prompt too long" error, and early refusal of a prompt that cannot fit | 12 |
+> | A conversation history with a window in tokens | 13 |
+> | A short list of models in the window catalogue | 7 |
+>
 > The design is in [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it.
@@ -226,11 +233,16 @@ ReActAgent agent = ReActAgent.builder()
         .build();
 ```
 
-`ContextWindows.defaults()` holds the four current Claude models (`claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`), each
-with a 1,000,000-token window and the model's maximum output (128,000) kept free for the reply, so 872,000 tokens usable for the prompt.
-`windows.properties` in the library says what each entry was checked against and when (the provider's model overview, 2026-10-14). Entries are added
-only after they are checked against the provider's own documentation, so Gemini, Sarvam and Ollama models are **not** listed yet: Ollama windows depend on
-the model and on the `num_ctx` you run it with, so list your own. Extend or override the list with `with(...)` or a file of your own.
+`ContextWindows.defaults()` holds the four current Claude models (`claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`). Each has:
+
+- a 1,000,000-token window;
+- the model's maximum output (128,000) kept free for the reply, so 872,000 tokens usable for the prompt.
+
+`windows.properties` in the library says what each entry was checked against and when (the provider's model overview, 2026-10-14).
+
+**Not listed yet:** Gemini, Sarvam and Ollama models. Entries are added only after they are checked against the provider's own documentation. Ollama windows depend on the model and on the `num_ctx` you run it with, so list your own.
+
+Extend or override the list with `with(...)` or a file of your own.
 
 ## 8. The policy
 

@@ -74,9 +74,29 @@ Keep keys in the secret store: `weave secrets set OPENAI_API_KEY` binds the key 
 
 ## Current information: `grounding: web`
 
-When an agent needs facts newer than its model, give it `grounding: web` rather than a search tool, if its provider can (Perplexity, Claude, Gemini, or OpenAI and xAI through a provider with `api: responses`). The sources come back typed in `{name_citations}`, searches are capped with `budget { searches: N }`, and `weave check` refuses a model or setting that cannot ground. It is a new way to read untrusted content: `weave audit` counts the agent as exposed (LA20) whatever its `allow:` list says, so keep it away from private data and from tools that send or act. Test it offline with `ScriptedClient.sources(...)` and assert with `citesOnlyFrom(...)`. Details: the Loom guide, "Searching the web".
+**Facts newer than the model.** Give the agent `grounding: web` rather than a search tool, if its provider can: Perplexity, Claude, Gemini, or OpenAI and xAI through a provider with `api: responses`.
 
-When an agent has to look at a picture, listen to a recording or read a PDF, send the file with the task: `delegate "What is the total?" to Vision attach image "{receipt}" -> total`, with `media_root: "./assets"` at the top naming the one folder files may come from (an extractor takes it as `extract Receipt from image "{receipt}" -> fields`). `weave check` refuses a model that cannot take that kind, and an agent with `guard { pii: mask }` refuses media until it says `media: unscanned`, because masking cannot read a picture. A file chosen at run time is flagged by `weave audit` (LA23). Details: the Loom guide, "Sending pictures, recordings and documents"; [Media input](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Media-Input.md).
+- The sources come back typed in `{name_citations}`.
+- Searches are capped with `budget { searches: N }`.
+- `weave check` refuses a model or setting that cannot ground.
+
+**It is a new way to read untrusted content.** `weave audit` counts the agent as exposed (LA20) whatever its `allow:` list says, so keep it away from private data and from tools that send or act.
+
+**Test it offline** with `ScriptedClient.sources(...)` and assert with `citesOnlyFrom(...)`. Details: the Loom guide, "Searching the web".
+
+**A picture, a recording or a PDF.** Send the file with the task:
+
+```text
+delegate "What is the total?" to Vision attach image "{receipt}" -> total
+```
+
+- Put `media_root: "./assets"` at the top, naming the one folder files may come from.
+- An extractor takes it as `extract Receipt from image "{receipt}" -> fields`.
+- `weave check` refuses a model that cannot take that kind.
+- An agent with `guard { pii: mask }` refuses media until it says `media: unscanned`, because masking cannot read a picture.
+- A file chosen at run time is flagged by `weave audit` (LA23).
+
+Details: the Loom guide, "Sending pictures, recordings and documents"; [Media input](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Media-Input.md).
 
 ## Tasks: the steps with no model
 
@@ -221,7 +241,14 @@ Put what every agent must know (tone, house style, shared facts, a glossary, the
 
 ### Rules about what must never be said: a policy, not a prompt
 
-A rule that must hold does not belong in `shared_prompt` or in an agent's prompt: a prompt is a wish, and a model can ignore it. Write it in a policy file (`policies/house-rules.md`: a `## rule_id` heading, then what breaking it looks like) with the person who owns compliance, declare an `evaluator` and a `policy`, and put `check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }` before every exit. For each agent ask: do its words reach a person? Those agents get tone and task only. With a policy declared, Loom refuses unchecked model text at the return of the run and in what an agent sends, and `weave check` names the path. See `LOOM_GUIDE.md` ("Policies: rules checked at the edge") and starter 17.
+A rule that must hold does not belong in `shared_prompt` or in an agent's prompt: a prompt is a wish, and a model can ignore it.
+
+1. **Write it in a policy file** (`policies/house-rules.md`: a `## rule_id` heading, then what breaking it looks like) with the person who owns compliance.
+2. **Declare** an `evaluator` and a `policy`.
+3. **Put a check before every exit:** `check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }`.
+4. **For each agent ask:** do its words reach a person? Those agents get tone and task only.
+
+With a policy declared, Loom refuses unchecked model text at the return of the run and in what an agent sends, and `weave check` names the path. See `LOOM_GUIDE.md` ("Policies: rules checked at the edge") and starter 17.
 
 ### A step a person may stop
 
@@ -406,7 +433,9 @@ In a Maven project the same classes go in `src/main/java` and the services file 
   (a tool returns the explanation as text; a task throws `TaskNotPerformed` or returns `rejected(...)`).
 - **A tool that acts on the world** (sends, writes, pays) overrides `requiresApproval(args)` to ask a person, and is listed in the agent's `approve: [Name]` in the script. If it must always happen, it is not a tool: make it a task.
 - **A task that changes things** says so (`Task.changes(...)` with an `EffectPolicy`, or the default `CHANGES`) and uses `ctx.idempotencyKey()` with the receiver, so a resumed run does not do it twice.
-- **What Loom checks is the connection**: `weave check ... --loot ...` with the classes on the class path names a tool or task that cannot be found. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are still written (by the agent, as part of writing the code) with the project's own test framework and run by the project's own build (Maven, npm, and so on); `weave` does not run, provide a harness for, or check them. Write them: given this input, this output, including the refusal.
+- **What Loom checks is the connection.** `weave check ... --loot ...` with the classes on the class path names a tool or task that cannot be found.
+- **What Loom does not check is your code.** Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are still written (by the agent, as part of writing the code) with the project's own test framework and run by the project's own build (Maven, npm, and so on). `weave` does not run, provide a harness for, or check them.
+- **Write them:** given this input, this output, including the refusal.
 - **Name result variables so they cannot be ordinary words in your text** (`slug_result`, not `slug`): a variable name is replaced everywhere in a string.
 
 ## When the script gets long: split it into files
@@ -472,8 +501,7 @@ What to know before you cut (each of these has caught people out):
 
 ## Things that bit us (so they do not bite you)
 
-- **Variable names are replaced everywhere in a string, braces or not.** A workflow parameter called `consensus` turned "Previous consensus: {consensus}"
-  into "Previous old: old". Name variables so they can never be an ordinary word in your prompts (`final_text`, `prior`, `feedback_text`).
+- **A variable is replaced only where a text says `{name}`.** A plain word stays a word, even when a variable has that name. Before 6.2.0 every occurrence was replaced, so a parameter called `consensus` turned "Previous consensus: {consensus}" into "Previous old: old". It is still good practice to name variables so they cannot be an ordinary word in your prompts (`final_text`, `prior`, `feedback_text`).
 - **A budget is a hard stop.** Exhausting it ends the run with an error and *no* output. If you want a partial answer, design a wind-down step or use
   `when_exhausted: suspend`.
 - **`handoff` to an agent makes one more model call.** Count it in your cost model.
@@ -493,4 +521,19 @@ If an agent loops on tools: it has a `context` block, or you decided with the us
 
 ## When the work splits into pieces that run at once
 
-`call` runs a workflow to the end. When pieces can run at the same time and you want to watch them, use `start`, `wait`, `cancel` and `supervise` (the guide's [Starting workflows and supervising them](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise); pattern 12 of the patterns skill, and the starter set's number 18). Every `start` carries a budget, a handle is never given to a model, and a child's outcome is a value the script reads (`work is ok`). Test it with `weave test`: `starts:`, `children:`, `fired:` and `judges:` in `expect:`, and a top-level `children:` that scripts a child (a list of states on the virtual clock) so a supervisor is tested with no model and no real clock. A child can also report typed progress (`progress { }` and `report { }`) that the parent reads as `work.progress.stage`. A parent and a child can also tell each other things while the child runs (`notify`, `wait signal`, `when signal`), and a parent can react to whichever child needs it first (`wait any`); what they carry is unchecked text, never a steer's text.
+`call` runs a workflow to the end. When pieces can run at the same time and you want to watch them, use `start`, `wait`, `cancel` and `supervise` (the guide's [Starting workflows and supervising them](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md#starting-workflows-and-supervising-them-start-wait-cancel-steer-supervise); pattern 12 of the patterns skill, and the starter set's number 18).
+
+**The rules**
+
+- Every `start` carries a budget.
+- A handle is never given to a model.
+- A child's outcome is a value the script reads (`work is ok`).
+
+**Test it** with `weave test`: `starts:`, `children:`, `fired:` and `judges:` in `expect:`, and a top-level `children:` that scripts a child (a list of states on the virtual clock), so a supervisor is tested with no model and no real clock.
+
+**Talking while the child runs**
+
+- A child can report typed progress (`progress { }` and `report { }`) that the parent reads as `work.progress.stage`.
+- A parent and a child can tell each other things (`notify`, `wait signal`, `when signal`).
+- A parent can react to whichever child needs it first (`wait any`).
+- What they carry is unchecked text, never a steer's text.
