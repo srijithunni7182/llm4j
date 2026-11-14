@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D11 are taken, seven decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D12 are taken, six decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -18,7 +18,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D9 | Typed command adapters | **taken** (a `command` kind on the sandbox backend: an author's template, typed `param.<name>` options, isolation required) |
 | D10 | `weave connect`: authoring an integration | **taken** (deterministic first for OpenAPI and MCP, then model-assisted for a system with no spec, reusing the `generate` gates; four safety rules) |
 | D11 | Recording and replaying tool results | **taken** (a small change: `Capture` reads the `use` results already in the journal into `tools:`) |
-| D12 | Health and drift | open |
+| D12 | Health and drift | **taken** (pins checked offline by `check`; `doctor` for reachability only; live drift through `connect --refresh --check`) |
 | D13 | The documentation and the code agree | open |
 | D14 | Security rules and documents | open |
 | D15 | Testing: fakes, guards, canaries | open |
@@ -98,7 +98,7 @@ agent Shop { tools: [Pet_get, Pet_add]  approve: [Pet_add] }
 | MCP `destructiveHint` set, or no hint | changes | `effects: { tool: changes }` |
 | MCP `idempotentHint: true` | safe to repeat | `on_unknown: retry` |
 **The specification says clients MUST treat tool annotations as untrusted unless the server is trusted** (D6), so the tooling shows an annotation as the server's word and a person approves the effect it writes; the annotation field names and defaults were not read from the schema page and are checked when 36a starts. MCP's `openWorldHint` is left unmapped (the audit's three legs do not correspond to it cleanly) and is shown in the audit note.
-**Pins for drift.** A `pin` option on an `openapi` tool and on an `mcp` block holds a hash of the spec or of the server's tool list including its annotations. `weave check` verifies a local spec file against its pin offline and warns on a mismatch; `weave doctor --network` compares the pin with a remote spec or a live server (D12).
+**Pins for drift.** A `pin` option on an `openapi` tool and on an `mcp` block holds a hash of the spec or of the server's tool list including its annotations. `weave check` verifies a local spec file against its pin offline and warns on a mismatch; live drift is reported by `weave connect … --refresh --check`, not by `doctor`, which never makes a request with credentials (D12).
 **What this gives the MCP hints:** `weave mcp list` (the missing command) becomes the caller of `McpEffects`, and the guide is corrected to say the hints are read by that command and written into the script, not "used when read" (D13).
 **Cost, accepted:** scripts are more explicit and a little longer, and someone who hand-writes a tool without running `connect` gets the cautious default.
 
@@ -248,15 +248,20 @@ tool Resize {
 
 ## D12. Health and drift
 
-**Why.** Systems change: an API drops an operation, an MCP server renames a tool. Nothing detects it today (`doctor` checks keys and models).
+**Why.** Systems change: an API drops an operation, an MCP server renames a tool, and nothing notices until a run fails. **Read:** `weave doctor` produces `Check(name, status, reason, action)` entries, and its connectivity probe is documented as *a TLS connect to a host, with no request and no credentials*; it never makes an authenticated call. So live drift cannot live in `doctor` without bending that convention (D4 said it would; it is corrected).
 
-- **A. The pins of D4 checked in two places:** `weave check` compares a local spec file to its `pin` offline and warns on a mismatch; `weave doctor --network` fetches each spec and MCP tool list and reports a difference, and tests each endpoint's reachability without making a call that changes anything.
-- **B. `doctor` only.**
+- **A. Pins checked offline, `doctor` for reachability only, and an explicit command for live drift.**
+- **B. `doctor` fetches live specs and server lists,** which breaks its no-request, no-credentials convention.
 - **C. Nothing.**
 
-**Recommendation: A.** The pins already exist for D4, so drift detection costs a comparison. `doctor --network` never calls an operation that changes anything.
-
-**Decision (owner):** open.
+**Decision (owner): option A.**
+1. **`weave check` compares the pins offline.** A local spec file is hashed and compared to each tool's `pin:`; a mismatch is a warning (the LA35 of D14 in the audit); a declared integration with no pin gets a hint to run `connect --refresh`, not a warning. The pin of an OpenAPI tool covers **that operation's signature** (method, path, parameters, request schema), so changes to operations nobody uses raise no noise; the pin of an `mcp` block covers the server's tool list (names, input schemas, annotations).
+2. **`weave doctor` adds reachability only:** a TLS connect, with the existing probe, to each integration's host (the OpenAPI server, an `http` `base_url`, a remote MCP address); for a stdio MCP server it checks that the program (or the container runtime and image) exists, without starting it.
+3. **Live drift is `weave connect openapi|mcp … --refresh --check`:** it re-reads the live spec or server (an MCP server starts under its declared isolation), prints the difference against the pins and exits non-zero on drift; it never writes; it is built for CI and runs under the credentials it is given (`env.` or `invoker.`), which is why it is an explicit command and not part of `doctor`.
+4. **Reads only:** refresh and check list and describe (a spec fetch, an MCP discovery and `tools/list`); they never call an operation.
+5. **The pin's definition lives in the docs,** normalized so cosmetic changes (ordering, descriptions) do not flip it, and it is tested.
+**Corrects D4:** the pins are verified offline by `check`; live drift is reported by `connect --refresh --check`; `doctor` checks reachability only.
+**Cost, accepted:** per-operation pins are a little more work than one hash per spec, and they keep drift reports about the operations actually used.
 
 ## D13. The documentation and the code agree
 

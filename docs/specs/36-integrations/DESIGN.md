@@ -40,7 +40,7 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 
 **Two doors, one control layer.** A system is reached through OpenAPI, MCP, a command, a file or a document, a page, or plain `http`. Every door yields tools that carry, from phase 35's `profile`, an effect, a reach and an isolation, and that run through the same guards (principle 33).
 
-**Declared effects and pins.** The audit runs nothing and reads no files, so it cannot ask an MCP server for its tools or open a spec. The tooling does that once: `weave connect` and `weave mcp list --write` read the spec or the server, propose each operation's effect and retry behaviour, and, when a person approves, write them into the script as declared values with a `pin` (a hash) that later detects drift. `weave check` compares a local spec with its pin offline; `weave doctor --network` compares a remote one. There is no lockfile.
+**Declared effects and pins.** The audit runs nothing and reads no files, so it cannot ask an MCP server for its tools or open a spec. The tooling does that once: `weave connect` and `weave mcp list --write` read the spec or the server, propose each operation's effect and retry behaviour, and, when a person approves, write them into the script as declared values with a `pin` (a hash) that later detects drift. `weave check` compares a local spec with its pin offline; live drift is reported by `weave connect … --refresh --check`; `weave doctor` checks reachability only (a TLS connect, no request, no credentials). There is no lockfile.
 
 **A guided way in.** `weave connect` reads an OpenAPI file, an MCP server, or a command's help, and writes one tool declaration per chosen operation with the effects proposed and approved and the pin, test fakes from the examples, and runs the audit. Where there is no spec, a model drafts a typed command adapter or an `http` tool, and code verifies the draft against samples before anything is emitted (principle 36).
 
@@ -52,7 +52,7 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 | 36b | **Reach.** The modern MCP era and Streamable HTTP, carrying the consumer's token (D6, D8); `invoker.NAME` accepted by every door; bounded pagination | |
 | 36c | **Safe commands.** MCP stdio servers under the isolation rules; the typed `command` kind on the sandbox backend | |
 | 36d | **Authoring.** `weave connect`, deterministic first, model-assisted for systems without a spec | |
-| 36e | **Replay and health.** Tool results in `capture` and `regress`; drift and endpoint checks | |
+| 36e | **Replay and health.** `use` results in `capture`; pins checked by `check`, reachability in `doctor`, live drift in `connect --refresh --check` | |
 | 36f | **The ecosystem** pass and the time-to-first-safe-call benchmark | |
 
 ## 4. Risks (for the owner to weigh against the decisions)
