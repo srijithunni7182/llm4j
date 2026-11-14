@@ -84,8 +84,12 @@ class StringEscapesTest {
                 changed.add(repo.relativize(p).toString());
             }
         }
-        // the one script written to show the escapes (CTK scenario string_escapes); any other would
-        // be a script whose meaning changed, and has to be a decision
-        assertThat(changed).containsExactly("src/loom/ctk/scripts/string_escapes.loom");
+        // the script written to show the escapes (CTK scenario string_escapes), and starter 20, written
+        // after them on purpose: a sandbox's args are the text of a JSON list. Any other would be a
+        // script whose meaning changed, and has to be a decision
+        assertThat(changed)
+                .containsExactlyInAnyOrder(
+                        "src/loom/ctk/scripts/string_escapes.loom",
+                        "src/loom/starters/20-data-analyst/main.loom");
     }
 }
