@@ -44,18 +44,36 @@ Read it this way: for choosing a label the small models were as accurate as the 
 ## How to suggest a model: the procedure
 
 1. **List the steps and sort them** (task, classifier or agent). Say which need no model.
-2. **Ask what they have and what they care about:** providers and keys, whether text may go to a hosted service (and which text), the budget per run or per month, the volume (runs per day), and how bad a wrong answer is on each step.
+2. **Ask what they have and what they care about:**
+   - providers and keys;
+   - whether text may go to a hosted service (and which text);
+   - the budget per run or per month, and the volume (runs per day);
+   - how bad a wrong answer is on each step.
 3. **Propose the cheapest candidate for each step** from the table above, and one step up as the fallback. Say why in a sentence.
-4. **Measure it on their cases before they commit.** For a classifier: `ClassifierComparison` over their labelled cases, one contender per backend, which reports accuracy, calibration, invalid replies, latency and cost per 1,000 (a live run costs a few cents). For an agent step: the golden dataset and the judge of chapters 2 to 5, with a spend cap. Chapter 11 says how to build the cases with the user.
-5. **Apply a stated rule, written down before the run.** A good one: take the cheapest model that is within 2 points of the best on accuracy, whose confidence is calibrated well enough to act on (expected calibration error 0.10 or less), and, for a step that gates something risky, whose accuracy at 80% coverage is not below the best. Do not pick on a single run or on a difference of a case or two; repeat the run.
+4. **Measure it on their cases before they commit.**
+   - *For a classifier:* `ClassifierComparison` over their labelled cases, one contender per backend. It reports accuracy, calibration, invalid replies, latency and cost per 1,000 (a live run costs a few cents).
+   - *For an agent step:* the golden dataset and the judge of chapters 2 to 5, with a spend cap.
+   - Chapter 11 says how to build the cases with the user.
+5. **Apply a stated rule, written down before the run.** A good one: take the cheapest model that
+   - is within 2 points of the best on accuracy;
+   - has confidence calibrated well enough to act on (expected calibration error 0.10 or less);
+   - and, for a step that gates something risky, has accuracy at 80% coverage that is not below the best.
+
+   Do not pick on a single run or on a difference of a case or two; repeat the run.
 6. **Write down the choice and the date,** with the numbers. Prices and models move: say when to re-run (a new model, a price change, a drop in quality in production).
 
 ## Make it cheaper: the levers, biggest first
 
 1. **Take model calls out.** A step done by a task or one classification instead of an agent. Branch early so most traffic never reaches an expensive step (`alt` before the agent, not after).
 2. **Use the smallest model that passes** (the procedure above). Different agents in one workflow can and should use different models.
-3. **Bound everything.** A `budget` at the top and on each agent that loops (`budget { tokens: 200000 calls: 150 warn_at: 80% }`, `budget { tokens: 20000 per_call: 2000 }` inside an agent, `budget 5000 tokens` on a step), `loop ... max N`, and `retry` counts that mean something. A budget that is reached has an outcome (`on_failure`, `on_exhausted`, or `when_exhausted: suspend`); chapter 9 covers it.
-4. **Send less.** Keep prompts short and the history trimmed: `context` and compaction for agents that loop on tools (chapter 14), only the fields a step needs, results of tools cut to what matters. Put the text every agent starts with in `shared_prompt` (identical, with no dates or run ids): a provider that charges less for the start of a prompt it has just seen can reuse it across agents. Loom only lays the prompt out that way; the saving is real when the shared text is long and the agents use the same model.
+3. **Bound everything.**
+   - A `budget` at the top and on each agent that loops: `budget { tokens: 200000 calls: 150 warn_at: 80% }` at the top, `budget { tokens: 20000 per_call: 2000 }` inside an agent, `budget 5000 tokens` on a step.
+   - `loop ... max N`, and `retry` counts that mean something.
+   - A budget that is reached has an outcome (`on_failure`, `on_exhausted`, or `when_exhausted: suspend`); chapter 9 covers it.
+4. **Send less.**
+   - Keep prompts short and the history trimmed: `context` and compaction for agents that loop on tools (chapter 14), only the fields a step needs, results of tools cut to what matters.
+   - Put the text every agent starts with in `shared_prompt` (identical, with no dates or run ids). A provider that charges less for the start of a prompt it has just seen can reuse it across agents.
+   - Loom only lays the prompt out that way. The saving is real when the shared text is long and the agents use the same model.
 5. **Do not sample what does not need it.** `samples: 3` triples a chat-model classifier's cost. It is for making a chat model's confidence mean something; it does nothing for Jev.
 6. **Cache in tests.** Judge verdicts and agent runs are cached by eval4j so a re-run pays only for what changed. Run free first (mocks, scripted classifiers, recorded fixtures), then live under a cap (chapter 5).
 7. **Fall back, do not over-provision.** A routing policy can try a cheap model and fall back to a stronger one only on failure, instead of always paying for the stronger.

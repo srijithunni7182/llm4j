@@ -1,10 +1,15 @@
 # OpenAI, xAI, Kimi, Qwen, Sarvam and any OpenAI-style server
 
-> **Status (phase 8, sub-phases 8a to 8c-live done).** `OpenAiCompatibleProvider` and its dialects pass the shared provider contract
-> (`ProviderContract` plus tools, reasoning text and odd-response checks). **Supported** means the contract also passes on responses *recorded
-> from the real API* (each fixture states its date and model): **OpenAI and xAI are supported** (recorded 2026-10-22), and so is **Sarvam** (recorded 2026-11-12). **Kimi, Qwen, the
-> Perplexity Orchestrator and the generic kind are preview**: their fixtures are written from documentation, or no third-party server was recorded.
-> Web grounding (provider-side search with citations) needs the Responses API for OpenAI and xAI and is described in [Web-search grounding](Web-Search-Grounding.md); this page shows plain model access over chat completions.
+> **Status (phase 8, sub-phases 8a to 8c-live done).** `OpenAiCompatibleProvider` and its dialects pass the shared provider contract (`ProviderContract` plus tools, reasoning text and odd-response checks).
+>
+> **Supported** means the contract also passes on responses *recorded from the real API* (each fixture states its date and model):
+>
+> | Status | Vendors |
+> |---|---|
+> | **Supported** | **OpenAI and xAI** (recorded 2026-10-22), and **Sarvam** (recorded 2026-11-12) |
+> | **Preview** | Kimi, Qwen, the Perplexity Orchestrator and the generic kind: their fixtures are written from documentation, or no third-party server was recorded |
+>
+> Web grounding (provider-side search with citations) needs the Responses API for OpenAI and xAI and is described in [Web-search grounding](Web-Search-Grounding.md). This page shows plain model access over chat completions.
 
 One provider, `OpenAiCompatibleProvider`, speaks the whole family that uses `POST …/chat/completions`. What differs between vendors is **data** in a
 `Dialect`; what differs between one vendor's models is in `ModelTraits`. Adding the next vendor is a constant, not a class.
@@ -55,7 +60,24 @@ safe defaults for its vendor and never fails because a catalog does not list it.
 
 ### Structured output
 
-A request can carry a `ResponseFormat` (a name and a JSON Schema whose root is an object). For OpenAI (gpt-4o and later, o1, o3 and o4) and xAI (the Grok 4 family) it is sent as `response_format: {type: "json_schema", json_schema: {name, strict, schema}}`, and the reply is held to the schema. The Responses API takes the same format flat under `text.format` (OpenAI, xAI), and Perplexity's Agent API as `response_format` with a nested `json_schema`. Anthropic and Ollama take it too, as described in [Providers and the uniform contract](Providers-and-the-Uniform-Contract.md). For any other model the field is left out, because support is recorded per model and an unknown model is never assumed to have it; ask `client.structuredOutput(model)` first. A strict schema needs every field in `required` and `additionalProperties: false`. The reply is still model output: a refusal or a reply cut at the token limit may not match, so check it. Sarvam's chat models take it too (`sarvam-105b`, GLM, Gemma, DeepSeek, Kimi and Qwen on Sarvam; checked live with `deepseekv4.1-flash-1017`). Kimi and Qwen are not switched on yet (preview vendors, no recorded fixtures), and the generic kind stays off unless its dialect says otherwise.
+A request can carry a `ResponseFormat`: a name and a JSON Schema whose root is an object.
+
+**How each API takes it**
+
+| API | Sent as |
+|---|---|
+| Chat completions: OpenAI (gpt-4o and later, o1, o3 and o4) and xAI (the Grok 4 family) | `response_format: {type: "json_schema", json_schema: {name, strict, schema}}`. The reply is held to the schema |
+| Responses API (OpenAI, xAI) | The same format, flat under `text.format` |
+| Perplexity's Agent API | `response_format` with a nested `json_schema` |
+| Anthropic and Ollama | As described in [Providers and the uniform contract](Providers-and-the-Uniform-Contract.md) |
+| Sarvam's chat models | `sarvam-105b`, GLM, Gemma, DeepSeek, Kimi and Qwen on Sarvam; checked live with `deepseekv4.1-flash-1017` |
+
+**Which models.** Support is recorded per model, and an unknown model is never assumed to have it, so for any other model the field is left out. Ask `client.structuredOutput(model)` first. Kimi and Qwen are not switched on yet (preview vendors, no recorded fixtures), and the generic kind stays off unless its dialect says otherwise.
+
+**Two rules**
+
+- A strict schema needs every field in `required` and `additionalProperties: false`.
+- The reply is still model output: a refusal or a reply cut at the token limit may not match, so check it.
 
 ## xAI, Kimi and Qwen
 
@@ -123,7 +145,21 @@ String[] ids = provider.listModels();               // GET /v1/models: ids, in t
 String first = provider.getFirstAvailableModel();   // the first id, or null when there are none
 ```
 
-`OpenAiCompatibleProvider` and `OpenAiResponsesProvider` implement `DescribableProvider`, as `GoogleProvider`, `OllamaProvider` and `AnthropicProvider` do. The path is data in the dialect (`Dialect.modelsPath()`, `/models` for OpenAI, xAI, Kimi, Qwen and the generic dialect, so a vLLM or LM Studio server answers too, and `/v2/models` for Sarvam). **Perplexity has no such endpoint** (neither the Agent API nor the Orchestrator): `listModels()` throws an `InvalidRequestException` that says so, without a network call, rather than returning a list we made up. The older `SarvamChatProvider` is not describable; Sarvam through `OpenAiCompatibleProvider.sarvam` is. The result is what the vendor lists for your key, including models that are not for chat (embeddings, images, moderation): filter by the names you use. OpenAI and xAI listings were recorded from the real APIs on 2026-10-22 (`list-models.fixture`).
+`OpenAiCompatibleProvider` and `OpenAiResponsesProvider` implement `DescribableProvider`, as `GoogleProvider`, `OllamaProvider` and `AnthropicProvider` do.
+
+**The path is data in the dialect** (`Dialect.modelsPath()`):
+
+| Vendor | Path |
+|---|---|
+| OpenAI, xAI, Kimi, Qwen and the generic dialect | `/models`, so a vLLM or LM Studio server answers too |
+| Sarvam | `/v2/models` |
+| Perplexity (neither the Agent API nor the Orchestrator) | **No such endpoint.** `listModels()` throws an `InvalidRequestException` that says so, without a network call, rather than returning a list we made up |
+
+**Sarvam.** The older `SarvamChatProvider` is not describable; Sarvam through `OpenAiCompatibleProvider.sarvam` is.
+
+**What you get.** What the vendor lists for your key, including models that are not for chat (embeddings, images, moderation). Filter by the names you use.
+
+OpenAI and xAI listings were recorded from the real APIs on 2026-10-22 (`list-models.fixture`).
 
 ## Picking the vendor from a model name
 

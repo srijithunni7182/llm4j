@@ -10,10 +10,43 @@ weave generate "Triage support emails: answer order-status questions, and send r
 weave generate --from-plan plan/plan.json --out triage
 ```
 
-1. **Questions** (at most five, only about what changes the design: who approves, what must never be sent without a person, which systems it touches, volume, which models). Each has a proposed answer; Enter takes it. `--no-ask` takes them all and lists them in the plan.
-2. **The plan** (`--plan-model` can name a stronger model for the questions and the plan while `--model` writes the files). What will be built: the agents and their models, the classifiers, the tools **and what each reaches** (`reads`, `fetches`, `writes`, `sends`), who is asked, which effects a person approves (or why none), the budget, what happens on failure, and the tests. A plan with a tool that writes or sends and no approval, or no budget, or an unknown model is refused before anything is written. `--interactive` shows it and asks; `--yes` goes on.
-3. **The files**, written into a temporary folder: the script, a prompt file for each agent, the tests, the plan, a golden-dataset stub, a README. **The tool writes most of the tests itself** (`tests/derived.test.yaml`): it runs the script with scripted models and tools down every classifier label, every enum answer, every failing step and every value the script's conditions compare with, and keeps a case for each route it finds. They record what the script does, so they pass by construction and a later change that moves a route fails one. The model writes only the cases your plan lists; one that does not hold is not repaired but listed in `tests/LEFT_OUT.md` (read it: it is either a mistake in the case or a place where the script does not follow the plan).
-4. **The gates.** The project is made only when all five pass:
+### 1. Questions
+
+At most five, and only about what changes the design: who approves, what must never be sent without a person, which systems it touches, volume, which models.
+
+- Each has a proposed answer; Enter takes it.
+- `--no-ask` takes them all and lists them in the plan.
+
+### 2. The plan
+
+`--plan-model` can name a stronger model for the questions and the plan while `--model` writes the files.
+
+**What will be built:**
+
+- the agents and their models, and the classifiers;
+- the tools **and what each reaches** (`reads`, `fetches`, `writes`, `sends`);
+- who is asked, and which effects a person approves (or why none);
+- the budget, what happens on failure, and the tests.
+
+**A plan is refused before anything is written** if it has a tool that writes or sends and no approval, no budget, or an unknown model.
+
+`--interactive` shows the plan and asks; `--yes` goes on.
+
+### 3. The files
+
+Written into a temporary folder: the script, a prompt file for each agent, the tests, the plan, a golden-dataset stub and a README.
+
+**The tool writes most of the tests itself** (`tests/derived.test.yaml`).
+
+- It runs the script with scripted models and tools down every classifier label, every enum answer, every failing step and every value the script's conditions compare with.
+- It keeps a case for each route it finds.
+- They record what the script does, so they pass by construction, and a later change that moves a route fails one.
+
+**The model writes only the cases your plan lists.** One that does not hold is not repaired but listed in `tests/LEFT_OUT.md`. Read it: it is either a mistake in the case or a place where the script does not follow the plan.
+
+### 4. The gates
+
+The project is made only when all five pass:
 
 | Gate | Passes when |
 |---|---|
@@ -23,7 +56,16 @@ weave generate --from-plan plan/plan.json --out triage
 | **G4** coverage | those cases reach at least `--coverage` percent of the steps (default 80) |
 | **G5** plan | the script has exactly the agents, classifiers, tools, effects and people the plan lists, effects the plan approves have `approve:`, and there is a budget |
 
-When a gate fails, the model is told what failed and where (the rule, the line, the failing assertion, the steps no test reaches) and gives back only the files that must change. It has at most six tries per gate and twelve in all (a syntax error is reported one at a time); an attempt that is worse than the best so far is thrown away; the generation stops at `--max-cost` (counted when `--prices` knows the model) or `--max-tokens`. If it ends without passing you are told which gate and why (exit 3, or 4 for the spend cap) and **no folder is made**; `--keep-failing` leaves the draft in `<out>.draft`.
+**When a gate fails**, the model is told what failed and where (the rule, the line, the failing assertion, the steps no test reaches) and gives back only the files that must change.
+
+| Limit | Value |
+|---|---|
+| Tries per gate | At most six |
+| Tries in all | At most twelve (a syntax error is reported one at a time) |
+| A worse attempt | An attempt that is worse than the best so far is thrown away |
+| Spend | The generation stops at `--max-cost` (counted when `--prices` knows the model) or `--max-tokens` |
+
+**If it ends without passing**, you are told which gate and why (exit 3, or 4 for the spend cap) and **no folder is made**. `--keep-failing` leaves the draft in `<out>.draft`.
 
 G5 is what keeps instructions hidden in a description from adding a tool or an effect: the plan is the only door, and you read it first.
 
@@ -37,7 +79,26 @@ How good the answers are with a real model (that is `weave eval`), whether the b
 weave generate --edit src/main/resources/main.loom "add a human approval before the reply is sent"
 ```
 
-The model proposes a **patch** (search-and-replace on the files it names, new files, or one question if the change is ambiguous). It is applied to a trial copy and held to: check, the review **compared with before** (findings added and removed; the worst-case tokens of each workflow, which may not grow more than `--worse-factor`, default 1.5), all the project's own tests (the ones the patch changes are listed), and the plan. You get the diff and those numbers. **Nothing is written** until `--apply`; a change that makes things worse needs `--accept-worse` as well. `--patch-out FILE` keeps the patch, and `--apply-patch FILE` applies it later without asking the model again (only if the files are as they were). A change cannot touch `.env`, keys, anything outside the project, or any file a workflow project does not hold.
+The model proposes a **patch**: search-and-replace on the files it names, new files, or one question if the change is ambiguous.
+
+The patch is applied to a trial copy and held to:
+
+1. the check;
+2. the review **compared with before**: findings added and removed, and the worst-case tokens of each workflow, which may not grow more than `--worse-factor` (default 1.5);
+3. all the project's own tests (the ones the patch changes are listed);
+4. the plan.
+
+You get the diff and those numbers.
+
+| Flag | Effect |
+|---|---|
+| (none) | **Nothing is written** |
+| `--apply` | Writes the change |
+| `--accept-worse` | Needed as well, for a change that makes things worse |
+| `--patch-out FILE` | Keeps the patch |
+| `--apply-patch FILE` | Applies it later without asking the model again (only if the files are as they were) |
+
+A change cannot touch `.env`, keys, anything outside the project, or any file a workflow project does not hold.
 
 ## Any project, by the same bar
 

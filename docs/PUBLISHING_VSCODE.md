@@ -8,15 +8,31 @@ so a published `.vsix` is about 24 MB, well under the Marketplace's 200 MB limit
 
 ## How a change reaches the Marketplace
 
-1. **Change the extension in a pull request, and bump the version.** In `src/loom/vscode-loom`, raise `version` in `package.json` and `package-lock.json` (the two places at the top of each), and add a `## <version>` section to `CHANGELOG.md` that says what changed. The Marketplace takes a version only once, so a change without a new version can never be released: the check **Is there a new version to publish?** fails the pull request with a message saying so.
-2. **Merge.** The workflow asks the Marketplace which version it has. If `package.json` is newer it builds `weave.jar` from `main`, packages the extension around it, unpacks the package and runs the bundled jar (`scripts/verify-vsix.sh`), runs the extension's tests, and publishes exactly that file. If the version is not newer there is nothing to publish and the run ends green.
+1. **Change the extension in a pull request, and bump the version.** In `src/loom/vscode-loom`:
+
+   - raise `version` in `package.json` and `package-lock.json` (the two places at the top of each);
+   - add a `## <version>` section to `CHANGELOG.md` that says what changed.
+
+   The Marketplace takes a version only once, so a change without a new version can never be released. The check **Is there a new version to publish?** fails the pull request with a message saying so.
+2. **Merge.** The workflow asks the Marketplace which version it has.
+
+   - If `package.json` is **newer**, it builds `weave.jar` from `main`, packages the extension around it, unpacks the package and runs the bundled jar (`scripts/verify-vsix.sh`), runs the extension's tests, and publishes exactly that file.
+   - If the version is **not newer**, there is nothing to publish and the run ends green.
 3. **Wait a few minutes.** Microsoft scans the package before it shows. Progress is on [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage); the page is `marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom`.
 
-What starts the workflow: a change under `src/loom/vscode-loom`, except its `test/` folder (tests change nothing for a user), and a change to the workflow or its scripts. A change to the engine the extension carries (`src/loom/ai-agent4j-loom`) does **not** start a release; it ships with the next extension version, which rebuilds the jar from `main`. To release it sooner, bump the extension version in a pull request.
+**What starts the workflow**
 
-The version is plain `1.2.3`. The Marketplace takes no pre-release versions, and the check refuses one. Versions only go up, and a version cannot be re-used or deleted: fix forward with a new one.
+- A change under `src/loom/vscode-loom`, except its `test/` folder (tests change nothing for a user).
+- A change to the workflow or its scripts.
 
-To run it again without a change (a publish that failed after a green build, for example), start the workflow by hand from `main` in the Actions tab (*Run workflow*). It publishes only if the version is new.
+**What does not.** A change to the engine the extension carries (`src/loom/ai-agent4j-loom`) does **not** start a release. It ships with the next extension version, which rebuilds the jar from `main`. To release it sooner, bump the extension version in a pull request.
+
+**Version rules**
+
+- The version is plain `1.2.3`. The Marketplace takes no pre-release versions, and the check refuses one.
+- Versions only go up, and a version cannot be re-used or deleted: fix forward with a new one.
+
+**To run it again without a change** (a publish that failed after a green build, for example), start the workflow by hand from `main` in the Actions tab (*Run workflow*). It publishes only if the version is new.
 
 ## One-time setup (about 10 minutes, in two browser tabs)
 
@@ -30,8 +46,15 @@ To run it again without a change (a publish that failed after a green build, for
    | Workflow | `publish-vscode-extension.yml` |
    | Environment | `vscode-marketplace` |
 
-   Select **Create**. The values must match exactly: the Marketplace compares them with what GitHub signs into the token. (If the repository is private, run the workflow within 48 hours of creating the policy; the first successful run activates it for good.)
-2. **Create the GitHub environment and lock it to `main`.** In the repository: *Settings* → *Environments* → *New environment*, name it `vscode-marketplace`, and under *Deployment branches and tags* choose *Selected branches and tags* and add `main`. Without this, a workflow run from any branch could ask for a Marketplace token. Optionally add *Required reviewers*: every release then waits for your approval, which is a manual click, so leave it off if you want releases fully automatic.
+   Select **Create**.
+
+   - The values must match exactly: the Marketplace compares them with what GitHub signs into the token.
+   - If the repository is private, run the workflow within 48 hours of creating the policy; the first successful run activates it for good.
+2. **Create the GitHub environment and lock it to `main`.** In the repository:
+
+   1. *Settings* → *Environments* → *New environment*, and name it `vscode-marketplace`.
+   2. Under *Deployment branches and tags* choose *Selected branches and tags* and add `main`. Without this, a workflow run from any branch could ask for a Marketplace token.
+   3. Optionally add *Required reviewers*: every release then waits for your approval, which is a manual click. Leave it off if you want releases fully automatic.
 3. **Leave the check optional.** Do not mark *Is there a new version to publish?* as a required status check. It runs only for pull requests that change the extension, and GitHub waits forever for a required check on any other pull request.
 
 After this, the first merge that bumps the version publishes it.
@@ -68,10 +91,25 @@ npx --yes ovsx@latest publish src/loom/vscode-loom/vscode-llm4j-loom-<version>.v
 
 ## What the Marketplace page shows
 
-The listing is built from files in `src/loom/vscode-loom`: `README.md` (the page body; relative image links need `repository` in `package.json`, which is set),
-`CHANGELOG.md` (the Changelog tab), `LICENSE`, the icon `media/loom-mark-128.png`, and the display name, description, categories, keywords and banner in `package.json`.
-The README is a short overview, with every link an absolute URL so it works on the Marketplace; the full reference is `REFERENCE.md` beside it (not packaged, linked from the README), and `test/docs.test.ts` holds the reference to the manifest and keeps the README short. The README already carries screenshots of the workflow graph (`docs/images/vscode-loom/`, linked by `https://raw.githubusercontent.com/...` so they show on the Marketplace). Retake them when the panel changes; the generator is described in `docs/images/vscode-loom/README.md`.
-The page shows the README of the newest version only, so a documentation change reaches the page only with a new version.
+The listing is built from files in `src/loom/vscode-loom`:
+
+| File | Becomes |
+|---|---|
+| `README.md` | The page body. Relative image links need `repository` in `package.json`, which is set |
+| `CHANGELOG.md` | The Changelog tab |
+| `LICENSE` | The licence |
+| `media/loom-mark-128.png` | The icon |
+| `package.json` | The display name, description, categories, keywords and banner |
+
+**The README is a short overview.**
+
+- Every link is an absolute URL so it works on the Marketplace.
+- The full reference is `REFERENCE.md` beside it (not packaged, linked from the README).
+- `test/docs.test.ts` holds the reference to the manifest and keeps the README short.
+
+**Screenshots.** The README carries screenshots of the workflow graph (`docs/images/vscode-loom/`, linked by `https://raw.githubusercontent.com/...` so they show on the Marketplace). Retake them when the panel changes; the generator is described in `docs/images/vscode-loom/README.md`.
+
+**One thing to remember.** The page shows the README of the newest version only, so a documentation change reaches the page only with a new version.
 
 ## Troubleshooting
 

@@ -65,17 +65,23 @@ Object post = executor.getContext().getAll().get("post_text");   // 3. what the 
 executor.shutdown();
 ```
 
-1. **Transcript.** A `TraceEvent` has `type`, `agent`, `step`, `text`, `data` and `at`. The types a screen wants: `delegate_start` and `delegate_end`
-   (an agent began, and its answer), `thought`, `action` and `observation` (what an agent is thinking and which tool it calls), `note` (a message
-   the workflow wants shown), `approval`, `budget`, `guard`, `checkpoint`, `rewind`, `suspended`. Listeners run on the thread that runs the
-   workflow, so hand the event to your UI thread and return quickly; an exception in a listener is logged and does not stop the run.
-2. **Questions.** `human_prompt`, a tool that needs approval and a `decide` that asks all arrive at your `HumanInterface`. Override
-   `promptHuman(stepId, message, hints)` to learn what kind of question it is (`PROMPT`, `APPROVAL`, `DECIDE`), the choices to offer, and who it is for.
-   Return the answer to continue now. Or throw `RunSuspended(stepId, message)` to **pause without holding a thread**: show the question, and when the person
-   answers, call `journal.answer(stepId, answer)` and run `executeWorkflow` again with the same journal; the steps already done are replayed (the transcript
-   shows `delegate_replayed`, not a second model call) and the run goes on from the question.
-3. **Result.** `executor.getContext().getAll()` holds every variable the workflow set (`-> name`). Read the ones you need by name; an unset variable is
-   absent from the map.
+1. **Transcript.** A `TraceEvent` has `type`, `agent`, `step`, `text`, `data` and `at`. The types a screen wants:
+
+   | Type | What it tells the screen |
+   |---|---|
+   | `delegate_start`, `delegate_end` | An agent began, and its answer |
+   | `thought`, `action`, `observation` | What an agent is thinking, and which tool it calls |
+   | `note` | A message the workflow wants shown |
+   | `approval`, `budget`, `guard`, `checkpoint`, `rewind`, `suspended` | The matching event |
+
+   Listeners run on the thread that runs the workflow, so hand the event to your UI thread and return quickly. An exception in a listener is logged and does not stop the run.
+2. **Questions.** `human_prompt`, a tool that needs approval and a `decide` that asks all arrive at your `HumanInterface`.
+
+   Override `promptHuman(stepId, message, hints)` to learn what kind of question it is (`PROMPT`, `APPROVAL`, `DECIDE`), the choices to offer, and who it is for. Then either:
+
+   - **Return the answer** to continue now; or
+   - **Throw `RunSuspended(stepId, message)`** to **pause without holding a thread**. Show the question, and when the person answers, call `journal.answer(stepId, answer)` and run `executeWorkflow` again with the same journal. The steps already done are replayed (the transcript shows `delegate_replayed`, not a second model call) and the run goes on from the question.
+3. **Result.** `executor.getContext().getAll()` holds every variable the workflow set (`-> name`). Read the ones you need by name; an unset variable is absent from the map.
 
 Keep the view separate from the workflow: the screen should not decide anything the script decides, and the script should not know there is a screen.
 The agent writes tests for the host and its screen too, in the application's own stack and run by its own build, not with `weave`. Run the workflow itself free first (`weave eval --mock`) before any real run.
@@ -228,9 +234,28 @@ weave run main.loom --observe                                  # one process: a 
 weave run main.loom --observe-fabric https://fabric.example --observe-name checkout   # many processes: reports to a Fabric server
 ```
 
-`--observe` shows the run as it happens: cost, the workflow with each step's state, tool health, the context window and what compaction cut, the security signals, and incidents (a loop, a failing tool, a context nearly full, the lethal trifecta). **Fabric** is the server many processes report to: one place with every run, **Tools & tasks** and **Security** across all of them, and a **Configuration** page where an admin sets the rules (what counts as trouble), the context windows and the price table for every process at once. A process whose server is down keeps working and delivers later from a local outbox.
+**`--observe`** shows the run as it happens:
 
-Setting this up is a job of its own, with decisions about who may sign in, TLS, retention, where the keys live and what the rules should be. **Hand it to the `llm4j-loom-deployer` skill** (install both with `weave guide --install-skill`): it takes a finished workflow to a running, observed one, starts the server and the application with you, and shows you how to read the pages. Before you hand over, make sure the project has: windows for its models ([chapter 14](14-context-and-compaction.md)), the trifecta decisions of [chapter 7](07-validate-and-audit.md) written in `<script>.inspect`, and the spend limits of this chapter.
+- cost, and the workflow with each step's state;
+- tool health, the context window and what compaction cut;
+- the security signals;
+- incidents: a loop, a failing tool, a context nearly full, the lethal trifecta.
+
+**Fabric** is the server many processes report to:
+
+- one place with every run;
+- **Tools & tasks** and **Security** across all of them;
+- a **Configuration** page where an admin sets the rules (what counts as trouble), the context windows and the price table for every process at once.
+
+A process whose server is down keeps working and delivers later from a local outbox.
+
+Setting this up is a job of its own, with decisions about who may sign in, TLS, retention, where the keys live and what the rules should be. **Hand it to the `llm4j-loom-deployer` skill** (install both with `weave guide --install-skill`). It takes a finished workflow to a running, observed one, starts the server and the application with you, and shows you how to read the pages.
+
+**Before you hand over, make sure the project has:**
+
+- windows for its models ([chapter 14](14-context-and-compaction.md));
+- the trifecta decisions of [chapter 7](07-validate-and-audit.md) written in `<script>.inspect`;
+- the spend limits of this chapter.
 
 ## Keys and secrets: two different people
 
@@ -240,10 +265,15 @@ Setting this up is a job of its own, with decisions about who may sign in, TLS, 
 cp .env.example .env        # then put your key after GEMINI_API_KEY=
 ```
 
-`weave init` writes `.env.example` and a `.gitignore` that ignores `.env`. `weave run`, `weave check`, `weave eval` and `weave next` read the file, say which names they
-found (never the values), and let a variable already set in your shell win. `weave` refuses a `.env` that git tracks (its keys are already in the history: remove it with
-`git rm --cached .env` and rotate them), warns when it is not ignored or other users can read it, and `--env-file <file>` / `--no-env-file` choose another file or none.
-A judge model from another provider (`weave eval --judge ...`) needs that provider's key in the same file. If a key is ever pasted somewhere shared, rotate it.
+`weave init` writes `.env.example` and a `.gitignore` that ignores `.env`.
+
+- `weave run`, `weave check`, `weave eval` and `weave next` read the file, say which names they found (never the values), and let a variable already set in your shell win.
+- `weave` **refuses** a `.env` that git tracks, because its keys are already in the history. Remove it with `git rm --cached .env` and rotate them.
+- `weave` **warns** when the file is not ignored or other users can read it.
+- `--env-file <file>` / `--no-env-file` choose another file or none.
+- A judge model from another provider (`weave eval --judge ...`) needs that provider's key in the same file.
+
+If a key is ever pasted somewhere shared, rotate it.
 
 **Someone deploying the application** (a server, shared or production keys). Never the project's `.env` there. Use the encrypted secret store, a one-time setup:
 
@@ -349,10 +379,13 @@ Run the development entry until it behaves, then `weave check prod.loom --no-env
 
 **What to settle for every tool, whatever its kind:**
 
-1. **Credentials are `env.NAME` or `secret.NAME`**, never literals (a literal is a load error), and the webhook URL counts as a credential. At deploy they come from the service's environment
-   (a systemd `EnvironmentFile`, a container secret, a platform secret injected as variables), from the encrypted secret store (`--secrets`), or from a vault through a Java host (above).
-   Scheduled runs started by the operating system (`weave triggers install`) do not see your shell: give them an environment file outside the project, `chmod 600`, with `--env-file`.
-   Never the project's `.env`.
+1. **Credentials are `env.NAME` or `secret.NAME`**, never literals (a literal is a load error), and the webhook URL counts as a credential. At deploy they come from:
+
+   - the service's environment (a systemd `EnvironmentFile`, a container secret, a platform secret injected as variables);
+   - the encrypted secret store (`--secrets`);
+   - a vault through a Java host (above).
+
+   Scheduled runs started by the operating system (`weave triggers install`) do not see your shell: give them an environment file outside the project, `chmod 600`, with `--env-file`. Never the project's `.env`.
 2. **Approvals need somebody to answer.** A step with `approve` (`use Tool(...) approve`, `run Task(...) approve`) or an agent with `approve: [...]` on a deployed workflow has no console: choose how a person is asked (`--ask-via telegram`, or a host that supplies
    a `HumanInterface`; see "Answering from a phone" in the Loom reference). A `shell` tool must be under `approve:` or say `unattended: true`, or the script does not load.
 3. **Use a durable journal** (`--journal <folder>`). Tools that change something (`webhook`, `email`, `shell`, `file` writes, `http` other than GET, `workspace` writes and restores, `sandbox` runs) are recorded, so a restart does not
