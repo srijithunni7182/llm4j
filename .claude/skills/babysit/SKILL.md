@@ -20,7 +20,7 @@ The module marked `FAILURE` is the one to fix; everything after it is `SKIPPED` 
 | `RepositoryScriptsTest`: a script under `src/loom/ctk/scripts` or a sample fails the checks | A new `.loom` file is invalid, or a deliberately invalid one is not in the test's exclusion list | Fix the script, or exclude it by name if it is meant to be wrong. |
 | Graph tests / golden JSON differ | A node kind, edge label or agent flag changed | Update the schema and, if intended, regenerate the golden file deliberately; check `GraphGoldenTest`. |
 | `graph-render copies are NOT in sync` | `src/loom/graph-render/graph-render.js` was edited without syncing | `bash scripts/sync-graph-render.sh`. |
-| VS Code: `agent-xxx is in the README` | A snippet prefix is missing from `src/loom/vscode-loom/README.md` | Add it to the README list. |
+| VS Code: `agent-xxx is in the README` | A snippet prefix is missing from `src/loom/vscode-loom/REFERENCE.md` | Add it to the reference list. |
 | `No space left on device` (cloud container) | The container's disk allowance is spent | Delete build output (`target/`, `node_modules/`, `/tmp` logs); do not blame the code. |
 
 ## Fails only on one JDK
