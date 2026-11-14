@@ -3,7 +3,6 @@
 // how long it sits idle, and a judge asks whether it stays on topic. A researcher that finds nothing asks its supervisor for help with a signal, and the supervisor steers it. A child that spends too much is cancelled and keeps
 // what it had; one that drifts is steered. Every child has its own budget, and a restart finds the same children again.
 
-substitution: braces
 max_children: 3
 
 budget { tokens: 400000  calls: 80 }

@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -42,6 +43,16 @@ public final class WorkflowLint {
                     "getVariable",
                     "getClass",
                     "getName");
+
+    /**
+     * Getters that hold a text the runtime fills in: in it only a {@code {name}} placeholder reads a
+     * variable, and a plain word is a word.
+     */
+    private static final Set<String> TEMPLATES =
+            Set.of("getPayload", "getMessage", "getExpression", "getLabel", "getArguments");
+
+    /** A placeholder, {@code {name}} or {@code {name.field}}: what a template reads. */
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{[^{}\\s]+}");
 
     private WorkflowLint() {}
 
@@ -107,9 +118,6 @@ public final class WorkflowLint {
             }
         }
         if (script != null) findings.addAll(citationsOfUngroundedAgents(script, all, texts, who));
-        // under `substitution: braces` only {name} is replaced, so a plain word is only a word
-        if (script == null || !"braces".equals(script.getSubstitution()))
-            findings.addAll(wordsThatAreVariables(workflow, all, who));
         findings.addAll(loopsThatNeverRun(workflow, all, who));
         findings.sort(java.util.Comparator.comparingInt(Finding::line));
         return findings;
@@ -201,56 +209,9 @@ public final class WorkflowLint {
         return out;
     }
 
-    private static final Pattern PLACEHOLDER = Pattern.compile("\\{[^{}\\s]+}");
 
     /**
-     * A variable's name is also replaced where it is written as a plain word in a prompt, a
-     * question or a note (the older bare-name form), so a variable called {@code draft} turns
-     * "Review this draft" into "Review this <the whole draft>". Reported once per variable, where
-     * it first happens.
-     */
-    // A text that is exactly a variable's name is a reference (call Other(order = order)), not an
-    // ordinary word that happens to match.
-    private static List<Finding> wordsThatAreVariables(
-            WorkflowDef workflow, List<Statement> all, String who) {
-        java.util.Set<String> names = new java.util.LinkedHashSet<>(workflow.getParameters());
-        for (Statement s : all) {
-            String name = assigned(s);
-            if (name != null) names.add(name);
-        }
-        List<Finding> out = new ArrayList<>();
-        for (String name : names) {
-            if (name == null || name.length() < 2 || name.startsWith("_") || name.startsWith("{"))
-                continue;
-            for (Statement s : all) {
-                boolean bare =
-                        SubstitutedText.of(s).stream()
-                                .anyMatch(
-                                        t ->
-                                                !t.equals(name)
-                                                        && PLACEHOLDER
-                                                                .matcher(t)
-                                                                .replaceAll("")
-                                                                .contains(name));
-                if (bare) {
-                    out.add(
-                            new Finding(
-                                    s.getLine(),
-                                    who,
-                                    "the variable "
-                                            + name
-                                            + " is also written as an ordinary word here, and the word is replaced by the variable's value; rename the variable (for example "
-                                            + name
-                                            + "_text)"));
-                    break;
-                }
-            }
-        }
-        return out;
-    }
-
-    /**
-     * The variable a statement sets, or null: used by the lint and by the substitution migration.
+     * The variable a statement sets, or null.
      */
     static String assignedName(Statement s) {
         return assigned(s);
@@ -282,15 +243,30 @@ public final class WorkflowLint {
         return open > 0 ? name.substring(0, open) : name;
     }
 
-    /** Every piece of text a statement carries, except the name it assigns, joined. */
+    /**
+     * What a statement reads, joined: every text it carries except the name it assigns, with only
+     * the placeholders of a template.
+     */
     private static String text(Statement s) {
+        return text(s, true);
+    }
+
+    /** Every piece of text a statement carries, whole when {@code readsOnly} is false. */
+    private static String text(Statement s, boolean readsOnly) {
         StringBuilder out = new StringBuilder();
         for (Method m : s.getClass().getMethods()) {
             if (m.getParameterCount() != 0
                     || NOT_TEXT.contains(m.getName())
                     || !(m.getName().startsWith("get") || m.getName().startsWith("is"))) continue;
             try {
-                append(out, m.invoke(s));
+                Object value = m.invoke(s);
+                if (readsOnly && TEMPLATES.contains(m.getName())) {
+                    StringBuilder template = new StringBuilder();
+                    append(template, value);
+                    appendPlaceholders(out, template);
+                } else {
+                    append(out, value);
+                }
             } catch (ReflectiveOperationException | RuntimeException e) {
                 // a getter that cannot be read carries no text we can rely on
             }
@@ -298,8 +274,18 @@ public final class WorkflowLint {
         return out.toString();
     }
 
+    /** Only the placeholders of a template: its plain words read nothing. */
+    private static void appendPlaceholders(StringBuilder out, CharSequence template) {
+        Matcher m = PLACEHOLDER.matcher(template);
+        while (m.find()) out.append(m.group()).append('\n');
+    }
+
     private static void append(StringBuilder out, Object value) {
         if (value instanceof String str) out.append(str).append('\n');
+        else if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Text t)
+            appendPlaceholders(out, t.text());
+        else if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Obj o)
+            o.fields().values().forEach(v -> append(out, v));
         else if (value instanceof io.github.llm4j.loom.ast.ValueExpr v)
             v.visitTexts(t -> out.append(t).append('\n'));
         else if (value instanceof io.github.llm4j.loom.ast.RunStmt.Arg arg)
@@ -323,7 +309,7 @@ public final class WorkflowLint {
                 s ->
                         out.append(s.getClass().getSimpleName())
                                 .append('|')
-                                .append(text(s))
+                                .append(text(s, false))
                                 .append("||"));
         return out.toString();
     }

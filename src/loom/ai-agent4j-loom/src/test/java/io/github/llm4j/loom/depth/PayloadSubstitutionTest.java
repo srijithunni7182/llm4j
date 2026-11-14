@@ -37,12 +37,11 @@ class PayloadSubstitutionTest {
     }
 
     @Test
-    void bareNamesInTheScriptsOwnTextStillWork() {
-        assertThat(sent("Greet user by name", Map.of("user", "Asha")))
-                .endsWith("Greet Asha by name");
-        // one pass, longest first: a replacement is not replaced again
+    void aWordThatIsAVariablesNameStaysAWord() {
+        assertThat(sent("Greet user by name, then {user}", Map.of("user", "Asha")))
+                .endsWith("Greet user by name, then Asha");
         assertThat(sent("topic then top", Map.of("topic", "top", "top", "bottom")))
-                .endsWith("top then bottom");
+                .endsWith("topic then top");
     }
 
     @Test

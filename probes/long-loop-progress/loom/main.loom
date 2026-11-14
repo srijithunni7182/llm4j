@@ -3,8 +3,6 @@
 // (`progress`), not something an agent has to remember in a long conversation that may be compacted. The worker is fresh every
 // round and sees no transcript; an extractor reads its report and writes the new progress; the loop is bounded.
 
-substitution: braces
-
 budget { tokens: 150000  calls: 40 }
 
 tool Files { use: file  root: "work"  mode: write }

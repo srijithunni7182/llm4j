@@ -195,7 +195,7 @@
           "parent": "n8",
           "branch": "else",
           "attrs": {
-            "text": "approval"
+            "text": "{approval}"
           }
         },
         {

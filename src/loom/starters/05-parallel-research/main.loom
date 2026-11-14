@@ -1,8 +1,6 @@
 // 05-parallel-research: ask several specialists at the same time, and carry on even if one of them fails.
 // Each branch has its own flag (web_ok, docs_ok): branches run together, so they must never share one variable.
 
-substitution: braces
-
 budget { tokens: 200000  calls: 20 }
 
 agent WebResearcher  { model: "gemini-2.5-flash"  system: "Search the web and report what you find in five lines."  tools: [web_search] }

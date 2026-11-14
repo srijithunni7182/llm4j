@@ -102,17 +102,12 @@ public class LoomParser {
             } else if (isNamedAttribute("max_children") || isNamedAttribute("max_depth")) {
                 parseChildLimit(script);
             } else if (isNamedAttribute("substitution")) {
-                // Contextual, like shared_prompt: stays usable as a name everywhere else.
+                // The setting is gone: only {name} is ever replaced. Contextual, so `substitution`
+                // stays usable as a name everywhere else.
                 Token keyword = advance();
-                advance(); // the colon
-                Token mode = advance();
-                if (!"braces".equals(mode.getValue()) && !"legacy".equals(mode.getValue()))
-                    throw error(
-                            mode,
-                            "substitution is braces (only {name} is replaced) or legacy (a bare name is replaced too), not "
-                                    + mode.getValue()
-                                    + ".");
-                script.setSubstitution(mode.getValue());
+                throw error(
+                        keyword,
+                        "substitution: is no longer a setting: only {name} is ever replaced by a variable's value, and a plain word is always a word. Delete this line.");
             } else if (isNamedAttribute("shared_prompt")) {
                 // Contextual: stays usable as a name everywhere else.
                 Token keyword = advance();
@@ -2291,7 +2286,7 @@ public class LoomParser {
         if (match(TokenType.STRING_LITERAL)) {
             payload = previous().getValue();
         } else if (match(TokenType.IDENTIFIER)) {
-            payload = previous().getValue();
+            payload = placeholder(previous().getValue());
         } else {
             throw error(peek(), "Expect string literal or variable payload for handoff.");
         }
@@ -2349,7 +2344,7 @@ public class LoomParser {
         if (match(TokenType.STRING_LITERAL)) {
             payload = previous().getValue();
         } else if (match(TokenType.IDENTIFIER)) {
-            payload = previous().getValue();
+            payload = placeholder(previous().getValue());
         } else {
             throw error(peek(), "Expect string literal or variable payload for delegate.");
         }
@@ -2742,7 +2737,7 @@ public class LoomParser {
                 if (match(TokenType.STRING_LITERAL)) {
                     value = previous().getValue();
                 } else if (match(TokenType.IDENTIFIER)) {
-                    value = previous().getValue();
+                    value = placeholder(previous().getValue());
                 } else {
                     throw error(peek(), "Expect string or variable for argument value.");
                 }
@@ -2840,7 +2835,7 @@ public class LoomParser {
         if (match(TokenType.STRING_LITERAL)) {
             payload = previous().getValue();
         } else if (match(TokenType.IDENTIFIER)) {
-            payload = previous().getValue();
+            payload = placeholder(previous().getValue());
         } else {
             throw error(peek(), "Expect string literal or variable payload for broadcast.");
         }
@@ -4449,17 +4444,29 @@ public class LoomParser {
         return stmt;
     }
 
+    /**
+     * A variable written where a text is expected ({@code delegate draft to …}, {@code call W(x =
+     * topic)}): it means the variable's value, so it becomes the placeholder {@code {draft}}.
+     */
+    private static String placeholder(String variable) {
+        return "{" + variable + "}";
+    }
+
     private ObserveStmt parseObserveStatement() {
         Token labelToken = consume(TokenType.STRING_LITERAL, "Expect observation label.");
         consume(TokenType.LBRACE, "Expect '{' before expression.");
-        // We'll read everything until next '}' as the expression
+        // The expression is variables, dotted paths and strings joined by +: it becomes a text
+        // with a {path} for each variable, filled like any other.
         StringBuilder expression = new StringBuilder();
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
-            expression.append(advance().getValue());
-            if (!check(TokenType.RBRACE)) expression.append(" ");
+            Token t = advance();
+            if (t.getType() == TokenType.STRING_LITERAL) expression.append(t.getValue());
+            else if (t.getType() == TokenType.IDENTIFIER) expression.append(placeholder(t.getValue())); // a.b is one token
+            else if (t.getType() != TokenType.PLUS)
+                throw error(t, "Expect variables and strings joined by + in an observe expression.");
         }
         consume(TokenType.RBRACE, "Expect '}' after expression.");
-        return new ObserveStmt(labelToken.getValue(), expression.toString().trim());
+        return new ObserveStmt(labelToken.getValue(), expression.toString());
     }
 
     private boolean payloadMatch() {

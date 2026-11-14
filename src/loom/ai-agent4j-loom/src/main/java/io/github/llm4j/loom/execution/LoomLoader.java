@@ -106,7 +106,6 @@ public class LoomLoader {
                 script.getSharedPromptLine());
 
         // So is how it replaces variables: an imported file never chooses it for the importer.
-        effectiveScript.setSubstitution(script.getSubstitution());
 
         // And where files may be attached from: a library never opens a folder for the importer.
         effectiveScript.setMediaRoot(script.getMediaRoot());

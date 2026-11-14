@@ -1,7 +1,5 @@
 // 02-chain: agents in a row. Each step's answer is stored in a variable and used by the next step.
 
-substitution: braces
-
 budget { tokens: 60000  calls: 10 }
 
 agent Summarizer { model: "gemini-2.5-flash"  system: "Summarize the text in three bullet points."  temperature: 0.2 }

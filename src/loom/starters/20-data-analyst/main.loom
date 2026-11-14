@@ -2,8 +2,6 @@
 // script's answer against its own exact sum of the same column, and scans the summary before it leaves. The model's code
 // runs in a container, sees only the data folder, and cannot change sales.csv.
 
-substitution: braces
-
 budget { tokens: 150000  calls: 20 }
 
 tool Data  { use: workspace  root: "data"  allow: "*.py, *.csv, *.json"  mode: readwrite  overwrite: true  protect: "sales.csv" }

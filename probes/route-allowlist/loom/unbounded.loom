@@ -1,6 +1,4 @@
 // P17, Loom side: the planner's reply names the agent. Nothing bounds it, and one agent holds a tool that sends mail.
-substitution: braces
-
 tool Mail { use: webhook  url: env.MAIL_HOOK  effect: changes }
 agent Planner { model: "gemini-2.5-flash"  system: "Pick the agent for the task."  output_schema: { owner: string, task: string } }
 agent Worker { model: "gemini-2.5-flash"  system: "Do the task." }

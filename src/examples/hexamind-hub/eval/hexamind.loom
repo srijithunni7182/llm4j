@@ -172,8 +172,6 @@ workflow Collaborate(problem) {
     handoff final_text to Coordinator
 }
 
-// NOTE: Loom replaces a variable name wherever it appears in a string, braces or not, so variable names here
-// (final_text, prior, feedback_text, fb, fabcheck) are chosen never to occur as ordinary words in the prompts.
 // A user's feedback after the consensus triggers one refinement round and a new consensus.
 workflow Refine(topic, prior, feedback_text) {
     parallel {

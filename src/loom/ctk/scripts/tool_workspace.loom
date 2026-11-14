@@ -2,8 +2,6 @@
 // A workspace snapshot and restore put the files back exactly: a write after the snapshot is undone by the restore.
 // mocks/tool_workspace.json holds the text written first.
 
-substitution: braces
-
 tool Data { use: workspace  root: "ctk-work"  allow: "**"  mode: readwrite  overwrite: true }
 
 workflow main(text) {

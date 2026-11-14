@@ -29,7 +29,7 @@ class NothingIgnoredTest {
             """
             agent A { model: "m" }
             workflow Main() {
-                guardrail (TOXICITY) { delegate "x" to A -> x }
+                guardrail (TOXICITY) { delegate "x" to A -> _x }
             }
             """;
 

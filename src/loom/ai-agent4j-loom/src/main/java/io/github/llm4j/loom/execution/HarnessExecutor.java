@@ -193,11 +193,6 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
-                        public boolean bareNamesReplaced() {
-                            return !"braces".equals(script.getSubstitution());
-                        }
-
-                        @Override
                         public void touched(String path) {
                             java.util.Set<String> into = touches.get();
                             if (into != null) into.add(path);
@@ -3848,19 +3843,6 @@ public class HarnessExecutor implements LoomEngine {
         return Duration.ofSeconds(Long.parseLong(val));
     }
 
-    /**
-     * Resolves variable references in a payload string.
-     *
-     * <p>Variables are referenced using curly-brace delimiters: {@code {varName}}. This prevents
-     * substring collisions that would occur with bare name substitution (e.g., {@code id} being
-     * substituted inside {@code child_id}).
-     *
-     * <p><b>Legacy support</b>: bare variable names (no braces) that exactly match a context key
-     * are also substituted for backward compatibility with existing {@code .loom} scripts.
-     *
-     * @param rawPayload the raw payload string from the AST node
-     * @return the payload with all resolvable variable references replaced
-     */
     /** One look at a loop's condition: true when the loop should stop. */
     private boolean loopDone(LoopStmt loop, int rounds) {
         boolean done = ConditionEvaluator.evaluate(loop.getCondition(), view());
@@ -4505,9 +4487,7 @@ public class HarnessExecutor implements LoomEngine {
             data.put("step", String.valueOf(last.get("step")));
             auditLogger.logConversationEvent(sessionId, null, "run_resumed", data);
         }
-        // Published only once a run has paused: older scripts may use "_run" inside words
-        // (bare-name
-        // substitution would rewrite them).
+        // Published only once a run has paused, so a run that never paused sees no "_run".
         if (last != null) {
             Map<String, Object> run = new java.util.LinkedHashMap<>();
             run.put("resumes", resumes);

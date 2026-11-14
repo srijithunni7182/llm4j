@@ -66,7 +66,7 @@ public class LoomParserTest {
 
         assertTrue(workflow.getStatements().get(1) instanceof HandoffStmt);
         HandoffStmt handoff = (HandoffStmt) workflow.getStatements().get(1);
-        assertEquals("topic", handoff.getPayload());
+        assertEquals("{topic}", handoff.getPayload());
         assertEquals("Researcher", handoff.getTargetAgent());
     }
 }

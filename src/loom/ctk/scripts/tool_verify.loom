@@ -2,8 +2,6 @@
 // A verify tool turns a JUnit report into counts the script can trust; a report it cannot read counts as one failure.
 // mocks/tool_verify.json holds the report.
 
-substitution: braces
-
 tool Check { use: verify }
 
 workflow main(text) {

@@ -36,47 +36,6 @@ class SubstitutedPositionsTest {
                 .toList();
     }
 
-    @Test
-    void theWordInsideAFunctionNameInANoteIsReported() {
-        assertThat(lint("  note \"length-out-of-range(x)\""))
-                .anyMatch(m -> m.contains("the variable out is also written as an ordinary word"));
-    }
-
-    @Test
-    void anArgumentThatIsExactlyAVariableIsAReferenceNotAnOrdinaryWord() {
-        assertThat(lint("  call Other(out=out) -> r")).noneMatch(m -> m.contains("ordinary word"));
-        assertThat(lint("  call Other(out=\"the out value\") -> r"))
-                .anyMatch(m -> m.contains("ordinary word"));
-    }
-
-    @Test
-    void everyPositionTheRuntimeSubstitutesIsScanned() {
-        for (String statement :
-                List.of(
-                        "halt \"stopped: out of range\"",
-                        "set m = \"the out value\"",
-                        "set o = { text: \"the out value\" }",
-                        "return \"the out value\"",
-                        "observe \"out of range\" {out}",
-                        "delegate \"the out value\" to A -> r",
-                        "handoff \"the out value\" to A",
-                        "broadcast \"the out value\" to [A] -> r",
-                        "human_prompt \"is the out value ok?\" -> ok")) {
-            assertThat(lint("  " + statement))
-                    .as(statement)
-                    .anyMatch(
-                            m ->
-                                    m.contains(
-                                            "the variable out is also written as an ordinary word"));
-        }
-    }
-
-    @Test
-    void aBraceIsNotAnOrdinaryWord() {
-        assertThat(lint("  note \"the value is {out}\""))
-                .noneMatch(m -> m.contains("ordinary word"));
-    }
-
     /** Every getter the runtime hands to {@code resolvePayload} is a position the lint scans. */
     @Test
     void everyGetterTheRuntimeResolvesIsListedAsScanned() throws IOException {
@@ -136,15 +95,4 @@ class SubstitutedPositionsTest {
                 .isEmpty();
     }
 
-    @Test
-    void underSubstitutionBracesAWordThatMatchesAVariableIsNotReported() {
-        LoomScript script = parse("substitution: braces\n" + AGENT + "workflow W(out) {\n  note \"length out of range\"\n}\n");
-
-        assertThat(WorkflowLint.check(script.getWorkflows().get(0), script)).noneMatch(f -> f.message().contains("ordinary word"));
-    }
-
-    @Test
-    void underTheOlderFormTheSameWordIsStillReported() {
-        assertThat(lint("  note \"length out of range\"")).anyMatch(m -> m.contains("ordinary word"));
-    }
 }

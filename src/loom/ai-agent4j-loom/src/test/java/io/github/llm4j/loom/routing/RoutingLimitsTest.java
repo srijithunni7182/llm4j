@@ -30,8 +30,7 @@ class RoutingLimitsTest {
     }
 
     static final String AGENTS =
-            "substitution: braces\n"
-                    + "agent Researcher { model: \"m\" system: \"You are the researcher.\" }\n"
+            "agent Researcher { model: \"m\" system: \"You are the researcher.\" }\n"
                     + "agent Writer { model: \"m\" system: \"You are the writer.\" }\n"
                     + "agent Editor { model: \"m\" system: \"You are the editor.\" }\n";
 

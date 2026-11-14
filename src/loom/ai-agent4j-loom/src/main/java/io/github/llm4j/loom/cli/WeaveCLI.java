@@ -618,24 +618,6 @@ public class WeaveCLI implements Callable<Integer> {
                         "Treat warnings as errors (exit 2), so a build can require a clean script.")
         private boolean strict;
 
-        @Option(
-                names = "--substitution",
-                paramLabel = "braces",
-                description =
-                        "Preview what would change under `substitution: braces`: every string where a variable's bare name is replaced today. Writes nothing.")
-        private String substitution;
-
-        @Option(
-                names = "--fix-substitution",
-                description =
-                        "Rewrite the bare words that were meant as variables to {name}, after showing the changed lines and asking. A word inside another word is left for you.")
-        private boolean fixSubstitution;
-
-        @Option(
-                names = "--yes",
-                description = "With --fix-substitution: do not ask, write the rewrite.")
-        private boolean yes;
-
         @CommandLine.Mixin private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin private EnvFileOptions envFile = new EnvFileOptions();
@@ -648,9 +630,6 @@ public class WeaveCLI implements Callable<Integer> {
 
         @Override
         public Integer call() {
-            if (substitution != null || fixSubstitution)
-                return SubstitutionCheck.run(
-                        scriptFile, substitution, fixSubstitution, yes, WeaveEnv.system());
             WeaveEnv env = envFile.apply(WeaveEnv.system(), scriptFile.toPath());
             if (env == null
                     || !classesOptions.apply(scriptFile.toPath(), env)

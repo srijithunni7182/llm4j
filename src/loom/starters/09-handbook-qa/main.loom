@@ -1,8 +1,6 @@
 // 09-handbook-qa: answer questions from your own documents. The relevant passages are found first (by meaning) and put
 // in front of the question, and the agent is told to say so when the handbook does not answer.
 
-substitution: braces
-
 budget { tokens: 80000  calls: 10 }
 
 knowledge Handbook {
