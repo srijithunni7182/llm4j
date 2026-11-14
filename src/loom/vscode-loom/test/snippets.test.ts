@@ -21,7 +21,7 @@ function expand(body: string[]): string {
 }
 
 // Statement-level snippets go inside a workflow; the rest are whole top-level definitions.
-const TOP = new Set(['progress-report', 'extractor', 'evaluator', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import', 'agent-channel']);
+const TOP = new Set(['progress-report', 'extractor', 'evaluator', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import', 'agent-channel', 'tool-workspace', 'tool-sandbox', 'tool-check']);
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
 // halt and return end the path (the frame's own statements after them would never run), and `is ok` needs a real run result.
 // remote, agent-channel and ask carry warnings by design: the card is read at run time and the host supplies the channel.

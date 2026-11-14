@@ -138,7 +138,19 @@ const LOOM_KEYWORDS: Record<string, string> = {
     warn_at:
         '**warn_at** `: 80%`\n\nInside a `budget { }`: when to log a `budget_warning` (default 80%).',
     use:
-        '**use** `: webhook | email | http | file | shell | sql | serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. `webhook` posts to Slack, Discord or Teams; `email` sends over SMTP; `http` calls a REST API; `file` reads and writes text files in one directory; `shell` runs named programs; `sql` runs read-only queries. Secret options (`url`, `password`, `api_key`, `auth_value`, and credential headers) must be `env.NAME` or `secret.NAME`; `auth_value` of `openapi` can also be `invoker.NAME`, a credential of the person running the workflow.',
+        '**use** `: webhook | email | http | file | shell | sql | compute | verify | scan | workspace | sandbox | serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. `webhook` posts to Slack, Discord or Teams; `email` sends over SMTP; `http` calls a REST API; `file` reads and writes text files in one directory; `shell` runs named programs; `sql` runs read-only queries; `compute` does exact arithmetic, dates, JSON and CSV; `verify` turns a test report or a schema check into counts; `scan` finds secrets and personal data; `workspace` edits a directory with patches, snapshots and restores; `sandbox` runs allow-listed programs on a workspace in a declared isolation. With their jars: `search`, `documents`, `git`, `browser`. Secret options (`url`, `password`, `api_key`, `auth_value`, and credential headers) must be `env.NAME` or `secret.NAME`; `auth_value` of `openapi` can also be `invoker.NAME`, a credential of the person running the workflow.',
+    isolation:
+        '**isolation** `: container | process | vm`\n\nIn a `sandbox` (and `git`) tool: required, with no default. `container` runs the program in Docker or Podman with the workspace as its only mount; `process` is a child process of the run and is not isolation (`weave audit` LA31). A level the machine cannot give is refused; `container` never falls back.',
+    protect:
+        '**protect** `: "tests/**"`\n\nIn a `workspace` tool: paths that stay read only, so an agent cannot edit what judges its work. A sandbox on the workspace mounts them read only.',
+    reaches:
+        '**reaches** `: <Sandbox>`\n\nIn an `http` or `browser` tool: the sandbox whose served program it calls, on 127.0.0.1 and that one port, only while it runs (`weave audit` LA32).',
+    network:
+        '**network** `: none | allow | open`\n\nIn a `sandbox` tool: `none` (default) gives the program no network; `allow` reaches the `hosts:` listed through an egress proxy; `open` reaches any host (`weave audit` LA33). `isolation: process` needs `open`.',
+    image:
+        '**image** `: "python:3.12-slim"`\n\nIn a `sandbox` tool with `isolation: container`: the image the program runs in. Pulled only with `pull: true`.',
+    serve_port:
+        '**serve_port** `: 8000`\n\nIn a `sandbox` tool: the port a served program listens on; enables the `serve`, `stop` and `status` actions. The program is stopped at its deadline, on `stop`, and after a crash when the next run starts.',
     checkpoint:
         '**checkpoint** `Name [starting with name = "value", ...]`\n\nNames a point in a workflow that a later `rewind` can go back to. `start` is the point before the first statement.',
     start:

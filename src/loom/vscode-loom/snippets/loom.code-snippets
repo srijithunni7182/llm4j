@@ -416,5 +416,29 @@
     "body": [
       "wait any ${1:work} timeout ${2:10m} -> ${3:event}"
     ]
+  },
+  "tool-workspace": {
+    "prefix": "tool-workspace",
+    "body": [
+      "tool ${1:Code} { use: workspace  root: \"${2:.}\"  allow: \"${3:**}\"  mode: readwrite  protect: \"${4:tests/**}\" }"
+    ],
+    "description": "A directory an agent edits with exact patches, searches, snapshots and restores; protect keeps what judges the work read only."
+  },
+  "tool-sandbox": {
+    "prefix": "tool-sandbox",
+    "body": [
+      "tool ${1:Code} { use: workspace  root: \"${2:.}\"  allow: \"**\"  mode: readwrite }",
+      "tool ${3:Tests} { use: sandbox  workspace: ${1:Code}  isolation: container  image: \"${4:python:3.12-slim}\"  allow: \"${5:python3}\"  network: none }"
+    ],
+    "description": "Run allow-listed programs on a workspace in a container with no network. Isolation has no default; a missing runtime stops the run, nothing falls back."
+  },
+  "tool-check": {
+    "prefix": "tool-check",
+    "body": [
+      "tool ${1:Calc}  { use: compute }",
+      "tool ${2:Check} { use: verify }",
+      "tool ${3:Scan}  { use: scan }"
+    ],
+    "description": "Tools that compute and check, and reach nothing: exact arithmetic and dates, a test report or schema check as counts, secrets and personal data found."
   }
 }
