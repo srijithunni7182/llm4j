@@ -70,7 +70,7 @@ npx --yes ovsx@latest publish src/loom/vscode-loom/vscode-llm4j-loom-<version>.v
 
 The listing is built from files in `src/loom/vscode-loom`: `README.md` (the page body; relative image links need `repository` in `package.json`, which is set),
 `CHANGELOG.md` (the Changelog tab), `LICENSE`, the icon `media/loom-mark-128.png`, and the display name, description, categories, keywords and banner in `package.json`.
-The README already carries screenshots of the workflow graph (`docs/images/vscode-loom/`, linked by `https://raw.githubusercontent.com/...` so they show on the Marketplace). Retake them when the panel changes; the generator is described in `docs/images/vscode-loom/README.md`.
+The README is a short overview, with every link an absolute URL so it works on the Marketplace; the full reference is `REFERENCE.md` beside it (not packaged, linked from the README), and `test/docs.test.ts` holds the reference to the manifest and keeps the README short. The README already carries screenshots of the workflow graph (`docs/images/vscode-loom/`, linked by `https://raw.githubusercontent.com/...` so they show on the Marketplace). Retake them when the panel changes; the generator is described in `docs/images/vscode-loom/README.md`.
 The page shows the README of the newest version only, so a documentation change reaches the page only with a new version.
 
 ## Troubleshooting

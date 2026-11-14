@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+
+- **A shorter Marketplace page.** The README is now a one-screen overview: what the extension does in bullets, screenshots, how to start, and links into the repository. The full reference (every command, view, setting, snippet and keyboard key) moved to [REFERENCE.md](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/vscode-loom/REFERENCE.md). Nothing in the extension changed.
+
 ## 1.6.0
 
 - **Progress, signals and `wait any` (phase 34).** `progress { }` and `report { }`, `notify` (with `parent` and `sticky`), `wait signal`, `when signal`, `wait any` and `assert progress.field changes within` are highlighted **only in the one shape each has**: `report`, `progress`, `notify`, `signal` and `any` stay ordinary names as variables, parameters and handles, and are plain text in a string. Hover explains each where it is a keyword and says nothing where it is a name. Four snippets (`progress`, `notify`, `waitsignal`, `waitany`) pass `weave check`. Needs the engine's phase 34.
