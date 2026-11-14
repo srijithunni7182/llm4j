@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D6 are taken, twelve decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D7 are taken, eleven decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -13,7 +13,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D4 | Effects and idempotency taken from the system's own description, and the pins | **taken** (the tooling infers and a person approves; the result is written into the script as declared values with a pin; no lockfile) |
 | D5 | Large answers and pagination | **taken** (a cap that says it cut and a `save_dir` in 36a; bounded read-only pagination in 36b) |
 | D6 | The MCP client: transports, versions, what it reads | **taken** (both eras, stdio and Streamable HTTP, tools only; stdio and fixes in 36a, the modern era, HTTP and authorization in 36b) |
-| D7 | An MCP server or a command as a program: isolation, arguments, secrets | open |
+| D7 | An MCP server or a command as a program: isolation, arguments, secrets | **taken** (the `sandbox` rules, in three states so existing scripts do not break; six rules) |
 | D8 | Authentication: OAuth and signed requests | open |
 | D9 | Typed command adapters | open |
 | D10 | `weave connect`: authoring an integration | open |
@@ -140,15 +140,27 @@ agent Shop { tools: [Pet_get, Pet_add]  approve: [Pet_add] }
 
 ## D7. An MCP server or a command as a program: isolation, arguments, secrets
 
-**Why.** A script's `mcp { cmd: "npx ..." }` runs an arbitrary program with the user's privileges; `cmd` is split on whitespace and no environment can be passed, so servers that need a key cannot be used. Principle 37.
+**Why.** A script's `mcp { cmd: "npx ..." }` runs an arbitrary program with the user's privileges. **Read:** `StdioMcpTransport` builds a `ProcessBuilder` and adds the script's variables on top of the **whole inherited host environment**; `cmd` is one string split on whitespace; the script cannot set `env` at all; the server's error stream is inherited (it goes to the console, unredacted and unbounded). The specification says stdio servers take credentials from the environment. Principle 37.
 
-- **A. The same rules as `sandbox` (35-D5, 35-D8):** an `isolation:` line is **required** (`process`, `container`, or a registered backend); the server runs through `SandboxBackend` (for a container, `docker run -i`); `args` is a list; `env` takes values from the secret store, resolved when the server starts (the one place a secret is not resolved per call, and never logged); a `workspace:` mount and the `network` setting as for `sandbox`.
-- **B. Add `env` and `args` only,** and leave the program on the host with an audit rule.
+- **A. The same rules as `sandbox` (35-D5, 35-D8),** adapted so existing scripts do not break.
+- **B. Add `args` and `env` only,** leaving the program on the host with an audit rule.
 - **C. Leave as is.**
 
-**Recommendation: A.** It closes a real gap (no secrets, no quoting) and applies one honest isolation model to everything that starts a process. A server run at `none` or `process` is flagged by LA31 (35-D19, extended in D14).
-
-**Decision (owner):** open.
+**Decision (owner): option A, in three states, with six rules.**
+| State | What happens |
+|---|---|
+| **No `isolation:` line** (every existing script) | Behaves as today, with a load warning and an LA31 finding (35-D19, extended in D14); an error at the next major |
+| **`isolation: none`** | An explicit choice to run on the host; the rules below apply, and the audit still flags it |
+| **`isolation: process` or `container`** (or a registered backend) | The full set of rules |
+**The rules for an explicit isolation level**
+1. **`args:` is a list;** each value is one argument, never split.
+2. **A scrubbed environment:** nothing is inherited from the host; the server gets the `env:` entries and the names listed in `env_inherit:` (for example `PATH`).
+3. **Secrets in `env:`** come from the secret store (`env.NAME` or `secret.NAME`) and are resolved when the server starts (the one place a secret is not resolved per call, because a process cannot take a new environment); never logged; the audit lists them by name.
+4. **The server's error stream is captured,** redacted, bounded and shown in the trace and in `weave why` on a failure; it no longer goes to the console.
+5. **A container needs `image:`,** and takes `workspace:` (a mount) and `network:` (`none`, `allow` with `hosts:`, `open`) as for `sandbox`, with the same egress proxy; a server that downloads its own packages at start needs the registry on its allow-list, and a prepared image avoids that.
+6. **The server belongs to the run:** started at boot as today, stopped on end and cancel, leftovers from a crashed run stopped when a run resumes (35-D7's registry), and a crashed server restarted a bounded number of times and then reported.
+D9's `command` adapters use the same process machinery, so the rules apply once.
+**Costs, accepted:** a container needs an image per server, which is more work than `npx something`; `process` isolation is weak and is flagged; the legacy state keeps a known hole open for one release, with a warning.
 
 ## D8. Authentication: OAuth and signed requests
 
