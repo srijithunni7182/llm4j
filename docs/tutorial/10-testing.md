@@ -127,7 +127,7 @@ The whole point of `retry`, `on_failure` and `halt` is what happens when somethi
       told: { Writer: [ "nothing found on the web" ] }
 ```
 
-`fail:` takes `times: N`, `on_calls: [..]` or `always: true`, and a `category`: `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`. This is how you prove a retry recovers (`times: 1`), a fallback is used (`always: true`), a run halts, or a budget is respected.
+`fail:` takes `times: N`, `on_calls: [..]` or `always: true`, and a `category`: `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused`, `quota` or `credential_rejected`. This is how you prove a retry recovers (`times: 1`), a fallback is used (`always: true`), a run halts, or a budget is respected.
 
 ### Time and people in tests
 

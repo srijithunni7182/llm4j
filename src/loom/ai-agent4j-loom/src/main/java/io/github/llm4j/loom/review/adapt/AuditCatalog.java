@@ -163,7 +163,7 @@ public final class AuditCatalog {
         {
             "LA31",
             "A program runs without a sandbox",
-            "A sandbox with isolation: process runs its programs as a child process of the run, with the run's user, files and network; only time and output are bounded, and it always reaches the network. Names the tool, its programs (an interpreter such as python3 or sh can run any command) and the secrets it is given, by name. Medium; high when a secret is passed in its environment. isolation: container is the sandbox."
+            "A sandbox with isolation: process runs its programs as a child process of the run, with the run's user, files and network; only time and output are bounded, and it always reaches the network. Names the tool, its programs (an interpreter such as python3 or sh can run any command) and the secrets it is given, by name. Medium; high when a secret is passed in its environment. isolation: container is the sandbox. An mcp block raises it too: with no isolation: line (the server then inherits the whole environment), or at isolation: none or process, naming the command and the env: secrets it is given by name."
         },
         {
             "LA32",
@@ -174,6 +174,16 @@ public final class AuditCatalog {
             "LA33",
             "A sandbox reaches the network",
             "A sandbox with network: allow reaches the listed hosts through the egress proxy and nothing else (info; a wildcard host is called out as wide); with network: open it reaches any host (medium)."
+        },
+        {
+            "LA34",
+            "An openapi tool exposes a whole API",
+            "An openapi tool with no operation: gives an agent every operation of the description, reads and writes alike, under one effect and one approval. Medium. One tool per operation, each with its own effect:, is the shape weave connect writes; the older form keeps working until the next major version."
+        },
+        {
+            "LA35",
+            "An operation changed since it was pinned",
+            "An openapi tool's pin: no longer matches the operation's signature in the local description (its method, path, parameters or request schema), so what the agent calls is not what was reviewed. A warning in weave check, an error with --strict; a description that is not a local file is checked by weave connect --refresh --check."
         },
     };
 

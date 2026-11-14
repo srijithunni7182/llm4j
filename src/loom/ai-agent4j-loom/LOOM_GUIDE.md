@@ -339,7 +339,7 @@ cases:
 
 | Key | What it does |
 |---|---|
-| `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`, to test `retry`, `on_failure` and `rewind` |
+| `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused`, `quota` or `credential_rejected`, to test `retry`, `on_failure` and `rewind` |
 | `tools:`, `tasks:` | the tool or task returns this; tools whose calls are journaled (webhook, email, http, file, shell, sql, workspace, sandbox) only *record* what they would have done, which `expect: { effects: … }` asserts |
 | `real:` | `real: [RefundPolicy]` runs that task's own code instead of a scripted result, and `expect.calls` still counts it. Only a task that declares no effect on the world (`TaskEffect.NONE`) may be real; naming one that changes things, or does not say, is an error: *has effects; a test cannot run it for real; script its result in tasks:*. The class has to be on the class path (`weave test --classes <dir>`, or `target/classes`); a name in both `real:` and `tasks:` is an error |
 | `expect.told` | `told: { Billing: [ "customer 4417" ] }` asserts that an agent was told each text somewhere over the run (any capitalisation): a handoff that drops the fact fails the case instead of producing a confident answer built on a missing input |

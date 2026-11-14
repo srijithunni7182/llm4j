@@ -93,6 +93,7 @@ public final class SecurityAudit {
         ChildAudit.judges(script, findings);
         ChildAudit.signals(script, findings);
         SandboxAudit.findings(script, findings);
+        IntegrationAudit.findings(script, findings);
 
         findings.sort(
                 Comparator.comparing(Finding::severity)
