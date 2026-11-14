@@ -1,4 +1,4 @@
-package io.github.llm4j.mcp;
+package io.github.llm4j.mcp.testkit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,7 +18,7 @@ import java.util.Map;
  * schemas are vendored under {@code src/test/resources/mcp/schema}, unchanged, with their source
  * and hashes in {@code METADATA.json}.
  */
-final class McpConformance {
+public final class McpConformance {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -41,7 +41,7 @@ final class McpConformance {
     private final JsonSchemaFactory factory =
             JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012);
 
-    McpConformance(String revision) {
+    public McpConformance(String revision) {
         try (InputStream in =
                 McpConformance.class.getResourceAsStream("/mcp/schema/" + revision + ".json")) {
             if (in == null) throw new IllegalStateException("no schema vendored for " + revision);
@@ -52,7 +52,7 @@ final class McpConformance {
     }
 
     /** What is wrong with {@code line} (one JSON-RPC message), empty when it conforms. */
-    List<String> problems(String line, String methodOfRequestItAnswers) {
+    public List<String> problems(String line, String methodOfRequestItAnswers) {
         List<String> out = new ArrayList<>();
         JsonNode message;
         try {

@@ -1,4 +1,4 @@
-package io.github.llm4j.mcp;
+package io.github.llm4j.mcp.testkit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +32,22 @@ public final class FakeMcpServer {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private FakeMcpServer() {}
+
+    /**
+     * The command line that starts this server as a separate JVM on the JDK running the test, with
+     * the test's own class path, and {@code args} as its arguments.
+     */
+    public static List<String> command(String... args) {
+        List<String> command =
+                new ArrayList<>(
+                        List.of(
+                                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                                "-cp",
+                                System.getProperty("java.class.path"),
+                                FakeMcpServer.class.getName()));
+        command.addAll(List.of(args));
+        return command;
+    }
 
     public static void main(String[] args) throws Exception {
         Path log = null;

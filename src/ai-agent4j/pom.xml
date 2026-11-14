@@ -123,11 +123,11 @@
             <version>${okhttp.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- Contract tests: what the MCP fakes send and receive is validated against the official JSON Schema -->
+        <!-- A real MCP server and the official-schema validator, for the MCP client tests (not published) -->
         <dependency>
-            <groupId>com.networknt</groupId>
-            <artifactId>json-schema-validator</artifactId>
-            <version>1.5.6</version>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>llm4j-mcp-testkit</artifactId>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

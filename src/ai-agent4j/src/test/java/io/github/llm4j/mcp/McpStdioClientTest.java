@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.mcp.testkit.FakeMcpServer;
+import io.github.llm4j.mcp.testkit.McpConformance;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,14 +40,7 @@ class McpStdioClientTest {
     }
 
     private List<String> server(String... args) {
-        List<String> command = new ArrayList<>(List.of(JAVA, "-cp", classpath()));
-        command.add("io.github.llm4j.mcp.FakeMcpServer");
-        command.addAll(List.of(args));
-        return command;
-    }
-
-    private static String classpath() {
-        return System.getProperty("java.class.path");
+        return FakeMcpServer.command(args);
     }
 
     private McpClient client(StdioMcpTransport transport, Duration timeout) throws Exception {
