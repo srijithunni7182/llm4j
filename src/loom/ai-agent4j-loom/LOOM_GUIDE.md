@@ -340,7 +340,7 @@ cases:
 | Key | What it does |
 |---|---|
 | `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`, to test `retry`, `on_failure` and `rewind` |
-| `tools:`, `tasks:` | the tool or task returns this; tools that act (webhook, email, http, file, shell, sql) only *record* what they would have done, which `expect: { effects: … }` asserts |
+| `tools:`, `tasks:` | the tool or task returns this; tools whose calls are journaled (webhook, email, http, file, shell, sql, workspace, sandbox) only *record* what they would have done, which `expect: { effects: … }` asserts |
 | `real:` | `real: [RefundPolicy]` runs that task's own code instead of a scripted result, and `expect.calls` still counts it. Only a task that declares no effect on the world (`TaskEffect.NONE`) may be real; naming one that changes things, or does not say, is an error: *has effects; a test cannot run it for real; script its result in tasks:*. The class has to be on the class path (`weave test --classes <dir>`, or `target/classes`); a name in both `real:` and `tasks:` is an error |
 | `expect.told` | `told: { Billing: [ "customer 4417" ] }` asserts that an agent was told each text somewhere over the run (any capitalisation): a handoff that drops the fact fails the case instead of producing a confident answer built on a missing input |
 | `remotes:`, `channels:` | a `remote` agent is scripted one step per look: `Supplier: [ { state: working }, { state: input_required, question: "Which date?" }, { state: completed, text: "42 each", data: { price: 42 } } ]` (also `auth_required` with an `explanation`, `failed`, `rejected` and `canceled` with a `message`, `files: [ { link, name, type } ]`, or a single `{ reply: "…" }` for a plain message and no task); the last step repeats, so a remote that never finishes fails the step at its deadline in virtual time. `channels: { Desk: [ "Within 30 days.", { refuse: "no" }, { ignore: true } ] }` answers an `agent_channel` in order, and `asked:` sees each question. A remote or channel the case did not script fails the case |
@@ -501,16 +501,24 @@ agent Publisher {
 
 ### Generic Tools
 
-Six tool kinds cover what most long-running workflows need to touch the outside world, with no Java:
+These tool kinds cover what most long-running workflows need to touch the outside world, with no Java:
 
 | `use:` | For |
 |---|---|
 | [`webhook`](#webhook) | Post a message to Slack, Discord, Teams or any endpoint |
 | [`email`](#email) | Send mail over SMTP |
-| [`http`](#http) | Call a REST API that has no OpenAPI spec |
+| [`http`](#http) | Call a REST API that has no OpenAPI spec, or a program a sandbox serves (`reaches:`) |
 | [`file`](#file) | Read, list, write and append text files in one directory |
 | [`shell`](#shell) | Run a few named programs on the machine |
 | [`sql`](#sql) | Run read-only queries on a database |
+| [`compute`, `verify`, `scan`](#tools-that-compute-and-check-compute-verify-scan) | Exact arithmetic and dates, a test report or schema check as counts, secrets and personal data found |
+| [`workspace`](#editing-files-and-trying-again-workspace) | Edit a directory with exact patches, search it, snapshot and restore it |
+| [`sandbox`](#running-programs-sandbox) | Run allow-listed programs on a workspace, isolated in a container |
+
+Four more come in optional modules, each added with its jar (a script that uses one without it is told which module to
+add): `search` (web search through a provider you key), `documents` (the text of PDF, DOCX and HTML files with pages and
+paragraphs), `git` (through the sandbox) and `browser` (an installed Chrome, every request checked). See
+[the extras](../../tools/extras/README.md).
 
 They share these rules:
 
@@ -543,7 +551,7 @@ tool Db      { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PA
 
 #### What happens when a run is resumed
 
-A message sent twice is worse than most failures, so tools that change something (`webhook`, `email`, `shell`, `file`
+A message sent twice is worse than most failures, so tools that change something (`webhook`, `email`, `shell`, `workspace`, `sandbox`, `file`
 writes and appends, and `http` requests other than GET) are **journaled**. Each call is recorded before it happens and
 again after, in the run journal:
 

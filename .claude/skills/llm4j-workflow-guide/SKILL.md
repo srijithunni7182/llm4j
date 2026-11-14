@@ -89,7 +89,7 @@ you reach that situation, and do not guess at what it adds.
   `run`, never an agent. Tests for your own Java are written with it, with the project's own framework. Read the rule before writing either.
 - **11. Keep each `.loom` file readable:** split before about 150 lines (`agents/`, `flows/`, `call`). **12. Show what you built:** `weave explain`, read
   back, before building on it; `weave next` in an existing project; `weave guide recipes` for tested changes.
-- **13. Built-in tools (`webhook`, `email`, `http`, `file`, `shell`, `sql`) mean deployment work now,** not at the end: a README "Deploying" section, a
+- **13. Built-in tools (`webhook`, `email`, `http`, `file`, `shell`, `sql`, `workspace`, `sandbox`) mean deployment work now,** not at the end: a README "Deploying" section, a
   development entry and a deployed entry, credentials as `env.NAME` or `secret.NAME`, approvals for a workflow nobody watches. Read the rule.
 - **14. Round up before you talk about money:** `mvn test` (never `-q`; `Tests run: 0` is a failure), `PROJECT_REPORT.md` (the template is in the
   rule), open the eval4j dashboard and say which of the two reports is which, update the README, and only then explain how to run it for real.
@@ -105,6 +105,12 @@ Ask each of these, in the person's words, before the workflow is called built. T
    before every exit; and ask who may steer, stop or step in (chapter 15: steer, wrap up, cancel, cancel and send back, `on_stopped`, `supervise`).
 3. **A security decision for every agent that reads, knows and can send** (chapter 7). `weave audit` marks the lethal trifecta. Do not decide it for the
    person: split the agent, or they accept it **in writing, with a reason that names who looked and when**, in `<script>.inspect`.
+
+Tools that compute and check need no keys: `compute` for exact arithmetic and dates (never let a model add up money), `verify` to turn a
+test report or a schema check into counts a workflow can rely on, `scan` before anything leaves. An agent that edits files uses a `workspace`
+(`protect:` what judges it); one that runs code uses a `sandbox` with `isolation: container` (there is no default, and `process` is not
+isolation). To try again from a clean state, the script snapshots before a checkpoint, restores at the start of each attempt and rewinds with
+`side effects: repeat`: restore is a pattern the script writes, not something a rewind does (Loom guide, "Editing files and trying again").
 
 Two things people forget to ask for: **prompt caching** is on by default for an agent that loops on tools (it lowers cost, never changes an answer;
 `cache: false` turns it off; Loom guide, "Prompt caching"), and a model that can see, hear or read a PDF can be sent a file with `attach` (rule 0).

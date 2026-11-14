@@ -21,7 +21,7 @@ Each module answers the question the previous one raises.
 | **Loom** | How do many agents work together, reliably, for days? | [Overview](../src/loom/ai-agent4j-loom/README.md) · [Language guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md) |
 | **Engram** | How does an agent remember without drowning in context? | [Engram](../src/engram/engram-core/README.md) · [Loom + Engram workflows](../docs/AGENTIC_WORKFLOWS_GUIDE.md) |
 | **Addons** | How do I keep my data private and my costs at zero? | [Addons](../src/ai-agent4j-addons/) (ONNX and DJL embeddings, pgvector, Pinecone) |
-| **Tools** | How do I let an agent act on the world safely? | [Ready-made tools](../src/tools/ai-agent4j-tools/docs/README.md) (`webhook`, `email`, `http`, `file`, `shell`, `sql`) |
+| **Tools** | How do I let an agent act on the world safely? | [Ready-made tools](../src/tools/ai-agent4j-tools/docs/README.md) (`webhook`, `email`, `http`, `file`, `shell`, `sql`, `compute`, `verify`, `scan`, `workspace`, `sandbox`; optional `search`, `documents`, `git`, `browser`) |
 | **Observability** | How do I see what a workflow is doing right now? | [Overview](Observability.md) · [Fabric server](Fabric-Server.md) · [Deployer skill](Deployer-Skill.md) |
 | **eval4j** | How do I know it works, and keeps working? | [eval4j guide](../src/eval4j/README.md) · [Dashboard guide](../src/eval4j-report/docs/USER-GUIDE.md) |
 

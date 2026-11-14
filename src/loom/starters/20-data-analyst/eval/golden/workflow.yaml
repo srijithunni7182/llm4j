@@ -1,0 +1,4 @@
+- id: analyst-001
+  name: Total revenue from the sales file
+  input: "What was the total revenue?"
+  expected_output_contains: "300"

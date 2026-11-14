@@ -1,0 +1,44 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: a script whose total is the column's sum is accepted
+    input: { question: "What was the total revenue?" }
+    models:
+      Analyst: "analysis.py is written."
+    tools:
+      Py: { exit: 0, stdout: "", stderr: "", isolation: "container" }
+      Check: { status: "passed", failed: 0, items: [] }
+      Calc:
+        - { value: "300.00" }
+        - { value: "300.00", rows: 4, skipped: 0 }
+        - { value: "0.00" }
+      Scan: { count: 0, findings: [] }
+      Data:
+        - { content: "{\"total\": 300.00, \"note\": \"Revenue across four sales.\"}" }
+        - { content: "region,product,revenue\nnorth,widgets,120.50\nsouth,widgets,80.25\nnorth,gadgets,40.00\nwest,gadgets,59.25\n" }
+    expect:
+      result: { contains: "300.00" }
+  - name: a script that adds up wrong is stopped
+    input: { question: "What was the total revenue?" }
+    models:
+      Analyst: "analysis.py is written."
+    tools:
+      Py: { exit: 0, stdout: "", stderr: "", isolation: "container" }
+      Check: { status: "passed", failed: 0, items: [] }
+      Calc:
+        - { value: "299.00" }
+        - { value: "300.00", rows: 4, skipped: 0 }
+        - { value: "-1.00" }
+      Data:
+        - { content: "{\"total\": 299.00, \"note\": \"Revenue.\"}" }
+        - { content: "region,product,revenue\nnorth,widgets,120.50\nsouth,widgets,80.25\nnorth,gadgets,40.00\nwest,gadgets,59.25\n" }
+    expect:
+      final: halted
+  - name: a script that fails stops the run with its error
+    input: { question: "What was the total revenue?" }
+    models:
+      Analyst: "analysis.py is written."
+    tools:
+      Py: { exit: 1, stdout: "", stderr: "NameError: total", isolation: "container" }
+    expect:
+      final: halted

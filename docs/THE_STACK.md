@@ -12,7 +12,7 @@ flowchart LR
     A["<b>ai-agent4j</b><br/>agents, tools, providers"] --> L["<b>Loom</b><br/>workflows that run for days"]
     A --> E["<b>Engram</b><br/>memory that stays sharp"]
     A --> X["<b>Addons</b><br/>local embeddings, vector stores"]
-    A --> T["<b>Tools</b><br/>webhook, email, http, file, shell, sql"]
+    A --> T["<b>Tools</b><br/>webhook, email, http, file, shell, sql,<br/>compute, verify, scan, workspace, sandbox"]
     A --> V["<b>eval4j</b><br/>tests for agents"]
     L --> I["<b>loom-inspect + Fabric</b><br/>watch runs live"]
     L --> G["<b>Your application</b>"]
@@ -70,7 +70,7 @@ What the runtime does for you:
 - enforces budgets before each call;
 - runs on schedules without a hosted platform;
 - runs the parts too important to leave to a model as **tasks**: plain Java behind a `run` step, no tokens, journaled, never repeated by a crash if it changes things, and never callable by a model ([Tasks](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#tasks-deterministic-steps-run));
-- ships six generic tools usable from the script with no Java: `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`, with a journal so a crash never sends the same message twice ([Generic Tools](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools), [daily digest sample](../src/loom/ai-agent4j-loom/samples/digest/));
+- ships tools usable from the script with no Java: `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, `compute`, `verify`, `scan`, `workspace` and `sandbox`, with a journal so a crash never sends the same message twice ([Generic Tools](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools), [daily digest sample](../src/loom/ai-agent4j-loom/samples/digest/));
 - lets an agent **earn its autonomy**: it proposes, a person decides, and a ledger of both moves it from `watch` to `suggest` to `act` (and back) on evidence, with a prompt change tested on your past cases before it goes live ([Earned Autonomy](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#earned-autonomy));
 - asks you on Telegram when it needs a person, and carries on when you reply, so it can run on a machine nobody sits at ([Answering from Your Phone](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#answering-from-your-phone));
 - calls and serves **other organisations' agents** over A2A (`remote`, `ask`, `expose`, `weave card`): what comes back is untrusted, a send is never repeated by a crash, and llm4j runs no server ([A2A](a2a/README.md));

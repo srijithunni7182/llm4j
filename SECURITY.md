@@ -18,7 +18,7 @@ cannot see or move.
 | [Securing a Loom workflow](docs/security/securing-workflows.md) | Nine steps with examples, a worked example that survives a prompt injection, and the patterns to avoid |
 | [Auditing a script: `weave audit`](docs/security/weave-audit.md) | The static security review: what it finds (14 rules), the report, and how to gate CI on it |
 | [The OWASP Top 10 for LLM Applications, and the gaps](docs/security/owasp-llm-top-10.md) | Each of the ten risks: what llm4j does, what you do, and what is not covered yet |
-| [The tools' safety model](src/tools/ai-agent4j-tools/docs/safety.md) | What a hostile call to `webhook`, `email`, `http`, `file`, `shell` or `sql` tries, and what stops it |
+| [The tools' safety model](src/tools/ai-agent4j-tools/docs/safety.md) | What a hostile call to `webhook`, `email`, `http`, `file`, `shell` or `sql` tries, and what stops it; the sandbox has [its own threat model](docs/security/sandbox.md) |
 
 ## The threat model
 

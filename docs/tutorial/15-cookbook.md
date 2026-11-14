@@ -260,7 +260,7 @@ persona Name { role: "..."  tone: "..."  constraints: ["..."] }
 provider Name { use: ollama  base_url: "..."  api_key: env.NAME }
 routing Name { strategy: fallback  primary: "m1"  fallback: ["m2", "m3"] }
 knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "idx.json" }
-tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options...  effect: none|reads|changes }
+tool Name { use: webhook|email|http|file|shell|sql|compute|verify|scan|workspace|sandbox|openapi|class|...  ...options...  effect: none|reads|changes }
 mcp Name { transport: "stdio"  cmd: "..." }
 extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
 evaluator Name { model: "..."  samples: 3  unsure below 0.8  fallback: ["..."] }

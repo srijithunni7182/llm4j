@@ -64,7 +64,7 @@ Behind an HTTP proxy the proxy makes the final connection, so the address check 
 
 ## The effect journal
 
-A message sent twice is worse than most failures. Tools that change something (`webhook`, `email`, `shell`, `file` writes and
+A message sent twice is worse than most failures. Tools that change something (`webhook`, `email`, `shell`, `workspace`, `sandbox`, `file` writes and
 appends, `http` requests other than GET) implement `Effectful`, and `kind.create(...)` wraps them in an `EffectTool` that
 records each call in an `EffectJournal`:
 

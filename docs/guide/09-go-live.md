@@ -303,6 +303,11 @@ If any agent uses one of the built-in tools, the workflow needs more than keys w
 check on the machine it will run on. **The agent that built the workflow writes this down as a "Deploying" section in the project's README**, one line per name the script needs, saying
 what it is for and how to set it. The names come from the script itself: `weave check main.loom --no-env` lists them under "not set yet", and it is free.
 
+**A `sandbox` needs its runtime where it runs.** With `isolation: container` the machine needs Docker or Podman and the
+image (`pull: true`, or pull it in the deployment); a missing runtime stops the run before its first step, and nothing
+falls back to `process`. `network: allow` was verified on Docker for Linux. `weave check` looks at the script, not the
+machine, so run one real run on the target before calling it done. See [the sandbox's threat model](../security/sandbox.md).
+
 **One entry file per environment, the same workflows underneath.** Tools are declared once in the file you run, so a development entry and a deployed entry can differ in one block and
 share every agent and workflow (`import`; see the chapter on splitting files):
 
@@ -350,7 +355,7 @@ Run the development entry until it behaves, then `weave check prod.loom --no-env
    Never the project's `.env`.
 2. **Approvals need somebody to answer.** A step with `approve` (`use Tool(...) approve`, `run Task(...) approve`) or an agent with `approve: [...]` on a deployed workflow has no console: choose how a person is asked (`--ask-via telegram`, or a host that supplies
    a `HumanInterface`; see "Answering from a phone" in the Loom reference). A `shell` tool must be under `approve:` or say `unattended: true`, or the script does not load.
-3. **Use a durable journal** (`--journal <folder>`). Tools that change something (`webhook`, `email`, `shell`, `file` writes, `http` other than GET) are recorded, so a restart does not
+3. **Use a durable journal** (`--journal <folder>`). Tools that change something (`webhook`, `email`, `shell`, `file` writes, `http` other than GET, `workspace` writes and restores, `sandbox` runs) are recorded, so a restart does not
    send the message twice; with the in-memory journal that holds only within one process.
 4. **Check on the machine it will run on, without `--no-env`:** `weave check prod.loom` fails naming every variable that is not set there; it contacts nothing and costs nothing. Then
    `weave audit prod.loom --fail-on medium`, then a capped smoke run that goes to a test sink first (the email `outbox`, a test webhook URL), then the real recipients.

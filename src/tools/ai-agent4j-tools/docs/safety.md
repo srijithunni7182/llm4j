@@ -14,6 +14,11 @@ inputs, and by deliberately breaking each guard to see that a test notices.
 | `file` | read or write outside the directory, hidden files, the run's own journal | Paths resolved and checked after symbolic links; hidden names and control or line-break characters refused; name patterns; reserved paths; atomic writes; no delete |
 | `shell` | run another program, use shell syntax, read the environment | An allow-list resolved on `PATH`; interpreters and wrappers refused; arguments passed as an array to a process with no shell; a cleared environment; output and time caps; process-tree kill |
 | `sql` | write, run two statements, call a file-reading function | A read-only connection plus a token-level statement check (one `SELECT`, `WITH` or `VALUES`; no `INTO`, `CALL`, writes or dangerous functions); values only as bound parameters; row and byte caps |
+| `compute` | run code through an expression, exhaust memory with a huge number | A small expression grammar with no names or calls into Java; decimal sizes and CSV rows bounded |
+| `verify` | have a broken report counted as a pass, read outside its root, load an external entity | An unreadable report counts as one failure; DOCTYPE refused; paths kept under `root` |
+| `scan` | make the tool echo a secret it found | Findings name a rule and a place, never the match |
+| `workspace` | write through a link, edit `.git` or the tests that judge it, restore a tampered snapshot | Links never followed; a deny list `allow` cannot override; protected paths read only; snapshots checked by SHA-256 before a restore; restore refused while a sandbox serves |
+| `sandbox` | run another program, read the host, reach the network, keep a secret, get a weaker isolation | Allow-listed program names with an argument list; isolation declared with no default and checked on every result; the workspace the only mount, protected paths read only; `network: none` by default, listed hosts through an egress proxy; an empty environment, secrets by name, scrubbed; bounded time and output. See [its threat model](../../../../docs/security/sandbox.md) |
 
 ## What these do not do
 

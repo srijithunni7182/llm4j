@@ -38,6 +38,8 @@ The models are named `gemini-2.5-flash` in all of them. Change the `model:` line
 | 16 | [step-by-step-agent](16-step-by-step-agent/) | A long job whose progress the script owns | bounded `loop`, `memory { transcript: none }`, an `extractor` that records progress |
 | 17 | [compliance-boundary](17-compliance-boundary/) | A reply is checked against house rules before it leaves | `policy`, `evaluator`, `check ... against`, `on_violation { rewrite with ... }` |
 | 18 | [supervise-workflows](18-supervise-workflows/) | Start three researchers at once and watch them | `start`, handles, `supervise` on a handle, `wait all`, judged assertions, a `need_help` signal |
+| 19 | [report-writer](19-report-writer/) | Writes a report, checks it against a schema, restores and retries | `workspace` snapshot and restore, `verify`, `side effects: repeat` |
+| 20 | [data-analyst](20-data-analyst/) | Runs a model's script on a CSV in a container and checks its answer | `sandbox` with no network, `compute`, `verify`, `scan` |
 
 ## What keeps these honest
 

@@ -39,10 +39,10 @@ class StartersTest {
     }
 
     @Test
-    void thereAreEighteenStartersNumberedFromOneWithoutGaps() throws Exception {
+    void thereAreTwentyStartersNumberedFromOneWithoutGaps() throws Exception {
         List<String> names = starters().stream().map(p -> p.getFileName().toString()).toList();
 
-        assertThat(names).hasSize(18);
+        assertThat(names).hasSize(20);
         for (int i = 0; i < names.size(); i++)
             assertThat(names.get(i)).startsWith(String.format("%02d-", i + 1));
     }

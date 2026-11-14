@@ -133,7 +133,7 @@ The [Quickstart](docs/QUICKSTART.md) covers the CLI, the VS Code extension, gene
 
 | | |
 |---|---|
-| **Learn** | [Quickstart](docs/QUICKSTART.md) · [Developer guide](DEVELOPER_GUIDE.md) · [Tutorial](docs/tutorial/README.md) · [18 starters](src/loom/starters/README.md) · [Examples](docs/EXAMPLES.md) |
+| **Learn** | [Quickstart](docs/QUICKSTART.md) · [Developer guide](DEVELOPER_GUIDE.md) · [Tutorial](docs/tutorial/README.md) · [20 starters](src/loom/starters/README.md) · [Examples](docs/EXAMPLES.md) |
 | **Reference** | [Loom language guide](src/loom/ai-agent4j-loom/LOOM_GUIDE.md) · [Command reference](docs/COMMAND_REFERENCE.md) · [Documentation index](docs/README.md) |
 | **Operate** | [Observability](docs/OBSERVABILITY.md) · [Deployment](docs/OBSERVABILITY_DEPLOYMENT.md) · [Spring Boot guide](docs/SPRING_BOOT_LOOM_GUIDE.md) · [A2A](docs/a2a/README.md) |
 | **Evaluate** | [Why llm4j](docs/WHY_LLM4J.md) · [vs LangChain4j and Spring AI](src/ai-agent4j/wiki/WHY_AI_AGENT4J.md) · [Loom vs LangGraph](src/loom/ai-agent4j-loom/WHY_LOOM.md) · [eval4j vs deepeval](src/ai-agent4j/wiki/WHY_EVAL4J.md) |

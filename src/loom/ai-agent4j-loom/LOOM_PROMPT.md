@@ -82,8 +82,14 @@ agent <AgentName> {
     tool Notes  { use: file  root: "notes"  mode: readwrite }                             // read | write | readwrite; never outside the script's directory
     tool Ops    { use: shell  allow: "df, du"  unattended: true }                         // programs by name, no shell; the agent must approve it or the tool says unattended: true
     tool Db     { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD }   // read-only: one SELECT per call
+    tool Calc   { use: compute }                                                          // calc (exact decimals), date, json, csv; reaches nothing
+    tool Check  { use: verify  root: "out" }                                              // junit report or schema check -> counts (failed > 0 means it failed)
+    tool Scan   { use: scan }                                                             // secrets and personal data: a rule and a place, never the match
+    tool Code   { use: workspace  root: "project"  allow: "**"  mode: readwrite  protect: "tests/**" }   // read, patch, find, grep, snapshot, restore
+    tool Tests  { use: sandbox  workspace: Code  isolation: container  image: "python:3.12-slim"  allow: "python3" }   // isolation has no default; network: none unless allow/hosts
     ```
-    Calls that change something (`webhook`, `email`, `shell`, `file` writes, `http` non-GET) are journaled, so a resumed run doesn't repeat them; `on_unknown: skip | retry` decides what to do when a crash left it unknown. `webhook` and `http` only reach https hosts that aren't on a private network.
+    Use the results with `use Tool(name = value) -> var`; a script gives a sandbox's `args` as the text of a JSON list: `args = "[\"-m\", \"pytest\"]"`. Restore is something the script does: snapshot before a checkpoint, restore at the start of each attempt, rewind with `side effects: repeat`. Optional modules add `search` (a keyed provider), `documents` (PDF, DOCX, HTML with pages and paragraphs), `git` (through the sandbox) and `browser` (an installed Chrome); each needs its jar.
+    Calls that change something (`webhook`, `email`, `shell`, `file` writes, `http` non-GET, `workspace` writes, snapshots and restores, `sandbox` runs) are journaled, so a resumed run doesn't repeat them; `on_unknown: skip | retry` decides what to do when a crash left it unknown. `webhook` and `http` only reach https hosts that aren't on a private network.
 *   **Knowledge Bases** (retrieval for agents that list them in `knowledge: [..]`):
     ```loom
     knowledge Handbook { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "index/handbook.json" }

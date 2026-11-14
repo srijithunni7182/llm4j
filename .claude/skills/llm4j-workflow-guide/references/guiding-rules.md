@@ -98,12 +98,12 @@ when you reach its stage or situation, not before: it is long on purpose.
     it is free. After you change a script, run `weave explain <script>` and read the plain-English description back to the user, so they can confirm it is what they
     meant before anything is run. Neither command calls a model. When the user asks how to change something, look in `weave guide recipes` for a tested pattern.
 
-13. **Do this as soon as any agent uses a built-in tool, not at the end** (it is easy to skip: a `shell` tool counts). If any agent uses a built-in tool (`webhook`, `email`, `http`, `file`, `shell`, `sql`), prepare it for deployment.** Write a "Deploying" section in the project's README with one line per name the
+13. **Do this as soon as any agent uses a built-in tool, not at the end** (it is easy to skip: a `shell` tool counts). If any agent uses a built-in tool (`webhook`, `email`, `http`, `file`, `shell`, `sql`, `workspace`, `sandbox`), prepare it for deployment.** Write a "Deploying" section in the project's README with one line per name the
     script needs (get them from `weave check <entry> --no-env`, "not set yet"): what it is for and how the deployer sets it. Then, from chapter 9 ("Built-in tools when deployed"):
     - keep a **development entry** (email `outbox:` instead of SMTP, a test webhook URL) and a **deployed entry** that import the same workflows; tools are declared in the entry file;
     - every credential, webhook URL and SMTP password is `env.NAME` or `secret.NAME` and is supplied by the service's environment, the secret store or a vault host, **never the project's `.env`**;
     - settle approvals for a workflow nobody watches (`approve:` needs `--ask-via` or a host `HumanInterface`; a `shell` tool needs `approve:` or `unattended: true`), a durable `--journal`, `max_per_run` for
-      email, `allow_paths` and `methods` for `http`, a writable persistent folder for `file`, installed programs for `shell`, and a **read-only database user** for `sql`;
+      email, `allow_paths` and `methods` for `http`, a writable persistent folder for `file` and `workspace`, installed programs for `shell`, Docker or Podman and the image for a `sandbox` with `isolation: container` (a missing runtime stops the run, nothing falls back), and a **read-only database user** for `sql`;
     - tell the user to run `weave check <deployed entry>` (without `--no-env`) on the target machine, then `weave audit --fail-on medium`, then a capped smoke run to a test sink before the real recipients.
 
 14. **Round up before you talk about money.** When the workflow is built and the free checks pass, finish the job in this order. Do not end on "the next step costs money".

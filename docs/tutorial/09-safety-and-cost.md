@@ -300,7 +300,7 @@ Run both in CI next to `weave check`. `weave audit --fail-on medium` makes mediu
 
 ## Effects are recorded, and never repeated
 
-Every step that changes the world (a `webhook`, an `email`, an `http` POST, a `file` write, a `shell` command, a `run` task that declares a change) is written to the journal **before and after** it happens. If the process dies in between, a resume does not blindly repeat a payment: a step that cannot be proven idempotent is stopped and flagged for a person to check, and one that is idempotent runs again with the *same* idempotency key, so the receiver can deduplicate. A retry, a resume or a rewind never repeats a send.
+Every step that changes the world (a `webhook`, an `email`, an `http` POST, a `file` write, a `shell` command, a `workspace` write or restore, a `sandbox` run, a `run` task that declares a change) is written to the journal **before and after** it happens. If the process dies in between, a resume does not blindly repeat a payment: a step that cannot be proven idempotent is stopped and flagged for a person to check, and one that is idempotent runs again with the *same* idempotency key, so the receiver can deduplicate. A retry, a resume or a rewind never repeats a send.
 
 ## Everything in one place: the safe-by-default checklist
 

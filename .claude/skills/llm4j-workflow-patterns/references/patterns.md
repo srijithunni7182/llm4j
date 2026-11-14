@@ -639,6 +639,137 @@ workflow Main(question) {
 
 Stages that matter: 5 (cost per child, the reservation), 7 (audit, rule LA30 for a signal read), 8 (trajectory tests with `children:`, `signals:`, `events:` and `fired:`), 15 (stop and supervise).
 
+## 13. Edit, check, and try again from a clean state
+
+**Use it when:** An agent changes files (a report, a configuration, code) and a check decides whether the change is right: a schema, a
+test report, a linter. When the check fails, the next attempt should start from the files as they were, not from the failed attempt.
+
+**Decide with the person:**
+
+- What judges the work, and that it is out of the agent's reach (`protect:` on the schema or the tests).
+- How many attempts (`at most N times`) and what happens after the last (`if it still fails`: halt, keep the last, or ask a person).
+- Who approves the agent's writes, or whether the folder is a scratch copy nobody needs to watch.
+
+<!-- starter:19-report-writer -->
+```loom
+// 19-report-writer: an agent writes a report into a folder, a check validates it, and when the check fails the workflow puts
+// the folder back as it was and tries again with what the check said. Restore is a step the script takes: snapshot once,
+// restore at the start of each attempt, and rewind with side effects: repeat so the attempt's writes run again.
+
+substitution: braces
+
+budget { tokens: 200000  calls: 30 }
+
+tool Draft { use: workspace  root: "report"  allow: "*.json, *.md"  mode: readwrite  overwrite: true  protect: "report.schema.json" }
+tool Check { use: verify  root: "report" }
+
+agent Writer {
+    model: "gemini-2.5-flash"
+    system: "You write report.json in your folder: a JSON object with a title, a summary of at most 80 words and a list of findings. Read report.schema.json first. Use the feedback to fix what failed."
+    tools: [Draft]
+    approve: [Draft]
+    temperature: 0.3
+}
+
+workflow Main(brief) {
+    use Draft(action = "snapshot", name = "clean")
+    checkpoint Clean starting with feedback = "none"
+    use Draft(action = "restore", name = "clean")
+
+    delegate "Write report.json for this brief: {brief}\nFeedback from the last check: {feedback}" to Writer -> written
+    use Check(format = "schema", schema = "report.schema.json", source = "report.json") -> result
+
+    rewind to Clean
+        when (result.failed > 0)
+        at most 2 times
+        carrying feedback = "{result.items}"
+        side effects: repeat
+        if it still fails { halt "report.json still does not match its schema after three attempts" }
+
+    note "{written}"
+    return result.status
+}
+```
+
+**What to keep and what to watch:**
+
+- Restore is a step the script takes, not something a rewind does: snapshot once before the checkpoint, restore first in every attempt
+  (the first time it changes nothing), and `side effects: repeat` so the attempt's writes run again. With `keep`, the second restore is
+  taken for the first and nothing is put back.
+- `verify` gives counts the script can trust (`result.failed`); its item texts are what the agent wrote, so they go back to the agent as
+  feedback, never decide anything on their own. A report it cannot read counts as a failure.
+
+Stages that matter: 2 (a case the check rejects), 6 (the rewind and its limit), 8 (a trajectory test that the second attempt restored).
+
+## 14. Run a model's code, and check its answer
+
+**Use it when:** The answer needs a computation a model should not do in its head: totals over a file, a data transformation, a test
+run. An agent writes the code; a sandbox runs it; the workflow checks the result itself before it leaves.
+
+**Decide with the person:**
+
+- Where the code runs: `isolation: container` (Docker or Podman, an image you name) is the sandbox; `process` is not isolation and the audit
+  says so. There is no default.
+- What the code may reach: `network: none` unless it must install something (`network: allow` with the hosts it needs).
+- How the script checks the answer without trusting it: the schema of the result (`verify`), a figure recomputed exactly (`compute`), a
+  scan before anything leaves (`scan`).
+
+<!-- starter:20-data-analyst -->
+```loom
+// 20-data-analyst: an agent writes a short script, a sandbox runs it against a CSV with no network, the workflow checks the
+// script's answer against its own exact sum of the same column, and scans the summary before it leaves. The model's code
+// runs in a container, sees only the data folder, and cannot change sales.csv.
+
+substitution: braces
+
+budget { tokens: 150000  calls: 20 }
+
+tool Data  { use: workspace  root: "data"  allow: "*.py, *.csv, *.json"  mode: readwrite  overwrite: true  protect: "sales.csv" }
+tool Py    { use: sandbox  workspace: Data  isolation: container  image: "python:3.12-slim"  allow: "python3"  network: none  timeout: "2m"  unattended: true }
+tool Calc  { use: compute }
+tool Check { use: verify  root: "data" }
+tool Scan  { use: scan }
+
+agent Analyst {
+    model: "gemini-2.5-flash"
+    system: "You write analysis.py in your folder. It reads sales.csv with the standard library only and writes result.json: {\"total\": <the sum of the revenue column>, \"note\": <one sentence>}. Do not print anything else."
+    tools: [Data]
+    approve: [Data]
+    temperature: 0.2
+}
+
+workflow Main(question) {
+    delegate "{question}\nWrite analysis.py as your instructions say." to Analyst -> written
+    use Py(program = "python3", args = "[\"analysis.py\"]") -> ran
+    alt (ran.exit != 0) { halt "analysis.py failed: {ran.stderr}" }
+
+    use Check(format = "schema", schema = "result.schema.json", source = "result.json") -> shape
+    alt (shape.failed > 0) { halt "result.json is not in the expected shape: {shape.items}" }
+
+    use Data(action = "read", path = "result.json") -> result
+    use Calc(action = "json", document = result.content, path = "total") -> claimed
+    use Data(action = "read", path = "sales.csv") -> sales
+    use Calc(action = "csv", text = sales.content, column = "revenue", op = "sum") -> total
+    use Calc(action = "calc", expression = "{claimed.value} - {total.value}") -> difference
+    alt (difference.value != "0") { halt "the script's total {claimed.value} is not the sum of the revenue column ({total.value})" }
+
+    use Scan(text = result.content) -> found
+    alt (found.count > 0) { halt "the result holds something that must not leave: {found.findings}" }
+    note "{written}"
+    return result.content
+}
+```
+
+**What to keep and what to watch:**
+
+- The model's program is a name from `allow:` and an argument list; a script gives `args` as the text of a JSON list. No shell reads it.
+- The data the code reads is protected (`protect:`), so the code cannot change what it is judged against; the workspace is the only folder
+  the container sees.
+- What the program prints is unchecked text: compare figures with `compute`, never with what the program says about them.
+
+Stages that matter: 7 (audit: LA31 if it runs at `process`, LA33 for any network), 8 (tests with scripted tool results), 9 (Docker on the
+machine it will run on: a missing runtime stops the run before its first step).
+
 ## Shapes that are not a pattern of their own
 
 - **Remembers each person:** an agent with a `memory` block and a `persona`; ask what may be remembered, for how long, and who may erase it.

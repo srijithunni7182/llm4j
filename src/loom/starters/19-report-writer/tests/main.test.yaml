@@ -1,0 +1,24 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: a report that matches its schema the first time is kept
+    input: { brief: "Quarterly support tickets" }
+    models:
+      Writer: "report.json is written."
+    tools:
+      Check: { status: "passed", failed: 0, items: [] }
+    expect:
+      result: { contains: "passed" }
+      calls: { Writer: 1 }
+  - name: a report that fails the check is restored and written again, with what failed
+    input: { brief: "Quarterly support tickets" }
+    models:
+      Writer: ["A first try.", "A fixed report."]
+    tools:
+      Check:
+        - { status: "failed", failed: 1, items: [ { name: "summary", status: "failed", message: "is longer than 600" } ] }
+        - { status: "passed", failed: 0, items: [] }
+    expect:
+      result: { contains: "passed" }
+      calls: { Writer: 2 }
+      told: { Writer: [ "is longer than 600" ] }

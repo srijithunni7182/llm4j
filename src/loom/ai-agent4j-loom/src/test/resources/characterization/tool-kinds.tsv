@@ -421,6 +421,8 @@ src/loom/starters/15-earned-autonomy/main.loom	eb33c3b4712460bc	405e9be184f72fd9
 src/loom/starters/16-step-by-step-agent/main.loom	725149ccf907bf79	281dba2a20edb315	e3b0c44298fc1c14
 src/loom/starters/17-compliance-boundary/main.loom	8607c6caf12314d5	a90c174fc7acd58e	e3b0c44298fc1c14
 src/loom/starters/18-supervise-workflows/main.loom	c996eebf00285d95	0450884a1b25c325	e3b0c44298fc1c14
+src/loom/starters/19-report-writer/main.loom	ad2cb576d82e6ebc	c5c5e393fe98e1e9	e3b0c44298fc1c14
+src/loom/starters/20-data-analyst/main.loom	0a53ccc1404fd2db	a4c07437dfbb1fd7	e3b0c44298fc1c14
 src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom	15955b70fdeb9775	81963b5d7384730a	e3b0c44298fc1c14
 src/loom/vscode-loom/test/fixtures/review/scripts/many.loom	d32cc9e2ed1be2b2	5bac57fda9848033	461499cb79e2f0df
 src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom	5020c9d95d68b256	4c78f9a7966ec3ba	e3b0c44298fc1c14

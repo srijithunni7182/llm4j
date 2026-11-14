@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "required": ["total", "note"],
+  "properties": {
+    "total": { "type": "number" },
+    "note": { "type": "string", "maxLength": 300 }
+  },
+  "additionalProperties": false
+}
