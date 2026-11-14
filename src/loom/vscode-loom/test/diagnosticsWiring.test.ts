@@ -27,8 +27,8 @@ test('the check runs with --no-env, so a key that is not set yet is not a mistak
     assert.match(read('src', 'check', 'runner.ts'), /'--format', 'json', '--no-env'/);
 });
 
-test('the README says problems come from weave check and are refreshed on open and save', () => {
-    const readme = read('README.md');
+test('the reference says problems come from weave check and are refreshed on open and save', () => {
+    const readme = read('REFERENCE.md');
     assert.match(readme, /## Problems/);
     assert.match(readme, /opened and saved/);
     assert.match(readme, /weave check/);

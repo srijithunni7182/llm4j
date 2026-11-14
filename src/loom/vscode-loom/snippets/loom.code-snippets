@@ -27,7 +27,7 @@
     "body": [
       "delegate \"${1:Write a short post from the notes}\" to ${2:Writer} -> ${3:answer_text}"
     ],
-    "description": "Ask an agent and keep the answer. Name the variable so it cannot be an ordinary word in your text (answer_text, not answer): a variable's name is replaced everywhere in a string."
+    "description": "Ask an agent and keep the answer. Put a variable into the text as {name}: only {name} is replaced, a plain word stays a word."
   },
   "delegate-shape": {
     "prefix": "delegate-expecting",

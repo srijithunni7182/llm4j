@@ -54,4 +54,4 @@ The status bar says so once, in one place, and everything else keeps working. No
 | `loom.observe.maxTokens` | `50000` | The most tokens a run started from Run With Live Page may use |
 | `loom.serve.memoryMb`, `loom.serve.timeoutMs` | `64`, `10000` | How much the engine may keep, and the longest it may take for one request |
 
-The full list, the keyboard keys and the commands are in the [extension README](../src/loom/vscode-loom/README.md); the protocol between the extension and the engine is in [docs/serve/PROTOCOL.md](../docs/serve/PROTOCOL.md); the language itself is in the [Loom guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md).
+The full list, the keyboard keys and the commands are in the [extension reference](../src/loom/vscode-loom/REFERENCE.md); the protocol between the extension and the engine is in [docs/serve/PROTOCOL.md](../docs/serve/PROTOCOL.md); the language itself is in the [Loom guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md).

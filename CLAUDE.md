@@ -183,7 +183,7 @@ Documentation is part of the change. A behaviour, API, setting, command or file 
   | `src/loom/ai-agent4j-loom/LOOM_GUIDE.md`, `LOOM_PROMPT.md` | The language reference and the version written for models |
   | `llms.txt` | The machine-readable summary of the project for models |
   | `.claude/skills/*` | The skills and their references, which ship to users as packages (`make skill-package`) |
-  | `src/loom/vscode-loom/README.md`, `CHANGELOG.md` | The VS Code extension |
+  | `src/loom/vscode-loom/README.md` (the short Marketplace page), `REFERENCE.md`, `CHANGELOG.md` | The VS Code extension |
   | Javadoc | The API reference users see in their IDE |
 
 - **Keep the facts consistent everywhere:** version numbers, Maven coordinates, module names, the list of providers, CLI flags and defaults. When one changes, change all of them. Never leave one page saying something different from the rest.

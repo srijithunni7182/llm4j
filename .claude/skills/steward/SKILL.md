@@ -41,7 +41,7 @@ Run `make docs-check` after any of these (about 40 s): it runs the generators (`
 | A `weave audit` rule | `docs/security/weave-audit.md` must list the rule id (`SecurityDocTest`). |
 | A script anywhere in the repo | `RepositoryScriptsTest` loads every `.loom` file and requires it to pass the checks; a deliberately broken one must be named in its exclusion list. |
 | A public API or file format | `docs/API_COMPATIBILITY.md`; keep the old constructor of a record when adding a component. |
-| The VS Code extension | `src/loom/vscode-loom/README.md` must list every snippet prefix and node kind; add a CHANGELOG line. |
+| The VS Code extension | `src/loom/vscode-loom/REFERENCE.md` must list every snippet prefix, node kind and setting (the README is the short Marketplace page); add a CHANGELOG line. |
 
 ## Verifying the VS Code extension
 
