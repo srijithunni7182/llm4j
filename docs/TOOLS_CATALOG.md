@@ -4,7 +4,7 @@ Every ready-made tool llm4j ships, what it can do for your agent, and what stops
 
 A model that can only talk is a chatbot. A model that can post to Slack, call an API, edit a codebase, run its tests and open a branch is a colleague. The catch is that **the model, not you, chooses the arguments**. Each tool here is built for that case: the limits are in the code, not in a prompt, and every limit is a test.
 
-Fifteen tools in two groups: eleven **light tools** in one module that needs only the core and Jackson, and four **extras** you add only when you want them.
+Fifteen purpose-built tools in two groups: eleven **light tools** in one module that needs only the core and Jackson, and four **extras** you add only when you want them. Beside them, two **connectors** turn an [OpenAPI spec](#-openapi) or an [MCP server](#-mcp) into tools, and a few [simple tools](#-also-built-into-the-core) come with the core library.
 
 ## 🗺️ At a glance
 
@@ -25,6 +25,8 @@ Fifteen tools in two groups: eleven **light tools** in one module that needs onl
 | 📄 | [`documents`](#-documents) | Text of PDF, DOCX and HTML, with page numbers *(extra)* | No |
 | 🌿 | [`git`](#-git) | Status, diff, commit and an approved push *(extra)* | Yes, for a push |
 | 🧭 | [`browser`](#-browser) | Drive a real Chrome, every request checked *(extra)* | Yes, when a click can order, pay or post |
+| 🔌 | [`openapi`](#-openapi) | Every endpoint of any REST API with an OpenAPI spec, as tools | Your call: declare each operation's effect |
+| 🧩 | [`mcp`](#-mcp) | Every tool of any Model Context Protocol server | Your call: declare each tool's effect |
 
 ## 🧱 What every tool gives you
 
@@ -284,13 +286,61 @@ tool Repo { use: git  workspace: Code  isolation: container  image: "alpine/git:
 
 ---
 
-## 🧩 Which tool for which job?
+## 🔌 Connect to anything
+
+When there is no purpose-built tool, connect the one that already exists.
+
+### 🔌 `openapi`
+
+**Give an agent a whole API without writing a line of tool code.** Point it at an OpenAPI 3.x or Swagger 2.0 spec (a URL, a file or a string) and every operation becomes something the agent can call, described to the model from the spec's own summaries.
+
+- **Automatic discovery:** endpoints, parameters and their descriptions are read from the spec. Path and query values are filled in and the request is made for you; large responses are truncated so they can't flood the context.
+- **Authentication:** an API key in a header or the query string, or a bearer token. The agent chooses the path, never the host.
+- **Acts as the person who runs the workflow:** `auth_value: invoker.token`, or from Java a `CredentialSource` asked for on every request, so a refreshed OAuth token is used at once. On a `401` it asks again and repeats the request once. The credential goes only over HTTPS, and is never in an error or a log.
+- **Declare what each operation does:** `effects: { listOrders: reads, createRefund: changes }`, by `operationId`, so `weave audit` knows which calls change something and which agents need `approve:`.
+- Tip: for an API with hundreds of endpoints, give the agent a trimmed spec with only the operations it needs. A smaller menu makes better choices.
+
+```text
+tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
+```
+
+```java
+OpenAPITool tool = OpenAPITool.builder()
+    .name("Petstore").specLocation("specs/petstore.json").apiKeyAuth("api_key", key).build();
+```
+
+📖 [OpenAPI Tool](../src/ai-agent4j/wiki/OpenAPI-Tool.md) · [Loom guide: tools](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#tools-knowledge-and-approvals)
+
+### 🧩 `mcp`
+
+**Borrow from a growing ecosystem.** A native Model Context Protocol client turns any MCP server into tools: filesystems, GitHub, SQLite, Slack and more, written in any language.
+
+- Declare the server once, name it on the agent. Connect several servers to the same agent.
+- Tools are discovered from the server, so a new server tool needs no change to your code.
+- Declare an effect per tool name (`effects: { ... }`) so the audit and approvals know what each can do.
+- `weave audit` can't see inside a server, so treat an MCP server like any other code you run: give it only the access it needs.
+
+```text
+mcp Files { transport: "stdio"  cmd: "npx -y @modelcontextprotocol/server-filesystem ." }
+agent Clerk { model: "gemini-2.5-flash"  system: "Use the file tools to answer."  mcp_servers: [Files] }
+```
+
+📖 [MCP Integration](../src/ai-agent4j/wiki/MCP-Integration.md) · [Tutorial: MCP servers](tutorial/06-tools-and-tasks.md#mcp-servers)
+
+### 🧰 Your own class
+
+Anything else is a Java class implementing `Tool`, brought in with `use: class` and an `effect:` the audit can rely on. See [Creating Custom Tools](../src/ai-agent4j/wiki/Creating-Custom-Tools.md) and [Writing a tool](../src/tools/ai-agent4j-tools/docs/writing-a-tool.md).
+
+---
+
+## 🧭 Which tool for which job?
 
 | I want an agent to... | Use |
 |---|---|
 | Notify a channel | 📣 `webhook` |
 | Email a customer, safely | 📧 `email` (start with `outbox:`) |
-| Talk to a SaaS API | 🌐 `http` |
+| Talk to a SaaS API | 🌐 `http` for a few calls, 🔌 `openapi` for the whole API |
+| Use a ready-made integration someone else wrote | 🧩 `mcp` |
 | Research the web | 🔎 `search`, then 🧭 `browser` for pages that need scripts |
 | Read invoices, contracts or reports | 📄 `documents` |
 | Answer questions from a database | 🗄️ `sql` |
@@ -319,7 +369,18 @@ From Loom, a script needs no Java: `tool Name { use: <kind> ... }`. From Java, e
 
 ## 🧱 Also built into the core
 
-`ai-agent4j` carries a few simple tools of its own: a calculator, the current date and time, and web search through DuckDuckGo (no key) or SerpApi, with a cache and a fallback. It also turns an OpenAPI description or an MCP server into tools. See the [Creating Custom Tools](../src/ai-agent4j/wiki/Creating-Custom-Tools.md), [OpenAPI Tool](../src/ai-agent4j/wiki/OpenAPI-Tool.md) and [MCP Integration](../src/ai-agent4j/wiki/MCP-Integration.md) wiki pages.
+`ai-agent4j` carries simple tools of its own, with nothing extra to install. In Loom the first group works by name with no declaration.
+
+| Tool | What it does |
+|---|---|
+| `calculator` | Basic arithmetic. For exact decimals use [`compute`](#-compute) |
+| `datetime`, `current_time` | The date and time, on the run's clock |
+| `web_search` / `duckduckgo` | Web search with no key; cached, with a fallback. Results are untrusted text |
+| `serpapi`, `google_search` | Web search through SerpApi or Google Programmable Search, with your key |
+| `translate`, `transliterate`, `detect_language`, `speak`, `transcribe` | Language and voice tools (with `SARVAM_API_KEY`) |
+| `knowledge_graph`, `skill_registry` | A graph store an agent reads and writes, and a registry of skills it can load |
+
+See the [Loom guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#tools-knowledge-and-approvals) for every `use:` kind and its options.
 
 ## 📚 Go deeper
 
