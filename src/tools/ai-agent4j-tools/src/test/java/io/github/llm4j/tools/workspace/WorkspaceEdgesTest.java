@@ -335,6 +335,31 @@ class WorkspaceEdgesTest {
     }
 
     @Test
+    void findAndListShowOnlyWhatMayBeRead() throws Exception {
+        Files.createDirectories(ws.resolve("docs"));
+        Files.createDirectories(ws.resolve("secrets"));
+        Files.createDirectories(ws.resolve("config"));
+        Files.writeString(ws.resolve("docs/guide.md"), "g");
+        Files.writeString(ws.resolve("docs/.env.local"), "x");
+        Files.writeString(ws.resolve(".env"), "x");
+        Files.writeString(ws.resolve("secrets/id_rsa"), "x");
+        Files.writeString(ws.resolve("config/prod.key"), "x");
+        Map<String, String> o = options("allow", "docs/**");
+
+        assertThat(call(o, "action", "find", "pattern", "**").get("paths"))
+                .extracting(JsonNode::asText)
+                .containsExactly("docs/guide.md");
+        assertThat(call(o, "action", "list").get("entries").toString())
+                .doesNotContain(".env")
+                .doesNotContain("a.md")
+                .contains("docs/");
+        assertThat(call(o, "action", "list", "path", "docs").get("entries"))
+                .extracting(JsonNode::asText)
+                .containsExactly("guide.md");
+        assertThat(call(o, "action", "list", "path", "config").get("entries")).isEmpty();
+    }
+
+    @Test
     void theRunsOwnFilesAndTheStoreAreOutOfReach() throws Exception {
         effects.reserved.add(ws.resolve("journal").toAbsolutePath().normalize());
         Files.createDirectories(ws.resolve("journal"));

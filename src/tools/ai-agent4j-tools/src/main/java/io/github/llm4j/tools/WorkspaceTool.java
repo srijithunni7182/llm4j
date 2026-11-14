@@ -220,6 +220,15 @@ final class WorkspaceTool extends GenericTool {
 
     // ---- rules on paths
 
+    /**
+     * Whether a file may be read, and so named to the model at all: inside {@code allow:} and not
+     * a key or environment file. {@code find}, {@code grep} and {@code list} show nothing else.
+     */
+    private boolean mayRead(String relative, Path file) {
+        return config.allow().matches(relative)
+                && !READ_DENIED.matcher(file.getFileName().toString()).matches();
+    }
+
     private Path readable(String given) {
         Path p = jail.resolve(given);
         String relative = jail.relative(p);
@@ -339,7 +348,7 @@ final class WorkspaceTool extends GenericTool {
                 boolean directory = Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS);
                 if (directory
                         ? config.ignore().coversDirectory(relative)
-                        : config.ignore().matches(relative)) continue;
+                        : config.ignore().matches(relative) || !mayRead(relative, p)) continue;
                 entries.add(p.getFileName() + (directory ? "/" : ""));
             }
         }
@@ -395,8 +404,9 @@ final class WorkspaceTool extends GenericTool {
     private Map<String, Object> find(Map<String, Object> args) throws IOException {
         Globs pattern = new Globs(List.of(text(args, "pattern")));
         List<String> paths = new ArrayList<>();
-        for (String relative : tree(true).files().keySet())
-            if (pattern.matches(relative)) paths.add(relative);
+        for (Map.Entry<String, Path> f : tree(true).files().entrySet())
+            if (pattern.matches(f.getKey()) && mayRead(f.getKey(), f.getValue()))
+                paths.add(f.getKey());
         return bounded("paths", paths);
     }
 
@@ -425,9 +435,7 @@ final class WorkspaceTool extends GenericTool {
         for (Map.Entry<String, Path> f : tree(true).files().entrySet()) {
             String relative = f.getKey();
             if (within != null && !within.matches(relative)) continue;
-            if (!config.allow().matches(relative)
-                    || READ_DENIED.matcher(f.getValue().getFileName().toString()).matches())
-                continue;
+            if (!mayRead(relative, f.getValue())) continue;
             if (Files.size(f.getValue()) > config.maxBytes()) continue;
             byte[] bytes = Files.readAllBytes(f.getValue());
             if (binary(bytes)) continue;

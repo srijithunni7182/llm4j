@@ -61,10 +61,10 @@ Use this when an attempt touches only the workspace (and a sandbox); an attempt 
 | `action` | Arguments | Result |
 |---|---|---|
 | `read` | `path`, `from_line`, `lines` | `content` and `version` (a hash of the whole file); a file that is not text is refused with its size |
-| `list`, `exists` | `path` | `entries`, or `exists` |
+| `list`, `exists` | `path` | `entries` (directories, and only the files that may be read), or `exists` |
 | `write`, `append` | `path`, `content` | `version`, `bytes`; `append` adds a line break where one is missing |
 | `patch` | `path`, `edits` (a list of `{old, new}`), `version` (optional) | Each `old` must appear exactly once in the file; all edits apply, against the original, or none do. Overlapping edits and a `version` that does not match are refused |
-| `find` | `pattern` (a glob) | `paths` |
+| `find` | `pattern` (a glob) | `paths`: only files that may be read (inside `allow`, not a key or `.env` file), so a name the agent may not read is never shown |
 | `grep` | `text` (a literal) or `regex`, optional `path` (a glob) and `context` (lines, at most 5) | `matches`: path, line, text |
 | `diff` | `name` (the latest snapshot when left out) | `added`, `changed`, `deleted` |
 | `snapshot`, `restore` | `name` | A restore puts the snapshot's files back and deletes files made since; it leaves ignored and protected paths alone, and restoring twice gives the same state. A restore is refused while a [`sandbox`](sandbox.md) serves a program from the workspace |
