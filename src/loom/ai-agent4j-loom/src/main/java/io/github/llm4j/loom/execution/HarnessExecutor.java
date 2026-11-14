@@ -4029,12 +4029,22 @@ public class HarnessExecutor implements LoomEngine {
         Map<String, Object> outer = locals.get();
         Map<String, Object> names = new HashMap<>(outer);
         names.put("_error", message);
+        names.put("_error_category", categoryOf(message));
         locals.set(names);
         try {
             runBlock(onFailure, "f");
         } finally {
             locals.set(outer);
         }
+    }
+
+    /**
+     * What {@code _error_category} holds inside an {@code on_failure} block: {@code credential_rejected}
+     * when the failure is a credential refused by the system it was given to (so the script can ask
+     * for a new one), else {@code other}.
+     */
+    static String categoryOf(String message) {
+        return message != null && message.contains("credential_rejected") ? "credential_rejected" : "other";
     }
 
     String resolveVariableName(String name) {

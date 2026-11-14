@@ -702,7 +702,7 @@ sent" from "may have been delivered". **The description is untrusted input.** It
 on its own, and its `servers` entry is not trusted: unless you write `base_url:` a loopback, private or metadata address is
 refused (add `allow_private: true` for an internal API, with `allow_http: true` if it is not https). A credential is asked for
 on every request; a `401` asks for a fresh one once, and a second refusal, or a `403` for a missing scope, fails the call with
-`credential_rejected` and the server's challenge (secrets removed), so the application can obtain a new token and resume. See
+`credential_rejected` and the server's challenge (secrets removed), so the application can obtain a new token and resume. In a `use` step this is a failure like any other: `retry` and `on_failure` apply, and inside `on_failure` the variable `_error_category` is `credential_rejected` (else `other`), so a script can branch: `alt (_error_category == "credential_rejected") { halt "sign in again" }`. See
 [Securing integrations](../../../docs/security/integrations.md).
 
 #### file
