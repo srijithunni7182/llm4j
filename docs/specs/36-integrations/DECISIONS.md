@@ -1,13 +1,13 @@
 # Phase 36: decisions
 
-Status: **draft; all eighteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 is taken, seventeen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
 
 | | Decision | State |
 |---|---|---|
-| D1 | The scope and staging of this phase | open |
+| D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, one review gate after 36a) |
 | D2 | Where OpenAPI lives, and the compatibility plan | open |
 | D3 | The OpenAPI call model: one generic tool, or one tool per operation | open |
 | D4 | Effects and idempotency taken from the system's own description, and the lockfile | open |
@@ -36,7 +36,9 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 
 **Recommendation: A.** The fixes in 36a are correctness and safety problems and should land first and be looked at; the rest is what turns "an integration you can write" into "an integration you can get in minutes". Out of scope are spreadsheet and XML formats and an adapter catalog (D18).
 
-**Decision (owner):** open.
+**Decision (owner): option A.** One phase with six sub-phases (36a to 36f, [DESIGN §3](DESIGN.md)): 36a fix what exists; 36b reach (remote MCP, OAuth, pagination); 36c safe commands (MCP servers under isolation, the typed `command` kind); 36d `weave connect`; 36e tool-result replay and drift checks; 36f the ecosystem and the benchmark. It starts after phase 35 is merged.
+**The gate:** the implementation session **stops after 36a**, reports what it built and what it found, and waits for the owner, who then tells it to continue or to change something. Nothing is merged in between. Out of scope: spreadsheet and XML formats and an adapter catalog (D18).
+
 
 ## D2. Where OpenAPI lives, and the compatibility plan
 
