@@ -1,5 +1,7 @@
 # llm4j tools: extras
 
+> 🧰 **Browse every ready-made tool, with what it can do for an agent, in the [Tools catalog](../../../docs/TOOLS_CATALOG.md).**
+
 The parent (`ai-agent4j-tools-extras-parent`) of the optional tool modules: tools that need a dependency beyond the core and
 Jackson, so they are kept out of the light [`ai-agent4j-tools`](../ai-agent4j-tools/) module. A user adds an extras module
 only when they want its tool, and pays nothing otherwise. Why the split exists is in [the tools README](../README.md).

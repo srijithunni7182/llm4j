@@ -1,5 +1,7 @@
 # ai-agent4j-tools-search
 
+> 🧰 **Browse every ready-made tool, with what it can do for an agent, in the [Tools catalog](../../../../docs/TOOLS_CATALOG.md).**
+
 The `search` tool kind: web search through a provider you choose and pay for, with every result kept as untrusted text.
 Add it when a workflow researches the web and the built-in `web_search` (DuckDuckGo, no key) is not enough: a provider
 with a key gives steadier results, quotas and terms you have agreed to.

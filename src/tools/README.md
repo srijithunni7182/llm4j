@@ -1,5 +1,7 @@
 # llm4j tools
 
+> 🧰 **Browse every ready-made tool, with what it can do for an agent, in the [Tools catalog](../../docs/TOOLS_CATALOG.md).**
+
 The tool modules of llm4j: tools an agent or a Loom workflow can use to act on the world, each built for the case where the
 model, not you, chooses the arguments. This folder is their parent (`ai-agent4j-tools-parent`), which holds the rule that
 keeps them light and the build settings they share.

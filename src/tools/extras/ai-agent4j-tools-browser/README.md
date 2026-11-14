@@ -1,5 +1,7 @@
 # ai-agent4j-tools-browser
 
+> 🧰 **Browse every ready-made tool, with what it can do for an agent, in the [Tools catalog](../../../../docs/TOOLS_CATALOG.md).**
+
 The `browser` tool kind: open, read, click, fill and screenshot web pages in a Chrome or Chromium you have installed. Add
 it when a page needs its scripts to show anything, when a workflow checks an app the [`sandbox`](../../ai-agent4j-tools/docs/sandbox.md)
 serves, or when an approved step fills in a form. For a page that is plain HTML, the [`http`](../../ai-agent4j-tools/docs/http.md)

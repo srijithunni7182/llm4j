@@ -120,7 +120,7 @@ The same scenarios built on LangGraph, LangChain and Google ADK raised no warnin
 | **Orchestrate** | [Loom](src/loom/ai-agent4j-loom/) | Journaled, resumable workflows with approvals, schedules, budgets and earned autonomy. |
 | **Verify** | [eval4j](src/eval4j/) | Agent tests in JUnit 5: no-model tests, golden datasets, LLM judges, and a local report. |
 | **Operate** | [Inspect and Fabric](src/loom/loom-inspect/) | Live view of every run: cost, context, incidents, and pause, suspend or stop. Self-hosted. |
-| **Act** | [Tools](src/tools/ai-agent4j-tools/) | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, `compute`, `verify`, `scan`, `workspace` and an isolated `sandbox`, with allow-lists and journals; optional modules add [`search`, `documents`, `git` and `browser`](src/tools/extras/). |
+| **Act** | [Tools](src/tools/ai-agent4j-tools/) ([catalog](docs/TOOLS_CATALOG.md)) | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, `compute`, `verify`, `scan`, `workspace` and an isolated `sandbox`, with allow-lists and journals; optional modules add [`search`, `documents`, `git` and `browser`](src/tools/extras/). |
 | **Integrate** | [Spring Boot starter](src/spring/llm4j-spring-boot-starter/) | Clients, agents, tools and the Loom runtime as Spring beans. |
 | **Remember** | [Addons](src/ai-agent4j-addons/) · [Engram](src/engram/engram-core/) (not yet published) | Local embeddings, pgvector and Pinecone; Engram adds long-term memory. |
 
@@ -162,7 +162,7 @@ The [Quickstart](docs/QUICKSTART.md) covers the CLI, the VS Code extension, gene
 | | |
 |---|---|
 | **Learn** | [Quickstart](docs/QUICKSTART.md) · [Developer guide](DEVELOPER_GUIDE.md) · [Tutorial](docs/tutorial/README.md) · [20 starters](src/loom/starters/README.md) · [Examples](docs/EXAMPLES.md) |
-| **Reference** | [Loom language guide](src/loom/ai-agent4j-loom/LOOM_GUIDE.md) · [Command reference](docs/COMMAND_REFERENCE.md) · [Documentation index](docs/README.md) |
+| **Reference** | [Loom language guide](src/loom/ai-agent4j-loom/LOOM_GUIDE.md) · [Command reference](docs/COMMAND_REFERENCE.md) · [Tools catalog](docs/TOOLS_CATALOG.md) · [Documentation index](docs/README.md) |
 | **Operate** | [Observability](docs/OBSERVABILITY.md) · [Deployment](docs/OBSERVABILITY_DEPLOYMENT.md) · [Spring Boot guide](docs/SPRING_BOOT_LOOM_GUIDE.md) · [A2A](docs/a2a/README.md) |
 | **Evaluate** | [Why llm4j](docs/WHY_LLM4J.md) · [vs LangChain4j and Spring AI](src/ai-agent4j/wiki/WHY_AI_AGENT4J.md) · [Loom vs LangGraph](src/loom/ai-agent4j-loom/WHY_LOOM.md) · [eval4j vs deepeval](src/ai-agent4j/wiki/WHY_EVAL4J.md) |
 | **Tooling** | [VS Code extension](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom) · [Skills for coding agents](docs/PUBLISHING_SKILL.md) |
