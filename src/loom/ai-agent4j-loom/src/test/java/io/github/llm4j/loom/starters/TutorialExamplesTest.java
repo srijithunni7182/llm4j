@@ -34,7 +34,7 @@ class TutorialExamplesTest {
     private static final Path TUTORIAL = Path.of("../../../docs/tutorial").toAbsolutePath().normalize();
     private static final Path REPO = Path.of("../../..").toAbsolutePath().normalize();
 
-    private static final int CHAPTERS = 15;
+    private static final int CHAPTERS = 16;
 
     private static final Pattern LOOM_BLOCK = Pattern.compile("```(loom|loom-error|loom-parse)\\n(.*?)```", Pattern.DOTALL);
     private static final Pattern JAVA_BLOCK = Pattern.compile("<!-- compiles -->\\s*```java\\n(.*?)```", Pattern.DOTALL);
@@ -51,7 +51,7 @@ class TutorialExamplesTest {
     }
 
     @Test
-    void thereIsAnIndexAndFifteenChaptersInOrderEachLeadingToTheNext() throws Exception {
+    void thereIsAnIndexAndSixteenChaptersInOrderEachLeadingToTheNext() throws Exception {
         String index = Files.readString(TUTORIAL.resolve("README.md"));
         List<String> names = pages().stream().map(p -> p.getFileName().toString()).filter(n -> n.matches("\\d\\d-.*")).toList();
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: db19d910766eec9fa282b300c8c6a6eeb30e5055b02c5fe25b1bedab3f6eca4c -->
+<!-- source-sha256: 54e6c03040b8af29dfb49202e5fe5429daeb1f368b979986a607855feb4d0131 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -133,6 +133,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
     <option value="c13">13. Plain Java</option>
     <option value="c14">14. Workflows that report, signal and wait for each other</option>
     <option value="c15">15. Cookbook and cheat sheet</option>
+    <option value="c16">16. Files, checks and running code</option>
   </select>
   <span class="where" id="where">Start here</span>
 </header>
@@ -154,6 +155,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <li><a href="#c13"><span class="n">13</span>Plain Java</a></li>
 <li><a href="#c14"><span class="n">14</span>Workflows that report, signal and wait for each other</a></li>
 <li><a href="#c15"><span class="n">15</span>Cookbook and cheat sheet</a></li>
+<li><a href="#c16"><span class="n">16</span>Files, checks and running code</a></li>
   </ol></nav>
   <main>
 <section class="chapter" id="c00">
@@ -220,7 +222,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>6</td>
 <td><a href="#c06">Tools and tasks</a></td>
-<td>Built-in and declared tools, the six generic tools, OpenAPI, MCP, approvals, <code>run</code> tasks, classifiers, a <code>remote</code> agent another team runs (A2A)</td>
+<td>Built-in and declared tools, the six generic tools (and, in chapter 16, the tools that compute, check, edit and run), OpenAPI, MCP, approvals, <code>run</code> tasks, classifiers, a <code>remote</code> agent another team runs (A2A)</td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/11-daily-digest" target="_blank" rel="noopener">11</a></td>
 </tr>
 <tr>
@@ -276,6 +278,12 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <td><a href="#c15">Cookbook and cheat sheet</a></td>
 <td>Recipes, mistakes and their fixes, one page of syntax</td>
 <td></td>
+</tr>
+<tr>
+<td>16</td>
+<td><a href="#c16">Files, checks and running code</a></td>
+<td><code>compute</code>, <code>verify</code>, <code>scan</code>, <code>workspace</code> (patches, snapshot and restore, the clean-retry pattern), <code>sandbox</code> (isolation, network, secrets by name), testing them, the optional modules</td>
+<td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/19-report-writer" target="_blank" rel="noopener">19</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/20-data-analyst" target="_blank" rel="noopener">20</a></td>
 </tr>
 </tbody></table>
 <h2 id="c00-the-starter-set">The starter set</h2>
@@ -2672,7 +2680,7 @@ weave rules                  # every rule, its id and why it exists</code></pre>
 </tbody></table>
 <p>Run both in CI next to <code>weave check</code>. <code>weave audit --fail-on medium</code> makes medium findings fail the build.</p>
 <h2 id="c09-effects-are-recorded-and-never-repeated">Effects are recorded, and never repeated</h2>
-<p>Every step that changes the world (a <code>webhook</code>, an <code>email</code>, an <code>http</code> POST, a <code>file</code> write, a <code>shell</code> command, a <code>run</code> task that declares a change) is written to the journal <strong>before and after</strong> it happens. If the process dies in between, a resume does not blindly repeat a payment: a step that cannot be proven idempotent is stopped and flagged for a person to check, and one that is idempotent runs again with the <em>same</em> idempotency key, so the receiver can deduplicate. A retry, a resume or a rewind never repeats a send.</p>
+<p>Every step that changes the world (a <code>webhook</code>, an <code>email</code>, an <code>http</code> POST, a <code>file</code> write, a <code>shell</code> command, a <code>workspace</code> write or restore, a <code>sandbox</code> run, a <code>run</code> task that declares a change) is written to the journal <strong>before and after</strong> it happens. If the process dies in between, a resume does not blindly repeat a payment: a step that cannot be proven idempotent is stopped and flagged for a person to check, and one that is idempotent runs again with the <em>same</em> idempotency key, so the receiver can deduplicate. A retry, a resume or a rewind never repeats a send.</p>
 <h2 id="c09-everything-in-one-place-the-safe-by-default-checklist">Everything in one place: the safe-by-default checklist</h2>
 <ul>
 <li>Put a <code>budget</code> on the run. Give model-driven loops a <code>max</code>.</li>
@@ -4324,7 +4332,7 @@ persona Name { role: "..."  tone: "..."  constraints: ["..."] }
 provider Name { use: ollama  base_url: "..."  api_key: env.NAME }
 routing Name { strategy: fallback  primary: "m1"  fallback: ["m2", "m3"] }
 knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "idx.json" }
-tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options...  effect: none|reads|changes }
+tool Name { use: webhook|email|http|file|shell|sql|compute|verify|scan|workspace|sandbox|openapi|class|...  ...options...  effect: none|reads|changes }
 mcp Name { transport: "stdio"  cmd: "..." }
 extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
 evaluator Name { model: "..."  samples: 3  unsure below 0.8  fallback: ["..."] }
@@ -4470,6 +4478,150 @@ weave guide                               the built-in language guide</code></pr
 <li>Understand the safety model: <a href="https://github.com/srijithunni7182/llm4j/blob/main/docs/security/secure-by-construction.md" target="_blank" rel="noopener">Secure by construction</a>.</li>
 <li>Get your coding agent to help: <code>weave guide --install-skill</code> teaches Claude Code, Copilot, Cursor or any <code>AGENTS.md</code> agent to build with Loom, and to look commands up instead of guessing.</li>
 </ul>
+<p>Next: <a href="#c16">Files, checks and running code</a>.</p>
+<p>Back to the <a href="#c00">tutorial index</a>.</p>
+
+</section>
+<section class="chapter" id="c16">
+<h1 id="c16-16-files-checks-and-running-code">16. Files, checks and running code</h1>
+<p>The agents so far answered in text. Many real jobs end in <strong>files</strong>: a report, a configuration, a fix to some code. And many need a
+<strong>fact a model should not be trusted with</strong>: a total, a date, whether the tests pass. This chapter adds five tool kinds for that, none of
+which needs a key or Java:</p>
+<table>
+<thead>
+<tr>
+<th><code>use:</code></th>
+<th>What it is for</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>compute</code></td>
+<td>Exact arithmetic in decimals, dates, a value out of JSON, figures over CSV</td>
+</tr>
+<tr>
+<td><code>verify</code></td>
+<td>A test report or a schema check, turned into counts the script can trust</td>
+</tr>
+<tr>
+<td><code>scan</code></td>
+<td>Secrets and personal data in a text, reported as a rule and a place, never the match</td>
+</tr>
+<tr>
+<td><code>workspace</code></td>
+<td>A folder an agent edits: exact patches, search, snapshots and restores</td>
+</tr>
+<tr>
+<td><code>sandbox</code></td>
+<td>Programs run on a workspace&#39;s files, isolated in a container</td>
+</tr>
+</tbody></table>
+<figure class="diagram"><div class="plate"><svg role="img" aria-label="Diagram 28" aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="-8 -7.999996185302734 690.77001953125 115.08499908447266" height="115.08499908447266" xmlns="http://www.w3.org/2000/svg" width="690.77001953125" id="d27"><style>#d27{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;fill:#161a2b;}#d27 .error-icon{fill:#f5f6fa;}#d27 .error-text{fill:#0a0905;stroke:#0a0905;}#d27 .edge-thickness-normal{stroke-width:2px;}#d27 .edge-thickness-thick{stroke-width:3.5px;}#d27 .edge-pattern-solid{stroke-dasharray:0;}#d27 .edge-pattern-dashed{stroke-dasharray:3;}#d27 .edge-pattern-dotted{stroke-dasharray:2;}#d27 .marker{fill:#5a6078;stroke:#5a6078;}#d27 .marker.cross{stroke:#5a6078;}#d27 svg{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;}#d27 .label{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;color:#161a2b;}#d27 .cluster-label text{fill:#0a0905;}#d27 .cluster-label span,#d27 p{color:#0a0905;}#d27 .label text,#d27 span,#d27 p{fill:#161a2b;color:#161a2b;}#d27 .node rect,#d27 .node circle,#d27 .node ellipse,#d27 .node polygon,#d27 .node path{fill:#d9efec;stroke:#0f766e;stroke-width:1px;}#d27 .flowchart-label text{text-anchor:middle;}#d27 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d27 .node .label{text-align:center;}#d27 .node.clickable{cursor:pointer;}#d27 .arrowheadPath{fill:#0b0b0b;}#d27 .edgePath .path{stroke:#5a6078;stroke-width:2.0px;}#d27 .flowchart-link{stroke:#5a6078;fill:none;}#d27 .edgeLabel{background-color:#eef0f7;text-align:center;}#d27 .edgeLabel rect{opacity:0.5;background-color:#eef0f7;fill:#eef0f7;}#d27 .labelBkg{background-color:rgba(238, 240, 247, 0.5);}#d27 .cluster rect{fill:#f5f6fa;stroke:#b9c0d4;stroke-width:1px;}#d27 .cluster text{fill:#0a0905;}#d27 .cluster span,#d27 p{color:#0a0905;}#d27 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:12px;background:#f5f6fa;border:1px solid hsl(228, 0%, 87.0588235294%);border-radius:2px;pointer-events:none;z-index:100;}#d27 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#161a2b;}#d27 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="6" viewBox="0 0 10 10" class="marker flowchart" id="d27_flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart" id="d27_flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart" id="d27_flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart" id="d27_flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart" id="d27_flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart" id="d27_flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#d27_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-W" id="L-A-W-0" d="M73.915,48.564L76.932,46.81C79.949,45.057,85.982,41.55,90.282,39.796C94.582,38.042,97.149,38.042,98.432,38.042L99.716,38.042"></path><path marker-end="url(#d27_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-W LE-S" id="L-W-S-0" d="M214.89,38.042L217.056,38.042C219.223,38.042,223.556,38.042,227.006,38.042C230.456,38.042,233.023,38.042,234.306,38.042L235.59,38.042"></path><path marker-end="url(#d27_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-S LE-V" id="L-S-V-0" d="M373.97,38.042L376.137,38.042C378.304,38.042,382.637,38.042,386.087,38.042C389.537,38.042,392.104,38.042,393.387,38.042L394.67,38.042"></path><path marker-end="url(#d27_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-V LE-R" id="L-V-R-0" d="M452.173,38.042L459.448,38.042C466.723,38.042,481.272,38.042,494.97,39.804C508.667,41.565,521.513,45.088,527.936,46.849L534.359,48.611"></path><path marker-end="url(#d27_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-R LE-A" id="L-R-A-0" d="M539.47,87.115L532.195,89.11C524.921,91.105,510.371,95.095,491.472,97.09C472.572,99.085,449.322,99.085,431.18,99.085C413.038,99.085,400.004,99.085,380.23,99.085C360.457,99.085,333.943,99.085,307.43,99.085C280.917,99.085,254.403,99.085,229.824,99.085C205.244,99.085,182.598,99.085,159.953,99.085C137.307,99.085,114.661,99.085,101.085,97.775C87.51,96.466,83.003,93.846,80.75,92.537L78.497,91.227"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g><g transform="translate(495.82177734375, 38.04249572753906)" class="edgeLabel"><g transform="translate(-30.6484375, -8.5)" class="label"><rect height="17.001014709472656" width="61.238033294677734" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">failed &gt; 0</tspan></text></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g></g><g class="nodes"><g transform="translate(39.5078125, 68.5637435913086)" data-id="A" data-node="true" id="flowchart-A-258" class="node default default flowchart-label"><rect height="40" width="79.015625" y="-20" x="-39.5078125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">agent</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">writes files</tspan></text></g></g><g transform="translate(159.95263671875, 38.04249572753906)" data-id="W" data-node="true" id="flowchart-W-259" class="node default default flowchart-label"><path transform="translate(-54.93701171875,-38.042492858954475)" d="M 0,11.694995239302985 a 54.93701171875,11.694995239302985 0,0,0 109.8740234375 0 a 54.93701171875,11.694995239302985 0,0,0 -109.8740234375 0 l 0,52.69499523930298 a 54.93701171875,11.694995239302985 0,0,0 109.8740234375 0 l 0,-52.69499523930298" style=""></path><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">workspace</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">protect: tests/**</tspan></text></g></g><g transform="translate(307.429931640625, 38.04249572753906)" data-id="S" data-node="true" id="flowchart-S-261" class="node default default flowchart-label"><rect height="55" width="133.08056640625" y="-27.5" x="-66.540283203125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -23.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">sandbox</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">isolation: container</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">network: none</tspan></text></g></g><g transform="translate(426.07177734375, 38.04249572753906)" data-id="V" data-node="true" id="flowchart-V-263" class="node default default flowchart-label"><rect height="40" width="52.203125" y="-20" x="-26.1015625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">verify</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">counts</tspan></text></g></g><g transform="translate(607.1201171875, 68.5637435913086)" data-id="R" data-node="true" id="flowchart-R-265" class="node default default flowchart-label"><rect height="41" width="135.2998046875" y="-20.5" x="-67.64990234375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">restore, rewind</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">side effects: repeat</tspan></text></g></g></g></g></g></svg></div><button type="button" class="bigger" aria-label="Show the diagram larger">Larger</button></figure>
+
+<h2 id="c16-let-the-script-check-not-the-model">Let the script check, not the model</h2>
+<p>A model that says &quot;the total is 300&quot; may be right. A script that adds the column itself knows. <code>compute</code> does arithmetic in decimals, so
+<code>0.1 + 0.2</code> is <code>0.3</code>, and <code>verify</code> turns a report into numbers your <code>alt</code> can test:</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+<span class="tk-k">tool</span> Calc  { use: compute }
+<span class="tk-k">tool</span> Check { use: verify }
+<span class="tk-k">tool</span> Scan  { use: scan }
+
+<span class="tk-k">workflow</span> Close(amount, report) {
+    use Calc(action = <span class="tk-s">"calc"</span>, expression = <span class="tk-s">"<span class="tk-v">{amount}</span> * 1.18"</span>) -&gt; gross
+    use Check(format = <span class="tk-s">"junit"</span>, report = report) -&gt; tests
+    <span class="tk-k">alt</span> (tests.failed &gt; <span class="tk-n">0</span>) { <span class="tk-k">halt</span> <span class="tk-s">"<span class="tk-v">{tests.failed}</span> tests failed"</span> }
+    use Scan(text = <span class="tk-s">"Invoice total <span class="tk-v">{gross.value}</span>"</span>) -&gt; found
+    <span class="tk-k">alt</span> (found.count &gt; <span class="tk-n">0</span>) { <span class="tk-k">halt</span> <span class="tk-s">"the text holds something that must not leave"</span> }
+    <span class="tk-k">return</span> gross.value
+}</code></pre></figure>
+<ul>
+<li>These three reach nothing outside the run: they need no approval, and a resumed run replays them exactly.</li>
+<li>What they return keeps its origin. The counts of <code>verify</code> are data the tool parsed; the test names and messages in <code>tests.items</code> were
+written by whoever wrote the tests (perhaps a model), so they stay unchecked text. Never decide anything on the words.</li>
+<li><code>verify</code> fails closed: a report it cannot read counts as one failure.</li>
+</ul>
+<h2 id="c16-a-folder-an-agent-edits">A folder an agent edits</h2>
+<p><code>workspace</code> is a folder the agent reads and edits with exact patches (<code>old</code> must appear once; all edits apply or none do), <code>find</code> and
+<code>grep</code>. <code>protect:</code> keeps paths read only, so an agent cannot &quot;fix&quot; the tests that judge it. Links are never followed and nothing under
+<code>.git</code> is ever written.</p>
+<p><strong>Trying again from a clean state</strong> is something the script writes, not something a rewind does by itself. Take a snapshot once, before
+the checkpoint; restore it first in every attempt; rewind with <code>side effects: repeat</code> so the attempt&#39;s writes run again:</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+<span class="tk-k">tool</span> Draft { use: workspace  root: <span class="tk-s">"report"</span>  allow: <span class="tk-s">"*.json"</span>  mode: readwrite  overwrite: true  protect: <span class="tk-s">"report.schema.json"</span> }
+<span class="tk-k">tool</span> Check { use: verify  root: <span class="tk-s">"report"</span> }
+
+<span class="tk-k">agent</span> Writer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write report.json to match report.schema.json."</span>  tools: [Draft]  approve: [Draft] }
+
+<span class="tk-k">workflow</span> Main(brief) {
+    use Draft(action = <span class="tk-s">"snapshot"</span>, name = <span class="tk-s">"clean"</span>)
+    <span class="tk-k">checkpoint</span> Clean <span class="tk-k">starting</span> <span class="tk-k">with</span> feedback = <span class="tk-s">"none"</span>
+    use Draft(action = <span class="tk-s">"restore"</span>, name = <span class="tk-s">"clean"</span>)
+    <span class="tk-k">delegate</span> <span class="tk-s">"Write report.json for: <span class="tk-v">{brief}</span>. Feedback: <span class="tk-v">{feedback}</span>"</span> <span class="tk-k">to</span> Writer -&gt; written
+    use Check(format = <span class="tk-s">"schema"</span>, schema = <span class="tk-s">"report.schema.json"</span>, source = <span class="tk-s">"report.json"</span>) -&gt; result
+    <span class="tk-k">rewind</span> <span class="tk-k">to</span> Clean <span class="tk-k">when</span> (result.failed &gt; <span class="tk-n">0</span>) <span class="tk-k">at</span> <span class="tk-k">most</span> <span class="tk-n">2</span> <span class="tk-k">times</span> <span class="tk-k">carrying</span> feedback = <span class="tk-s">"<span class="tk-v">{result.items}</span>"</span> <span class="tk-k">side</span> <span class="tk-k">effects</span>: repeat
+    <span class="tk-k">note</span> <span class="tk-s">"<span class="tk-v">{written}</span>"</span>
+    <span class="tk-k">return</span> result.status
+}</code></pre></figure>
+<p>With <code>side effects: keep</code>, the second attempt&#39;s restore would be taken for the first one already done and skipped: nothing would be put
+back. That is the difference the keyword makes. Starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/19-report-writer" target="_blank" rel="noopener">19-report-writer</a> is this workflow with
+its tests.</p>
+<h2 id="c16-running-code-a-model-wrote">Running code a model wrote</h2>
+<p><code>sandbox</code> runs a program from its <code>allow:</code> list on the workspace&#39;s files. The program is a name and an argument list, never a line for a
+shell. A script has no list literal, so it gives <code>args</code> as the text of a JSON list; an agent gives a real list.</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+<span class="tk-k">tool</span> Data  { use: workspace  root: <span class="tk-s">"data"</span>  allow: <span class="tk-s">"*.py, *.csv, *.json"</span>  mode: readwrite  overwrite: true  protect: <span class="tk-s">"sales.csv"</span> }
+<span class="tk-k">tool</span> Py    { use: sandbox  workspace: Data  isolation: container  image: <span class="tk-s">"python:3.12-slim"</span>  allow: <span class="tk-s">"python3"</span>  network: none  <span class="tk-k">timeout</span>: <span class="tk-s">"2m"</span>  unattended: true }
+
+<span class="tk-k">agent</span> Analyst { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write analysis.py: it reads sales.csv and writes result.json."</span>  tools: [Data]  approve: [Data] }
+
+<span class="tk-k">workflow</span> Main(question) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{question}</span>"</span> <span class="tk-k">to</span> Analyst -&gt; written
+    use Py(program = <span class="tk-s">"python3"</span>, args = <span class="tk-s">"[\"analysis.py\"]"</span>) -&gt; ran
+    <span class="tk-k">alt</span> (ran.exit != <span class="tk-n">0</span>) { <span class="tk-k">halt</span> <span class="tk-s">"analysis.py failed: <span class="tk-v">{ran.stderr}</span>"</span> }
+    <span class="tk-k">note</span> <span class="tk-s">"<span class="tk-v">{written}</span>"</span>
+    <span class="tk-k">return</span> ran.isolation
+}</code></pre></figure>
+<ul>
+<li><strong><code>isolation:</code> has no default.</strong> <code>container</code> runs the program in Docker or Podman with the workspace as its only mount, protected paths
+mounted read only, no capabilities and a read-only root. <code>process</code> is a child process of the run, which is not isolation: it must say
+<code>network: open</code>, and <code>weave audit</code> flags it (LA31). A missing container runtime stops the run before its first step; nothing falls back.</li>
+<li><strong><code>network: none</code> is the default.</strong> <code>network: allow  hosts: &quot;pypi.org&quot;</code> lets the program reach those hosts through an egress proxy and
+nothing else (LA33).</li>
+<li><strong>Secrets by name only.</strong> <code>env.TOKEN: secret.PYPI</code> gives the program one variable, looked up for each call and scrubbed from its output;
+nothing else of your environment reaches it.</li>
+<li><strong>Every run is journaled</strong>, so a resumed run does not run the program again. What it prints is unchecked text: compare figures with
+<code>compute</code>, never with what the program says about them.</li>
+</ul>
+<p>Starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/20-data-analyst" target="_blank" rel="noopener">20-data-analyst</a> checks the script&#39;s total against its own exact sum of the column,
+and scans the result before it leaves. What the sandbox stops and what it does not is in
+<a href="https://github.com/srijithunni7182/llm4j/blob/main/docs/security/sandbox.md" target="_blank" rel="noopener">its threat model</a>.</p>
+<h2 id="c16-testing-it-without-docker">Testing it without Docker</h2>
+<p><code>weave test</code> runs none of these tools: it records what a tool that changes things would have done, and you script what every tool returns.
+A case for the report writer, where the first check fails:</p>
+<figure class="code"><figcaption>yaml</figcaption><pre><code>- name: a report that fails the check is restored and written again
+  input: { brief: "Quarterly support tickets" }
+  models:
+    Writer: ["A first try.", "A fixed report."]
+  tools:
+    Check:
+      - { status: "failed", failed: 1, items: [ { name: "summary", status: "failed", message: "is too long" } ] }
+      - { status: "passed", failed: 0, items: [] }
+  expect:
+    calls: { Writer: 2 }
+    told: { Writer: [ "is too long" ] }</code></pre></figure>
+<h2 id="c16-more-tools-in-optional-modules">More tools, in optional modules</h2>
+<p>Four more kinds come in their own modules, added with their jar (<code>weave check</code> names the module when a script uses one without it):
+<code>search</code> (web search through a provider you key), <code>documents</code> (the text of PDF, DOCX and HTML files with the page or paragraph each part
+came from), <code>git</code> (status, diff, commit and an approved push, through the sandbox) and <code>browser</code> (an installed Chrome, with every request
+a page makes checked). See <a href="https://github.com/srijithunni7182/llm4j/blob/main/src/tools/extras/README.md" target="_blank" rel="noopener">the extras</a>.</p>
+<h2 id="c16-try-it">Try it</h2>
+<ol>
+<li>In starter 19, change <code>side effects: repeat</code> to <code>keep</code> and run its tests. Which case changes, and why?</li>
+<li>In starter 20, set <code>isolation: process</code> and run <code>weave check</code> and <code>weave audit</code>. What do they say?</li>
+<li>Add <code>group_by: &quot;region&quot;</code> to starter 20&#39;s <code>csv</code> step. What does <code>total</code> hold now, and how must the comparison change?</li>
+</ol>
 <p>Back to the <a href="#c00">tutorial index</a>.</p>
 
 </section>

@@ -306,7 +306,7 @@ what it is for and how to set it. The names come from the script itself: `weave 
 **A `sandbox` needs its runtime where it runs.** With `isolation: container` the machine needs Docker or Podman and the
 image (`pull: true`, or pull it in the deployment); a missing runtime stops the run before its first step, and nothing
 falls back to `process`. `network: allow` was verified on Docker for Linux. `weave check` looks at the script, not the
-machine, so run one real run on the target before calling it done. See [the sandbox's threat model](../security/sandbox.md).
+machine, so run one real run on the target before calling it done. See [the sandbox's threat model](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/sandbox.md).
 
 **One entry file per environment, the same workflows underneath.** Tools are declared once in the file you run, so a development entry and a deployed entry can differ in one block and
 share every agent and workflow (`import`; see the chapter on splitting files):

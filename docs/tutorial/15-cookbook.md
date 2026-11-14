@@ -360,4 +360,6 @@ weave guide                               the built-in language guide
 - Understand the safety model: [Secure by construction](../security/secure-by-construction.md).
 - Get your coding agent to help: `weave guide --install-skill` teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom, and to look commands up instead of guessing.
 
+Next: [Files, checks and running code](16-files-checks-and-code.md).
+
 Back to the [tutorial index](README.md).
