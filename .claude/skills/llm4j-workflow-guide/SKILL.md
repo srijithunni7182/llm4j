@@ -101,7 +101,7 @@ Ask each of these, in the person's words, before the workflow is called built. T
 1. **A plan for the context window** (chapter 14). An agent that loops on tools resends a growing prompt: ask, per agent, whether it loops, and if so
    write a `context { compact: ... }` block with the person. A model's window size is a fact in a windows file, not in the script.
 2. **A decision for every step that can fail** (chapter 6): `retry N` (only for something idempotent), `on_failure { ... }`, or fail on purpose. Also:
-   start every script with `substitution: braces`; shared tone goes in `shared_prompt`, but rules that must hold go in a policy file with a `check ... against`
+   shared tone goes in `shared_prompt`, but rules that must hold go in a policy file with a `check ... against`
    before every exit; and ask who may steer, stop or step in (chapter 15: steer, wrap up, cancel, cancel and send back, `on_stopped`, `supervise`).
 3. **A security decision for every agent that reads, knows and can send** (chapter 7). `weave audit` marks the lethal trifecta. Do not decide it for the
    person: split the agent, or they accept it **in writing, with a reason that names who looked and when**, in `<script>.inspect`.

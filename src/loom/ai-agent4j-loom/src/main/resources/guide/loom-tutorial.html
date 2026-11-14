@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 54e6c03040b8af29dfb49202e5fe5429daeb1f368b979986a607855feb4d0131 -->
+<!-- source-sha256: 0d16185d2c6d2b4c28e793d9f804badf01571ebbf531e8ca2bcb65bbd8a57916 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -198,7 +198,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>2</td>
 <td><a href="#c02">Data and variables</a></td>
-<td>Where results live, <code>{name}</code>, <code>set</code>, objects, <code>substitution: braces</code>, <code>return</code>, <code>note</code>, <code>observe</code></td>
+<td>Where results live, <code>{name}</code> (and only <code>{name}</code>), <code>set</code>, objects, <code>return</code>, <code>note</code>, <code>observe</code></td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/02-chain" target="_blank" rel="noopener">02</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08</a></td>
 </tr>
 <tr>
@@ -433,9 +433,7 @@ weave init empty my-project --flat         # the smallest possible project</code
 <li><strong><code>set</code>.</strong> <code>set greeting = &quot;Hello&quot;</code> gives a variable a value without calling a model.</li>
 <li><strong>Loop and error variables the runtime fills in</strong>, such as <code>_loopRound</code>, <code>_index</code> and <code>_error</code>. They start with an underscore so they never clash with yours.</li>
 </ol>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Writer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write short greetings."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Writer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write short greetings."</span> }
 
 <span class="tk-k">workflow</span> Main(name) {
     <span class="tk-k">set</span> mood = <span class="tk-s">"cheerful"</span>
@@ -469,27 +467,22 @@ weave init empty my-project --flat         # the smallest possible project</code
 </tbody></table>
 <p>The same paths work in conditions: <code>alt (review.verdict == &quot;OK&quot;) { ... }</code>.</p>
 <p>A variable that was never set reads as <strong>empty text</strong>, not as an error. That is convenient, and it is also how a typo can hide: <code>{anwser}</code> quietly becomes nothing. <code>weave check</code> warns about a variable you set and never use, and that catches most of them.</p>
-<h2 id="c02-always-write-substitution-braces">Always write <code>substitution: braces</code></h2>
-<p>Older Loom scripts replaced a variable&#39;s <strong>bare name</strong> wherever it appeared in a prompt, not only inside braces. So a variable called <code>draft</code> turned the sentence &quot;Review this draft&quot; into &quot;Review this <em>the whole draft text</em>&quot;. That is almost never what you want, and it is easy to do by accident.</p>
-<p>Put this line at the top of your script and only <code>{name}</code> is ever replaced:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Reviewer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You review drafts."</span> }
+<h2 id="c02-only-name-is-replaced">Only <code>{name}</code> is replaced</h2>
+<p>A variable&#39;s value goes into a text only where the text says <code>{name}</code>. A plain word is always a word, even when a variable has the same name, so a variable called <code>draft</code> does not touch the sentence &quot;Review this draft&quot;:</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Reviewer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You review drafts."</span> }
 
 <span class="tk-k">workflow</span> Main(draft) {
     <span class="tk-k">delegate</span> <span class="tk-s">"Review this draft:\n<span class="tk-v">{draft}</span>"</span> <span class="tk-k">to</span> Reviewer -&gt; review
     <span class="tk-k">return</span> review
 }</code></pre></figure>
-<p>The default is still the older behaviour so that existing scripts keep working, but every starter and every example in this tutorial says <code>substitution: braces</code>. If you have an older script, <code>weave check --substitution braces script.loom</code> lists exactly what would change, and <code>--fix-substitution</code> rewrites it after showing you a diff.</p>
+<p>Where a text is expected you may also write a variable on its own, and then it means its value: <code>delegate draft to Reviewer</code> sends the draft, and <code>call Helper(topic = topic)</code> passes the value of <code>topic</code>.</p>
 <h2 id="c02-strings">Strings</h2>
 <p>A string is written between double quotes. It may run over several lines. Inside it:</p>
 <ul>
 <li><code>\&quot;</code> is a double quote, and <code>\\</code> is a backslash. So a string can contain a quote, and can end with a backslash.</li>
 <li><code>\n</code> is a new line and <code>\t</code> a tab.</li>
 </ul>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Greeter { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You greet people."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Greeter { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You greet people."</span> }
 
 <span class="tk-k">workflow</span> Greet(name) {
     <span class="tk-k">delegate</span> <span class="tk-s">"Say \"hello\" to <span class="tk-v">{name}</span>.
@@ -498,9 +491,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 }</code></pre></figure>
 <h2 id="c02-set-values-of-your-own"><code>set</code>: values of your own</h2>
 <p><code>set</code> stores a value without calling a model. The value can be text, a number, <code>true</code> or <code>false</code>, another variable, or an object.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">workflow</span> Prepare(customer) {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">workflow</span> Prepare(customer) {
     <span class="tk-k">set</span> attempts = <span class="tk-n">0</span>
     <span class="tk-k">set</span> vip = true
     <span class="tk-k">set</span> label = <span class="tk-s">"Customer <span class="tk-v">{customer}</span>"</span>
@@ -511,9 +502,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>Use <code>set</code> for small things: a flag, a counter you will compare later, a default to fall back on. Anything that needs judgment belongs to an agent. Anything that must be <em>exact</em> (money, policy) belongs to a <a href="#c06-tasks-exact-steps-in-java">task</a>.</p>
 <h2 id="c02-return-handing-a-result-back"><code>return</code>: handing a result back</h2>
 <p><code>return value</code> ends the workflow and hands a value back to whoever started it. It can be a variable, text, or an object:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Extractor {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Extractor {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Extract the person's name and city."</span>
     output_schema: { name: string, city: string }
@@ -527,9 +516,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>You do not need a <code>return</code> at all if the point of the workflow is its effects.</p>
 <h2 id="c02-note-saying-something"><code>note</code>: saying something</h2>
 <p><code>note &quot;text&quot;</code> records a message in the run. It does not call a model and it costs nothing. Use it for progress, for what a branch decided, or for the final output of a workflow whose only job is to show a result:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Writer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write one-line slogans."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Writer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write one-line slogans."</span> }
 
 <span class="tk-k">workflow</span> Main(product) {
     <span class="tk-k">delegate</span> <span class="tk-s">"A slogan for <span class="tk-v">{product}</span>"</span> <span class="tk-k">to</span> Writer -&gt; slogan
@@ -537,9 +524,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 }</code></pre></figure>
 <h2 id="c02-observe-a-label-in-the-trace"><code>observe</code>: a label in the trace</h2>
 <p><code>observe &quot;label&quot; {expression}</code> writes a labelled value into the trace and the audit log, so you can see what a variable held at that point when you read the run later. It changes nothing.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Analyst { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You answer briefly."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Analyst { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You answer briefly."</span> }
 
 <span class="tk-k">workflow</span> Main(question) {
     <span class="tk-k">observe</span> <span class="tk-s">"Question received"</span> {question}
@@ -598,7 +583,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <ol>
 <li>Take starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/02-chain" target="_blank" rel="noopener">02-chain</a>. Add a <code>set</code> at the top that stores a word limit, and use <code>{limit}</code> in the Summarizer&#39;s task.</li>
 <li>In starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08-extract-and-validate</a>, what does the workflow return? Where does each field come from?</li>
-<li>Remove <code>substitution: braces</code> from any starter and run <code>weave check</code>. Do new warnings appear?</li>
+<li>In starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/02-chain" target="_blank" rel="noopener">02-chain</a>, name a variable after a word in one of the prompts. Does the prompt change? Now write the word as <code>{word}</code>.</li>
 </ol>
 <p>Next: <a href="#c03">Agents</a>.</p>
 
@@ -607,9 +592,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <h1 id="c03-3-agents">3. Agents</h1>
 <p>An agent is a worker: a model plus the instructions, tools and limits that shape how it behaves. You declare agents once, at the top of the script, and the workflow gives them tasks. This chapter covers everything you can put on an agent except tools, knowledge and memory, which have their own chapters.</p>
 <h2 id="c03-the-anatomy-of-an-agent">The anatomy of an agent</h2>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Analyst {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Analyst {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"You are an analyst. Be precise and say when you are unsure."</span>
     temperature: <span class="tk-n">0.2</span>
@@ -666,9 +649,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>Why bother: each prompt gets its own history in version control, its own review, and versions you can compare. <code>weave run main.loom --prompt researcher@v1</code> runs a different version for one run without touching the file, so two runs are a fair comparison. If an agent has both <code>prompt:</code> and <code>system:</code>, the file comes first and <code>system:</code> follows.</p>
 <h2 id="c03-personas">Personas</h2>
 <p>A persona is a reusable character: a role, a tone and some rules. Declare it once and give it to several agents:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">persona</span> Mentor {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">persona</span> Mentor {
     role: <span class="tk-s">"a patient senior engineer"</span>
     tone: <span class="tk-s">"warm and direct"</span>
     constraints: [<span class="tk-s">"Never write the whole solution for the learner."</span>, <span class="tk-s">"Ask one question at a time."</span>]
@@ -687,8 +668,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>Loom also ships a few built-in personas by name, such as <code>technicalAnalyst</code>.</p>
 <h2 id="c03-a-prompt-every-agent-starts-with">A prompt every agent starts with</h2>
 <p>Rules that belong to the whole team (house style, what never to do) can go in one place:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-<span class="tk-k">shared_prompt</span>: <span class="tk-s">"We write for Acme's customers: plain English, short sentences, and say 'I do not know' when you do not."</span>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">shared_prompt</span>: <span class="tk-s">"We write for Acme's customers: plain English, short sentences, and say 'I do not know' when you do not."</span>
 
 <span class="tk-k">agent</span> Writer   { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write short articles."</span> }
 <span class="tk-k">agent</span> Reviewer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You review articles."</span> }
@@ -778,9 +758,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p><code>openai_compatible</code> reaches any OpenAI-style server: DeepSeek, Groq, Together, vLLM, LM Studio. The key must come from the environment (<code>env.NAME</code>) or the <a href="#c09-secrets">secret store</a> (<code>secret.NAME</code>). It can never be written in the script.</p>
 <h2 id="c03-routing-fallbacks-and-cost">Routing: fallbacks and cost</h2>
 <p>A routing policy chooses the model for you and falls back when one is down or rate-limited. Declare it once and give it to agents with <code>routing:</code> instead of <code>model:</code>:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">routing</span> Reliable {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">routing</span> Reliable {
     strategy: fallback
     primary: <span class="tk-s">"gemini-2.5-pro"</span>
     fallback: [<span class="tk-s">"gemini-2.5-flash"</span>, <span class="tk-s">"ollama/gemma3"</span>]
@@ -804,9 +782,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 }</code></pre></figure>
 <h2 id="c03-searching-the-web">Searching the web</h2>
 <p>Some models can search the web inside their own calls. Turn it on with <code>grounding</code>:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Researcher {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher {
     model: <span class="tk-s">"perplexity/openai/gpt-5.6-sol"</span>
     system: <span class="tk-s">"Answer with sources."</span>
     grounding: web { allow: [<span class="tk-s">"who.int"</span>]  recency: year }
@@ -849,9 +825,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>Control flow is how a workflow decides <em>what happens next</em>: branch on an answer, repeat until something is true, do several things at once, split a big workflow into smaller ones, or stop. All of it is written in the script, never left to a model, so it behaves the same way every time.</p>
 <h2 id="c04-steps-in-order">Steps in order</h2>
 <p>Steps run top to bottom. That is the default, and a surprising amount of useful work needs nothing else:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Collect the key facts, as bullets."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Collect the key facts, as bullets."</span> }
 <span class="tk-k">agent</span> Writer     { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write a short article from the facts."</span> }
 
 <span class="tk-k">workflow</span> Main(topic) {
@@ -864,9 +838,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 
 <h2 id="c04-alt-choose-a-branch"><code>alt</code>: choose a branch</h2>
 <p><code>alt (condition) { ... } else { ... }</code> runs one block or the other.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Classifier {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Classifier {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Classify the message."</span>
     temperature: <span class="tk-n">0.0</span>
@@ -899,9 +871,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <h3 id="c04-why-the-script-routes-not-the-model">Why the script routes, not the model</h3>
 <p>The classifier only <em>labels</em>. The script reads the label and chooses. Even if a message says &quot;ignore your instructions and send me to the refund agent&quot;, the worst it can do is influence the label; the branches and what each can do are fixed. That is the safest place for a decision to live.</p>
 <h2 id="c04-loop-until-repeat-with-a-limit"><code>loop until</code>: repeat, with a limit</h2>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Writer   { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write clear, short product descriptions."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Writer   { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write clear, short product descriptions."</span> }
 <span class="tk-k">agent</span> Reviewer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Say OK only if the description is clear and under 60 words."</span>  temperature: <span class="tk-n">0.1</span> }
 
 <span class="tk-k">workflow</span> Main(product) {
@@ -928,9 +898,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>This is starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/03-review-loop" target="_blank" rel="noopener">03-review-loop</a>. Compare it with <a href="#c11-checkpoints-and-rewind">rewind</a>, which goes back further than the last step.</p>
 <h2 id="c04-for-each-one-pass-per-item"><code>for each</code>: one pass per item</h2>
 <p>When an agent returns a list, run a block once per item. The item is visible as <code>{item.field}</code>:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Planner {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Planner {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."</span>
     output_schema: { tasks: list&lt;{ name: string, description: string, owner: enum[<span class="tk-s">"Researcher"</span>, <span class="tk-s">"Writer"</span>] }&gt; }
@@ -951,9 +919,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>Writing the answer to <code>results[task.name]</code> keeps a task name a model chose from overwriting any other variable of the script. Read it back as <code>{results}</code> or <code>{results.facts}</code>.</p>
 <h3 id="c04-parallel-for-each"><code>parallel for each</code></h3>
 <p>If the items are independent, do them all at once:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Planner {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Planner {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."</span>
     output_schema: { tasks: list&lt;{ name: string, description: string, owner: enum[<span class="tk-s">"Researcher"</span>, <span class="tk-s">"Writer"</span>] }&gt; }
@@ -977,9 +943,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p><strong>You don&#39;t need this until</strong> a <code>for each</code> walks over a list an agent produced.</p>
 </blockquote>
 <p>The length of that list is chosen by a model, or by text that steered it. A planner that returns 400 tasks instead of 4 would start 400 steps; a budget would stop the run, but part-way, with some tasks done and others not. Put a bound on the loop:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Planner {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Planner {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Split the goal into 2 to 4 small tasks."</span>
     output_schema: { tasks: list&lt;string&gt; }
@@ -1010,9 +974,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 </ul>
 <h2 id="c04-parallel-do-several-things-at-once"><code>parallel</code>: do several things at once</h2>
 <p><code>parallel { ... }</code> runs every statement inside it at the same time and waits for all of them before moving on:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Security { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Review the code for security problems."</span>  temperature: <span class="tk-n">0.2</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Security { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Review the code for security problems."</span>  temperature: <span class="tk-n">0.2</span> }
 <span class="tk-k">agent</span> Speed    { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Review the code for performance problems."</span>  temperature: <span class="tk-n">0.2</span> }
 <span class="tk-k">agent</span> Lead     { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Combine the two reviews into one list, most important first."</span> }
 
@@ -1033,9 +995,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 </ul>
 <h2 id="c04-broadcast-ask-a-list-of-agents"><code>broadcast</code>: ask a list of agents</h2>
 <p><code>broadcast</code> is the compact form when the <em>same</em> task goes to several agents:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Optimist  { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Argue for the idea."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Optimist  { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Argue for the idea."</span> }
 <span class="tk-k">agent</span> Skeptic   { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Argue against the idea."</span> }
 <span class="tk-k">agent</span> Moderator { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Weigh the arguments and give a verdict."</span> }
 
@@ -1049,9 +1009,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p><code>handoff &quot;...&quot; to Agent</code> gives control to an agent and ends that branch of the script. Use it for the last step, when the receiving agent&#39;s answer is the end result. Everywhere else, <code>delegate</code> is what you want, because it hands the reply back to you.</p>
 <h2 id="c04-call-workflows-that-call-workflows"><code>call</code>: workflows that call workflows</h2>
 <p>When a script grows, split it into several workflows. <code>call</code> runs another workflow, passes it arguments, and gives you back what it returned:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Checker { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Check the claim. Answer VERIFIED or DOUBTFUL."</span>  output_schema: { verdict: enum[<span class="tk-s">"VERIFIED"</span>, <span class="tk-s">"DOUBTFUL"</span>], why: string } }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Checker { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Check the claim. Answer VERIFIED or DOUBTFUL."</span>  output_schema: { verdict: enum[<span class="tk-s">"VERIFIED"</span>, <span class="tk-s">"DOUBTFUL"</span>], why: string } }
 <span class="tk-k">agent</span> Writer  { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write one sentence from the verified claim."</span> }
 
 <span class="tk-k">workflow</span> VerifyClaim(claim) {
@@ -1081,9 +1039,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>A file that is imported is checked as part of the script that imports it, not on its own (an agents file has no workflow to use its agents). Paths are relative to the importing file. The <code>import</code> lines come first.</p>
 <h2 id="c04-halt-stop-on-purpose"><code>halt</code>: stop on purpose</h2>
 <p>Some failures should not be retried and should not be handled: a stage cannot go on, and later stages must not work on something broken. <code>halt</code> stops the whole run and says why. It is not a failure; nothing retries it and no <code>on_failure</code> handles it.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Extractor {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Extractor {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Extract the invoice number from the text."</span>
     output_schema: { invoice_number: string }
@@ -1141,9 +1097,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>Models return text. Workflows need values they can branch on and fields they can pass along. And any step that talks to a model, a tool or the network can fail. This chapter is about the two habits that make a workflow dependable: <strong>make answers checkable</strong>, and <strong>say what happens when a step fails</strong>.</p>
 <h2 id="c05-structured-answers">Structured answers</h2>
 <p>If you ask an agent &quot;is this billing or technical?&quot;, it might reply &quot;I think this is probably about billing!&quot; A script cannot branch on that. Give the agent an <code>output_schema</code> and it must answer in a fixed shape:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Classifier {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Classifier {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Classify the customer message."</span>
     temperature: <span class="tk-n">0.0</span>
@@ -1199,9 +1153,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 </tr>
 </tbody></table>
 <p>Every field is <strong>required</strong>. Write the schema as the contract you need, not the one you hope for. Fields keep the order you write them in.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Auditor {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Auditor {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Audit the system description."</span>
     output_schema: {
@@ -1228,9 +1180,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>So a model that answers in YAML costs you one extra call, not a broken run.</p>
 <h3 id="c05-a-schema-for-one-step-expecting">A schema for one step: <code>expecting</code></h3>
 <p>If an agent is used in several ways, put the schema on the step instead of the agent:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Lead { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You lead the review."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Lead { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You lead the review."</span> }
 
 <span class="tk-k">workflow</span> Main(text) {
     <span class="tk-k">delegate</span> <span class="tk-s">"Review:\n<span class="tk-v">{text}</span>"</span> <span class="tk-k">to</span> Lead -&gt; review <span class="tk-k">expecting</span> { verdict: enum[<span class="tk-s">"OK"</span>, <span class="tk-s">"FIX"</span>], fixes: list&lt;string&gt; }
@@ -1244,9 +1194,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p><strong>You don&#39;t need this until</strong> a step only has to pull fields out of text (an invoice, an email, a form). Until then, skip to <a href="#c05-when-a-step-fails">When a step fails</a>.</p>
 </blockquote>
 <p>An agent with an <code>output_schema</code> can pull fields out of text, but it is an <em>agent</em>: it is given the whole run so far and the shared prompt, it can pick up the house voice, and what it extracts can depend on what ran before it. For a step that only reads, that is more than it needs. An <strong>extractor</strong> is a step that is handed only the text you name and the fields you want, and remembers nothing.</p>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-extractor Invoice {
+<figure class="code"><figcaption>excerpt</figcaption><pre><code>extractor Invoice {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     instructions: <span class="tk-s">"Read the invoice. Use the vendor's legal name."</span>
     fields {
@@ -1305,9 +1253,7 @@ extractor Receipt {
     output_schema: { summary: string, score: number, risks: list&lt;{ name: string, level: number }&gt; }
 }</code></pre></figure>
 <p>Fixed:</p>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Files { use: file  root: <span class="tk-s">"data"</span>  mode: read }
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Files { use: file  root: <span class="tk-s">"data"</span>  mode: read }
 
 <span class="tk-k">agent</span> Analyst {
     model: <span class="tk-s">"claude-sonnet-5-5"</span>
@@ -1336,9 +1282,7 @@ extractor AnalystFields {
 <h2 id="c05-when-a-step-fails">When a step fails</h2>
 <p>Things go wrong. The model provider returns an error, a tool times out, an answer never matches its schema. Three tools let you say what to do about it.</p>
 <h3 id="c05-retry-backoff-timeout"><code>retry</code>, <code>backoff</code>, <code>timeout</code></h3>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Writer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You summarise documents."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Writer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You summarise documents."</span> }
 
 <span class="tk-k">workflow</span> Main(doc) {
     <span class="tk-k">delegate</span> <span class="tk-s">"Summarise <span class="tk-v">{doc}</span>"</span> <span class="tk-k">to</span> Writer -&gt; summary <span class="tk-k">retry</span> <span class="tk-n">2</span> <span class="tk-k">backoff</span> <span class="tk-n">2s</span> <span class="tk-k">timeout</span> <span class="tk-n">90s</span> <span class="tk-k">on_failure</span> {
@@ -1385,9 +1329,7 @@ extractor AnalystFields {
 <p>A step refused by a <strong>budget</strong> goes to <code>on_failure</code> too, but is never retried: retrying would only spend more.</p>
 <h3 id="c05-a-failing-branch-that-must-not-stop-the-others">A failing branch that must not stop the others</h3>
 <p>When one branch of a <code>parallel</code> block may fail and the others should still count, give each branch its own flag and set it in its own <code>on_failure</code>:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> WebResearcher  { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Search the web and report what you find in five lines."</span>  tools: [web_search] }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> WebResearcher  { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Search the web and report what you find in five lines."</span>  tools: [web_search] }
 <span class="tk-k">agent</span> DocsResearcher { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Report what the company documents say, in five lines."</span> }
 <span class="tk-k">agent</span> Writer         { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write a short report from the notes. Say what is missing."</span> }
 
@@ -1447,9 +1389,7 @@ extractor AnalystFields {
 </tbody></table>
 <h2 id="c05-putting-it-together-extract-then-validate">Putting it together: extract, then validate</h2>
 <p>This is starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08-extract-and-validate</a>: free text becomes checked fields, the script applies its own rule, and the run stops on purpose when the text cannot be read.</p>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-extractor Invoice {
+<figure class="code"><figcaption>excerpt</figcaption><pre><code>extractor Invoice {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     instructions: <span class="tk-s">"Read the invoice. Use the vendor's legal name."</span>
     fields {
@@ -1495,9 +1435,7 @@ extractor Invoice {
 <p>The rule of thumb: <strong>the model reads, the code decides and acts.</strong> A tool is for when the model needs to reach something. A task is for when a result must be exact, free, and immune to a prompt that says &quot;ignore your rules&quot;.</p>
 <h2 id="c06-tools">Tools</h2>
 <p>You give an agent tools with <code>tools: [...]</code>:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Researcher {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Find the answer. Use the tools when you need facts or arithmetic."</span>
     tools: [web_search, calculator]
@@ -1576,9 +1514,7 @@ extractor Invoice {
 <td><code>store</code> or <code>url</code></td>
 </tr>
 </tbody></table>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Search   { use: serpapi  api_key: env.SERPAPI_KEY }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Search   { use: serpapi  api_key: env.SERPAPI_KEY }
 <span class="tk-k">tool</span> Web      { use: duckduckgo }
 
 <span class="tk-k">agent</span> Researcher {
@@ -1607,9 +1543,7 @@ extractor Invoice {
 <h3 id="c06-the-six-generic-tools">The six generic tools</h3>
 <p>Six tool kinds cover what most real workflows need, with <strong>no Java</strong>. All of them follow the same safety rules: secrets from the environment only, hosts and paths limited to what you allow, and every action that changes something is recorded in the run journal so a resume never repeats it.</p>
 <h4 id="c06-webhook-post-a-message"><code>webhook</code>: post a message</h4>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }     <span class="tk-c">// slack | discord | teams | json</span>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }     <span class="tk-c">// slack | discord | teams | json</span>
 
 <span class="tk-k">agent</span> Poster {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -1624,9 +1558,7 @@ extractor Invoice {
 }</code></pre></figure>
 <p>The URL is a secret (webhook URLs carry tokens) and is never shown. The agent supplies only the <code>text</code> and an optional <code>title</code>.</p>
 <h4 id="c06-email-send-mail"><code>email</code>: send mail</h4>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Mail {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Mail {
     use: email
     host: <span class="tk-s">"smtp.example.com"</span>  port: <span class="tk-n">587</span>  security: starttls
     username: env.SMTP_USER   password: env.SMTP_PASSWORD
@@ -1650,9 +1582,7 @@ extractor Invoice {
 }</code></pre></figure>
 <p>Give exactly one of <code>to</code> (fixed recipients) or <code>allow_to</code> (a list the agent may choose from, such as <code>*@example.com</code>). <code>outbox:</code> is the safe way to develop: each message is written as a file and nothing is sent.</p>
 <h4 id="c06-http-call-a-rest-api"><code>http</code>: call a REST API</h4>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Github {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Github {
     use: http
     base_url: <span class="tk-s">"https://api.github.com"</span>
     auth_header: <span class="tk-s">"Authorization"</span>  auth_value: env.GITHUB_TOKEN
@@ -1671,9 +1601,7 @@ extractor Invoice {
 }</code></pre></figure>
 <p>The agent can choose only a path below <code>base_url</code> and only from <code>allow_paths</code>. It cannot set headers or the host. Only <code>GET</code> is allowed unless you list more in <code>methods:</code>, and a tool that allows anything but <code>GET</code> should be under <code>approve:</code> on its agent.</p>
 <h4 id="c06-file-read-and-write-in-one-folder"><code>file</code>: read and write in one folder</h4>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Notes { use: file  root: <span class="tk-s">"notes"</span>  mode: readwrite }       <span class="tk-c">// read | write | readwrite</span>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Notes { use: file  root: <span class="tk-s">"notes"</span>  mode: readwrite }       <span class="tk-c">// read | write | readwrite</span>
 
 <span class="tk-k">agent</span> Scribe {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -1687,9 +1615,7 @@ extractor Invoice {
 }</code></pre></figure>
 <p>The folder is inside the script&#39;s own directory. Paths that climb out, symbolic links that lead out, hidden files, binary files and anything outside the allowed names are refused. There is no way to delete a file.</p>
 <h4 id="c06-shell-run-a-few-named-programs"><code>shell</code>: run a few named programs</h4>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Ops { use: shell  allow: <span class="tk-s">"df, du, ls"</span>  <span class="tk-k">timeout</span>: <span class="tk-n">30s</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Ops { use: shell  allow: <span class="tk-s">"df, du, ls"</span>  <span class="tk-k">timeout</span>: <span class="tk-n">30s</span> }
 
 <span class="tk-k">agent</span> Operator {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -1704,9 +1630,7 @@ extractor Invoice {
 }</code></pre></figure>
 <p>Programs are started directly with a list of arguments and <strong>no shell</strong>, so quoting, <code>;</code>, <code>|</code> and <code>$( )</code> mean nothing. Shells and anything that runs other programs (<code>sh</code>, <code>python</code>, <code>env</code>, <code>find</code>, <code>sudo</code>, <code>ssh</code>, <code>make</code>...) are refused. Because it runs code on this machine, the agent <strong>must</strong> list it under <code>approve:</code> (or the tool must say <code>unattended: true</code>), otherwise the script does not load.</p>
 <h4 id="c06-sql-read-a-database"><code>sql</code>: read a database</h4>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Db { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD  max_rows: <span class="tk-n">200</span>  format: json }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Db { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD  max_rows: <span class="tk-n">200</span>  format: json }
 
 <span class="tk-k">agent</span> Analyst {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -1764,9 +1688,7 @@ extractor Invoice {
 <p>The person sees the exact arguments (personal data masked) and answers yes or no. A no is not a failure: <code>on_declined</code> runs, nothing is sent, and the run goes on after the block. Anything but a clear yes is a no, and a resumed run never asks twice.</p>
 <p>When a person works <em>with</em> an agent as it goes (an assistant that asks &quot;may I run this?&quot;), name the tool in the agent&#39;s <code>approve:</code> list:</p>
 <p><code>approve: [Tool]</code> on an agent makes calls to that tool wait for a person:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
 
 <span class="tk-k">agent</span> Publisher {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -1856,9 +1778,7 @@ extractor Invoice {
 </ul>
 <h2 id="c06-classifiers-which-of-these-is-it">Classifiers: &quot;which of these is it?&quot;</h2>
 <p>Some steps are not &quot;write me an answer&quot; but &quot;which of these is it?&quot;: route a message, decide whether a reply meets a criterion, rate a tone. An <strong>intent classifier</strong> answers typed questions in one call and gives a label, not prose.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">intentclassifier</span> Intent {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">intentclassifier</span> Intent {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     choose kind: refund | order_status | complaint | other
     ask urgent: <span class="tk-s">"Is the customer threatening to leave?"</span>
@@ -1977,9 +1897,7 @@ remote Supplier {
 <p><code>weave test</code> cannot script the embedding calls that index documents, so a starter like 09 is checked with <code>weave check</code> but not run in a hermetic test. Test everything <em>around</em> the retrieval (what the agent does with an answer, what happens when it says &quot;the handbook does not say&quot;) in a workflow whose agent has no knowledge base, and test retrieval quality itself with an evaluation (<a href="#c10-weave-eval-the-quality-with-a-golden-dataset">Chapter 10</a>).</p>
 <h2 id="c07-memory-remembering-between-runs">Memory: remembering between runs</h2>
 <p>Memory lets an agent remember conversations and facts <strong>across runs</strong>. It is separate from the way a workflow passes variables between its own steps.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">persona</span> Concierge {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">persona</span> Concierge {
     role: <span class="tk-s">"a hotel concierge"</span>
     tone: <span class="tk-s">"warm and concise"</span>
     constraints: [<span class="tk-s">"Never promise a room you cannot confirm."</span>, <span class="tk-s">"Ask one question at a time."</span>]
@@ -2038,9 +1956,7 @@ remote Supplier {
 </blockquote>
 <p>Inside one run, Loom keeps a <strong>transcript</strong> of every task and answer. By default each agent is briefed with all of it (<code>weave explain</code> says &quot;sees everything said before it&quot;). That is what lets a later agent build on an earlier one, and it is also how an earlier agent&#39;s words, including text it read from the web, reach every later agent.</p>
 <p>An agent can take less:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You find the facts."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You find the facts."</span> }
 <span class="tk-k">agent</span> Summariser {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"You summarise the text you are given."</span>
@@ -2088,9 +2004,7 @@ remote Supplier {
 </tr>
 </tbody></table>
 <p>Declare one to set defaults, and give an agent a <code>voice</code> to listen to audio tasks and speak its answers:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Hindi { use: translate  target: <span class="tk-s">"hi-IN"</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Hindi { use: translate  target: <span class="tk-s">"hi-IN"</span> }
 
 <span class="tk-k">agent</span> Helper {
     model: <span class="tk-s">"sarvam/sarvam-105b"</span>
@@ -2155,9 +2069,7 @@ remote Supplier {
 <figure class="diagram"><div class="plate"><svg role="img" aria-label="Diagram 14" aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="-8 -8 210.23779296875 441.6893310546875" height="441.6893310546875" xmlns="http://www.w3.org/2000/svg" width="210.23779296875" id="d13"><style>#d13{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;fill:#161a2b;}#d13 .error-icon{fill:#f5f6fa;}#d13 .error-text{fill:#0a0905;stroke:#0a0905;}#d13 .edge-thickness-normal{stroke-width:2px;}#d13 .edge-thickness-thick{stroke-width:3.5px;}#d13 .edge-pattern-solid{stroke-dasharray:0;}#d13 .edge-pattern-dashed{stroke-dasharray:3;}#d13 .edge-pattern-dotted{stroke-dasharray:2;}#d13 .marker{fill:#5a6078;stroke:#5a6078;}#d13 .marker.cross{stroke:#5a6078;}#d13 svg{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;}#d13 .label{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;color:#161a2b;}#d13 .cluster-label text{fill:#0a0905;}#d13 .cluster-label span,#d13 p{color:#0a0905;}#d13 .label text,#d13 span,#d13 p{fill:#161a2b;color:#161a2b;}#d13 .node rect,#d13 .node circle,#d13 .node ellipse,#d13 .node polygon,#d13 .node path{fill:#d9efec;stroke:#0f766e;stroke-width:1px;}#d13 .flowchart-label text{text-anchor:middle;}#d13 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d13 .node .label{text-align:center;}#d13 .node.clickable{cursor:pointer;}#d13 .arrowheadPath{fill:#0b0b0b;}#d13 .edgePath .path{stroke:#5a6078;stroke-width:2.0px;}#d13 .flowchart-link{stroke:#5a6078;fill:none;}#d13 .edgeLabel{background-color:#eef0f7;text-align:center;}#d13 .edgeLabel rect{opacity:0.5;background-color:#eef0f7;fill:#eef0f7;}#d13 .labelBkg{background-color:rgba(238, 240, 247, 0.5);}#d13 .cluster rect{fill:#f5f6fa;stroke:#b9c0d4;stroke-width:1px;}#d13 .cluster text{fill:#0a0905;}#d13 .cluster span,#d13 p{color:#0a0905;}#d13 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:12px;background:#f5f6fa;border:1px solid hsl(228, 0%, 87.0588235294%);border-radius:2px;pointer-events:none;z-index:100;}#d13 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#161a2b;}#d13 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#d13 .step rect{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d13 .step polygon{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d13 .step ellipse{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d13 .step circle{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d13 .step path{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d13 .step tspan{fill:#0b3b37!important;}#d13 .decision rect{fill:#fdecc8!important;stroke:#b7791f!important;color:#4a3300!important;}#d13 .decision polygon{fill:#fdecc8!important;stroke:#b7791f!important;color:#4a3300!important;}#d13 .decision ellipse{fill:#fdecc8!important;stroke:#b7791f!important;color:#4a3300!important;}#d13 .decision circle{fill:#fdecc8!important;stroke:#b7791f!important;color:#4a3300!important;}#d13 .decision path{fill:#fdecc8!important;stroke:#b7791f!important;color:#4a3300!important;}#d13 .decision tspan{fill:#4a3300!important;}#d13 .person rect{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d13 .person polygon{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d13 .person ellipse{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d13 .person circle{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d13 .person path{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d13 .person tspan{fill:#1a2370!important;}#d13 .world rect{fill:#e1f3e3!important;stroke:#2f855a!important;color:#12361e!important;}#d13 .world polygon{fill:#e1f3e3!important;stroke:#2f855a!important;color:#12361e!important;}#d13 .world ellipse{fill:#e1f3e3!important;stroke:#2f855a!important;color:#12361e!important;}#d13 .world circle{fill:#e1f3e3!important;stroke:#2f855a!important;color:#12361e!important;}#d13 .world path{fill:#e1f3e3!important;stroke:#2f855a!important;color:#12361e!important;}#d13 .world tspan{fill:#12361e!important;}#d13 .edge rect{fill:#e9edf5!important;stroke:#5a6078!important;color:#1f2540!important;}#d13 .edge polygon{fill:#e9edf5!important;stroke:#5a6078!important;color:#1f2540!important;}#d13 .edge ellipse{fill:#e9edf5!important;stroke:#5a6078!important;color:#1f2540!important;}#d13 .edge circle{fill:#e9edf5!important;stroke:#5a6078!important;color:#1f2540!important;}#d13 .edge path{fill:#e9edf5!important;stroke:#5a6078!important;color:#1f2540!important;}#d13 .edge tspan{fill:#1f2540!important;}</style><g><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="6" viewBox="0 0 10 10" class="marker flowchart" id="d13_flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart" id="d13_flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart" id="d13_flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart" id="d13_flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart" id="d13_flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart" id="d13_flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#d13_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-A LE-Q" id="L-A-Q-0" d="M96.305,26L96.305,28.167C96.305,30.333,96.305,34.667,96.305,38.117C96.305,41.567,96.305,44.133,96.305,45.417L96.305,46.7"></path><path marker-end="url(#d13_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-Q LE-W" id="L-Q-W-0" d="M96.305,93L96.305,97.833C96.305,102.667,96.305,112.333,96.305,121.117C96.305,129.9,96.305,137.8,96.305,141.75L96.305,145.7"></path><path marker-end="url(#d13_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-W LE-D" id="L-W-D-0" d="M96.305,233.002L96.305,237.835C96.305,242.668,96.305,252.335,96.373,261.202C96.442,270.069,96.578,278.136,96.647,282.169L96.715,286.203"></path><path marker-end="url(#d13_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-D LE-S" id="L-D-S-0" d="M81.465,341.849L75.927,347.989C70.389,354.129,59.314,366.409,53.776,375.333C48.239,384.256,48.239,389.823,48.239,392.606L48.239,395.389"></path><path marker-end="url(#d13_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-D LE-N" id="L-D-N-0" d="M112.145,341.849L117.516,347.989C122.887,354.129,133.629,366.409,139,375.333C144.371,384.256,144.371,389.823,144.371,392.606L144.371,395.389"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g><g transform="translate(96.304931640625, 122)" class="edgeLabel"><g transform="translate(-51.7109375, -16)" class="label"><rect height="32.000282287597656" width="103.3141860961914" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">run pauses,</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">holds no thread</tspan></text></g></g><g transform="translate(96.304931640625, 262.00181579589844)" class="edgeLabel"><g transform="translate(-96.304931640625, -16)" class="label"><rect height="32.000282287597656" width="192.41773986816406" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">answer arrives:</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">console, chat, weave answer</tspan></text></g></g><g transform="translate(48.23876953125, 378.68931579589844)" class="edgeLabel"><g transform="translate(-11.671875, -9)" class="label"><rect height="18.000293731689453" width="23.328506469726562" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">yes</tspan></text></g></g><g transform="translate(144.37109375, 378.68931579589844)" class="edgeLabel"><g transform="translate(-8.34375, -8.5)" class="label"><rect height="17.00027847290039" width="16.672147750854492" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">no</tspan></text></g></g></g><g class="nodes"><g transform="translate(96.304931640625, 13)" data-id="A" data-node="true" id="flowchart-A-147" class="node default step flowchart-label"><rect height="26" width="87.21875" y="-13" x="-43.609375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -9)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">agent drafts</tspan></text></g></g><g transform="translate(96.304931640625, 72.5)" data-id="Q" data-node="true" id="flowchart-Q-148" class="node default person flowchart-label"><rect height="41" width="127.25732421875" y="-20.5" x="-63.628662109375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">human_prompt:</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">'Send it? (yes/no)'</tspan></text></g></g><g transform="translate(96.304931640625, 192.00090789794922)" data-id="W" data-node="true" id="flowchart-W-150" class="node default edge flowchart-label"><path transform="translate(-75.375,-41.00090661831369)" d="M 0,13.667271078875793 a 75.375,13.667271078875793 0,0,0 150.75 0 a 75.375,13.667271078875793 0,0,0 -150.75 0 l 0,54.66727107887579 a 75.375,13.667271078875793 0,0,0 150.75 0 l 0,-54.66727107887579" style=""></path><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">waiting for an answer</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">(minutes, days)</tspan></text></g></g><g transform="translate(96.304931640625, 323.84556579589844)" data-id="D" data-node="true" id="flowchart-D-152" class="node default decision flowchart-label"><polygon style="" transform="translate(-32.84375,32.84375)" class="label-container" points="32.84375,0 65.6875,-32.84375 32.84375,-65.6875 0,-32.84375"></polygon><g transform="translate(0, -9)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">yes?</tspan></text></g></g><g transform="translate(48.23876953125, 413.18931579589844)" data-id="S" data-node="true" id="flowchart-S-154" class="node default world flowchart-label"><rect height="25" width="40.53125" y="-12.5" x="-20.265625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -8.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">send</tspan></text></g></g><g transform="translate(144.37109375, 413.18931579589844)" data-id="N" data-node="true" id="flowchart-N-156" class="node default edge flowchart-label"><rect height="25" width="99.7333984375" y="-12.5" x="-49.86669921875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -8.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">note: not sent</tspan></text></g></g></g></g></g></svg></div><button type="button" class="bigger" aria-label="Show the diagram larger">Larger</button></figure>
 
 <h2 id="c08-human_prompt-ask-a-person"><code>human_prompt</code>: ask a person</h2>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Drafter { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Draft a short, polite announcement from the facts."</span>  temperature: <span class="tk-n">0.4</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Drafter { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Draft a short, polite announcement from the facts."</span>  temperature: <span class="tk-n">0.4</span> }
 
 <span class="tk-k">workflow</span> Main(facts) {
     <span class="tk-k">delegate</span> <span class="tk-s">"Draft an announcement from: <span class="tk-v">{facts}</span>"</span> <span class="tk-k">to</span> Drafter -&gt; draft
@@ -2204,9 +2116,7 @@ remote Supplier {
 <p>No model carries out the send, so no wording in a message can talk it past the question. A no is a decision, not a failure: <code>on_declined</code> handles it.</p>
 <h2 id="c08-approvals-on-tools">Approvals on tools</h2>
 <p>When a person works <em>with</em> an agent as it goes (an assistant that asks &quot;may I run this?&quot;), an agent&#39;s tool can ask before <em>each call</em>. In a workflow nobody is watching, this is the wrong shape: the run stops in the middle of the agent&#39;s reasoning and holds its conversation until someone answers (<code>weave review</code> says so, LH05).</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
 
 <span class="tk-k">agent</span> Publisher {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -2237,9 +2147,7 @@ weave resume runs/today                         # carry on from the journal</cod
 <p>With <code>--wait</code> the process stays alive and resumes by itself. Something has to wake a paused run: <code>weave daemon</code> running, <code>weave tick</code> from a scheduler, or <code>weave triggers install</code> for a system trigger.</p>
 <h2 id="c08-sleep-wait-for-time-to-pass"><code>sleep</code>: wait for time to pass</h2>
 <p><code>sleep</code> waits a fixed time and carries on. Use it to poll without spinning, to space out rounds, or to follow up some hours after a message. It costs nothing: no model, no tokens.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Checker {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Checker {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"You check whether a job has finished. Answer with its state: running or done."</span>
     output_schema: { state: string }
@@ -2281,9 +2189,7 @@ weave resume runs/today                         # carry on from the journal</cod
 <p>A sleep is never lengthened by a restart: the wake time is recorded first. And it is not a rate limit, so it does not count against <code>max_resumes</code>. For something that repeats on a clock, use a <a href="#c11-schedules"><code>schedule</code></a>, not a long sleep.</p>
 <h3 id="c08-waiting-out-rate-limits">Waiting out rate limits</h3>
 <p>Providers limit how fast you can call them. Instead of failing, a durable run can pause and carry on later:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">rate_limits</span> { on_limit: suspend  max_wait: <span class="tk-n">24h</span>  max_resumes: <span class="tk-n">50</span> }     <span class="tk-c">// suspend | wait | fail</span>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">rate_limits</span> { on_limit: suspend  max_wait: <span class="tk-n">24h</span>  max_resumes: <span class="tk-n">50</span> }     <span class="tk-c">// suspend | wait | fail</span>
 
 <span class="tk-k">agent</span> Drafter { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write a short message."</span>  temperature: <span class="tk-n">0.4</span> }
 
@@ -2293,9 +2199,7 @@ weave resume runs/today                         # carry on from the journal</cod
 }</code></pre></figure>
 <h2 id="c08-putting-it-together-a-workflow-that-waits-for-days">Putting it together: a workflow that waits for days</h2>
 <p>Starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/12-wait-for-a-person" target="_blank" rel="noopener">12-wait-for-a-person</a> drafts a message, asks a person, sends, sleeps two days and follows up:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">rate_limits</span> { on_limit: suspend  max_wait: <span class="tk-n">24h</span>  max_resumes: <span class="tk-n">50</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">rate_limits</span> { on_limit: suspend  max_wait: <span class="tk-n">24h</span>  max_resumes: <span class="tk-n">50</span> }
 
 <span class="tk-k">agent</span> Drafter { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write a short, polite message to the customer."</span>  temperature: <span class="tk-n">0.4</span> }
 <span class="tk-k">agent</span> Checker { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"State whether the customer replied. Answer yes or no."</span>  output_schema: { replied: enum[<span class="tk-s">"yes"</span>, <span class="tk-s">"no"</span>] } }
@@ -2333,9 +2237,7 @@ weave run main.loom -w Main -i facts="Office closed Friday" --journal runs/today
 <p>The question arrives as a message with a short code (<code>Reply: K7F3QX yes | no</code>). Reply to that message and the next heartbeat (or <code>weave daemon</code>, within seconds) records the answer and the run goes on. Only people on the channel&#39;s allow-list can answer, an answer applies once, and the token is never in the script.</p>
 <h2 id="c08-steering-and-stopping-an-agent-while-it-works">Steering and stopping an agent while it works</h2>
 <p>Sometimes you do not want to wait for an agent to finish: it is going the wrong way, or it has said enough. Mark it <code>steerable</code> and a person can intervene, with the script deciding what happens next.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Writer {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Writer {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Write the report."</span>
     streaming: true          <span class="tk-c">// show the reply as it is written</span>
@@ -2359,9 +2261,7 @@ weave run main.loom -w Main -i facts="Office closed Friday" --journal runs/today
 <p>A person reaches a running workflow from the console (<code>weave run ... --steer-via console</code>), from a chat, or from an application that embeds Loom. The commands are plain: <code>steer Researcher focus on the EU market</code>, <code>wrap up Writer</code>, <code>cancel Writer skip : not needed</code>.</p>
 <h2 id="c08-supervise-rules-that-watch-an-agent"><code>supervise</code>: rules that watch an agent</h2>
 <p>You will not always have a person watching. A <code>supervise</code> block acts without one, on things that can be <em>counted</em>:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Researcher {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Research the question with the tools you have, then answer in a short paragraph."</span>
     tools: [web_search, calculator]
@@ -2420,9 +2320,7 @@ weave run main.loom -w Main -i facts="Office closed Friday" --journal runs/today
 <p>This chapter is the safety toolbox: budgets, guards, secrets, and the two commands that review a script before it ever runs.</p>
 <h2 id="c09-budgets-it-cannot-overspend">Budgets: it cannot overspend</h2>
 <p>A budget caps what model calls may spend, in <strong>tokens</strong> (the default), <strong>calls</strong>, or <strong>money</strong> (with a price table you supply). The runtime enforces it at the call itself: before each call it checks what is left and <strong>refuses without calling the model</strong> if the call cannot fit. Budgets go in three places:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">budget</span> { tokens: <span class="tk-n">200000</span>  calls: <span class="tk-n">150</span>  warn_at: <span class="tk-n">80</span>% }          <span class="tk-c">// the whole run</span>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">budget</span> { tokens: <span class="tk-n">200000</span>  calls: <span class="tk-n">150</span>  warn_at: <span class="tk-n">80</span>% }          <span class="tk-c">// the whole run</span>
 
 <span class="tk-k">agent</span> Writer {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -2511,9 +2409,7 @@ gemini-2.5-flash = 0.30 / 2.50</code></pre></figure>
 <p>Among its findings, <code>weave review</code> prints a typical and a worst-case estimate for each workflow, step by step, and says when your cap would stop the run before the worst case.</p>
 <h2 id="c09-guards-keep-personal-data-and-bias-in-check">Guards: keep personal data and bias in check</h2>
 <p>An agent&#39;s <code>guard</code> protects everything it does:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Support {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Support {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"You answer customers."</span>
     guard {
@@ -2535,9 +2431,7 @@ gemini-2.5-flash = 0.30 / 2.50</code></pre></figure>
 <p>Audit logs record counts and kinds, never the data itself.</p>
 <h3 id="c09-a-guardrail-around-a-block">A guardrail around a block</h3>
 <p>To protect a whole block of steps, wrap it:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Summarizer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Summarise the text."</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Summarizer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Summarise the text."</span> }
 <span class="tk-k">agent</span> Admin { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Tell the administrator what happened."</span> }
 
 <span class="tk-k">workflow</span> Main(raw_text) {
@@ -2602,9 +2496,7 @@ policy HouseRules: <span class="tk-s">"house-rules"</span> checked by Compliance
 <p>The <strong>leak guard</strong> is a guard that needs no model. <code>guard { prompt_leak: block  internal_refs: [&quot;POL-[0-9]+&quot;] }</code> stops an answer that repeats 12 words of the agent&#39;s own instructions, of the shared prompt or of a policy rule, or that names an internal reference. <code>warn</code> records it and carries on; with a policy declared every agent warns by default.</p>
 <h2 id="c09-secrets">Secrets</h2>
 <p><strong>Never write a key in a script.</strong> A literal secret is a load error, on purpose. Keys come from the environment (<code>env.NAME</code>) or the encrypted secret store (<code>secret.NAME</code>):</p>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">provider</span> Box { use: sarvam  api_key: secret.BOX_KEY  base_url: <span class="tk-s">"https://box.example.com"</span> }
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">provider</span> Box { use: sarvam  api_key: secret.BOX_KEY  base_url: <span class="tk-s">"https://box.example.com"</span> }
 <span class="tk-k">tool</span> Search  { use: serpapi  api_key: secret.SERP_KEY }
 
 <span class="tk-k">agent</span> Indic { model: <span class="tk-s">"Box/sarvam-105b"</span>  system: <span class="tk-s">"You answer briefly."</span>  tools: [Search] }
@@ -3044,9 +2936,7 @@ weave gate   main.loom                       # runs the checks your team chose a
 <p>By now you can build a workflow that routes, loops, fans out, uses tools, asks people and survives failure. This chapter is about the features that make long-running, high-stakes workflows possible: going back in time, letting an agent earn trust, running on a clock, keeping a long conversation inside the model&#39;s window, and driving the whole thing from outside.</p>
 <h2 id="c11-checkpoints-and-rewind">Checkpoints and rewind</h2>
 <p>A run can stop and carry on, but only forward. If a late step shows that an early one was wrong, you would have to start over and pay for everything again. <strong>Checkpoints and rewinds</strong> let a workflow go back to a named point, keep what it learned, and try again.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Collector { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Collect sources on the topic. Use the feedback to look somewhere new."</span>  temperature: <span class="tk-n">0.5</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Collector { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Collect sources on the topic. Use the feedback to look somewhere new."</span>  temperature: <span class="tk-n">0.5</span> }
 <span class="tk-k">agent</span> Writer    { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write a short report from the sources."</span>  temperature: <span class="tk-n">0.5</span> }
 <span class="tk-k">agent</span> Reviewer  {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -3134,9 +3024,7 @@ weave fork runs/today --to runs/what-if --at collected --effects simulate --reas
 <p>A <code>decision</code> has an agent that <em>proposes</em>, a person who <em>decides</em>, and a ledger of both. The agent moves up a ladder only as the record supports it, and drops back if the record turns bad.</p>
 <figure class="diagram"><div class="plate"><svg role="img" aria-label="Diagram 22" aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="-4 -8 413.5390625 400" height="400" xmlns="http://www.w3.org/2000/svg" width="413.5390625" id="d21"><style>#d21{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;fill:#161a2b;}#d21 .error-icon{fill:#f5f6fa;}#d21 .error-text{fill:#0a0905;stroke:#0a0905;}#d21 .edge-thickness-normal{stroke-width:2px;}#d21 .edge-thickness-thick{stroke-width:3.5px;}#d21 .edge-pattern-solid{stroke-dasharray:0;}#d21 .edge-pattern-dashed{stroke-dasharray:3;}#d21 .edge-pattern-dotted{stroke-dasharray:2;}#d21 .marker{fill:#5a6078;stroke:#5a6078;}#d21 .marker.cross{stroke:#5a6078;}#d21 svg{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;}#d21 .label{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;color:#161a2b;}#d21 .cluster-label text{fill:#0a0905;}#d21 .cluster-label span,#d21 p{color:#0a0905;}#d21 .label text,#d21 span,#d21 p{fill:#161a2b;color:#161a2b;}#d21 .node rect,#d21 .node circle,#d21 .node ellipse,#d21 .node polygon,#d21 .node path{fill:#d9efec;stroke:#0f766e;stroke-width:1px;}#d21 .flowchart-label text{text-anchor:middle;}#d21 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d21 .node .label{text-align:center;}#d21 .node.clickable{cursor:pointer;}#d21 .arrowheadPath{fill:#0b0b0b;}#d21 .edgePath .path{stroke:#5a6078;stroke-width:2.0px;}#d21 .flowchart-link{stroke:#5a6078;fill:none;}#d21 .edgeLabel{background-color:#eef0f7;text-align:center;}#d21 .edgeLabel rect{opacity:0.5;background-color:#eef0f7;fill:#eef0f7;}#d21 .labelBkg{background-color:rgba(238, 240, 247, 0.5);}#d21 .cluster rect{fill:#f5f6fa;stroke:#b9c0d4;stroke-width:1px;}#d21 .cluster text{fill:#0a0905;}#d21 .cluster span,#d21 p{color:#0a0905;}#d21 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:12px;background:#f5f6fa;border:1px solid hsl(228, 0%, 87.0588235294%);border-radius:2px;pointer-events:none;z-index:100;}#d21 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#161a2b;}#d21 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#d21 .step rect{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d21 .step polygon{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d21 .step ellipse{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d21 .step circle{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d21 .step path{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d21 .step tspan{fill:#0b3b37!important;}#d21 .person rect{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d21 .person polygon{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d21 .person ellipse{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d21 .person circle{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d21 .person path{fill:#e3e8ff!important;stroke:#4c5fd5!important;color:#1a2370!important;}#d21 .person tspan{fill:#1a2370!important;}</style><g><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="6" viewBox="0 0 10 10" class="marker flowchart" id="d21_flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart" id="d21_flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart" id="d21_flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart" id="d21_flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart" id="d21_flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart" id="d21_flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"></g><g class="edgeLabels"></g><g class="nodes"><g transform="translate(-4, -8)" class="root"><g class="clusters"><g id="L" class="cluster step flowchart-label"><rect height="384" width="397.5390625" y="8" x="8" ry="0" rx="0" style=""></rect><g transform="translate(206.76953125, 8)" class="cluster-label"><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">the ladder</tspan></text></g></g></g><g class="edgePaths"><path marker-end="url(#d21_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-W LE-S" id="L-W-S-0" d="M207.813,89L207.813,94.667C207.813,100.333,207.813,111.667,207.813,122.117C207.813,132.567,207.813,142.133,207.813,146.917L207.813,151.7"></path><path marker-end="url(#d21_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-S LE-A" id="L-S-A-0" d="M175.977,213L166.692,221.167C157.407,229.333,138.836,245.667,138.173,261.417C137.51,277.167,154.754,292.333,163.376,299.916L171.998,307.5"></path><path marker-end="url(#d21_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;" class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-A LE-S" id="L-A-S-0" d="M239.648,311L248.933,302.833C258.218,294.667,276.789,278.333,277.452,262.583C278.115,246.833,260.871,231.667,252.249,224.084L243.627,216.5"></path></g><g class="edgeLabels"><g transform="translate(207.8125, 123)" class="edgeLabel"><g transform="translate(-82.8837890625, -9)" class="label"><rect height="18.000341415405273" width="165.6075439453125" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">100 cases, agrees 90%+</tspan></text></g></g><g transform="translate(120.265625, 262)" class="edgeLabel"><g transform="translate(-79.6328125, -24)" class="label"><rect height="48.00033950805664" width="159.09677124023438" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">300 cases, 97%+,</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">no dangerous mistakes,</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">risk-owner approves</tspan></text></g></g><g transform="translate(295.359375, 262)" class="edgeLabel"><g transform="translate(-75.4609375, -16.5)" class="label"><rect height="33.000343322753906" width="150.7684783935547" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">2 dangerous mistakes,</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">or agreement falls</tspan></text></g></g></g><g class="nodes"><g transform="translate(207.8125, 185)" data-id="S" data-node="true" id="flowchart-S-209" class="node default person flowchart-label"><rect height="56" width="106.390625" y="-28" x="-53.1953125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -24)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">suggest</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">people confirm</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">the proposal</tspan></text></g></g><g transform="translate(207.8125, 61)" data-id="W" data-node="true" id="flowchart-W-208" class="node default person flowchart-label"><rect height="56" width="179.796875" y="-28" x="-89.8984375" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -24)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">watch</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">people decide;</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">nobody sees the proposal</tspan></text></g></g><g transform="translate(207.8125, 339)" data-id="A" data-node="true" id="flowchart-A-211" class="node default step flowchart-label"><rect height="56" width="143.90625" y="-28" x="-71.953125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -24)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">act</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">the agent decides;</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">a sample is checked</tspan></text></g></g></g></g></g></g></g></svg></div><button type="button" class="bigger" aria-label="Show the diagram larger">Larger</button></figure>
 
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Triager {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Triager {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"You are Triager. Decide whether a refund request should be approved, rejected or escalated."</span>
     output_schema: { choice: enum[<span class="tk-s">"approve"</span>, <span class="tk-s">"reject"</span>, <span class="tk-s">"escalate"</span>], reasoning: string, confidence: number }
@@ -3244,9 +3132,7 @@ weave replay refund.loom --decision Refund --store runs/.loom-triggers --candida
 <p>Then bind it with <code>ladder: RefundLadder</code> and <code>ceiling: suggest</code> in the <code>decision</code>. Every condition is checked when the script loads, so a misspelt measure is an error before any case is decided. The full expression language is in the <a href="https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md#ladders-earned-autonomy-as-a-policy-you-write" target="_blank" rel="noopener">reference</a>.</p>
 <h2 id="c11-schedules">Schedules</h2>
 <p>A <code>schedule</code> makes a workflow run itself on a clock:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
 
 <span class="tk-k">agent</span> Reader { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Find today's most useful news for the topic and report five items."</span>  tools: [web_search] }
 <span class="tk-k">agent</span> Poster { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Post the digest you are given to Slack. Do nothing else."</span>  tools: [Slack] }
@@ -3302,9 +3188,7 @@ weave triggers install runs/.loom-triggers --apply           # or: install a sys
 <p>This is starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/11-daily-digest" target="_blank" rel="noopener">11-daily-digest</a>. The older <code>schedule</code> form, with <code>pattern: &quot;24h&quot;</code> and an <code>agent</code> and <code>task</code>, runs a single agent on a repeat.</p>
 <h2 id="c11-context-and-compaction">Context and compaction</h2>
 <p>A long tool loop makes the prompt grow until the model&#39;s context window is full. An agent&#39;s <code>context</code> block says <strong>how it keeps the prompt inside the window</strong>:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Researcher {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">agent</span> Researcher {
     model: <span class="tk-s">"claude-sonnet-5-5"</span>
     system: <span class="tk-s">"Research the question thoroughly with the tools, then answer."</span>
     tools: [web_search]
@@ -3356,9 +3240,7 @@ weave triggers install runs/.loom-triggers --apply           # or: install a sys
 <li>a <strong>worker</strong> agent with <code>memory { transcript: none }</code>, told the goal, what is done and the one step to do now, so each round starts clean;</li>
 <li>an <code>extractor Progress</code> that reads the goal, the previous progress and the worker&#39;s report, and writes the new progress into a variable.</li>
 </ul>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Files { use: file  root: <span class="tk-s">"work"</span>  mode: write }
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Files { use: file  root: <span class="tk-s">"work"</span>  mode: write }
 
 <span class="tk-k">agent</span> Worker {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -3390,9 +3272,7 @@ extractor Progress {
 <p>The progress is now typed, <strong>journaled</strong> (a resumed run continues from it, as starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/16-step-by-step-agent" target="_blank" rel="noopener">16-step-by-step-agent</a> proves), <strong>bounded</strong> by <code>max</code>, drawn in the graph, and testable, and compaction cannot remove it. No new construct was needed.</p>
 <h2 id="c11-starting-a-workflow-and-watching-it">Starting a workflow and watching it</h2>
 <p><code>call</code> runs a workflow to the end before the next line. Sometimes you want the opposite: start several workflows at once, keep an eye on them, step in when one goes wrong, and wait for the rest. <code>start</code> does that. It gives the workflow a <strong>run of its own</strong> (a <em>child</em>), hands you a <strong>handle</strong> at once, and the script carries on.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">budget</span> { tokens: <span class="tk-n">300000</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">budget</span> { tokens: <span class="tk-n">300000</span> }
 
 <span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span> system: <span class="tk-s">"Research the topic in a short paragraph."</span> }
 
@@ -4089,9 +3969,7 @@ public final class ReviewLoopCheck {
 </tr>
 </tbody></table>
 <h3 id="c15-recipe-pull-fields-out-of-text">Recipe: pull fields out of text</h3>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-extractor Contact {
+<figure class="code"><figcaption>excerpt</figcaption><pre><code>extractor Contact {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     instructions: <span class="tk-s">"Find the person's name and, if stated, their phone number."</span>
     fields {
@@ -4113,9 +3991,7 @@ extractor Contact {
 }</code></pre></figure>
 <p>The extractor sees only the email, never the run so far or the shared prompt. A required field the text does not state fails the step; an optional one is <code>missing</code>.</p>
 <h3 id="c15-recipe-let-the-reasoning-agent-think-then-extract">Recipe: let the reasoning agent think, then extract</h3>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">agent</span> Researcher {
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">agent</span> Researcher {
     model: <span class="tk-s">"gemini-2.5-pro"</span>
     system: <span class="tk-s">"Research the topic. Answer in plain prose; explain your reasoning, then state your conclusions."</span>
     grounding: web
@@ -4148,9 +4024,7 @@ extractor Receipt {
 }</code></pre></figure>
 <p>Files come only from <code>media_root</code>. See chapter 3 and chapter 5.</p>
 <h3 id="c15-recipe-a-cheaper-model-when-money-runs-low">Recipe: a cheaper model when money runs low</h3>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">budget</span> { tokens: <span class="tk-n">100000</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">budget</span> { tokens: <span class="tk-n">100000</span> }
 
 <span class="tk-k">agent</span> Writer      { model: <span class="tk-s">"gemini-2.5-pro"</span>    system: <span class="tk-s">"You write careful, detailed drafts."</span> }
 <span class="tk-k">agent</span> CheapWriter { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write short drafts."</span> }
@@ -4164,9 +4038,7 @@ extractor Receipt {
     <span class="tk-k">return</span> draft
 }</code></pre></figure>
 <h3 id="c15-recipe-ask-a-person-only-when-the-model-is-unsure">Recipe: ask a person only when the model is unsure</h3>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">intentclassifier</span> Intent {
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">intentclassifier</span> Intent {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     choose kind: refund | question | other
     samples: <span class="tk-n">3</span>
@@ -4251,11 +4123,6 @@ extractor Receipt {
 <td>Use it or delete it</td>
 </tr>
 <tr>
-<td>A variable that is also a plain word in a prompt</td>
-<td>In the older mode the word is replaced by the value</td>
-<td><code>substitution: braces</code></td>
-</tr>
-<tr>
 <td>A tool step with no <code>retry</code>/<code>timeout</code>/<code>on_failure</code></td>
 <td>One slow call stalls or ends the run</td>
 <td>Add all three</td>
@@ -4318,7 +4185,6 @@ extractor Receipt {
 </tbody></table>
 <h2 id="c15-syntax-cheat-sheet">Syntax cheat sheet</h2>
 <figure class="code"><figcaption>text</figcaption><pre><code>// comment
-substitution: braces
 import "other.loom"
 
 budget { tokens: 200000  calls: 150  warn_at: 80% }
@@ -4520,9 +4386,7 @@ which needs a key or Java:</p>
 <h2 id="c16-let-the-script-check-not-the-model">Let the script check, not the model</h2>
 <p>A model that says &quot;the total is 300&quot; may be right. A script that adds the column itself knows. <code>compute</code> does arithmetic in decimals, so
 <code>0.1 + 0.2</code> is <code>0.3</code>, and <code>verify</code> turns a report into numbers your <code>alt</code> can test:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Calc  { use: compute }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Calc  { use: compute }
 <span class="tk-k">tool</span> Check { use: verify }
 <span class="tk-k">tool</span> Scan  { use: scan }
 
@@ -4546,9 +4410,7 @@ written by whoever wrote the tests (perhaps a model), so they stay unchecked tex
 <code>.git</code> is ever written.</p>
 <p><strong>Trying again from a clean state</strong> is something the script writes, not something a rewind does by itself. Take a snapshot once, before
 the checkpoint; restore it first in every attempt; rewind with <code>side effects: repeat</code> so the attempt&#39;s writes run again:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Draft { use: workspace  root: <span class="tk-s">"report"</span>  allow: <span class="tk-s">"*.json"</span>  mode: readwrite  overwrite: true  protect: <span class="tk-s">"report.schema.json"</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Draft { use: workspace  root: <span class="tk-s">"report"</span>  allow: <span class="tk-s">"*.json"</span>  mode: readwrite  overwrite: true  protect: <span class="tk-s">"report.schema.json"</span> }
 <span class="tk-k">tool</span> Check { use: verify  root: <span class="tk-s">"report"</span> }
 
 <span class="tk-k">agent</span> Writer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write report.json to match report.schema.json."</span>  tools: [Draft]  approve: [Draft] }
@@ -4569,9 +4431,7 @@ its tests.</p>
 <h2 id="c16-running-code-a-model-wrote">Running code a model wrote</h2>
 <p><code>sandbox</code> runs a program from its <code>allow:</code> list on the workspace&#39;s files. The program is a name and an argument list, never a line for a
 shell. A script has no list literal, so it gives <code>args</code> as the text of a JSON list; an agent gives a real list.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-
-<span class="tk-k">tool</span> Data  { use: workspace  root: <span class="tk-s">"data"</span>  allow: <span class="tk-s">"*.py, *.csv, *.json"</span>  mode: readwrite  overwrite: true  protect: <span class="tk-s">"sales.csv"</span> }
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Data  { use: workspace  root: <span class="tk-s">"data"</span>  allow: <span class="tk-s">"*.py, *.csv, *.json"</span>  mode: readwrite  overwrite: true  protect: <span class="tk-s">"sales.csv"</span> }
 <span class="tk-k">tool</span> Py    { use: sandbox  workspace: Data  isolation: container  image: <span class="tk-s">"python:3.12-slim"</span>  allow: <span class="tk-s">"python3"</span>  network: none  <span class="tk-k">timeout</span>: <span class="tk-s">"2m"</span>  unattended: true }
 
 <span class="tk-k">agent</span> Analyst { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Write analysis.py: it reads sales.csv and writes result.json."</span>  tools: [Data]  approve: [Data] }

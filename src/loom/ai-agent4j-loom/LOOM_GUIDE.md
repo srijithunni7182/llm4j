@@ -1770,20 +1770,22 @@ workflow ApprovedTransfer(amount) {
 }
 ```
 
-### Where a variable is replaced (`substitution`)
+### Where a variable is replaced
 
-A variable is replaced where the text says `{name}` or `{name.field}`. Today a **bare** name is replaced too, in the same texts (the older form), so a message such as `length out of range` becomes wrong when a variable called `out` exists. That stays the default (`substitution: legacy`) until the next major version, which makes `braces` the default. Choose it now, at the top of the script:
+A variable is replaced where a text says `{name}` or `{name.field}`, and nowhere else. A plain word is always a word, even when a variable has that name: with a variable `out`, `"length out of range: {out}"` keeps "out of range" as written and fills in only `{out}`. This holds in every text the runtime fills in: the payloads of `delegate`, `broadcast` and `handoff`, the messages of `human_prompt`, `note` and `halt`, `set` and `return` values, task and `call` arguments, observe labels and expressions, and the `checkpoint` and `rewind` texts.
+
+Where a text is expected, a variable can also be written on its own, and then it means its value: `delegate draft to Editor`, `handoff reply to Support`, `call Helper(topic = topic)` and `observe "Inputs" {first + " and " + second}` are the same as `"{draft}"`, `"{reply}"`, `topic = "{topic}"` and `"{first} and {second}"`.
 
 ```loom
-substitution: braces
+agent Checker { model: "gemini-2.5-flash"  system: "You check lengths." }
+
+workflow Check(out) {
+    delegate "length out of range: {out}" to Checker -> verdict
+    return verdict
+}
 ```
 
-With `braces`, only `{name}` and `{name.field}` are replaced, in every text the runtime fills in: the payloads of `delegate`, `broadcast` and `handoff`, the messages of `human_prompt`, `note` and `halt`, `set` and `return` values, task arguments, observe labels and expressions, and the `checkpoint` and `rewind` texts. `weave check` warns about a bare word that is also a variable in any of those places.
-
-To move an existing script over:
-
-- `weave check --substitution braces script.loom` lists every text that would change, with the variable and the position, and changes nothing.
-- `weave check --fix-substitution script.loom` shows the rewrite of each bare word that was meant as a variable (to `{name}`) as a diff and writes the file only after you answer yes (`--yes` answers for you in a script). A word that may be a variable or may be plain text is listed and left alone.
+There is no setting for this. A script that still says `substitution:` is refused with a message to delete the line.
 
 ### Where to ask a person
 
@@ -1804,8 +1806,6 @@ If one agent invents a fact (an amount, an order id) and the next acts on it, th
 When a model is not needed to call a tool (the arguments are already in variables), call it from the script:
 
 ```loom
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 
 workflow Announce(draft) {
@@ -3031,7 +3031,6 @@ workflow RobustTask() {
 `call` runs a workflow to the end before the next line. `start` does not: it gives the workflow a run of its own (a **child**), hands back a **handle** at once, and the script goes on. The script can then wait for the child, cancel it, steer it, read facts about it, and set rules that watch it while it runs. One workflow can run, watch and operate others, and the guarantees of a run come with it: the child has its own journal and budget, a restart finds it again, and an effect is never repeated.
 
 ```loom
-substitution: braces
 max_children: 3
 
 evaluator TopicJudge { model: "gemini-2.5-flash" }

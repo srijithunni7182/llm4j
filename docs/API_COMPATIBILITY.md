@@ -134,9 +134,8 @@ Before introducing a breaking change:
 
 - **`delegate … to {x} in [..]`, `-> results[key]`, and the `route_refused` trace event** (phase 27e). **Behaviour that is stricter:** a delegate whose target comes from data and is not bounded by an allow-list or an `enum` warns, or is an error when any agent holds a tool that changes things or reaches private data; a bare dynamic result name must be plain, new, and not a name the script uses elsewhere. `DelegateStmt` gains `getAllowedTargets()` (old constructors kept). The old unbounded form keeps working for scripts whose agents hold no changing tool; the map form is the one that remains at the next major version.
 
-- **`substitution: legacy|braces`**, a new top-level script setting. Absent means `legacy`, today's behaviour; `braces` becomes the default only in the next major version.
+- **Only `{name}` is replaced in a text** (behaviour that changes). A plain word that is also a variable's name is no longer replaced; a bare variable written where a text goes still means its value. A `substitution:` line is a load error. Review rule LP07 is retired.
 - **`real:`**, a new key of a workflow test case. Test files without it behave as before.
-- **`weave check --substitution`, `--fix-substitution`, `--yes`**, new options.
 - **`weave fabric up | down | status`**, a new command. The deployer scripts keep working without it; with it, `fabric-up` generates a first-start admin password instead of refusing, and `run-observed` gains `--secrets-key-file`.
 - **eval4j `EvalScenario`** gains six components (`correctConclusion`, `acceptedEquivalents`, `rejected`, `acceptableActions`, `unacceptableActions`, `requiredCitations`); the sixteen-component constructor and every older one are kept, and datasets without them read as before.
 - **`weave judge validate`**, a new command; `eval/judge-validation.json`, a new file.

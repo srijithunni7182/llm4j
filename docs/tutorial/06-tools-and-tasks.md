@@ -25,8 +25,6 @@ The rule of thumb: **the model reads, the code decides and acts.** A tool is for
 You give an agent tools with `tools: [...]`:
 
 ```loom
-substitution: braces
-
 agent Researcher {
     model: "gemini-2.5-flash"
     system: "Find the answer. Use the tools when you need facts or arithmetic."
@@ -66,8 +64,6 @@ A tool that needs configuration is declared once at the top, then named in `tool
 | `knowledge_graph`, `skill_registry` | A graph store; discovery of skills | `store` or `url` |
 
 ```loom
-substitution: braces
-
 tool Search   { use: serpapi  api_key: env.SERPAPI_KEY }
 tool Web      { use: duckduckgo }
 
@@ -110,8 +106,6 @@ Six tool kinds cover what most real workflows need, with **no Java**. All of the
 #### `webhook`: post a message
 
 ```loom
-substitution: braces
-
 tool Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }     // slack | discord | teams | json
 
 agent Poster {
@@ -132,8 +126,6 @@ The URL is a secret (webhook URLs carry tokens) and is never shown. The agent su
 #### `email`: send mail
 
 ```loom
-substitution: braces
-
 tool Mail {
     use: email
     host: "smtp.example.com"  port: 587  security: starttls
@@ -163,8 +155,6 @@ Give exactly one of `to` (fixed recipients) or `allow_to` (a list the agent may 
 #### `http`: call a REST API
 
 ```loom
-substitution: braces
-
 tool Github {
     use: http
     base_url: "https://api.github.com"
@@ -189,8 +179,6 @@ The agent can choose only a path below `base_url` and only from `allow_paths`. I
 #### `file`: read and write in one folder
 
 ```loom
-substitution: braces
-
 tool Notes { use: file  root: "notes"  mode: readwrite }       // read | write | readwrite
 
 agent Scribe {
@@ -210,8 +198,6 @@ The folder is inside the script's own directory. Paths that climb out, symbolic 
 #### `shell`: run a few named programs
 
 ```loom
-substitution: braces
-
 tool Ops { use: shell  allow: "df, du, ls"  timeout: 30s }
 
 agent Operator {
@@ -232,8 +218,6 @@ Programs are started directly with a list of arguments and **no shell**, so quot
 #### `sql`: read a database
 
 ```loom
-substitution: braces
-
 tool Db { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD  max_rows: 200  format: json }
 
 agent Analyst {
@@ -329,8 +313,6 @@ When a person works *with* an agent as it goes (an assistant that asks "may I ru
 `approve: [Tool]` on an agent makes calls to that tool wait for a person:
 
 ```loom
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
 
 agent Publisher {
@@ -428,8 +410,6 @@ Three details that matter for safety:
 Some steps are not "write me an answer" but "which of these is it?": route a message, decide whether a reply meets a criterion, rate a tone. An **intent classifier** answers typed questions in one call and gives a label, not prose.
 
 ```loom
-substitution: braces
-
 intentclassifier Intent {
     model: "gemini-2.5-flash"
     choose kind: refund | order_status | complaint | other

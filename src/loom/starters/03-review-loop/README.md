@@ -15,8 +15,6 @@ Read more: [04-control-flow.md](../../../../docs/tutorial/04-control-flow.md), [
 ```loom
 // 03-review-loop: write, review, rewrite until the reviewer is satisfied. The loop is bounded: it can never run away.
 
-substitution: braces
-
 budget { tokens: 150000  calls: 20 }
 
 agent Writer   { model: "gemini-2.5-flash"  system: "Write clear, short product descriptions."  temperature: 0.7 }

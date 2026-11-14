@@ -32,7 +32,7 @@ const chapterId = (f) => (f === 'README.md' ? 'c00' : 'c' + f.slice(0, 2));
 const KEYWORDS = new Set(
   ('agent workflow delegate to return alt else loop until max on_exhausted on_failure on_stopped for each in parallel broadcast handoff call import ' +
     'run intentclassify decide human_prompt sleep set checkpoint rewind note observe halt guardrail on_violation supervise decision schedule persona provider routing ' +
-    'knowledge tool mcp intentclassifier budget rate_limits substitution shared_prompt audit retry backoff timeout expecting starting with at most times carrying ' +
+    'knowledge tool mcp intentclassifier budget rate_limits shared_prompt audit retry backoff timeout expecting starting with at most times carrying ' +
     'when it still fails side effects ladder rung').split(/\s+/)
 );
 

@@ -33,8 +33,6 @@ The reply mentions internal policy sections, instructions, or how the assistant 
 // sees only the rules and the reply, judges it at the edge; if the reply breaks a rule an editor rewrites it, and the
 // rewrite is checked again.
 
-substitution: braces
-
 budget { tokens: 120000  calls: 20 }
 
 evaluator Compliance { model: "gemini-2.5-pro" }

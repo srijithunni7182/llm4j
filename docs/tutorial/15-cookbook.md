@@ -29,8 +29,6 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 ### Recipe: pull fields out of text
 
 ```loom-parse
-substitution: braces
-
 extractor Contact {
     model: "gemini-2.5-flash"
     instructions: "Find the person's name and, if stated, their phone number."
@@ -58,8 +56,6 @@ The extractor sees only the email, never the run so far or the shared prompt. A 
 ### Recipe: let the reasoning agent think, then extract
 
 ```loom-parse
-substitution: braces
-
 agent Researcher {
     model: "gemini-2.5-pro"
     system: "Research the topic. Answer in plain prose; explain your reasoning, then state your conclusions."
@@ -103,8 +99,6 @@ Files come only from `media_root`. See chapter 3 and chapter 5.
 ### Recipe: a cheaper model when money runs low
 
 ```loom
-substitution: braces
-
 budget { tokens: 100000 }
 
 agent Writer      { model: "gemini-2.5-pro"    system: "You write careful, detailed drafts." }
@@ -123,8 +117,6 @@ workflow Main(topic) {
 ### Recipe: ask a person only when the model is unsure
 
 ```loom
-substitution: braces
-
 intentclassifier Intent {
     model: "gemini-2.5-flash"
     choose kind: refund | question | other
@@ -228,7 +220,6 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 |---|---|---|
 | `loop until (...)` with no `max` | A model that is never satisfied runs, and bills, forever | `max N` and an `on_exhausted` block |
 | A variable set and never read | Usually a typo, or a branch that does nothing | Use it or delete it |
-| A variable that is also a plain word in a prompt | In the older mode the word is replaced by the value | `substitution: braces` |
 | A tool step with no `retry`/`timeout`/`on_failure` | One slow call stalls or ends the run | Add all three |
 | An agent that can send, with no approval | Nobody decides before it acts | Let it propose and `use Tool(...) approve` after it; `approve: [Tool]` for an assistant a person works with |
 | One shared variable written by two `parallel` branches | A race: you get one of the answers | One variable per branch |
@@ -246,7 +237,6 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 
 ```text
 // comment
-substitution: braces
 import "other.loom"
 
 budget { tokens: 200000  calls: 150  warn_at: 80% }

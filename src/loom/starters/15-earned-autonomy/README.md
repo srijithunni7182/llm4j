@@ -18,8 +18,6 @@ Read more: [11-advanced-orchestration.md](../../../../docs/tutorial/11-advanced-
 // ledger of both moves it up a ladder (watch, suggest, act) only as the record supports. It also drops back when the record turns bad.
 // `weave autonomy status` shows where each ladder stands.
 
-substitution: braces
-
 budget { tokens: 100000  calls: 20 }
 
 agent Triager {

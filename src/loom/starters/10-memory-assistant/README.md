@@ -18,8 +18,6 @@ Read more: [07-knowledge-and-memory.md](../../../../docs/tutorial/07-knowledge-a
 // `session: "{user_id}"` is read from the workflow's variables on every call, so one agent serves many people and they never see
 // each other's messages.
 
-substitution: braces
-
 budget { tokens: 60000  calls: 12 }
 
 persona Concierge {

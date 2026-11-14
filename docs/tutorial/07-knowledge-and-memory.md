@@ -68,8 +68,6 @@ This is starter [09-handbook-qa](../../src/loom/starters/09-handbook-qa/). Three
 Memory lets an agent remember conversations and facts **across runs**. It is separate from the way a workflow passes variables between its own steps.
 
 ```loom
-substitution: braces
-
 persona Concierge {
     role: "a hotel concierge"
     tone: "warm and concise"
@@ -115,8 +113,6 @@ Inside one run, Loom keeps a **transcript** of every task and answer. By default
 An agent can take less:
 
 ```loom
-substitution: braces
-
 agent Researcher { model: "gemini-2.5-flash"  system: "You find the facts." }
 agent Summariser {
     model: "gemini-2.5-flash"
@@ -150,8 +146,6 @@ For Indian languages and speech, a set of tools (Sarvam; `SARVAM_API_KEY`) work 
 Declare one to set defaults, and give an agent a `voice` to listen to audio tasks and speak its answers:
 
 ```loom
-substitution: braces
-
 tool Hindi { use: translate  target: "hi-IN" }
 
 agent Helper {

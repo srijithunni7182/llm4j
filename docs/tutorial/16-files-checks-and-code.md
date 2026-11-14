@@ -27,8 +27,6 @@ A model that says "the total is 300" may be right. A script that adds the column
 `0.1 + 0.2` is `0.3`, and `verify` turns a report into numbers your `alt` can test:
 
 ```loom
-substitution: braces
-
 tool Calc  { use: compute }
 tool Check { use: verify }
 tool Scan  { use: scan }
@@ -58,8 +56,6 @@ workflow Close(amount, report) {
 the checkpoint; restore it first in every attempt; rewind with `side effects: repeat` so the attempt's writes run again:
 
 ```loom
-substitution: braces
-
 tool Draft { use: workspace  root: "report"  allow: "*.json"  mode: readwrite  overwrite: true  protect: "report.schema.json" }
 tool Check { use: verify  root: "report" }
 
@@ -87,8 +83,6 @@ its tests.
 shell. A script has no list literal, so it gives `args` as the text of a JSON list; an agent gives a real list.
 
 ```loom
-substitution: braces
-
 tool Data  { use: workspace  root: "data"  allow: "*.py, *.csv, *.json"  mode: readwrite  overwrite: true  protect: "sales.csv" }
 tool Py    { use: sandbox  workspace: Data  isolation: container  image: "python:3.12-slim"  allow: "python3"  network: none  timeout: "2m"  unattended: true }
 

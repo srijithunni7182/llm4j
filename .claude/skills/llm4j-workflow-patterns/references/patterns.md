@@ -27,8 +27,6 @@ explains it).
 // 04-router: decide which specialist should answer. The classifier only labels; the script's own `alt` does the routing,
 // so no wording in a message can change which branch runs.
 
-substitution: braces
-
 agent Classifier {
     model: "gemini-2.5-flash"
     system: "Classify the customer message."
@@ -77,8 +75,6 @@ Stages that matter: 1 (is it a classifier?), 2 (a case per label and per confusa
 ```loom
 // 03-review-loop: write, review, rewrite until the reviewer is satisfied. The loop is bounded: it can never run away.
 
-substitution: braces
-
 budget { tokens: 150000  calls: 20 }
 
 agent Writer   { model: "gemini-2.5-flash"  system: "Write clear, short product descriptions."  temperature: 0.7 }
@@ -120,8 +116,6 @@ Stages that matter: 2 (a draft the reviewer should reject), 5 (cost near the mod
 ```loom
 // 05-parallel-research: ask several specialists at the same time, and carry on even if one of them fails.
 // Each branch has its own flag (web_ok, docs_ok): branches run together, so they must never share one variable.
-
-substitution: braces
 
 budget { tokens: 200000  calls: 20 }
 
@@ -176,8 +170,6 @@ Stages that matter: 6 (`on_failure` on every branch), 8 (a test where one branch
 // typed: `owner` can only be one of the two agents, so a model cannot send work anywhere else, and each answer is stored
 // under its task's name in one variable, `results`, so a task name cannot overwrite anything.
 
-substitution: braces
-
 budget { tokens: 300000  calls: 40 }
 
 agent Planner {
@@ -227,8 +219,6 @@ Stages that matter: 5 (cost of the largest plan), 6 (`on_failure` per task), 7 (
 // 07-approval: the model drafts, a person approves once, at the edge, and the script sends. No model carries out the
 // send, so no wording in a message can talk it past the approval; the person sees the exact text that will be posted.
 
-substitution: braces
-
 budget { tokens: 100000  calls: 20 }
 
 agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short, polite announcement from the facts you are given."  temperature: 0.4  guard { pii: mask } }
@@ -265,8 +255,6 @@ Stages that matter: 7 (audit and the lethal trifecta), 8 (the approved, declined
 // 08-extract-and-validate: turn free text into checked fields. The extractor sees only the text it is handed and the
 // fields it must fill (never the run so far), a field the text does not state is `missing` (or fails the step if it is
 // required), and the script then applies its own rules to the fields.
-
-substitution: braces
 
 budget { tokens: 80000  calls: 15 }
 
@@ -320,8 +308,6 @@ Stages that matter: 2 (the awkward documents), 3 (the extractor's instructions),
 // 09-handbook-qa: answer questions from your own documents. The relevant passages are found first (by meaning) and put
 // in front of the question, and the agent is told to say so when the handbook does not answer.
 
-substitution: braces
-
 budget { tokens: 80000  calls: 10 }
 
 knowledge Handbook {
@@ -366,8 +352,6 @@ Stages that matter: 2 (unanswerable and injected-document cases), 7 (audit), 9 (
 // 12-wait-for-a-person: a workflow that can wait for days. With a run journal (weave run --journal ...), a question to a person or a
 // `sleep` pauses the run and holds no thread; it carries on when the answer arrives or the time has passed. Write the script as if
 // the time simply passes.
-
-substitution: braces
 
 budget { tokens: 80000  calls: 15 }
 
@@ -415,8 +399,6 @@ Stages that matter: 9 (run with `--journal`), then the llm4j-loom-deployer skill
 ```loom
 // 11-daily-digest: a workflow that runs itself on a clock. The `schedule` block is kept in a trigger store, so it survives restarts
 // (weave schedule sync, then weave daemon or weave tick). A missed run happens once, not once per missed day.
-
-substitution: braces
 
 budget { tokens: 120000  calls: 12 }
 
@@ -472,8 +454,6 @@ Stages that matter: 6 (`on_failure` that halts loudly), 9 (the store, the daemon
 // 16-step-by-step-agent: a long job done one small step at a time. What is done and what is next is a typed value the script owns
 // (`progress`), not something an agent has to remember in a long conversation that may be compacted. The worker is fresh every
 // round and sees no transcript; an extractor reads its report and writes the new progress; the loop is bounded.
-
-substitution: braces
 
 budget { tokens: 150000  calls: 40 }
 
@@ -539,8 +519,6 @@ Stages that matter: 5 (cost per round, the round limit), 14 (context and compact
 // sees only the rules and the reply, judges it at the edge; if the reply breaks a rule an editor rewrites it, and the
 // rewrite is checked again.
 
-substitution: braces
-
 budget { tokens: 120000  calls: 20 }
 
 evaluator Compliance { model: "gemini-2.5-pro" }
@@ -581,7 +559,6 @@ Stages that matter: 2 (a reply that breaks each rule), 7 (audit), 8 (a violation
 // how long it sits idle, and a judge asks whether it stays on topic. A researcher that finds nothing asks its supervisor for help with a signal, and the supervisor steers it. A child that spends too much is cancelled and keeps
 // what it had; one that drifts is steered. Every child has its own budget, and a restart finds the same children again.
 
-substitution: braces
 max_children: 3
 
 budget { tokens: 400000  calls: 80 }
@@ -656,8 +633,6 @@ test report, a linter. When the check fails, the next attempt should start from 
 // the folder back as it was and tries again with what the check said. Restore is a step the script takes: snapshot once,
 // restore at the start of each attempt, and rewind with side effects: repeat so the attempt's writes run again.
 
-substitution: braces
-
 budget { tokens: 200000  calls: 30 }
 
 tool Draft { use: workspace  root: "report"  allow: "*.json, *.md"  mode: readwrite  overwrite: true  protect: "report.schema.json" }
@@ -719,8 +694,6 @@ run. An agent writes the code; a sandbox runs it; the workflow checks the result
 // 20-data-analyst: an agent writes a short script, a sandbox runs it against a CSV with no network, the workflow checks the
 // script's answer against its own exact sum of the same column, and scans the summary before it leaves. The model's code
 // runs in a container, sees only the data folder, and cannot change sales.csv.
-
-substitution: braces
 
 budget { tokens: 150000  calls: 20 }
 

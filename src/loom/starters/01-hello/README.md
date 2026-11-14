@@ -14,8 +14,6 @@ Read more: [01-first-workflow.md](../../../../docs/tutorial/01-first-workflow.md
 ```loom
 // 01-hello: the smallest useful workflow. One agent, one workflow, one question in, one answer out.
 
-substitution: braces
-
 agent Helper {
     model: "gemini-2.5-flash"
     system: "You are a friendly assistant. Answer in two sentences at most."

@@ -17,8 +17,6 @@ Read more: [Editing files and trying again](../../ai-agent4j-loom/LOOM_GUIDE.md#
 // the folder back as it was and tries again with what the check said. Restore is a step the script takes: snapshot once,
 // restore at the start of each attempt, and rewind with side effects: repeat so the attempt's writes run again.
 
-substitution: braces
-
 budget { tokens: 200000  calls: 30 }
 
 tool Draft { use: workspace  root: "report"  allow: "*.json, *.md"  mode: readwrite  overwrite: true  protect: "report.schema.json" }

@@ -16,8 +16,6 @@ Read more: [08-people-in-the-loop.md](../../../../docs/tutorial/08-people-in-the
 // 14-supervised-agent: rules that watch an agent and act without a person. Every signal is a count (repeats, failures, steps, how
 // full the window is), never a model's opinion, so a rule cannot be talked out of firing.
 
-substitution: braces
-
 budget { tokens: 200000  calls: 40 }
 
 agent Researcher {

@@ -24,8 +24,6 @@ flowchart TD
 ## `human_prompt`: ask a person
 
 ```loom
-substitution: braces
-
 agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short, polite announcement from the facts."  temperature: 0.4 }
 
 workflow Main(facts) {
@@ -75,8 +73,6 @@ No model carries out the send, so no wording in a message can talk it past the q
 When a person works *with* an agent as it goes (an assistant that asks "may I run this?"), an agent's tool can ask before *each call*. In a workflow nobody is watching, this is the wrong shape: the run stops in the middle of the agent's reasoning and holds its conversation until someone answers (`weave review` says so, LH05).
 
 ```loom
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
 
 agent Publisher {
@@ -121,8 +117,6 @@ With `--wait` the process stays alive and resumes by itself. Something has to wa
 `sleep` waits a fixed time and carries on. Use it to poll without spinning, to space out rounds, or to follow up some hours after a message. It costs nothing: no model, no tokens.
 
 ```loom
-substitution: braces
-
 agent Checker {
     model: "gemini-2.5-flash"
     system: "You check whether a job has finished. Answer with its state: running or done."
@@ -154,8 +148,6 @@ A sleep is never lengthened by a restart: the wake time is recorded first. And i
 Providers limit how fast you can call them. Instead of failing, a durable run can pause and carry on later:
 
 ```loom
-substitution: braces
-
 rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }     // suspend | wait | fail
 
 agent Drafter { model: "gemini-2.5-flash"  system: "Write a short message."  temperature: 0.4 }
@@ -171,8 +163,6 @@ workflow Main(topic) {
 Starter [12-wait-for-a-person](../../src/loom/starters/12-wait-for-a-person/) drafts a message, asks a person, sends, sleeps two days and follows up:
 
 ```loom
-substitution: braces
-
 rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }
 
 agent Drafter { model: "gemini-2.5-flash"  system: "Write a short, polite message to the customer."  temperature: 0.4 }
@@ -235,8 +225,6 @@ The question arrives as a message with a short code (`Reply: K7F3QX yes | no`). 
 Sometimes you do not want to wait for an agent to finish: it is going the wrong way, or it has said enough. Mark it `steerable` and a person can intervene, with the script deciding what happens next.
 
 ```loom
-substitution: braces
-
 agent Writer {
     model: "gemini-2.5-flash"
     system: "Write the report."
@@ -267,8 +255,6 @@ A person reaches a running workflow from the console (`weave run ... --steer-via
 You will not always have a person watching. A `supervise` block acts without one, on things that can be *counted*:
 
 ```loom
-substitution: braces
-
 agent Researcher {
     model: "gemini-2.5-flash"
     system: "Research the question with the tools you have, then answer in a short paragraph."

@@ -7,8 +7,6 @@ Control flow is how a workflow decides *what happens next*: branch on an answer,
 Steps run top to bottom. That is the default, and a surprising amount of useful work needs nothing else:
 
 ```loom
-substitution: braces
-
 agent Researcher { model: "gemini-2.5-flash"  system: "Collect the key facts, as bullets." }
 agent Writer     { model: "gemini-2.5-flash"  system: "Write a short article from the facts." }
 
@@ -50,8 +48,6 @@ flowchart TD
 `alt (condition) { ... } else { ... }` runs one block or the other.
 
 ```loom
-substitution: braces
-
 agent Classifier {
     model: "gemini-2.5-flash"
     system: "Classify the message."
@@ -109,8 +105,6 @@ The classifier only *labels*. The script reads the label and chooses. Even if a 
 ## `loop until`: repeat, with a limit
 
 ```loom
-substitution: braces
-
 agent Writer   { model: "gemini-2.5-flash"  system: "Write clear, short product descriptions." }
 agent Reviewer { model: "gemini-2.5-flash"  system: "Say OK only if the description is clear and under 60 words."  temperature: 0.1 }
 
@@ -156,8 +150,6 @@ This is starter [03-review-loop](../../src/loom/starters/03-review-loop/). Compa
 When an agent returns a list, run a block once per item. The item is visible as `{item.field}`:
 
 ```loom
-substitution: braces
-
 agent Planner {
     model: "gemini-2.5-flash"
     system: "Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."
@@ -187,8 +179,6 @@ Writing the answer to `results[task.name]` keeps a task name a model chose from 
 If the items are independent, do them all at once:
 
 ```loom
-substitution: braces
-
 agent Planner {
     model: "gemini-2.5-flash"
     system: "Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."
@@ -218,8 +208,6 @@ This is starter [06-plan-and-fan-out](../../src/loom/starters/06-plan-and-fan-ou
 The length of that list is chosen by a model, or by text that steered it. A planner that returns 400 tasks instead of 4 would start 400 steps; a budget would stop the run, but part-way, with some tasks done and others not. Put a bound on the loop:
 
 ```loom
-substitution: braces
-
 agent Planner {
     model: "gemini-2.5-flash"
     system: "Split the goal into 2 to 4 small tasks."
@@ -255,8 +243,6 @@ workflow Main(goal) {
 `parallel { ... }` runs every statement inside it at the same time and waits for all of them before moving on:
 
 ```loom
-substitution: braces
-
 agent Security { model: "gemini-2.5-flash"  system: "Review the code for security problems."  temperature: 0.2 }
 agent Speed    { model: "gemini-2.5-flash"  system: "Review the code for performance problems."  temperature: 0.2 }
 agent Lead     { model: "gemini-2.5-flash"  system: "Combine the two reviews into one list, most important first." }
@@ -297,8 +283,6 @@ The two reviews take as long as the slower one, not the sum. Two rules keep it s
 `broadcast` is the compact form when the *same* task goes to several agents:
 
 ```loom
-substitution: braces
-
 agent Optimist  { model: "gemini-2.5-flash"  system: "Argue for the idea." }
 agent Skeptic   { model: "gemini-2.5-flash"  system: "Argue against the idea." }
 agent Moderator { model: "gemini-2.5-flash"  system: "Weigh the arguments and give a verdict." }
@@ -321,8 +305,6 @@ All the agents answer at once and the result is one combined value, `views`.
 When a script grows, split it into several workflows. `call` runs another workflow, passes it arguments, and gives you back what it returned:
 
 ```loom
-substitution: braces
-
 agent Checker { model: "gemini-2.5-flash"  system: "Check the claim. Answer VERIFIED or DOUBTFUL."  output_schema: { verdict: enum["VERIFIED", "DOUBTFUL"], why: string } }
 agent Writer  { model: "gemini-2.5-flash"  system: "Write one sentence from the verified claim." }
 
@@ -365,8 +347,6 @@ A file that is imported is checked as part of the script that imports it, not on
 Some failures should not be retried and should not be handled: a stage cannot go on, and later stages must not work on something broken. `halt` stops the whole run and says why. It is not a failure; nothing retries it and no `on_failure` handles it.
 
 ```loom
-substitution: braces
-
 agent Extractor {
     model: "gemini-2.5-flash"
     system: "Extract the invoice number from the text."

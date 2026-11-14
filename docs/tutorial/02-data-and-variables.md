@@ -12,8 +12,6 @@ There are four ways to get one.
 4. **Loop and error variables the runtime fills in**, such as `_loopRound`, `_index` and `_error`. They start with an underscore so they never clash with yours.
 
 ```loom
-substitution: braces
-
 agent Writer { model: "gemini-2.5-flash"  system: "You write short greetings." }
 
 workflow Main(name) {
@@ -51,15 +49,11 @@ The same paths work in conditions: `alt (review.verdict == "OK") { ... }`.
 
 A variable that was never set reads as **empty text**, not as an error. That is convenient, and it is also how a typo can hide: `{anwser}` quietly becomes nothing. `weave check` warns about a variable you set and never use, and that catches most of them.
 
-## Always write `substitution: braces`
+## Only `{name}` is replaced
 
-Older Loom scripts replaced a variable's **bare name** wherever it appeared in a prompt, not only inside braces. So a variable called `draft` turned the sentence "Review this draft" into "Review this *the whole draft text*". That is almost never what you want, and it is easy to do by accident.
-
-Put this line at the top of your script and only `{name}` is ever replaced:
+A variable's value goes into a text only where the text says `{name}`. A plain word is always a word, even when a variable has the same name, so a variable called `draft` does not touch the sentence "Review this draft":
 
 ```loom
-substitution: braces
-
 agent Reviewer { model: "gemini-2.5-flash"  system: "You review drafts." }
 
 workflow Main(draft) {
@@ -68,7 +62,7 @@ workflow Main(draft) {
 }
 ```
 
-The default is still the older behaviour so that existing scripts keep working, but every starter and every example in this tutorial says `substitution: braces`. If you have an older script, `weave check --substitution braces script.loom` lists exactly what would change, and `--fix-substitution` rewrites it after showing you a diff.
+Where a text is expected you may also write a variable on its own, and then it means its value: `delegate draft to Reviewer` sends the draft, and `call Helper(topic = topic)` passes the value of `topic`.
 
 ## Strings
 
@@ -78,8 +72,6 @@ A string is written between double quotes. It may run over several lines. Inside
 - `\n` is a new line and `\t` a tab.
 
 ```loom
-substitution: braces
-
 agent Greeter { model: "gemini-2.5-flash"  system: "You greet people." }
 
 workflow Greet(name) {
@@ -94,8 +86,6 @@ Then sign off as C:\\Greeter\\" to Greeter -> greeting
 `set` stores a value without calling a model. The value can be text, a number, `true` or `false`, another variable, or an object.
 
 ```loom
-substitution: braces
-
 workflow Prepare(customer) {
     set attempts = 0
     set vip = true
@@ -113,8 +103,6 @@ Use `set` for small things: a flag, a counter you will compare later, a default 
 `return value` ends the workflow and hands a value back to whoever started it. It can be a variable, text, or an object:
 
 ```loom
-substitution: braces
-
 agent Extractor {
     model: "gemini-2.5-flash"
     system: "Extract the person's name and city."
@@ -136,8 +124,6 @@ You do not need a `return` at all if the point of the workflow is its effects.
 `note "text"` records a message in the run. It does not call a model and it costs nothing. Use it for progress, for what a branch decided, or for the final output of a workflow whose only job is to show a result:
 
 ```loom
-substitution: braces
-
 agent Writer { model: "gemini-2.5-flash"  system: "You write one-line slogans." }
 
 workflow Main(product) {
@@ -151,8 +137,6 @@ workflow Main(product) {
 `observe "label" {expression}` writes a labelled value into the trace and the audit log, so you can see what a variable held at that point when you read the run later. It changes nothing.
 
 ```loom
-substitution: braces
-
 agent Analyst { model: "gemini-2.5-flash"  system: "You answer briefly." }
 
 workflow Main(question) {
@@ -185,6 +169,6 @@ workflow Main(question) {
 
 1. Take starter [02-chain](../../src/loom/starters/02-chain/). Add a `set` at the top that stores a word limit, and use `{limit}` in the Summarizer's task.
 2. In starter [08-extract-and-validate](../../src/loom/starters/08-extract-and-validate/), what does the workflow return? Where does each field come from?
-3. Remove `substitution: braces` from any starter and run `weave check`. Do new warnings appear?
+3. In starter [02-chain](../../src/loom/starters/02-chain/), name a variable after a word in one of the prompts. Does the prompt change? Now write the word as `{word}`.
 
 Next: [Agents](03-agents.md).
