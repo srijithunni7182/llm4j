@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D17 are taken, one decision is open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **final for phase 36: D1 to D18 are taken by the owner; nothing is built.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -24,7 +24,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D15 | Testing: fakes, guards, canaries | **taken** (the proposed fakes and guards, plus eight fidelity rules so the fakes are as close to real as possible) |
 | D16 | Names | **taken** (the names below; `credential_rejected` as a new failure category; `transport: "http"`) |
 | D17 | Visibility: the ecosystem and the time-to-first-safe-call benchmark | **taken** (the whole pass, nothing deferred; a benchmark of five real systems, with recorded fixtures only as the fallback in the default build) |
-| D18 | What stays out of this phase | open |
+| D18 | What stays out of this phase | **taken** (the list confirmed, with an addition on MCP package provenance; the extension features kept out) |
 
 ## D1. The scope and staging of this phase
 
@@ -159,7 +159,7 @@ agent Shop { tools: [Pet_get, Pet_add]  approve: [Pet_add] }
 4. **The server's error stream is captured,** redacted, bounded and shown in the trace and in `weave why` on a failure; it no longer goes to the console.
 5. **A container needs `image:`,** and takes `workspace:` (a mount) and `network:` (`none`, `allow` with `hosts:`, `open`) as for `sandbox`, with the same egress proxy; a server that downloads its own packages at start needs the registry on its allow-list, and a prepared image avoids that.
 6. **The server belongs to the run:** started at boot as today, stopped on end and cancel, leftovers from a crashed run stopped when a run resumes (35-D7's registry), and a crashed server restarted a bounded number of times and then reported.
-D9's `command` adapters use the same process machinery, so the rules apply once.
+**Staging:** `args`, `env`, the scrubbed environment, the captured error stream and the levels `none` and `process` land in 36a (they fix what exists: a script cannot pass a key today); `container` isolation (`image`, `workspace`, `network` with the proxy) lands in 36c with the `command` kind, on 35's `SandboxBackend`. D9's `command` adapters use the same process machinery, so the rules apply once.
 **Costs, accepted:** a container needs an image per server, which is more work than `npx something`; `process` isolation is weak and is flagged; the legacy state keeps a known hole open for one release, with a warning.
 
 ## D8. Authentication: the consumer brings the token
@@ -372,8 +372,22 @@ tool Resize {
 
 ## D18. What stays out of this phase
 
-Proposed: spreadsheet and XML formats; an adapter catalog or registry; GraphQL, gRPC and SOAP adapters; MCP resources, prompts and sampling; queues and event streams (35-D18); OAuth flows, token storage and refresh, a login command, protected-resource-metadata discovery and client ID metadata documents (the consumer's application does these, D8); AWS Signature V4 and client certificates (a consumer supplies a `CredentialSource`); a graphical connection wizard; anything in the VS Code extension beyond hover text, snippets and the changelog (35-D22); and a global default for isolation (35-D5).
-
-**Recommendation: confirm the list.**
-
-**Decision (owner):** open.
+**Decision (owner): the list is confirmed, with the addition below.** Everything here is out, so nobody builds it by accident and nobody expects it.
+| Out | Where it was decided, or why |
+|---|---|
+| Spreadsheet and XML formats | Until a vertical needs them |
+| An adapter catalog or registry | A later question; 35-D3 already lets third-party kinds load |
+| GraphQL, gRPC and SOAP adapters | Reachable with `http` and a key |
+| MCP resources, prompts, sampling, roots, logging, elicitation, and the multi-round-trip `input_required` result | Not needed by the verticals; a call that returns it fails with a clear message (D6) |
+| Queues and event streams | 35-D18 |
+| OAuth flows, token storage and refresh, a login command, protected-resource discovery and client ID metadata documents | The consumer's application does these (D8) |
+| AWS Signature V4 and client certificates | A consumer supplies a `CredentialSource` (D8) |
+| A graphical connection wizard | Not in scope |
+| **VS Code extension features beyond hover text, snippets and the changelog** | 35-D22. Kept out by the owner. The candidates, for a later extension release: a "Connect a system" wizard over `weave connect`; completion from the spec (`operation:` ids, `param.` names, an `mcp` block's `effects:` keys); quick fixes on the new diagnostics (add a pin, set an `effect:`); code lenses showing a tool's effect and pin; an integrations tree view; a viewer for the files `save_dir` writes; and hover and completion lists driven by the engine instead of a hand-written list (the one with a lasting benefit). The new `check` findings are expected to reach the editor through the existing language server, to be checked in 36f |
+| A global default for isolation, or detecting a runtime automatically | 35-D5 and 35-D8 (the legacy state of D7 lasts only until the next major) |
+| Lifting capture's limits (parallel steps, remote agents, channels) and recording calls inside an agent step | D11 |
+| Merging pages for the agent, streaming, resumable downloads | D5 |
+| Making `swagger-parser` optional in a minor release, and removing the core OpenAPI classes before the next major | D2 |
+| Live fetches or credentials in `weave doctor` | D12: `doctor` stays reachability only |
+| A hosted or remote sandbox backend | 35-D22 |
+| **Verifying where an MCP server's package came from** (provenance, signatures, a registry's trust) | **Added by this decision.** A server started with `npx` or a similar launcher downloads and runs a package, and this phase does not address that supply-chain risk beyond what it builds: isolation (D7), the pin that notices a changed tool list (D12) and untrusted treatment of results (D6). `docs/security/integrations.md` (D14) says so plainly |

@@ -1,6 +1,6 @@
 # Phase 36: integrations: making any system easy to plug in, and safe by default
 
-Status: **draft; nothing is decided and nothing is built.** Every choice is in [DECISIONS.md](DECISIONS.md), open, with a recommendation. The facts about the code are in [DESIGN.md](DESIGN.md).
+Status: **final for phase 36 (all decisions taken by the owner); not yet built.** Every choice is in [DECISIONS.md](DECISIONS.md). The facts about the code are in [DESIGN.md](DESIGN.md).
 The principles of phases [33](../33-async-workflows/PRINCIPLES.md), [34](../34-supervision-signals/PRINCIPLES.md) and [35](../35-framework-tools/PRINCIPLES.md) all still hold (the model reasons and the code holds the authority; fail closed; every effect is journaled; a construct is finished only when it can be tested without a model, a real clock or racing threads; the framework stays light). **The owner has said this is the last framework phase for a while**, so it carries what the verticals need from integrations and nothing speculative.
 
 ## What this phase is for

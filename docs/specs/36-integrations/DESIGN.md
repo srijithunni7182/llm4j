@@ -1,6 +1,6 @@
 # Phase 36: design
 
-Status: **draft.** Facts marked (read) come from the source on the phase 35 branch at the time of writing; anything marked (not read) must be read before the work that depends on it starts. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md). **This phase builds on phase 35** (`ToolProfile`, the kind registry, `sandbox`, `workspace`) and starts only after 35 is merged.
+Status: **final for phase 36 (all decisions taken); not yet built.** Facts marked (read) come from the source on the phase 35 branch at the time of writing; anything marked (not read) must be read before the work that depends on it starts. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md). **This phase builds on phase 35** (`ToolProfile`, the kind registry, `sandbox`, `workspace`) and starts only after 35 is merged.
 
 ## 1. What the code does today (read)
 
@@ -48,9 +48,9 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 
 | Sub-phase | What | Gate |
 |---|---|---|
-| 36a | **Fix what exists.** `openapi` rebuilt on the shared HTTP guards as one tool per operation (`operation:`), with a base URL, a size cap and saved large answers; MCP script surface (environment, arguments, errors, paging, timeouts) and MCP tools given the same wrappers as other tools; `weave mcp list` and the pins; the two orphaned effect paths wired (an `mcp` block's `effects:`, an `openapi` tool's per-operation `effects:`), the guide corrected and the docs tests that would have caught them (D13) | The owner reviews the branch before 36b |
+| 36a | **Fix what exists.** `openapi` rebuilt on the shared HTTP guards as one tool per operation (`operation:`), with a base URL, a size cap and saved large answers; MCP script surface (`args`, `env`, a scrubbed environment, the error stream, isolation `none` and `process`, errors, paging, timeouts) and MCP tools given the same wrappers as other tools; `weave mcp list` and the pins; the two orphaned effect paths wired (an `mcp` block's `effects:`, an `openapi` tool's per-operation `effects:`), the guide corrected and the docs tests that would have caught them (D13) | The owner reviews the branch before 36b |
 | 36b | **Reach.** The modern MCP era and Streamable HTTP, carrying the consumer's token (D6, D8); `invoker.NAME` accepted by every door; bounded pagination | |
-| 36c | **Safe commands.** MCP stdio servers under the isolation rules; the typed `command` kind on the sandbox backend | |
+| 36c | **Safe commands.** Container isolation for MCP servers (`image`, `workspace`, `network` with the proxy); the typed `command` kind on the sandbox backend | |
 | 36d | **Authoring.** `weave connect`, deterministic first, model-assisted for systems without a spec | |
 | 36e | **Replay and health.** `use` results in `capture`; pins checked by `check`, reachability in `doctor`, live drift in `connect --refresh --check` | |
 | 36f | **The ecosystem** pass and the time-to-first-safe-call benchmark | |
