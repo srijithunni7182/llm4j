@@ -1,5 +1,7 @@
 # ai-agent4j-tools-git
 
+> 🧰 **Browse every ready-made tool, with what it can do for an agent, in the [Tools catalog](../../../../docs/TOOLS_CATALOG.md).**
+
 The `git` tool kind: `status`, `diff`, `log`, `branches`, `branch`, `commit`, and a `push` only where the script allows it,
 on a workspace's repository. Add it when an agent edits code in a [`workspace`](../../ai-agent4j-tools/docs/workspace.md)
 and the workflow should record or share its work as commits.

@@ -70,7 +70,7 @@ workflow Main(email) {
 
 - [Full extension reference](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/vscode-loom/REFERENCE.md): every command, view, setting, snippet and keyboard key
 - [Developer guide](https://github.com/srijithunni7182/llm4j/blob/main/DEVELOPER_GUIDE.md): the whole journey from an idea to a watched run
-- [18 starter workflows](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/starters/README.md) to copy from
+- [20 starter workflows](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/starters/README.md) to copy from
 - [Thirteen architecture mistakes the checks catch](https://github.com/srijithunni7182/llm4j/blob/main/docs/REVIEWABLE_ARCHITECTURE.md)
 - [The `weave` command line](https://github.com/srijithunni7182/llm4j/blob/main/docs/COMMAND_REFERENCE.md), for the same steps in a terminal or CI
 - [Changelog](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/vscode-loom/CHANGELOG.md)

@@ -1,5 +1,7 @@
 # ai-agent4j-tools
 
+> 🧰 **Browse every ready-made tool, with what it can do for an agent, in the [Tools catalog](../../../docs/TOOLS_CATALOG.md).**
+
 Ready-made, guarded tools for [ai-agent4j](../../ai-agent4j/) agents. They are written for the case where the model, not you,
 chooses the arguments, so each one limits what a hostile or mistaken model can do.
 

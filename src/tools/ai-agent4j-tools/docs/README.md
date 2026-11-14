@@ -1,5 +1,7 @@
 # ai-agent4j-tools documentation
 
+> 🧰 **Browse every ready-made tool, with what it can do for an agent, in the [Tools catalog](../../../../docs/TOOLS_CATALOG.md).**
+
 Ready-made, guarded tools for agents built with [ai-agent4j](../../../ai-agent4j/). The library overview and a Java quick start
 are in the [module README](../README.md); this folder is the reference.
 

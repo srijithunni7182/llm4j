@@ -1,5 +1,7 @@
 # ai-agent4j-tools-documents
 
+> 🧰 **Browse every ready-made tool, with what it can do for an agent, in the [Tools catalog](../../../../docs/TOOLS_CATALOG.md).**
+
 The `documents` tool kind: the text of PDF, DOCX, HTML and plain text files under a folder, with the page or paragraph
 each part came from. Add it when a workflow starts from documents people send: invoices, contracts, reports, forms.
 
