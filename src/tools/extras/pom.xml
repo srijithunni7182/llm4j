@@ -26,6 +26,7 @@
     <modules>
         <module>ai-agent4j-tools-search</module>
         <module>ai-agent4j-tools-documents</module>
+        <module>ai-agent4j-tools-git</module>
     </modules>
 
     <properties>
@@ -77,6 +78,12 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
