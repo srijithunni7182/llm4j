@@ -571,6 +571,12 @@ public final class ToolFactory {
                 : kind.agentProblem(resolve(kind, def, env), def.getName(), agentName, approved);
     }
 
+    /** Whether a tool of {@code kindName} is built when a run starts (an unknown kind is not). */
+    public boolean buildsAtRunStart(String kindName) {
+        ToolKind kind = kinds.get(kindName);
+        return kind != null && kind.buildsAtRunStart();
+    }
+
     /** The option a key is filled from when it is {@code <reference>.<name>}, else null. */
     private static String filledFrom(ToolKind kind, String key) {
         for (String ref : kind.references().keySet()) if (key.startsWith(ref + ".")) return ref;

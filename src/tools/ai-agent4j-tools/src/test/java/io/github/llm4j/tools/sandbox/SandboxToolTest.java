@@ -101,18 +101,20 @@ class SandboxToolTest {
     // ---- G42: container never falls back
 
     @Test
-    void aMissingContainerRuntimeIsALoadErrorThatNamesWhatToInstallAndNothingFallsBack() {
+    void aMissingContainerRuntimeStopsTheRunBeforeAnyStepAndNothingFallsBack() {
         fake.missing("the container runtime docker is not available: install Docker or Podman and start it");
-        assertThat(check(options())).contains("install Docker or Podman");
+        assertThat(check(options())).as("weave check looks at the script, not the machine (R12)").isNull();
+        assertThatThrownBy(() -> tool(options())).hasMessageContaining("install Docker or Podman");
         assertThat(made).allMatch(s -> s.isolation() == Isolation.CONTAINER);
         assertThat(fake.requests).isEmpty();
     }
 
     @Test
     void theStandardContainerBackendSaysWhatIsMissingWhenTheRuntimeIsNot() {
-        Map<String, String> o = options("runtime", "podman");
-        String problem = new SandboxKind(s -> new io.github.llm4j.tools.ContainerSandbox("no-such-runtime-xyz", s.image(), false)).check(o, dir);
-        assertThat(problem).contains("no-such-runtime-xyz").contains("never falls back");
+        SandboxKind kind = new SandboxKind(s -> new io.github.llm4j.tools.ContainerSandbox("no-such-runtime-xyz", s.image(), false));
+        assertThatThrownBy(() -> kind.create("Py", options("runtime", "podman"), dir, effects))
+                .hasMessageContaining("no-such-runtime-xyz")
+                .hasMessageContaining("never falls back");
     }
 
     // ---- G43: the reported level is what counts
@@ -324,6 +326,79 @@ class SandboxToolTest {
         effects.step = "main/x";
         t.execute(Map.of("action", "status", "handle", "late"));
         assertThat(fake.stopped).contains("late");
+        assertThat(leases.resolve("late.json")).doesNotExist();
+    }
+
+    // ---- the kind as a host sees it
+
+    @Test
+    void theKindDescribesItself() {
+        SandboxKind k = new SandboxKind();
+        assertThat(k.name()).isEqualTo("sandbox");
+        assertThat(k.required()).containsExactlyInAnyOrder("workspace", "isolation", "allow");
+        assertThat(k.optional()).contains("network", "hosts", "image", "timeout", "serve_port", "max_served", "unattended");
+        assertThat(k.prefixes()).contains("env.", "workspace.");
+        assertThat(k.resolvedPerCall()).containsExactly("env.");
+        assertThat(k.references()).containsEntry("workspace", "workspace");
+        assertThat(k.buildsAtRunStart()).isTrue();
+    }
+
+    @Test
+    void optionsThatGoTogetherAreChecked() {
+        Map<String, String> process = options("isolation", "process", "image", null, "network", "open");
+        assertThat(check(process)).isNull();
+        for (String containerOnly : List.of("runtime", "pull")) {
+            Map<String, String> o = new HashMap<>(process);
+            o.put(containerOnly, containerOnly.equals("pull") ? "true" : "podman");
+            assertThat(check(o)).as(containerOnly).contains("go with isolation: container");
+        }
+        assertThat(check(options("workspace", null, "workspace.root", null))).contains("names the workspace tool");
+        assertThat(new SandboxKind(s -> new io.github.llm4j.tools.ProcessSandbox()).check(new HashMap<>(Map.of(
+                        "workspace.root", "work", "isolation", "process", "network", "open", "allow", "ls", "serve_port", "8000")), dir))
+                .contains("cannot keep a program running");
+    }
+
+    @Test
+    void stdinAndArgumentsThatAreNumbersReachTheProgram() throws Exception {
+        call(options(), "program", "ls", "args", List.of(1, true, "x"), "stdin", "input");
+        assertThat(fake.requests.get(0).args()).containsExactly("1", "true", "x");
+        assertThat(fake.requests.get(0).stdin()).isEqualTo("input");
+        call(options(), "program", "ls", "stdin", 5);
+        assertThat(fake.requests.get(1).stdin()).isNull();
+    }
+
+    @Test
+    void protectedFilesAreMountedOneByOneUpToALimit() throws Exception {
+        for (int i = 0; i < 200; i++)
+            Files.writeString(dir.resolve("work/f" + i + ".lock"), "x");
+        call(options("workspace.protect", "*.lock"), "program", "ls");
+        assertThat(fake.requests.get(0).protect()).hasSize(200);
+        Files.writeString(dir.resolve("work/f200.lock"), "x");
+        assertThat(call(options("workspace.protect", "*.lock"), "program", "ls").asText()).contains("protect a folder instead");
+    }
+
+    @Test
+    void statusIsNotAnEffectAndEveryCallSaysWhatItTargets() throws Exception {
+        Tool t = tool(options("serve_port", "8000", "network", "open"));
+        JsonNode s = call(t, "action", "serve", "program", "python3");
+        String handle = s.get("handle").asText();
+        call(t, "action", "status", "handle", handle);
+        call(t, "action", "status", "handle", handle);
+        assertThat(effects.trace).anyMatch(x -> x.contains("serve python3"));
+        assertThat(effects.trace).noneMatch(x -> x.startsWith("tool effect") && x.contains("status " + handle));
+        assertThat(effects.trace).anyMatch(x -> x.startsWith("tool call: Py status " + handle));
+        assertThat(call(t, "action", "stop", "handle", handle).get("stopped").asBoolean()).isTrue();
+        assertThat(effects.trace).anyMatch(x -> x.contains("stop " + handle));
+    }
+
+    @Test
+    void anotherSandboxsLeaseIsNotThisOnes() throws Exception {
+        Path leases = Files.createDirectories(dir.resolve(".loom-workspace/Data/leases"));
+        Tool t = tool(options("serve_port", "8000", "network", "open"));
+        Files.writeString(leases.resolve("theirs.json"), "{\"handle\":\"theirs\",\"owner\":\"Web\",\"port\":40009,\"deadline\":9999999999999}");
+        assertThat(call(t, "action", "status", "handle", "theirs").asText()).contains("no served program");
+        assertThat(call(t, "action", "stop", "handle", "theirs").asText()).contains("no served program");
+        assertThat(fake.stopped).isEmpty();
     }
 
     // ---- what the audit sees

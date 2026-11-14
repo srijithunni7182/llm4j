@@ -83,6 +83,16 @@ public interface ToolKind {
         return java.util.Map.of();
     }
 
+    /**
+     * Whether a host builds a tool of this kind when a run starts rather than at its first use: a
+     * kind whose building asks the machine for something it needs (a container runtime) or cleans
+     * up after a crashed run (a program a sandbox left serving) says so, and a run then fails or
+     * cleans up before any step.
+     */
+    default boolean buildsAtRunStart() {
+        return false;
+    }
+
     /** In {@link #uncheckedResult}: the whole result may hold text a model wrote. */
     String WHOLE_RESULT = "*";
 

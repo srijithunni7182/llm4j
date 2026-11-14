@@ -66,6 +66,11 @@ final class GenericKindAdapter implements ToolKind {
     }
 
     @Override
+    public boolean buildsAtRunStart() {
+        return kind.buildsAtRunStart();
+    }
+
+    @Override
     public Set<String> uncheckedResult(Map<String, String> options) {
         return kind.uncheckedResult(options);
     }

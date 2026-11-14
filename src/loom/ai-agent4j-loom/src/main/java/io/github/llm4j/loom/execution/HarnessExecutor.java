@@ -2443,6 +2443,17 @@ public class HarnessExecutor implements LoomEngine {
 
     private final Map<String, Tool> createdTools = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /**
+     * Builds the tools whose kind asks for it when the run starts (a sandbox: its runtime is asked
+     * for, and what a crashed run left serving is stopped) before any step. A simulated run builds
+     * nothing: building may stop a program.
+     */
+    private void buildToolsAtRunStart() {
+        if (simulate) return;
+        for (io.github.llm4j.loom.ast.ToolDef def : script.getTools())
+            if (toolFactory.buildsAtRunStart(def.getKind())) createTool(def);
+    }
+
     private Tool createTool(io.github.llm4j.loom.ast.ToolDef def) {
         return createdTools.computeIfAbsent(
                 def.getName(),
@@ -3116,6 +3127,7 @@ public class HarnessExecutor implements LoomEngine {
             trace(TraceEvent.RUN_START, null, "workflow " + workflowName, startData);
         }
         try {
+            if (topLevel) buildToolsAtRunStart();
             rootNext.set(true);
             runBlock(targetWorkflow.getStatements(), "s");
             log.info("Workflow completed: " + workflowName);

@@ -174,6 +174,8 @@ class EgressProxyTest {
         EgressProxy.Hosts hosts = EgressProxy.Hosts.parse("*.pythonhosted.org, example.com:8080");
         assertThat(hosts.allows("files.pythonhosted.org", 443)).isTrue();
         assertThat(hosts.allows("pythonhosted.org", 443)).isFalse();
+        assertThat(hosts.allows(".pythonhosted.org", 443)).isFalse();
+        assertThat(hosts.allows("a.pythonhosted.org", 443)).isTrue();
         assertThat(hosts.allows("example.com", 8080)).isTrue();
         assertThat(hosts.allows("example.com", 443)).isFalse();
         assertThat(hosts.allows("EXAMPLE.COM", 8080)).isTrue();
@@ -187,5 +189,10 @@ class EgressProxyTest {
         for (String bad : List.of("", "a b", "host:99999", "http://x.com", "*", "10.0.0.1"))
             assertThat(EgressProxy.Hosts.problem(bad)).as(bad).isNotNull();
         assertThat(EgressProxy.Hosts.problem("pypi.org, files.pythonhosted.org:443")).isNull();
+        assertThat(EgressProxy.Hosts.problem("a.org:1, b.org:65535")).isNull();
+        assertThat(EgressProxy.Hosts.problem("a.org:0")).contains("outside 1 to 65535");
+        assertThat(EgressProxy.Hosts.problem("a.org:65536")).contains("outside 1 to 65535");
+        assertThat(EgressProxy.Hosts.problem("a.org:http")).contains("is not host or host:port");
+        assertThat(EgressProxy.Hosts.problem("10.0.0.1")).contains("is not a host name");
     }
 }

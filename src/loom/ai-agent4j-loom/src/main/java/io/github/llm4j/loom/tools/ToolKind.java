@@ -78,6 +78,14 @@ public interface ToolKind {
     }
 
     /**
+     * Whether the run builds a tool of this kind when it starts rather than at its first use (see
+     * {@link io.github.llm4j.agent.tool.ToolKind#buildsAtRunStart()}).
+     */
+    default boolean buildsAtRunStart() {
+        return false;
+    }
+
+    /**
      * The top-level fields of a tool's result that may hold text a model wrote, as in {@link
      * io.github.llm4j.agent.tool.ToolKind#uncheckedResult}; none by default.
      */

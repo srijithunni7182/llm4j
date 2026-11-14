@@ -91,6 +91,12 @@ public final class SandboxKind extends GenericKind {
         return Map.of("workspace", "workspace");
     }
 
+    /** Built as the run starts: its runtime is asked for and a crashed run's leftovers stopped. */
+    @Override
+    public boolean buildsAtRunStart() {
+        return true;
+    }
+
     /** A sandbox runs programs: its agent must have it approved, or it says it runs unattended. */
     @Override
     public String agentProblem(Map<String, String> options, String toolName, String agentName, boolean approved) {
@@ -143,7 +149,7 @@ public final class SandboxKind extends GenericKind {
             int maxServed,
             SandboxBackend backend) {}
 
-    Checked checked(Options o, Path baseDir) {
+    Checked checked(Options o, Path baseDir, boolean probe) {
         Isolation isolation = isolation(o);
         List<String> allow = allow(o);
         SandboxRequest.SandboxNetwork network = network(o);
@@ -201,7 +207,9 @@ public final class SandboxKind extends GenericKind {
                     "workspace: " + wsName + " protects " + String.join(", ", protect) + ", which " + weak + " cannot keep read only; use isolation: container");
         if (servePort != null && !backend.canServe())
             throw new OptionException("serve_port: this backend cannot keep a program running");
-        String missing = backend.probe();
+        // weave check looks at the script, not the machine it runs on: the runtime is asked when the
+        // tool is built, as the run starts, before any step (R12)
+        String missing = probe ? backend.probe() : null;
         if (missing != null) throw new OptionException("isolation: " + missing);
         return new Checked(isolation, allow, network, limits, workspace, store, protect, env, servePort, maxServed, backend);
     }
@@ -254,12 +262,12 @@ public final class SandboxKind extends GenericKind {
 
     @Override
     protected void validate(Options o, Path baseDir) {
-        checked(o, baseDir);
+        checked(o, baseDir, false);
     }
 
     @Override
     protected Tool build(String name, Options o, Path baseDir, EffectContext context) {
-        return new SandboxTool(name, checked(o, baseDir), context);
+        return new SandboxTool(name, checked(o, baseDir, true), context);
     }
 
     /** Reaches the workspace; with a network it reads from and sends to the outside; it changes things. */

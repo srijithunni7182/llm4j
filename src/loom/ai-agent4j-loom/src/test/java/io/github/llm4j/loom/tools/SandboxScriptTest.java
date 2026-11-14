@@ -86,6 +86,34 @@ class SandboxScriptTest {
     }
 
     @Test
+    void aMissingContainerRuntimeStopsTheRunBeforeItsFirstStep() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                onPath("podman") == null, "podman is installed here, so it is not missing");
+        String script =
+                """
+                tool Data { use: workspace  root: "work"  allow: "**"  mode: readwrite }
+                tool Box { use: sandbox  workspace: Data  isolation: container  runtime: podman  image: "alpine:3.20"  allow: "ls"  unattended: true }
+                workflow Main() {
+                    use Data(action = "write", path = "first.txt", content = "ran")
+                    use Box(program = "ls")
+                }
+                """;
+        assertThat(errors(script)).as("weave check looks at the script, not this machine").isEmpty();
+        HarnessExecutor e = executor(script);
+        e.initialize();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> e.executeWorkflow("Main", Map.of()))
+                .hasMessageContaining("podman")
+                .hasMessageContaining("never falls back");
+        assertThat(dir.resolve("work/first.txt")).as("no step ran").doesNotExist();
+    }
+
+    static Path onPath(String name) {
+        for (String d : System.getenv().getOrDefault("PATH", "").split(java.io.File.pathSeparator))
+            if (!d.isBlank() && Files.isExecutable(Path.of(d, name))) return Path.of(d, name);
+        return null;
+    }
+
+    @Test
     void theNamedToolMustBeAWorkspaceAndItsOptionsAreNotWrittenTwice() throws Exception {
         assertThat(errors(TOOLS.replace("workspace: Data", "workspace: Nope") + "workflow Main() { }"))
                 .anyMatch(p -> p.contains("names no tool Nope"));
