@@ -83,6 +83,7 @@ public final class OpenApiKind extends GenericKind {
                         "pin",
                         "follow_redirects",
                         "effects"));
+        s.addAll(io.github.llm4j.tools.Pagination.NAMES);
         return s;
     }
 
@@ -172,6 +173,7 @@ public final class OpenApiKind extends GenericKind {
         }
         if (o.has("server") && HttpUrl.parse(o.get("server")) == null)
             throw new OptionException("server: is not a valid URL");
+        io.github.llm4j.tools.Pagination.parse(o);
         effects(o);
     }
 
@@ -242,7 +244,7 @@ public final class OpenApiKind extends GenericKind {
                                 ? new Credential(null, o.get("auth_query"), o.get("auth_value"), asked)
                                 : Credential.NONE;
         List<String> fixed = o.has("auth_value") ? List.of(o.get("auth_value")) : List.of();
-        ApiClient client = new ApiClient(name, base, net, credential, answers, http, fixed);
+        ApiClient client = new ApiClient(name, base, net, credential, answers, http, fixed, io.github.llm4j.tools.Pagination.parse(o));
 
         if (o.has("operation")) {
             ApiOperation op =

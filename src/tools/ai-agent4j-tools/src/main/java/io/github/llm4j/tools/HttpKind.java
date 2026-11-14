@@ -43,6 +43,7 @@ public final class HttpKind extends GenericKind {
                         "follow_redirects",
                         "base_url",
                         REACHES));
+        s.addAll(Pagination.NAMES);
         return s;
     }
 

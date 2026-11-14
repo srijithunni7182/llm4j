@@ -52,7 +52,7 @@ class ApiClientTest {
                         Duration.ofSeconds(5),
                         1 << 20,
                         0);
-        return new ApiClient("Tool", base, net, credential, new Answers.Settings(1 << 16, null, 1 << 16), http, List.of());
+        return new ApiClient("Tool", base, net, credential, new Answers.Settings(1 << 16, null, 1 << 16), http, List.of(), io.github.llm4j.tools.Pagination.parse(o));
     }
 
     private static ApiOperation.Parameter p(String name, String where, boolean required, String type) throws Exception {

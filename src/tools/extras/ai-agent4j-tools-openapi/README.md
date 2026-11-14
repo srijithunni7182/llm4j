@@ -64,6 +64,11 @@ String answer = pet.execute(Map.of("petId", 1));
 | `allow_http` | Allow plain http (https is the default) |
 | `allow_private` | Allow private and loopback addresses |
 | `follow_redirects` | Follow redirects (each one is checked again) |
+| `paginate` | `link` (follow `Link: …; rel="next"`), `cursor` (send the next cursor found at `cursor_path` back in `cursor_param`) or `page` (increment `page_param` until a page is empty). Reads only: refused for an operation that changes state. Every page passes the same guards and the whole is one result |
+| `max_pages` | Most pages read, default 10, at most 100; the walk also stops at `max_bytes` and says so |
+| `cursor_path` | With `paginate: cursor`: where the next cursor is in the answer, a dotted path such as `meta.next` |
+| `cursor_param` | With `paginate: cursor`: the query parameter it is sent back in |
+| `page_param` | With `paginate: page`: the page or offset parameter |
 | `effects` | Internal: the per-operation effects of the older tool, filled from the script's `effects: { id: reads }` |
 
 ## What it reaches, and what the audit sees

@@ -38,6 +38,7 @@ final class ApiClient {
     private final Answers.Settings answers;
     private final HttpSupport http;
     private final List<String> fixedSecrets;
+    private final io.github.llm4j.tools.Pagination pagination;
 
     ApiClient(
             String tool,
@@ -46,7 +47,9 @@ final class ApiClient {
             Credential credential,
             Answers.Settings answers,
             HttpSupport http,
-            List<String> fixedSecrets) {
+            List<String> fixedSecrets,
+            io.github.llm4j.tools.Pagination pagination) {
+        this.pagination = pagination;
         this.tool = tool;
         this.base = base;
         this.net = net;
@@ -148,7 +151,8 @@ final class ApiClient {
         if (!op.isRead() && net.idempotency() && idempotencyKey != null)
             request.header("Idempotency-Key", idempotencyKey);
         request.method(op.method(), body(op, args.get("body")));
-        return http.send(request.build(), retry);
+        pagination.requireRead(op.method());
+        return pagination.collect(http, request.build(), retry);
     }
 
     /** The address of the call: the base, then the path with its parameters percent-encoded. */

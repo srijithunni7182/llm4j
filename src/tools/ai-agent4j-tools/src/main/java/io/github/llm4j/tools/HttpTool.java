@@ -32,7 +32,8 @@ final class HttpTool extends GenericTool {
             Map<String, String> headers,
             long maxBytes,
             NetOptions net,
-            String reaches) {
+            String reaches,
+            Pagination pagination) {
 
         /** A served program is reached on loopback, over plain http: the port comes per call. */
         static final HttpUrl SERVED = HttpUrl.get("http://127.0.0.1/");
@@ -90,7 +91,8 @@ final class HttpTool extends GenericTool {
                     o.headers(),
                     o.size("max_bytes", 64 * 1024, 4L * 1024 * 1024),
                     net,
-                    reaches);
+                    reaches,
+                    Pagination.parse(o));
         }
     }
 
@@ -236,7 +238,8 @@ final class HttpTool extends GenericTool {
         if (effect && config.net().idempotency() && idempotencyKey != null)
             request.header("Idempotency-Key", idempotencyKey);
         request.method(method, bodyFor(method, args.get("body")));
-        return http.send(request.build(), retry);
+        config.pagination().requireRead(method);
+        return config.pagination().collect(http, request.build(), retry);
     }
 
     /** Asks the host for the credential; only over https, or to this machine. */

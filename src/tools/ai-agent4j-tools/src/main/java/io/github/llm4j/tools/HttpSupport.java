@@ -72,6 +72,9 @@ public final class HttpSupport {
     private final EffectContext context;
     private final long maxBytes;
     private final int retries;
+    private final Duration timeout;
+    private final javax.net.ssl.SSLSocketFactory sslSocketFactory;
+    private final javax.net.ssl.X509TrustManager trust;
 
     public HttpSupport(
             NetPolicy policy, EffectContext context, Duration timeout, long maxBytes, int retries) {
@@ -99,6 +102,9 @@ public final class HttpSupport {
         this.context = context;
         this.maxBytes = maxBytes;
         this.retries = retries;
+        this.timeout = timeout;
+        this.sslSocketFactory = sslSocketFactory;
+        this.trust = trust;
         OkHttpClient.Builder builder =
                 new OkHttpClient.Builder()
                         .followRedirects(false)
@@ -111,6 +117,19 @@ public final class HttpSupport {
         if (sslSocketFactory != null && trust != null)
             builder.sslSocketFactory(sslSocketFactory, trust);
         this.client = builder.build();
+    }
+
+    /** The most bytes of a body this layer reads. */
+    public long maxBytes() {
+        return maxBytes;
+    }
+
+    /**
+     * The same layer reading up to {@code limit} bytes of a body: for pagination, whose whole answer
+     * may be larger than one page.
+     */
+    public HttpSupport withLimit(long limit) {
+        return new HttpSupport(policy, context, timeout, limit, retries, sslSocketFactory, trust);
     }
 
     /**
