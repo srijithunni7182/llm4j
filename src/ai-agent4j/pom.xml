@@ -123,6 +123,13 @@
             <version>${okhttp.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Contract tests: what the MCP fakes send and receive is validated against the official JSON Schema -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.5.6</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>

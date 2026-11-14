@@ -364,7 +364,8 @@ public final class A2AJsonRpc10 {
         String value = requested == null ? "" : requested.trim();
         if (value.isEmpty()) {
             throw new A2AException.VersionNotSupported(
-                    "the request names no A2A version, which means 0.3; this agent speaks " + VERSION);
+                    "the request names no A2A version, which means 0.3; this agent speaks "
+                            + VERSION);
         }
         boolean sameMajorMinor = value.equals(VERSION) || value.startsWith(VERSION + ".");
         if (!sameMajorMinor) {
@@ -430,15 +431,17 @@ public final class A2AJsonRpc10 {
                                         ? Instant.parse(params.get("statusTimestampAfter").asText())
                                         : null,
                                 params.path("includeArtifacts").asBoolean(false)));
-                // optional operations this agent does not offer: each has its own error (3.3.4)
-                case "SendStreamingMessage", "SubscribeToTask" -> throw new A2AException.UnsupportedOperation(
+                    // optional operations this agent does not offer: each has its own error (3.3.4)
+                case "SendStreamingMessage", "SubscribeToTask" -> throw new A2AException
+                        .UnsupportedOperation(
                         "streaming; this agent answers with a task or a message");
                 case "GetExtendedAgentCard" -> throw new A2AException.UnsupportedOperation(
                         "an extended agent card");
                 case "CreateTaskPushNotificationConfig",
                         "GetTaskPushNotificationConfig",
                         "ListTaskPushNotificationConfigs",
-                        "DeleteTaskPushNotificationConfig" -> throw new A2AException.PushNotificationNotSupported();
+                        "DeleteTaskPushNotificationConfig" -> throw new A2AException
+                        .PushNotificationNotSupported();
                 default -> throw new A2AException.MethodNotFound(method);
             };
         } catch (java.time.format.DateTimeParseException e) {

@@ -253,21 +253,32 @@ class RemoteAgentTest {
 
     @Test
     void anEarlierSendIsFoundByItsMessageIdInTheHistoryOfRecentTasks() {
-        var ours = new RemoteTask("t-1", "c", TaskState.WORKING, null, List.of(), List.of(ask("m-ours")));
-        var other = new RemoteTask("t-2", "c", TaskState.WORKING, null, List.of(), List.of(ask("m-other")));
+        var ours =
+                new RemoteTask(
+                        "t-1", "c", TaskState.WORKING, null, List.of(), List.of(ask("m-ours")));
+        var other =
+                new RemoteTask(
+                        "t-2", "c", TaskState.WORKING, null, List.of(), List.of(ask("m-other")));
         var transport = new FakeTransport().card(card().build()).recent(List.of(other, ours));
         var sentAt = java.time.Instant.parse("2026-11-07T10:00:00Z");
 
         var found = agent(transport).findBySentMessage("m-ours", sentAt);
 
         assertThat(found).map(RemoteTask::id).contains("t-1");
-        var listed = transport.operations().stream().filter(o -> o.name().equals("recentTasks")).findFirst().orElseThrow();
+        var listed =
+                transport.operations().stream()
+                        .filter(o -> o.name().equals("recentTasks"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat((java.time.Instant) listed.argument()).isBefore(sentAt);
     }
 
     @Test
     void nothingIsFoundWhenNoRecentTaskHoldsTheMessageIdAndNothingIsSentToLook() {
-        var transport = new FakeTransport().card(card().build()).recent(List.of(RemoteTask.of("t-9", "c", TaskState.WORKING)));
+        var transport =
+                new FakeTransport()
+                        .card(card().build())
+                        .recent(List.of(RemoteTask.of("t-9", "c", TaskState.WORKING)));
         assertThat(agent(transport).findBySentMessage("m-ours", java.time.Instant.now())).isEmpty();
         assertThat(transport.operationNames()).doesNotContain("send");
     }

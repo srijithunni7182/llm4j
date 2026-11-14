@@ -13,6 +13,13 @@ public interface McpTransport extends AutoCloseable {
     /** Registers a handler for incoming messages. */
     void onMessage(Consumer<JsonRpcMessage> handler);
 
+    /**
+     * Registers a handler told, once, when the connection ends without {@link #close()} having been
+     * called (a server process that exited, a stream that broke). The argument says why, without
+     * secrets. A transport that cannot tell leaves this as is.
+     */
+    default void onClose(Consumer<String> handler) {}
+
     /** Closes the transport. */
     void close() throws Exception;
 }

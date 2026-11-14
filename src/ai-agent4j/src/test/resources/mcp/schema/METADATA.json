@@ -1,0 +1,11 @@
+{
+  "what": "Official JSON Schema of the Model Context Protocol, one file per revision, vendored unchanged so the MCP fakes can be checked against it (phase 36, D15 rule 2).",
+  "source": "https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/schema",
+  "fetched": "2026-11-14",
+  "commit": "not recorded: the session could not call the GitHub API for this repository; the files are the ones the repository's main branch served on the date above, and their hashes are below. Pin the commit when this is next re-vendored.",
+  "licence": "Apache-2.0 for contributions after the project's relicensing, MIT for earlier ones that have not been relicensed (see LICENSE in this folder); both are compatible with this repository's Apache-2.0.",
+  "files": {
+    "2025-11-25.json": "268a5f82ba70fd7e4b6dc4aa1e64f116f74b4d0edcb69dc046829c79dd4e97e7",
+    "2026-07-28.json": "edbb197ed0f92e90d658866e23cf76f107df0caac5ce25c2b9e64e1ca9a6314a"
+  }
+}
