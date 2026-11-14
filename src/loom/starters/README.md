@@ -1,6 +1,6 @@
 # Loom starter set
 
-Eighteen small, complete workflows, each one a step up from the one before. Every one **loads** (`weave check`), has **tests that need no key and cost nothing** (`weave test`), and carries a picture of itself drawn by `weave graph`. Copy a folder, change the prompts, and you have a project.
+Twenty small, complete workflows, each one a step up from the one before. Every one **loads** (`weave check`), has **tests that need no key and cost nothing** (`weave test`), and carries a picture of itself drawn by `weave graph`. Copy a folder, change the prompts, and you have a project.
 
 New to Loom? Read the [tutorial](../../../docs/tutorial/README.md) alongside these: each starter links to the chapter that explains it.
 
