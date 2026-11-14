@@ -44,7 +44,7 @@ All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX
 - **A tool that holds something open is closed when the run ends** (a browser): Loom closes every built tool that is
   `AutoCloseable` at the end of a run, however it ends, and builds it again for the next.
 - **The light tools module cannot grow a dependency unnoticed.** A test pins what it depends on (the core, Jackson and the optional mail library); a tool that needs more goes in its own module under `src/tools/extras`.
-- **A tools catalog.** [One page](TOOLS_CATALOG.md) describes all fifteen ready-made tools, what each can do and what limits it, with a table for choosing one. Every README under `src/tools` and the root README link to it.
+- **A tools catalog.** [One page](TOOLS_CATALOG.md) describes the fifteen ready-made tools, the `openapi` and `mcp` connectors and the core's simple tools, what each can do and what limits it, with a table for choosing one. Every README under `src/tools` and the root README link to it.
 
 ## Starting workflows and supervising them (phase 33, Loom)
 
