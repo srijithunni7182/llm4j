@@ -67,3 +67,9 @@ fabric-sim-data/
 # Written by the audit logger of the sample scripts, relative to wherever a test or a run happens to start
 boardroom-audit.json
 hexamind-audit.json
+
+# Run state of the phase 35 tools: workspace snapshots and sandbox leases, browser profiles, and the folder
+# the CTK workspace scenarios write (created when a script runs in place, as the provenance oracle does)
+.loom-workspace/
+.loom-browser/
+src/loom/ctk/scripts/ctk-work/
