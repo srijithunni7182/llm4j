@@ -69,6 +69,14 @@ class ServedPortGrantTest {
     }
 
     @Test
+    void whatAServedProgramAnswersIsUncheckedModelText() {
+        assertThat(new HttpKind().uncheckedResult(Map.of("reaches", "Py")))
+                .containsExactly(io.github.llm4j.agent.tool.ToolKind.WHOLE_RESULT);
+        assertThat(new HttpKind().uncheckedResult(Map.of("base_url", "https://api.example.com")))
+                .isEmpty();
+    }
+
+    @Test
     void aLiveLeaseIsReachedOnItsPortAndTheReachIsAudited() throws Exception {
         lease("llm4j-serve-a", "Py", served.getPort(), FAR);
         served.enqueue(new MockResponse().setBody("{\"ok\":true}").setHeader("Content-Type", "application/json"));

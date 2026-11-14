@@ -77,7 +77,9 @@ lease is live.
 An `http` tool reaches it with `reaches: Py` in place of a `base_url`. It is granted **exactly `127.0.0.1` and that
 one port, while the lease lives**, checked on every request and redirect; any other loopback port, `localhost`, a
 private or a public host is refused. There is no `allow_loopback` switch: it would open every service on the machine.
-Each reach is audited (`served_port_reached`), and LA32 names it.
+Each reach is audited (`served_port_reached`), and LA32 names it. What the served program answers is unchecked model text,
+like the sandbox's own output: a model may have written the program, so the answer cannot leave the workflow as the
+tool's own data.
 
 ## The audit
 

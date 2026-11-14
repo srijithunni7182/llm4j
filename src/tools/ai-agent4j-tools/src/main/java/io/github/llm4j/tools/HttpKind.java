@@ -92,6 +92,16 @@ public final class HttpKind extends GenericKind {
     }
 
     /** What a tool of this kind reaches, for an audit; its calls go through the effect journal. */
+    /**
+     * With {@code reaches:}, the answer comes from a program the sandbox serves, which a model may
+     * have written: the whole result is unchecked model text, as a sandbox's own output is. A base
+     * URL's answer stays the tool's data.
+     */
+    @Override
+    public Set<String> uncheckedResult(Map<String, String> options) {
+        return options.containsKey(REACHES) ? Set.of(WHOLE_RESULT) : Set.of();
+    }
+
     @Override
     public ToolProfile profile(Map<String, String> options) {
         String reaches = options.get(REACHES);
