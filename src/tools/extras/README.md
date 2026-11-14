@@ -4,7 +4,9 @@ The parent (`ai-agent4j-tools-extras-parent`) of the optional tool modules: tool
 Jackson, so they are kept out of the light [`ai-agent4j-tools`](../ai-agent4j-tools/) module. A user adds an extras module
 only when they want its tool, and pays nothing otherwise. Why the split exists is in [the tools README](../README.md).
 
-**No module has been added yet.**
+| Module | Tool | Dependency beyond the core and Jackson |
+|---|---|---|
+| [`ai-agent4j-tools-search`](ai-agent4j-tools-search/) | `search`: web search through a provider you choose and key | none |
 
 ## What an extras module is
 
