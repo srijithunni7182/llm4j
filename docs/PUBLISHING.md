@@ -40,24 +40,77 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
 
 ## Releasing
 
-1. **Between releases `main` carries the next `-SNAPSHOT` version** (for example `6.2.0-SNAPSHOT`), so a jar built from the repository can never be mistaken for the published release of the same number. What must name a version someone can download (the JBang catalogue, generated projects, a deployment's Fabric image, the docs) reads the last published release from one place: the `llm4j.released` property of the parent `pom.xml`. To release, run
-   `scripts/release-version.sh release 6.2.0` (sets every pom, `llm4j.released` and `jbang-catalog.json`), commit it, and continue below. A released version can never be changed or deleted on Central. `ReleasedVersionSourceOfTruthTest` fails if the catalogue and `llm4j.released` differ.
-   After the tag, `scripts/release-version.sh next 6.2.1-SNAPSHOT` moves `main` on (`llm4j.released` stays `6.2.0`); commit that as `chore: start 6.2.1-SNAPSHOT`.
-   A jar says what it is: `weave --version` prints `release` or `development`, the commit and the build time, and the same facts are in every module jar's manifest (`Implementation-Version`, `Build-Kind`, `Build-Commit`, `Build-Dirty`, `Build-Time`). `-Prelease` marks the build a release.
-2. Check locally, without a key:
-   `make release-check` (= `mvn -Prelease -Dgpg.skip=true clean verify`, then `java scripts/CheckJars.java src`). It builds the sources and javadoc jars and the `cli` jar, and refuses any jar that does not say what it is or holds a half-compiled class from an editor's language server (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
-3. Tag and push: `git tag v6.2.0 && git push origin v6.2.0`. The workflow `Build, Validate, and Deploy` runs the tests on JDK 17 and 21,
-   then `mvn -B -Prelease deploy` (tests again, sign, upload). You can also start it by hand with *Run workflow → deploy*.
-4. **Review in the Portal.** By default the upload is *not* published (`central.autoPublish=false`): open
-   *Deployments* in the Central Portal, check the eighteen artifacts (fifteen libraries and three parent poms) and their signatures validated, then press **Publish**.
-   Publishing is permanent. Once you trust the flow, tick `auto_publish` when starting the workflow by hand, or pass
-   `-Dcentral.autoPublish=true`.
-5. Central syncs in 10–30 minutes; then the artifacts appear at `search.maven.org` and are resolvable from any build.
-6. The VS Code extension is published separately and automatically: a change to it that bumps its version is published by CI when it lands on `main` ([PUBLISHING_VSCODE.md](PUBLISHING_VSCODE.md); it bundles the `cli` jar).
-7. Attach `ai-agent4j-loom-<version>-cli.jar` to the GitHub release (the workflow keeps it as the `weave-cli-jar` artifact of the
-   *Release check* job) so people can download `weave` without Maven.
-8. Add a row to the timeline in [ABOUT.md](ABOUT.md) for the release and any feature worth remembering. The stats block there
-   refreshes itself monthly (`scripts/about-stats.sh`, workflow `Refresh About stats`); only the timeline is written by hand.
+The steps, in order:
+
+| | Step | You end up with |
+|---|---|---|
+| 1 | [Set the release version](#1-set-the-release-version) | Every pom, `llm4j.released` and `jbang-catalog.json` at the new number |
+| 2 | [Check locally](#2-check-locally-without-a-key) | A green `make release-check` |
+| 3 | [Tag and push](#3-tag-and-push) | The workflow runs the tests, signs and uploads |
+| 4 | [Review in the Portal](#4-review-in-the-portal) | The artifacts published (permanent) |
+| 5 | [After it is published](#5-after-it-is-published) | The release visible, downloadable and recorded |
+
+### 1. Set the release version
+
+Between releases `main` carries the next `-SNAPSHOT` version (for example `6.2.0-SNAPSHOT`), so a jar built from the repository can never be mistaken for the published release of the same number.
+
+What must name a version someone can download (the JBang catalogue, generated projects, a deployment's Fabric image, the docs) reads the last published release from **one place**: the `llm4j.released` property of the parent `pom.xml`.
+
+```bash
+scripts/release-version.sh release 6.2.0
+```
+
+This sets every pom, `llm4j.released` and `jbang-catalog.json`. Commit it and continue.
+
+- A released version can never be changed or deleted on Central.
+- `ReleasedVersionSourceOfTruthTest` fails if the catalogue and `llm4j.released` differ.
+
+**After the tag**, move `main` on. `llm4j.released` stays `6.2.0`:
+
+```bash
+scripts/release-version.sh next 6.2.1-SNAPSHOT
+```
+
+Commit that as `chore: start 6.2.1-SNAPSHOT`.
+
+**A jar says what it is.** `weave --version` prints `release` or `development`, the commit and the build time. The same facts are in every module jar's manifest (`Implementation-Version`, `Build-Kind`, `Build-Commit`, `Build-Dirty`, `Build-Time`). `-Prelease` marks the build a release.
+
+### 2. Check locally, without a key
+
+```bash
+make release-check
+```
+
+This is `mvn -Prelease -Dgpg.skip=true clean verify`, then `java scripts/CheckJars.java src`. It:
+
+- builds the sources and javadoc jars and the `cli` jar;
+- refuses any jar that does not say what it is;
+- refuses any jar that holds a half-compiled class from an editor's language server (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
+
+### 3. Tag and push
+
+```bash
+git tag v6.2.0 && git push origin v6.2.0
+```
+
+The workflow `Build, Validate, and Deploy` runs the tests on JDK 17 and 21, then `mvn -B -Prelease deploy` (tests again, sign, upload). You can also start it by hand with *Run workflow → deploy*.
+
+### 4. Review in the Portal
+
+By default the upload is *not* published (`central.autoPublish=false`).
+
+1. Open *Deployments* in the Central Portal.
+2. Check the eighteen artifacts (fifteen libraries and three parent poms) and that their signatures validated.
+3. Press **Publish**. Publishing is permanent.
+
+Once you trust the flow, tick `auto_publish` when starting the workflow by hand, or pass `-Dcentral.autoPublish=true`.
+
+### 5. After it is published
+
+- **Central syncs in 10–30 minutes.** Then the artifacts appear at `search.maven.org` and are resolvable from any build.
+- **The VS Code extension is published separately and automatically.** A change to it that bumps its version is published by CI when it lands on `main` ([PUBLISHING_VSCODE.md](PUBLISHING_VSCODE.md); it bundles the `cli` jar).
+- **Attach the `weave` jar to the GitHub release.** Attach `ai-agent4j-loom-<version>-cli.jar` (the workflow keeps it as the `weave-cli-jar` artifact of the *Release check* job) so people can download `weave` without Maven.
+- **Record it in [ABOUT.md](ABOUT.md).** Add a row to the timeline for the release and any feature worth remembering. The stats block there refreshes itself monthly (`scripts/about-stats.sh`, workflow `Refresh About stats`); only the timeline is written by hand.
 
 ## From your own machine
 
@@ -79,11 +132,13 @@ mvn -B -s settings.xml -Prelease deploy
 
 ## Troubleshooting
 
-- **`Bundle has content that does NOT have a .pom file`, or `Filename '_remote.repositories' is not valid`**: on the CI runner Maven leaves bookkeeping files in the staging folder
-  (`maven-metadata-local.xml` in each artifact folder, `_remote.repositories` and its checksums in each version folder) and the Portal rejects them. The last module of the reactor,
-  `src/release/bundle-cleanup`, deletes them before the bundle is zipped; keep it last in the root pom's `<modules>`. The deploy job also prints the bundle's contents and keeps
-  the zip as the `central-bundle` artifact, so a rejection can be inspected (or the zip cleaned with `zip -d` and uploaded by hand under *Publish Component*).
+- **`Bundle has content that does NOT have a .pom file`, or `Filename '_remote.repositories' is not valid`**
 
+  *Cause:* on the CI runner Maven leaves bookkeeping files in the staging folder, and the Portal rejects them. They are `maven-metadata-local.xml` in each artifact folder, and `_remote.repositories` and its checksums in each version folder.
+
+  *Fix:* the last module of the reactor, `src/release/bundle-cleanup`, deletes them before the bundle is zipped. Keep it last in the root pom's `<modules>`.
+
+  *To inspect a rejection:* the deploy job prints the bundle's contents and keeps the zip as the `central-bundle` artifact. You can clean the zip with `zip -d` and upload it by hand under *Publish Component*.
 - **401 Unauthorized**: the token pair is wrong, or you used your login instead of the generated token.
 - **Signing failed**: `MAVEN_GPG_PASSPHRASE` is missing or wrong, or the key import secret was truncated; run the deploy step locally to see gpg's message.
 - **Validation errors in the Portal**: a missing signature, sources or javadoc jar, or pom metadata (license, developers, scm). Each module's pom inherits these from `llm4j-parent`.

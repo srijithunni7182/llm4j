@@ -1,6 +1,17 @@
 # Publishing the llm4j skills
 
-There are six skills. **`llm4j-eval-design`** designs how the workflow will be evaluated (what correct means, the oracles, what the dataset must hold, how the judge is validated, the run protocol and the gates) and writes an `EVAL_DESIGN.md`, or reviews an existing evaluation into an `EVAL_REVIEW.md`; it sits after "decide the agents" and before "build the golden dataset". **`llm4j-harness-design`** comes next: it designs the harness around an autonomous workflow (what agents may touch, how a run is bounded, how it fails, survives a crash and is stopped, who steps in) and writes the decisions down as a `HARNESS.md` design record. **`llm4j-workflow-patterns`** picks the shape of the workflow from what the person wants to build and starts from a tested skeleton. **`llm4j-workflow-guide`** builds, tests, secures and ships the workflow (chapters 1 to 16 of the guide), with a fast lane for a first version. **`llm4j-run-debugging`** finds out why a run went wrong from its journal (`weave why`, `whatif`, `step`, `timeline`) and fixes it with a test. **`llm4j-loom-deployer`** takes the finished workflow to a running, watched one: the security decisions, the rules file, a Fabric server, launching the application and the server with scripts, and reading the pages. They hand over to each other by name, in that order, and each can be used alone; a team can install only the deployer on a server. `weave guide --install-skill` installs all six into a project (`--skill eval`, `--skill harness`, `--skill patterns`, `--skill workflow`, `--skill debug` or `--skill deployer` for one).
+There are six skills. They hand over to each other by name, in this order, and each can be used alone. A team can install only the deployer on a server.
+
+| Order | Skill | What it does | Writes |
+|---|---|---|---|
+| 1 | **`llm4j-workflow-patterns`** | Picks the shape of the workflow from what the person wants to build, and starts from a tested skeleton | |
+| 2 | **`llm4j-eval-design`** | Designs how the workflow will be evaluated: what correct means, the oracles, what the dataset must hold, how the judge is validated, the run protocol and the gates. Sits after "decide the agents" and before "build the golden dataset". Also reviews an existing evaluation | `EVAL_DESIGN.md`, or `EVAL_REVIEW.md` for a review |
+| 3 | **`llm4j-harness-design`** | Designs the harness around an autonomous workflow: what agents may touch, how a run is bounded, how it fails, survives a crash and is stopped, who steps in | `HARNESS.md` |
+| 4 | **`llm4j-workflow-guide`** | Builds, tests, secures and ships the workflow (chapters 1 to 16 of the guide), with a fast lane for a first version | |
+| 5 | **`llm4j-run-debugging`** | Finds out why a run went wrong from its journal (`weave why`, `whatif`, `step`, `timeline`) and fixes it with a test | |
+| 6 | **`llm4j-loom-deployer`** | Takes the finished workflow to a running, watched one: the security decisions, the rules file, a Fabric server, launching the application and the server with scripts, and reading the pages | |
+
+`weave guide --install-skill` installs all six into a project. For one, add `--skill eval`, `--skill harness`, `--skill patterns`, `--skill workflow`, `--skill debug` or `--skill deployer`.
 
 ## The evaluation-design skill
 
@@ -21,7 +32,21 @@ llm4j-eval-design/
   references/design-record.md           the EVAL_DESIGN.md template and a worked example
 ```
 
-`make skill-package` builds `dist/llm4j-eval-design.zip` from the weave jar and checks it from an empty folder; `weave guide --install-skill --skill eval` writes the same files into a project. The method is distilled from the owner's guide *Quality Assurance for AI agentic systems*, credited on every page that uses it; the guide's numbers are starting points the domain expert sets. `EvalDesignSkillTest` checks that every `weave` command and option the pages name exists, that every gap names a register id, that the nine rules are present word for word, and that the dataset sample loads with the real loader. Keep `references/eval4j-loom-mapping.md` in step with the CLI: when a gap in the register closes, its row goes.
+**Build and install**
+
+- `make skill-package` builds `dist/llm4j-eval-design.zip` from the weave jar and checks it from an empty folder.
+- `weave guide --install-skill --skill eval` writes the same files into a project.
+
+**Where the method comes from.** It is distilled from the owner's guide *Quality Assurance for AI agentic systems*, credited on every page that uses it. The guide's numbers are starting points the domain expert sets.
+
+**What `EvalDesignSkillTest` checks**
+
+- every `weave` command and option the pages name exists;
+- every gap names a register id;
+- the nine rules are present word for word;
+- the dataset sample loads with the real loader.
+
+**Keep it current.** Keep `references/eval4j-loom-mapping.md` in step with the CLI: when a gap in the register closes, its row goes.
 
 ## The harness-design skill
 
@@ -36,7 +61,19 @@ llm4j-harness-design/
   references/design-record.md   the HARNESS.md template filled in with the user
 ```
 
-`make skill-package` builds `dist/llm4j-harness-design.zip` (a few KB) from the weave jar and checks it from an empty folder (complete, and pointing at no repository path); `weave guide --install-skill --skill harness` writes the same files into a project. To publish it, hand over the folder or the zip as it is. It refers to nothing outside itself: it never sends the user to a repository path, and when `weave` is installed it uses `weave guide loom` and `weave <command> --help` for the names of Loom constructs, otherwise it designs anyway and leaves the mapping for the build. Its last stage hands over to `llm4j-workflow-guide`, so install the two together; the deployer is the step after that.
+**Build and install**
+
+- `make skill-package` builds `dist/llm4j-harness-design.zip` (a few KB) from the weave jar and checks it from an empty folder (complete, and pointing at no repository path).
+- `weave guide --install-skill --skill harness` writes the same files into a project.
+- To publish it, hand over the folder or the zip as it is.
+
+**It refers to nothing outside itself.**
+
+- It never sends the user to a repository path.
+- When `weave` is installed it uses `weave guide loom` and `weave <command> --help` for the names of Loom constructs.
+- Otherwise it designs anyway and leaves the mapping for the build.
+
+**Hand-over.** Its last stage hands over to `llm4j-workflow-guide`, so install the two together. The deployer is the step after that.
 
 Keep `references/loom-mapping.md` in step with the Loom reference when a construct changes: nothing checks it automatically.
 
@@ -54,10 +91,15 @@ llm4j-run-debugging/
   references/commands.md        what each debugging command does and the options that matter
 ```
 
-Every skeleton in `patterns.md` is a starter's `main.loom` (`src/loom/starters`), and a test compares them, so a skeleton cannot drift from a
-starter that is checked on every build. Another test checks that every `weave` command and option the two skills name exists.
-`make skill-package` builds `dist/llm4j-workflow-patterns.zip` and `dist/llm4j-run-debugging.zip` and checks them from an empty folder;
-`weave guide --install-skill --skill patterns` and `--skill debug` write the same files into a project.
+**What is tested**
+
+- Every skeleton in `patterns.md` is a starter's `main.loom` (`src/loom/starters`), and a test compares them, so a skeleton cannot drift from a starter that is checked on every build.
+- Another test checks that every `weave` command and option the two skills name exists.
+
+**Build and install**
+
+- `make skill-package` builds `dist/llm4j-workflow-patterns.zip` and `dist/llm4j-run-debugging.zip` and checks them from an empty folder.
+- `weave guide --install-skill --skill patterns` and `--skill debug` write the same files into a project.
 
 ## The workflow skill
 
@@ -75,10 +117,9 @@ llm4j-workflow-guide/
   scripts/weave.cmd     launcher (Windows)
 ```
 
-The only prerequisite on the user's machine is Java 17 or newer. `SKILL.md` and `references/` are taken from the jar itself
-(`weave guide --install-skill`), so the skill, the guide and the jar always describe the same version; links that left the guide point at the
-repository as absolute GitHub links. `scripts/verify-skill-package.sh` unpacks the zip away from the repository and runs the bundled
-launcher: `--version`, `guide`, `init`, `check --no-env` and `eval --mock`; it fails if the skill refers to a repository path.
+- **The only prerequisite** on the user's machine is Java 17 or newer.
+- **One version.** `SKILL.md` and `references/` are taken from the jar itself (`weave guide --install-skill`), so the skill, the guide and the jar always describe the same version. Links that left the guide point at the repository as absolute GitHub links.
+- **Verified from outside the repository.** `scripts/verify-skill-package.sh` unpacks the zip away from the repository and runs the bundled launcher: `--version`, `guide`, `init`, `check --no-env` and `eval --mock`. It fails if the skill refers to a repository path.
 
 Rebuild the package for every release of Loom (the jar inside is the one that was just built). Marketplaces differ in how they take a skill;
 most accept the folder or the zip as it is.
@@ -97,6 +138,18 @@ llm4j-loom-deployer/
   bin/fabric.jar        the Fabric server
 ```
 
-The scripts find the jars in `bin/` (or in `FABRIC_JAR`, `WEAVE_JAR`, `INSPECT_JAR` and `INSPECT_CORE_JAR`), need Java 17 or newer and, on macOS and Linux, `curl`. They never take a secret on a command line or print one, create a data directory and admin password the first time (from the environment, or a generated one written to a private file), refuse to listen beyond this computer without TLS or a proxy, and are safe to run twice. The `.ps1` versions are written to the same rules but are not run in the build (no Windows host): check them on Windows before you rely on them.
+**What the scripts need**
+
+- They find the jars in `bin/`, or in `FABRIC_JAR`, `WEAVE_JAR`, `INSPECT_JAR` and `INSPECT_CORE_JAR`.
+- Java 17 or newer and, on macOS and Linux, `curl`.
+
+**What the scripts do**
+
+- They never take a secret on a command line or print one.
+- They create a data directory and admin password the first time (from the environment, or a generated one written to a private file).
+- They refuse to listen beyond this computer without TLS or a proxy.
+- They are safe to run twice.
+
+**Windows.** The `.ps1` versions are written to the same rules but are not run in the build (no Windows host). Check them on Windows before you rely on them.
 
 `weave guide --install-skill` installs the skill's `SKILL.md`, chapters and scripts from the weave jar alone; the jars they launch are not inside weave's jar, so a project that wants the scripts to work unpacks the package or sets the four variables.
