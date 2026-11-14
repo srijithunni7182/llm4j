@@ -28,14 +28,16 @@ public final class McpConformance {
                     "initialize", "InitializeRequest",
                     "tools/list", "ListToolsRequest",
                     "tools/call", "CallToolRequest",
-                    "notifications/initialized", "InitializedNotification");
+                    "notifications/initialized", "InitializedNotification",
+                    "server/discover", "DiscoverRequest");
 
     /** The result type the schema defines for each request method. */
     private static final Map<String, String> RESULTS =
             Map.of(
                     "initialize", "InitializeResult",
                     "tools/list", "ListToolsResult",
-                    "tools/call", "CallToolResult");
+                    "tools/call", "CallToolResult",
+                    "server/discover", "DiscoverResult");
 
     private final ObjectNode root;
     private final JsonSchemaFactory factory =

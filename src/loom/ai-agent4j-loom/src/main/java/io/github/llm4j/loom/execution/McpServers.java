@@ -44,6 +44,7 @@ final class McpServers implements AutoCloseable {
             List<Map<String, Object>> tools) {}
 
     private final Map<String, Booted> servers = new LinkedHashMap<>();
+    private Function<String, io.github.llm4j.secret.CredentialSource> invoker = name -> null;
 
     /**
      * Starts every declared server and lists its tools.
@@ -51,10 +52,21 @@ final class McpServers implements AutoCloseable {
      * @param credentials resolves {@code env.NAME} and {@code secret.NAME} for a server's variables
      * @throws LoomLoadException when a server cannot start or cannot list its tools
      */
+    void boot(List<McpServerDef> declared, Function<String, String> credentials) {
+        boot(declared, credentials, name -> null);
+    }
+
+    /**
+     * As above; {@code invoker} gives the credential of whoever runs the workflow for a remote
+     * server's {@code auth: invoker.NAME}.
+     */
     void boot(
-            List<McpServerDef> declared, Function<String, String> credentials) {
+            List<McpServerDef> declared,
+            Function<String, String> credentials,
+            Function<String, io.github.llm4j.secret.CredentialSource> invoker) {
+        this.invoker = invoker;
         for (McpServerDef def : declared) {
-            if (def.getCmd() == null || def.getCmd().isBlank()) {
+            if (!def.isRemote() && (def.getCmd() == null || def.getCmd().isBlank())) {
                 log.warning("MCP server '" + def.getName() + "' has no cmd — skipping.");
                 continue;
             }
@@ -82,6 +94,7 @@ final class McpServers implements AutoCloseable {
     }
 
     private Booted start(McpServerDef def, Function<String, String> credentials) throws Exception {
+        if (def.isRemote()) return startRemote(def, credentials);
         Map<String, String> env = McpChecks.environmentOf(def, credentials);
         StdioMcpTransport[] latest = new StdioMcpTransport[1];
         Supplier<io.github.llm4j.mcp.McpTransport> factory = transportFactory(def, env, latest);
@@ -94,6 +107,52 @@ final class McpServers implements AutoCloseable {
             client.close();
             throw e;
         }
+    }
+
+    /**
+     * A remote server: one transport for this executor (so for one run at a time). The tools are
+     * listed with {@code list_auth} (or a static {@code auth}); calls ask {@code auth} on every request,
+     * which for {@code invoker.NAME} is the credential of the run that makes the call.
+     */
+    private Booted startRemote(McpServerDef def, Function<String, String> credentials) throws Exception {
+        Duration timeout = def.getTimeout() == null ? McpClient.DEFAULT_TIMEOUT : def.getTimeout();
+        java.util.concurrent.atomic.AtomicBoolean listing = new java.util.concurrent.atomic.AtomicBoolean(true);
+        io.github.llm4j.secret.CredentialSource forListing =
+                fixed(def.getListAuth() != null ? def.getListAuth() : def.getAuth() != null && !def.getAuth().fromInvoker() ? def.getAuth() : null, credentials);
+        io.github.llm4j.secret.CredentialSource forCalls =
+                def.getAuth() == null ? null : def.getAuth().fromInvoker() ? invoker.apply(def.getAuth().value()) : fixed(def.getAuth(), credentials);
+        io.github.llm4j.secret.CredentialSource token =
+                new io.github.llm4j.secret.CredentialSource() {
+                    @Override
+                    public String get() {
+                        io.github.llm4j.secret.CredentialSource from = listing.get() ? forListing : forCalls;
+                        return from == null ? null : from.get();
+                    }
+
+                    @Override
+                    public void rejected() {
+                        io.github.llm4j.secret.CredentialSource from = listing.get() ? forListing : forCalls;
+                        if (from != null) from.rejected();
+                    }
+                };
+        HttpMcpPoster poster = new HttpMcpPoster(def.getUrl(), timeout, io.github.llm4j.agent.tool.EffectContext.noop());
+        McpClient client = new McpClient(new io.github.llm4j.mcp.McpHttpTransport(def.getUrl(), poster, token), timeout);
+        try {
+            client.initialize();
+            List<Map<String, Object>> tools = client.listTools();
+            listing.set(false);
+            return new Booted(def, client, new StdioMcpTransport[1], tools);
+        } catch (Exception e) {
+            client.close();
+            throw e;
+        }
+    }
+
+    private static io.github.llm4j.secret.CredentialSource fixed(
+            io.github.llm4j.loom.ast.ToolDef.OptionValue v, Function<String, String> credentials) {
+        if (v == null) return null;
+        String value = v.isReference() ? credentials.apply(v.lookupKey()) : v.value();
+        return () -> value;
     }
 
     /** What starts the program: the legacy way, or with a scrubbed environment. */

@@ -74,6 +74,9 @@ public class McpServerDef implements Node {
     private java.time.Duration timeout;
     private String reach;
     private String pin;
+    private String url;
+    private ToolDef.OptionValue auth;
+    private ToolDef.OptionValue listAuth;
 
     /** The program's arguments, each one argument and never split ({@code args: [..]}). */
     public java.util.List<String> getArgs() {
@@ -133,6 +136,41 @@ public class McpServerDef implements Node {
 
     public void setReach(String reach) {
         this.reach = reach;
+    }
+
+    /** The address of a remote server ({@code transport: "http"}), or null for a program. */
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    /** What the bearer token of a remote server comes from, asked for on every request, or null. */
+    public ToolDef.OptionValue getAuth() {
+        return auth;
+    }
+
+    public void setAuth(ToolDef.OptionValue auth) {
+        this.auth = auth;
+    }
+
+    /**
+     * The credential used only to list a remote server's tools when the engine starts, when {@code
+     * auth:} is the credential of whoever runs the workflow (nobody is running yet).
+     */
+    public ToolDef.OptionValue getListAuth() {
+        return listAuth;
+    }
+
+    public void setListAuth(ToolDef.OptionValue listAuth) {
+        this.listAuth = listAuth;
+    }
+
+    /** Whether this is a remote server reached over Streamable HTTP. */
+    public boolean isRemote() {
+        return "http".equals(transport);
     }
 
     /** The hash of the server's tool list this block was written against, or null. */

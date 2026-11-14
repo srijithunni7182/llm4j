@@ -42,6 +42,12 @@ public class McpClient implements AutoCloseable {
     public static final List<String> KNOWN_VERSIONS =
             List.of("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05");
 
+    /** The revision of the era with no handshake and no session (phase 36b, D6). */
+    public static final String MODERN_VERSION = "2026-07-28";
+
+    private static final String META_VERSION = "io.modelcontextprotocol/protocolVersion";
+    private static final String UNSUPPORTED_VERSION = "-32022";
+
     /** The longest a request waits when no other time is given. */
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
@@ -58,6 +64,7 @@ public class McpClient implements AutoCloseable {
     private McpTransport transport;
     private volatile boolean initialized = false;
     private volatile boolean exited = false;
+    private volatile boolean modern = false;
     private int restarts = 0;
     private String negotiatedVersion;
     private Map<String, Object> serverCapabilities;
@@ -111,7 +118,72 @@ public class McpClient implements AutoCloseable {
     /** Starts the server and completes the handshake. */
     public void initialize() throws Exception {
         transport.connect();
+        negotiate();
+    }
+
+    /** Over HTTP a modern request is tried first and the handshake is the fallback; elsewhere the handshake. */
+    private void negotiate() throws Exception {
+        modern = false;
+        if (transport.probesModernFirst() && probeModern()) return;
         handshake();
+        if (transport instanceof McpHttpTransport http) http.useVersion(negotiatedVersion);
+    }
+
+    /** Whether the server speaks the modern era; false when it answered like a legacy server. */
+    private boolean probeModern() throws Exception {
+        String version = MODERN_VERSION;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            modern = true;
+            this.negotiatedVersion = version;
+            try {
+                JsonRpcResponse response = sendRequest("server/discover", new HashMap<>(), "server/discover");
+                if (response.isError()) {
+                    String supported = unsupportedList(String.valueOf(response.getError().getCode()), response.getError().getData());
+                    if (supported == null) {
+                        modern = false;
+                        return false;
+                    }
+                    version = pick(supported);
+                    continue;
+                }
+                Map<String, Object> result = castMap(response.getResult());
+                Object versions = result == null ? null : result.get("supportedVersions");
+                if (!(versions instanceof List<?> list) || !list.contains(version))
+                    throw new McpException("the MCP server does not list " + version + " among its supported versions");
+                this.serverCapabilities = castMap(result.get("capabilities"));
+                this.initialized = true;
+                return true;
+            } catch (McpHttpException http) {
+                String supported = http.status() == 400 ? unsupportedList(http.body()) : null;
+                if (supported == null) {
+                    modern = false;
+                    return false; // a 4xx with no modern error: a legacy server
+                }
+                version = pick(supported);
+            }
+        }
+        modern = false;
+        throw new McpException("the MCP server and this client share no protocol version");
+    }
+
+    private static String unsupportedList(String code, Object data) {
+        if (!UNSUPPORTED_VERSION.equals(code)) return null;
+        return data == null ? "" : String.valueOf(data);
+    }
+
+    /** The {@code supported} list of an UnsupportedProtocolVersionError found in an HTTP body, or null. */
+    private static String unsupportedList(String body) {
+        return body.contains(UNSUPPORTED_VERSION) ? body : null;
+    }
+
+    private String pick(String text) {
+        if (text.contains(MODERN_VERSION)) return MODERN_VERSION;
+        throw new McpException("the MCP server supports no modern protocol version this client speaks (it offered: " + text + ")");
+    }
+
+    /** Whether this connection speaks the modern era (no handshake, version in each request). */
+    public boolean isModern() {
+        return modern;
     }
 
     private void handshake() throws Exception {
@@ -218,6 +290,13 @@ public class McpClient implements AutoCloseable {
         }
 
         Map<String, Object> result = castMap(response.getResult());
+        if (result != null && result.get("resultType") != null && !"complete".equals(result.get("resultType")))
+            throw new McpException(
+                    "the tool "
+                            + name
+                            + " answered with a result of type "
+                            + result.get("resultType")
+                            + " (it asks for more input), which this client does not support");
         if (result != null && Boolean.TRUE.equals(result.get("isError"))) {
             throw new McpToolException(errorText(result));
         }
@@ -243,7 +322,7 @@ public class McpClient implements AutoCloseable {
     private JsonRpcResponse sendRequest(String method, Object params, String label)
             throws Exception {
         long id = requestIdCounter.incrementAndGet();
-        JsonRpcRequest request = new JsonRpcRequest(method, params, id);
+        JsonRpcRequest request = new JsonRpcRequest(method, modern ? withMeta(params) : params, id);
 
         CompletableFuture<JsonRpcResponse> future = new CompletableFuture<>();
         pendingRequests.put(id, future);
@@ -264,6 +343,18 @@ public class McpClient implements AutoCloseable {
             if (exited) throw exitedDuring(label);
             throw e;
         }
+    }
+
+    /** The per-request metadata of the modern era: its protocol version, capabilities and client. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> withMeta(Object params) {
+        Map<String, Object> out = new HashMap<>(params instanceof Map<?, ?> m ? (Map<String, Object>) m : Map.of());
+        Map<String, Object> meta = new HashMap<>();
+        meta.put(META_VERSION, negotiatedVersion);
+        meta.put("io.modelcontextprotocol/clientCapabilities", Collections.emptyMap());
+        meta.put("io.modelcontextprotocol/clientInfo", Map.of("name", "ai-agent4j", "version", "0.1.0"));
+        out.put("_meta", meta);
+        return out;
     }
 
     private static McpServerExitedException exitedDuring(String label) {
@@ -300,7 +391,7 @@ public class McpClient implements AutoCloseable {
             transport = factory.get();
             attach(transport);
             transport.connect();
-            handshake();
+            negotiate();
         }
         if (!initialized) {
             throw new IllegalStateException("McpClient is not initialized");

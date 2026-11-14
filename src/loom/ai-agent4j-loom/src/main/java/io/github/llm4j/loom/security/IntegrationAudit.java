@@ -24,6 +24,7 @@ final class IntegrationAudit {
 
     /** An MCP server is a program: with no isolation line, or at none or process, it is not sandboxed. */
     private static void mcp(McpServerDef m, List<Finding> findings) {
+        if (m.isRemote()) return; // no program is started here: the server is somebody else's
         String level = m.getIsolation();
         List<String> secrets = new ArrayList<>();
         m.getEnvValues()

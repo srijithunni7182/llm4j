@@ -2966,7 +2966,7 @@ public class LoomParser {
 
     private static final java.util.Set<String> MCP_OPTIONS =
             java.util.Set.of(
-                    "args", "env", "env_inherit", "isolation", "timeout", "reach", "pin");
+                    "args", "env", "env_inherit", "isolation", "timeout", "reach", "pin", "url", "auth", "list_auth");
 
     /** One of the options of an {@code mcp} block after {@code transport}, {@code cmd} and {@code effects}. */
     private void parseMcpOption(McpServerDef mcp) {
@@ -2998,6 +2998,9 @@ public class LoomParser {
                 mcp.setTimeout(duration(number, number.getValue() + unitSuffix(number)));
             }
             case "reach" -> mcp.setReach(word("Expect what the server reaches after reach:").getValue());
+            case "url" -> mcp.setUrl(consume(TokenType.STRING_LITERAL, "Expect a quoted address after url:").getValue());
+            case "auth" -> mcp.setAuth(optionValue());
+            case "list_auth" -> mcp.setListAuth(optionValue());
             default -> mcp.setPin(consume(TokenType.STRING_LITERAL, "Expect a quoted pin after pin:").getValue());
         }
         match(TokenType.COMMA);

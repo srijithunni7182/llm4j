@@ -819,12 +819,13 @@ An `mcp` block starts a program and gives an agent the tools it lists. That prog
 
 | Option | Meaning |
 |---|---|
-| `transport` | `"stdio"` (the only one today) |
+| `transport` | `"stdio"` (a program, the default) or `"http"` (a remote server over Streamable HTTP, with `url`) |
 | `cmd` | The program. With `isolation:` it is one program; without, it is split on spaces as before |
 | `args` | A list; each entry is one argument and is never split, whatever it holds |
 | `isolation` | `process` starts the server with only the environment you give it and its error stream captured, redacted and bounded; `none` says you accept running it on the host. With no `isolation:` line the server runs as it always did, with this process's whole environment, and `weave check` warns and `weave audit` reports it (LA31). `container` follows with the sandbox |
 | `env` | The variables the server is given: `env.NAME` or `secret.NAME` (resolved when it starts), or a literal for a setting. A name that looks like a credential (`TOKEN`, `KEY`, `SECRET`, `PASSWORD`, `AUTH`) must be a reference |
 | `env_inherit` | Names of host variables an isolated server may inherit (for example `PATH`) |
+| `url`, `auth`, `list_auth` | For `transport: "http"`: the server's one address (https, or a local one); `auth` is the bearer token, `env.NAME`, `secret.NAME` or `invoker.NAME` (the credential of whoever runs the workflow, asked for on every request and never put in the address); `list_auth` is a credential used only to list the tools when the engine starts, needed with `auth: invoker.NAME` because nobody is running yet. A remote server has none of `cmd`, `args`, `env` or `isolation` (nothing is started here); the client tries the modern protocol era first and falls back to the `initialize` handshake. A refused token is `credential_rejected`, as for `openapi` |
 | `timeout` | How long one request waits, default 30s |
 | `effects` | What each tool does: `none`, `reads` or `changes`, by tool name. A tool you do not list is assumed to change things |
 | `reach` | What the server can do (`none`, `reads`, `fetches`, `writes`, `sends`), so the audit need not assume the worst |

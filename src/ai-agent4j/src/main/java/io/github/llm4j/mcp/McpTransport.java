@@ -20,6 +20,15 @@ public interface McpTransport extends AutoCloseable {
      */
     default void onClose(Consumer<String> handler) {}
 
+    /**
+     * Whether a client should try a modern-era request first, the way the HTTP binding does: a server
+     * that does not understand it answers with a 4xx and the client falls back to {@code initialize}.
+     * Stdio does not (a probe could time out), so the default is false.
+     */
+    default boolean probesModernFirst() {
+        return false;
+    }
+
     /** Closes the transport. */
     void close() throws Exception;
 }

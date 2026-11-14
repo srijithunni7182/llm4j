@@ -28,6 +28,12 @@ final class McpChecks {
 
     private static void check(ScriptValidator.Checker c, McpServerDef m) {
         String construct = "mcp " + m.getName();
+        if (m.isRemote()) {
+            checkRemote(c, m);
+            return;
+        }
+        if (m.getUrl() != null || m.getAuth() != null || m.getListAuth() != null)
+            c.error(m.getLine(), construct, "url:, auth: and list_auth: are for a remote server (transport: \"http\")");
         if (m.getCmd() == null || m.getCmd().isBlank()) {
             c.error(m.getLine(), construct, "needs cmd: \"<command>\"");
             return;
@@ -63,6 +69,32 @@ final class McpChecks {
                             + " argument");
         }
         m.getEnvValues().forEach((name, value) -> checkVariable(c, m, name, value));
+    }
+
+    /** A remote server is reached at an address, with a token that is never written in the script. */
+    private static void checkRemote(ScriptValidator.Checker c, McpServerDef m) {
+        String construct = "mcp " + m.getName();
+        if (m.getUrl() == null || !m.getUrl().matches("(?i)https?://[^\\s/]+.*"))
+            c.error(m.getLine(), construct, "a remote server needs url: \"https://…\"");
+        if (m.getCmd() != null || m.getIsolation() != null || !m.getArgs().isEmpty() || !m.getEnvValues().isEmpty() || !m.getEnvInherit().isEmpty())
+            c.error(m.getLine(), construct, "cmd:, args:, env:, env_inherit: and isolation: are for a program; a remote server has none of them");
+        if (m.getUrl() != null && m.getUrl().matches("(?i)https?://[^/]*@.*"))
+            c.error(m.getLine(), construct, "the url must not carry a user name or password; the token goes in auth:");
+        for (var entry : java.util.List.of(java.util.Map.entry("auth", java.util.Optional.ofNullable(m.getAuth())), java.util.Map.entry("list_auth", java.util.Optional.ofNullable(m.getListAuth())))) {
+            if (entry.getValue().isEmpty()) continue;
+            ToolDef.OptionValue v = entry.getValue().get();
+            if (!v.isReference() && !v.fromInvoker())
+                c.error(m.getLine(), construct, entry.getKey() + ": must come from the environment, the secret store or the invoker (env.NAME, secret.NAME or invoker.NAME), never a literal");
+            else if (entry.getKey().equals("list_auth") && v.fromInvoker())
+                c.error(m.getLine(), construct, "list_auth: is used when the engine starts, before anyone runs the workflow, so it must be env.NAME or secret.NAME");
+            else if (!v.fromInvoker() && v.isReference()) {
+                String resolved = c.env().apply(v.lookupKey());
+                if (resolved == null || resolved.isBlank())
+                    c.error(m.getLine(), construct, (v.fromSecret() ? "secret " + v.value() + " is not in the secret store" : v.describe() + " is not set") + " (for " + entry.getKey() + ":)");
+            }
+        }
+        if (m.getAuth() != null && m.getAuth().fromInvoker() && m.getListAuth() == null)
+            c.error(m.getLine(), construct, "auth: invoker.NAME is asked for when a run calls a tool, but the tools are listed when the engine starts: give list_auth: env.NAME (a credential used only to list them)");
     }
 
     private static void checkVariable(
