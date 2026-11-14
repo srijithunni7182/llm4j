@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D16 are taken, two decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D17 are taken, one decision is open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -23,7 +23,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D14 | Security rules and documents | **taken** (LA31 extended, LA34, LA35; a `reach:` on `mcp` blocks; four documents) |
 | D15 | Testing: fakes, guards, canaries | **taken** (the proposed fakes and guards, plus eight fidelity rules so the fakes are as close to real as possible) |
 | D16 | Names | **taken** (the names below; `credential_rejected` as a new failure category; `transport: "http"`) |
-| D17 | Visibility: the ecosystem and the time-to-first-safe-call benchmark | open |
+| D17 | Visibility: the ecosystem and the time-to-first-safe-call benchmark | **taken** (the whole pass, nothing deferred; a benchmark of five real systems, with recorded fixtures only as the fallback in the default build) |
 | D18 | What stays out of this phase | open |
 
 ## D1. The scope and staging of this phase
@@ -348,13 +348,27 @@ tool Resize {
 
 ## D17. Visibility: the ecosystem and the time-to-first-safe-call benchmark
 
-**Why.** Principle 40, and the standing rule that docs ship with the code.
+**Why.** Principle 40, and the standing rule that docs ship with the code. **Revised from the first draft** to honour D15's fidelity rule: the benchmark runs against real systems, with recorded fixtures only as the repeatable fallback in the default build.
 
-Proposed: the whole documentation pass of 35-D20, again nothing deferred (the guide's tool and `mcp` sections, the wiki, the READMEs of the new module, `llms.txt`, the extension's hover text and snippets, CTK scenarios, the skills, a tutorial chapter, a starter that connects a system, release notes, `docs/API_COMPATIBILITY.md` for D2); and the **benchmark:** a fixed set of five systems (a REST API with a bearer token supplied by the host, against a scripted server, a local MCP server, a remote MCP server where one is available, a command-line tool, a PDF through `documents`), each connected with `weave connect`, measuring the manual edits needed, whether the audit is clean, whether tests were generated and whether the first call succeeded; the results are published with the method.
-
-**Recommendation: all of it.**
-
-**Decision (owner):** open.
+**Decision (owner): accepted as revised.**
+**The ecosystem pass: all of it, nothing deferred (as 35-D20).**
+- **The guide and the prompt file:** the tool sections (OpenAPI per operation, `http` additions, the `mcp` block, `command`), `weave connect`, a section on passing a credential, and the corrected effects text (D13); LOOM_PROMPT carries the same.
+- **The wiki and READMEs:** the OpenAPI, MCP and command pages, a README for `ai-agent4j-tools-openapi`, `llms.txt`, and the module table in `CLAUDE.md`.
+- **VS Code:** the hover text for the new `use:` values and options and the `mcp` block's options, snippets, a changelog entry.
+- **CTK:** a scenario for each new behaviour (an OpenAPI operation, an MCP server with isolation, a `command` adapter, a credential rejection).
+- **Skills:** `llm4j-workflow-guide` (a "connect a system" step in the fast lane), `llm4j-harness-design` (isolation of MCP servers), `llm4j-loom-deployer` (passing credentials), `llm4j-workflow-patterns` (a pattern for connecting an external system); the shared references stay identical.
+- **A tutorial chapter** and its regenerated web page; **a starter** at the next free number that connects an OpenAPI operation, an MCP server and a `command` adapter, with realistic fixtures (D15) and its tests.
+- **Release notes, `docs/API_COMPATIBILITY.md`** (the deprecations of D2 and the new category of D16), **migration notes** for the deprecated core classes, and the security documents of D14.
+- **The check:** `make regen` then `make docs-check`, clean.
+**The benchmark: a fixed set of five systems, measured on real ones.**
+1. **A REST API with a published OpenAPI description,** reached with a bearer token supplied by the host: a real hosted service where one is stable and free, otherwise a real open-source service run in a container.
+2. **A local MCP server over stdio,** a reference server run through the container backend (so it also exercises D7).
+3. **A remote MCP server over Streamable HTTP:** a public one where it exists at no cost, otherwise a reference server over HTTP in a container.
+4. **A command-line tool,** for the model-assisted `connect command`.
+5. **A system with only a documentation page,** for the model-assisted `connect http`.
+(A PDF through `documents` was dropped: `documents` is a built-in kind, not something `connect` produces.)
+**Measured for each system** by a harness that runs `connect` non-interactively and checks the result: the number of manual edits after `connect` beyond approvals; the audit's findings (count and highest severity); whether tests were generated and pass; whether the first real call succeeds; wall-clock time, the number of approval steps and, for the model-assisted cases, model cost.
+**Published** as a table in the docs with the method, the versions and the date, re-run on each release; the repeatable fallback in the default build uses D15's recorded fixtures. It turns "ease" from a claim into a number that can be improved, and the model-assisted rows show where it still fails.
 
 ## D18. What stays out of this phase
 
