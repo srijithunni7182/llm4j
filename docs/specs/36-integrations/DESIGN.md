@@ -29,7 +29,7 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 - **Tools:** a tool error is a result with `isError: true`; `structuredContent` conforms to an `outputSchema`; `tools/list` pages with `cursor` and `nextCursor`; **clients MUST treat annotations as untrusted unless the server is trusted.** Roots, sampling and logging are deprecated; `ping` and `logging/setLevel` are removed.
 - **Not read:** the annotation field names and defaults (on the schema page), the Streamable HTTP binding page.
 
-**Credentials** (`src/ai-agent4j/.../secret/`): `SecretStore` implementations (environment, encrypted file, in memory, chained), `SecretRef` and `CredentialSource`, and `InvokerCredentials`, an interface the host implements to hand a run the credentials of whoever started it (for example an OAuth access token, refreshed on every request). **No OAuth flow ships in the library;** the only OAuth code is in an unpublished example application.
+**Credentials** (`src/ai-agent4j/.../secret/`): `SecretStore` implementations (environment, encrypted file, in memory, chained; `put`, `remove`, `resolveFor(name, host)`), `SecretRef` and `CredentialSource` (asked on every request, with a `rejected()` hook), and `InvokerCredentials`, an interface the host implements to hand a run the credentials of whoever started it (for example an OAuth access token, refreshed on every request): a run takes one (`LoomEngine`, `LoomHost.resume(runId, invoker)`, the generated bindings), a script writes `invoker.NAME`, and Loom's `ToolKind.lateBound()` lists the options that may take it, today only `openapi`'s `auth_value`. **No OAuth flow ships in the library** (and none will, D8); the only OAuth code is in an unpublished example application.
 
 **Record and replay:** `weave capture` turns a run into a test case with the recorded models, classifiers, people, tasks and failures; `weave regress` tries a candidate on past runs with recorded answers only. **No tool results are recorded.**
 **Generation and health:** `weave generate` turns a description into a workflow project; `weave doctor` and `weave preflight` check keys, models, the run store and agent probes, not integration endpoints.
@@ -49,7 +49,7 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 | Sub-phase | What | Gate |
 |---|---|---|
 | 36a | **Fix what exists.** `openapi` rebuilt on the shared HTTP guards as one tool per operation (`operation:`), with a base URL, a size cap and saved large answers; MCP script surface (environment, arguments, errors, paging, timeouts) and MCP tools given the same wrappers as other tools; `weave mcp list` and the pins; the guide corrected and the docs tests that would have caught the MCP gap | The owner reviews the branch before 36b |
-| 36b | **Reach.** An MCP transport for remote servers with version negotiation and authorization; OAuth for the HTTP kinds (client credentials, refresh tokens, a device sign-in command); bounded pagination | |
+| 36b | **Reach.** The modern MCP era and Streamable HTTP, carrying the consumer's token (D6, D8); `invoker.NAME` accepted by every door; bounded pagination | |
 | 36c | **Safe commands.** MCP stdio servers under the isolation rules; the typed `command` kind on the sandbox backend | |
 | 36d | **Authoring.** `weave connect`, deterministic first, model-assisted for systems without a spec | |
 | 36e | **Replay and health.** Tool results in `capture` and `regress`; drift and endpoint checks | |
@@ -59,6 +59,6 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 
 1. **Moving OpenAPI out of the core is a compatibility break** for Java users of `io.github.llm4j.agent.tools.openapi` (D2). It is the price of a light core and of one set of guards.
 2. **The MCP specification moves.** The client speaks a 2024 revision; the current one removes the handshake. Both eras are supported (D6), and the exact requirements are re-read from the specification when 36b starts (R-items in VERIFICATION).
-3. **OAuth is easy to get subtly wrong:** storing refresh tokens, rotating them, scopes, and never logging a token. The guards and the canary tests carry it.
+3. **A token is a secret passing through us.** llm4j does not store or refresh one (D8), but it carries it on every request and must never log it; the canary tests carry that.
 4. **A model-drafted adapter is the largest new attack surface in the phase.** The draft is verified against samples and its effects are a person's decision (principle 36); a draft that fails verification is never emitted.
 5. **The phase is large and is the last for a while.** The gate after 36a and the order are meant to let the owner stop after any sub-phase with something whole.

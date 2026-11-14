@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D7 are taken, eleven decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D8 are taken, ten decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -14,7 +14,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D5 | Large answers and pagination | **taken** (a cap that says it cut and a `save_dir` in 36a; bounded read-only pagination in 36b) |
 | D6 | The MCP client: transports, versions, what it reads | **taken** (both eras, stdio and Streamable HTTP, tools only; stdio and fixes in 36a, the modern era, HTTP and authorization in 36b) |
 | D7 | An MCP server or a command as a program: isolation, arguments, secrets | **taken** (the `sandbox` rules, in three states so existing scripts do not break; six rules) |
-| D8 | Authentication: OAuth and signed requests | open |
+| D8 | Authentication: the consumer brings the token | **taken** (pass-in only: every door accepts `invoker.NAME`, per request and per run, with typed credential errors; llm4j never acquires, stores or refreshes a token) |
 | D9 | Typed command adapters | open |
 | D10 | `weave connect`: authoring an integration | open |
 | D11 | Recording and replaying tool results | open |
@@ -36,7 +36,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 
 **Recommendation: A.** The fixes in 36a are correctness and safety problems and should land first and be looked at; the rest is what turns "an integration you can write" into "an integration you can get in minutes". Out of scope are spreadsheet and XML formats and an adapter catalog (D18).
 
-**Decision (owner): option A.** One phase with six sub-phases (36a to 36f, [DESIGN §3](DESIGN.md)): 36a fix what exists; 36b reach (remote MCP, OAuth, pagination); 36c safe commands (MCP servers under isolation, the typed `command` kind); 36d `weave connect`; 36e tool-result replay and drift checks; 36f the ecosystem and the benchmark. It starts after phase 35 is merged.
+**Decision (owner): option A.** One phase with six sub-phases (36a to 36f, [DESIGN §3](DESIGN.md)): 36a fix what exists; 36b reach (remote MCP, credential pass-in, pagination); 36c safe commands (MCP servers under isolation, the typed `command` kind); 36d `weave connect`; 36e tool-result replay and drift checks; 36f the ecosystem and the benchmark. It starts after phase 35 is merged.
 **The gate:** the implementation session **stops after 36a**, reports what it built and what it found, and waits for the owner, who then tells it to continue or to change something. Nothing is merged in between. Out of scope: spreadsheet and XML formats and an adapter catalog (D18).
 
 
@@ -133,7 +133,7 @@ agent Shop { tools: [Pet_get, Pet_add]  approve: [Pet_add] }
 
 **Decision (owner): option A, in two stages, and the authorization-code flow for remote MCP belongs to D8.** The owner's words: *move with the times*.
 **36a (stdio, legacy era, as it works today):** a tool result with `isError: true` becomes a failure; `tools/list` paging (`cursor`, `nextCursor`); per-call timeouts; a failed `tools/list` is a load error and not a log line; a crashed stdio server is restarted or reported; **MCP tools get the approval and decision wrappers other tools have** (a 36a read first: whether they honour `approve:` some other way); the offered protocol version is brought up to date and the server's counter-offer accepted. The script surface (`args`, `env`, isolation) is D7.
-**36b (the rest):** the **modern era** (`server/discover`, the protocol version in each request's metadata, and `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` over HTTP; an `UnsupportedProtocolVersionError` is answered by selecting a version from the server's `supported` list); **Streamable HTTP** in both eras (a POST to one endpoint, a JSON or event-stream reply, sessions only in the legacy era); the **probe and its per-server cache** (stdio: `server/discover`; HTTP: a modern request, falling back to `initialize` on a 400 without a recognised modern error); `structuredContent` and `outputSchema`; and **authorization for HTTP servers** (D8).
+**36b (the rest):** the **modern era** (`server/discover`, the protocol version in each request's metadata, and `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` over HTTP; an `UnsupportedProtocolVersionError` is answered by selecting a version from the server's `supported` list); **Streamable HTTP** in both eras (a POST to one endpoint, a JSON or event-stream reply, sessions only in the legacy era); the **probe and its per-server cache** (stdio: `server/discover`; HTTP: a modern request, falling back to `initialize` on a 400 without a recognised modern error); `structuredContent` and `outputSchema`; and **authorization for HTTP servers: the consumer's token is carried and a rejection is surfaced (D8); no flow runs in llm4j**.
 **Trust:** per the specification, tool annotations are **untrusted unless the server is trusted** and tool descriptions and results are untrusted content; results are `unchecked`, and annotations are only a proposal a person approves (D4).
 **Out:** resources, prompts, sampling, roots, logging, elicitation, and the multi-round-trip `input_required` result (a tool call that returns it fails with a clear message).
 **Risks, accepted:** 36b's MCP piece is the largest single item of the phase (mostly authorization); how many servers have moved to the modern era is unknown, which is why both are supported; no page was found that labels a revision "stable", so no code assumes one.
@@ -162,19 +162,22 @@ agent Shop { tools: [Pet_get, Pet_add]  approve: [Pet_add] }
 D9's `command` adapters use the same process machinery, so the rules apply once.
 **Costs, accepted:** a container needs an image per server, which is more work than `npx something`; `process` isolation is weak and is flagged; the legacy state keeps a known hole open for one release, with a warning.
 
-## D8. Authentication: OAuth and signed requests
+## D8. Authentication: the consumer brings the token
 
-**Why.** Most SaaS cannot be reached with a key in a header. The library has only the `InvokerCredentials` interface; the host implements any flow (DESIGN §1).
+**Why.** Most SaaS cannot be reached with a key in a header, and remote MCP servers expect OAuth 2.1. But **llm4j is not the product: a consumer application already has its own sign-in, its own grant and its own OAuth library**; what it needs is a way to hand a token to an integration and have it used safely. **Read:** the path mostly exists. A host hands a run its credentials (`LoomEngine` takes an `InvokerCredentials`, `LoomHost.resume(runId, invoker)` takes one, the generated Java bindings have `invoker(...)`); a script writes `invoker.NAME`; Loom's `ToolKind.lateBound()` lists the options that may take it and the value is asked for **on every request**; `CredentialSource.rejected()` is a refresh hook with one retry on a 401 in the OpenAPI tool. What is missing is breadth: only `openapi`'s `auth_value` accepts `invoker.NAME`; `http` does not, and MCP has no authentication.
 
-- **A. Reference implementations on the shared HTTP layer:** OAuth 2 client credentials (service accounts), the refresh-token grant with the token kept in the encrypted secret store, and a **device-code sign-in command** (`weave secret login <name>`) for a person; tokens refresh before expiry; the scope is named in the audit note; a token appears in no log, trace, journal or capture.
-- **B. Client credentials and refresh only,** no sign-in command (the host obtains the first token).
-- **C. Leave it to the host,** as now.
+- **A. Pass-in only:** every integration door accepts the consumer's credential, resolved per request and per run; llm4j never acquires, stores or refreshes a token.
+- **B. Pass-in plus reference OAuth flows** (client credentials, refresh, a sign-in command, authorization code with PKCE).
+- **C. Leave as is.**
 
-**Amended by D6:** remote MCP servers expect OAuth 2.1 with the **authorization-code flow and PKCE** (a loopback redirect for a command-line user), discovery through protected-resource metadata, a client identity by metadata document or a pre-registered client ID, a resource indicator and a check of the issuer; the device-code command above does not cover it, so the authorization-code flow is part of this decision. Signed requests (AWS Signature V4) and client certificates (mTLS) are **out**: a consumer supplies a `CredentialSource` (D18).
-
-**Recommendation: A.** Without a way to sign in, "easy" stops at the first SaaS. The implementation lives in the tools module with the JDK and Jackson only (principle 8), uses `HttpSupport` (so `NetPolicy` applies to the token endpoint), and is tested against a scripted token server.
-
-**Decision (owner):** open.
+**Decision (owner): option A.** The owner's words: *weave is not the product; consumers want a way to pass in the OAuth token they acquire through whichever grant.*
+1. **Every door accepts `invoker.NAME`:** `http`, the new `openapi` kind, and remote MCP (an `auth:` option that sends `Authorization: Bearer …` on each request); any kind that takes a credential declares it in `lateBound()`.
+2. **Resolved on every request, never cached by llm4j,** so whatever refresh the consumer does, in any OAuth library, just works.
+3. **Per run, never shared across users:** a remote MCP connection that carries a user's token belongs to that run, and in the legacy MCP era its session is bound to the run; a server hosting many users must not share one connection. A 36a read: how the engine and a host that pools executors interact (the executors read are built per run).
+4. **A rejection is a typed outcome:** on a 401 the client calls `rejected()` and retries once; if it still fails, or the server answers 403 with `insufficient_scope`, the tool fails with a `credential_rejected` error that carries the server's `WWW-Authenticate` challenge, redacted of secrets, so the consumer can start its own step-up or its own MCP discovery (the challenge carries the `resource_metadata` address) and resume the run with a new token through `resume(runId, invoker)`.
+5. **A documentation page** with an example for REST, OpenAPI and remote MCP, showing a host implementing `InvokerCredentials` around any OAuth library; it adds no dependency.
+6. **A command-line user** supplies a static token with `env.` or `secret.` as today; a short-lived one comes from their own tooling.
+**Not in llm4j (D18):** OAuth flows (client credentials, refresh, authorization code with PKCE, device code), token storage and refresh, a login command, protected-resource-metadata discovery, client ID metadata documents, AWS Signature V4, client certificates (a consumer supplies a `CredentialSource`).
 
 ## D9. Typed command adapters
 
@@ -237,7 +240,7 @@ Proposed: (1) give `McpEffects` its caller in the missing `weave mcp list --writ
 
 **Why.** New things start programs, reach remote servers and hold tokens.
 
-Proposed (numbers continue after 35's LA33): **extend LA31** to an MCP stdio server and a `command` adapter run at `none` or `process`; **LA34:** an `openapi` tool without `operation:` exposes the whole API (the legacy mode of D3; medium); **LA35:** a `pin` differs from the spec or tool list it pins (a warning in `weave check`, an error in `weave audit --strict`); the audit note names an OAuth tool's **scopes**; a `docs/security/integrations.md` page (what the guards cover, how a token is stored, why an MCP server is a program); every rule listed in `weave-audit.md` and mapped in `owasp-llm-top-10.md`; matching `weave review` rules (regenerated with `make regen`).
+Proposed (numbers continue after 35's LA33): **extend LA31** to an MCP stdio server and a `command` adapter run at `none` or `process`; **LA34:** an `openapi` tool without `operation:` exposes the whole API (the legacy mode of D3; medium); **LA35:** a `pin` differs from the spec or tool list it pins (a warning in `weave check`, an error in `weave audit --strict`); a `docs/security/integrations.md` page (what the guards cover, how a token is stored, why an MCP server is a program); every rule listed in `weave-audit.md` and mapped in `owasp-llm-top-10.md`; matching `weave review` rules (regenerated with `make regen`).
 
 **Recommendation: all of it.**
 
@@ -247,7 +250,7 @@ Proposed (numbers continue after 35's LA33): **extend LA31** to an MCP stdio ser
 
 **Why.** Principles 36 and 38, and the repository's rule that the default build has no network.
 
-Proposed: **fakes** (a scripted HTTP server for OpenAPI and OAuth with `MockWebServer`; a scripted MCP server, in process and as a stdio program; a fake clock for token expiry and `Retry-After`); **guards tested by breaking them once:** an OpenAPI spec whose server is a loopback or metadata address is refused (SSRF), a timeout fires, a cap says it truncated and saves the rest, retries respect `Retry-After`, a canary token appears in no log, trace, journal, capture or exception, an MCP `isError` becomes a failure, a command parameter containing spaces, `;` or `--flag` stays one argument, a draft adapter that fails its samples is not emitted, a pin mismatch is flagged; **canaries** through OpenAPI and MCP results into the provenance oracle (results are `unchecked`); a **mutation profile** for the new decision-making classes (the inference rules, the OAuth refresh logic, the argument builder, the pin comparison) at 85% or more.
+Proposed: **fakes** (a scripted HTTP server for OpenAPI with `MockWebServer`, including one that answers 401 and then accepts a refreshed token and one that answers 403 with `insufficient_scope`; a scripted MCP server, in process and as a stdio program; a fake clock for `Retry-After`); **guards tested by breaking them once:** an OpenAPI spec whose server is a loopback or metadata address is refused (SSRF), a timeout fires, a cap says it truncated and saves the rest, retries respect `Retry-After`, a canary token appears in no log, trace, journal, capture or exception, an MCP `isError` becomes a failure, a command parameter containing spaces, `;` or `--flag` stays one argument, a draft adapter that fails its samples is not emitted, a pin mismatch is flagged; **canaries** through OpenAPI and MCP results into the provenance oracle (results are `unchecked`); a **mutation profile** for the new decision-making classes (the inference rules, the credential-rejection handling, the argument builder, the pin comparison) at 85% or more.
 
 **Recommendation: all of it,** with the real-server contract tests tagged `@Tag("integration")`.
 
@@ -257,7 +260,7 @@ Proposed: **fakes** (a scripted HTTP server for OpenAPI and OAuth with `MockWebS
 
 **Why.** Words in a script and in a tool's options are public from the day they ship.
 
-Proposed: kinds `openapi` (the options `spec`, `operation`, `effect`, `on_unknown`, `pin`, `base_url`, `server`, `max_bytes`, `timeout`, `retries`, and the auth options of `http`), `command`; the `mcp` block gains `args`, `env`, `isolation`, `workspace`, `network`, `url` (for a remote server) and `auth` and `pin`; commands `weave connect`, `weave mcp list`, `weave secret login`; the extras module `ai-agent4j-tools-openapi`. Option names follow `http` and `sandbox` wherever they mean the same thing.
+Proposed: kinds `openapi` (the options `spec`, `operation`, `effect`, `on_unknown`, `pin`, `base_url`, `server`, `max_bytes`, `timeout`, `retries`, and the auth options of `http`), `command`; the `mcp` block gains `args`, `env`, `isolation`, `workspace`, `network`, `url` (for a remote server) and `auth` and `pin`; commands `weave connect` and `weave mcp list`; the extras module `ai-agent4j-tools-openapi`. Option names follow `http` and `sandbox` wherever they mean the same thing.
 
 **Recommendation: these.**
 
@@ -267,7 +270,7 @@ Proposed: kinds `openapi` (the options `spec`, `operation`, `effect`, `on_unknow
 
 **Why.** Principle 40, and the standing rule that docs ship with the code.
 
-Proposed: the whole documentation pass of 35-D20, again nothing deferred (the guide's tool and `mcp` sections, the wiki, the READMEs of the new module, `llms.txt`, the extension's hover text and snippets, CTK scenarios, the skills, a tutorial chapter, a starter that connects a system, release notes, `docs/API_COMPATIBILITY.md` for D2); and the **benchmark:** a fixed set of five systems (a REST API with OAuth against a scripted server, a local MCP server, a remote MCP server where one is available, a command-line tool, a PDF through `documents`), each connected with `weave connect`, measuring the manual edits needed, whether the audit is clean, whether tests were generated and whether the first call succeeded; the results are published with the method.
+Proposed: the whole documentation pass of 35-D20, again nothing deferred (the guide's tool and `mcp` sections, the wiki, the READMEs of the new module, `llms.txt`, the extension's hover text and snippets, CTK scenarios, the skills, a tutorial chapter, a starter that connects a system, release notes, `docs/API_COMPATIBILITY.md` for D2); and the **benchmark:** a fixed set of five systems (a REST API with a bearer token supplied by the host, against a scripted server, a local MCP server, a remote MCP server where one is available, a command-line tool, a PDF through `documents`), each connected with `weave connect`, measuring the manual edits needed, whether the audit is clean, whether tests were generated and whether the first call succeeded; the results are published with the method.
 
 **Recommendation: all of it.**
 
@@ -275,7 +278,7 @@ Proposed: the whole documentation pass of 35-D20, again nothing deferred (the gu
 
 ## D18. What stays out of this phase
 
-Proposed: spreadsheet and XML formats; an adapter catalog or registry; GraphQL, gRPC and SOAP adapters; MCP resources, prompts and sampling; queues and event streams (35-D18); AWS Signature V4 and client certificates (a consumer supplies a `CredentialSource`); a graphical connection wizard; anything in the VS Code extension beyond hover text, snippets and the changelog (35-D22); and a global default for isolation (35-D5).
+Proposed: spreadsheet and XML formats; an adapter catalog or registry; GraphQL, gRPC and SOAP adapters; MCP resources, prompts and sampling; queues and event streams (35-D18); OAuth flows, token storage and refresh, a login command, protected-resource-metadata discovery and client ID metadata documents (the consumer's application does these, D8); AWS Signature V4 and client certificates (a consumer supplies a `CredentialSource`); a graphical connection wizard; anything in the VS Code extension beyond hover text, snippets and the changelog (35-D22); and a global default for isolation (35-D5).
 
 **Recommendation: confirm the list.**
 
