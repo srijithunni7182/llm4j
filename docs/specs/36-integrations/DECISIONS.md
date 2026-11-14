@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 is taken, seventeen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 and D2 are taken, sixteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -8,7 +8,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | | Decision | State |
 |---|---|---|
 | D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, one review gate after 36a) |
-| D2 | Where OpenAPI lives, and the compatibility plan | open |
+| D2 | Where OpenAPI lives, and the compatibility plan | **taken** (a new `openapi` kind in an extras module on the shared HTTP layer; scripts switch at once; the old Java classes deprecated, removed at the next major) |
 | D3 | The OpenAPI call model: one generic tool, or one tool per operation | open |
 | D4 | Effects and idempotency taken from the system's own description, and the lockfile | open |
 | D5 | Large answers and pagination | open |
@@ -50,7 +50,12 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 
 **Recommendation: A.** It gives one set of guards (principle 33) and a light core (principle 8). C avoids the dependency but means writing and maintaining a parser for a large specification, which is a risk of its own. B repeats security code in two places. A is a break for Java users of the old package, and the owner should decide whether a release of deprecation is enough.
 
-**Decision (owner):** open.
+**Decision (owner): option A, with this compatibility plan.** A new `openapi` kind in an extras module, `ai-agent4j-tools-openapi`, built on `HttpSupport` and carrying `swagger-parser`; `weave` bundles it, so `use: openapi` keeps working out of the box.
+1. **Scripts are unaffected at once:** `use: openapi` switches to the new module immediately.
+2. **Java users follow the deprecation policy** (`docs/API_COMPATIBILITY.md`): the new module comes first; the old classes in `io.github.llm4j.agent.tools.openapi` are marked `@Deprecated(forRemoval = true)` in the next 6.x release with migration notes.
+3. **Removal waits for the next major:** the core classes and `swagger-parser` leave the core in that release. Until then the core keeps the dependency (measured at about 1.7 MB in 13 jars under `io/swagger`, transitive jars of other groups not counted). Making it `<optional>` in a minor release was considered and refused: it would break Java users at run time without a compile error.
+**Why A:** one set of guards (principle 33) and no copy of security code in the core (the core cannot depend on the tools module, which is why the OpenAPI tool lacks `NetPolicy` today). The weight of `swagger-parser` is moderate and is not the reason. B (copying the guards into the core) and C (a Jackson-only reader we would maintain, plus a YAML dependency) were not taken.
+
 
 ## D3. The OpenAPI call model: one generic tool, or one tool per operation
 
