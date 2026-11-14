@@ -62,9 +62,34 @@ public final class HttpKind extends GenericKind {
         return Map.of(REACHES, "sandbox");
     }
 
+    /** {@code auth_value} may be {@code invoker.NAME}: the credential of whoever runs the workflow. */
+    @Override
+    public Set<String> lateBound() {
+        return Set.of("auth_value");
+    }
+
     @Override
     protected void validate(Options o, Path baseDir) {
         HttpTool.Config.parse(o);
+    }
+
+    @Override
+    protected Tool build(
+            String name,
+            Options o,
+            Map<String, io.github.llm4j.secret.CredentialSource> lateBound,
+            Path baseDir,
+            EffectContext context) {
+        io.github.llm4j.secret.CredentialSource asked = lateBound.get("auth_value");
+        if (asked == null) return build(name, o, baseDir, context);
+        // the option is absent from o (it has no value yet): a stand-in lets the rest be checked as usual
+        Map<String, String> values = new java.util.LinkedHashMap<>(o.values());
+        values.put("auth_value", "asked-on-each-request");
+        Options withStandIn = new Options(values);
+        HttpTool.Config c = HttpTool.Config.parse(withStandIn);
+        NetPolicy policy = new NetPolicy(c.net().rules(), NetPolicy.Resolver.SYSTEM, c.baseUrl().host());
+        HttpSupport http = new HttpSupport(policy, context, c.net().timeout(), c.maxBytes(), c.net().retries());
+        return new HttpTool(name, c, http, null, redactor(withStandIn), context, asked);
     }
 
     @Override
