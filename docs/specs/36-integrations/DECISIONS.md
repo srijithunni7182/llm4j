@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D10 are taken, eight decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D11 are taken, seven decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -17,7 +17,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D8 | Authentication: the consumer brings the token | **taken** (pass-in only: every door accepts `invoker.NAME`, per request and per run, with typed credential errors; llm4j never acquires, stores or refreshes a token) |
 | D9 | Typed command adapters | **taken** (a `command` kind on the sandbox backend: an author's template, typed `param.<name>` options, isolation required) |
 | D10 | `weave connect`: authoring an integration | **taken** (deterministic first for OpenAPI and MCP, then model-assisted for a system with no spec, reusing the `generate` gates; four safety rules) |
-| D11 | Recording and replaying tool results | open |
+| D11 | Recording and replaying tool results | **taken** (a small change: `Capture` reads the `use` results already in the journal into `tools:`) |
 | D12 | Health and drift | open |
 | D13 | The documentation and the code agree | open |
 | D14 | Security rules and documents | open |
@@ -232,14 +232,19 @@ tool Resize {
 
 ## D11. Recording and replaying tool results
 
-**Why.** `capture` records models, classifiers, people, tasks and failures, but not the results of tools; so a real run's external calls cannot be replayed in a test or a regression.
+**Why.** A captured run cannot replay its external calls. **Read:** `Capture` walks the journal statement by statement and collects an agent step's recorded answer, a classifier's answer, a person's answer and a task's result; **it ignores `use` statements,** although `use` already writes its result to the journal (an entry of kind `use` at the step id). So in a captured case an unscripted tool call fails the case, except a call to an acting tool, which answers "ok" and is recorded. Tool calls inside an agent step need no recording: the step is replayed as a whole recorded answer. `ScriptedTools` keeps its own hard-coded list of acting kinds (`webhook`, `email`, `http`, `file`, `shell`, `sql`), so a write through `openapi`, `mcp` or `class` is not recorded as an effect in a test today. `Capture` refuses runs with parallel or broadcast steps, remote agents and channels (an existing limit, left alone).
 
-- **A. Record tool results in `capture`** (matched by tool and a hash of the arguments, secrets and personal data masked first), and replay them in `weave test` and `weave regress`; an unmatched call fails the case; effect tools are never replayed live (already the rule).
-- **B. Leave to hand-written `ScriptedTools`.**
+- **A. `Capture` reads `use` results** from the journal into the case's `tools:`.
+- **B. Leave it;** scripted tools stay hand-written.
 
-**Recommendation: A.** It makes a real integration testable without the system, which is the other half of "easy". Masking uses the existing `Redactor`; a canary secret must appear in no recorded file.
-
-**Decision (owner):** open.
+**Decision (owner): option A, as a small change.**
+1. **`Capture` collects `use` entries** (reads and effects) by tool name, in order, and writes them into `tools:`; no new recording is needed.
+2. **Masking is the existing masker,** applied to the captured values, so personal data and secrets never reach the file; the case is still built and run in memory first and written only if it passes.
+3. **`weave test` and `weave regress`** use them as they use the other captured answers; an unmatched call still fails the case, and acting tools still answer and record.
+4. **The new kinds count as acting through their profile (35-D2),** not through the hard-coded list: an `openapi` write operation, a changing MCP tool and a `command` adapter record their effects in tests; a guard test fails if the list is used.
+5. **Canary:** a secret placed in a `use` result must not reach the written case.
+**Not done:** recording the calls inside an agent step; lifting the capture limits for parallel steps, remote agents and channels.
+**Cost:** a few classes plus tests; it makes every real integration testable without the system.
 
 ## D12. Health and drift
 
