@@ -31,6 +31,14 @@ class ScanToolTest {
     static final String GITHUB = "ghp_" + "x".repeat(36);
     static final String CANARY = "sk-test-" + "CANARYcanary0123456789abcdef";
     static final String KEY_HEADER = "-----BEGIN RSA " + "PRIVATE KEY-----";
+    // A token of the right shape, made at run time so the source holds no token: a fake header and
+    // subject, and a signature that is only the letter x.
+    static final String JWT =
+            base64Url("{\"alg\":\"HS256\"}")
+                    + "."
+                    + base64Url("{\"sub\":\"fake\"}")
+                    + "."
+                    + "x".repeat(43);
 
     @TempDir Path dir;
     RecordingEffects effects = new RecordingEffects();
@@ -82,10 +90,10 @@ class ScanToolTest {
                 "github_token | token GITHUB",
                 "private_key | KEY_HEADER",
                 "assigned_secret | password = hunter2hunter2",
-                "jwt | eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+                "jwt | JWT"
             })
     void knownSecretShapesAreFound(String rule, String text) throws Exception {
-        String t = text.replace("AWS", AWS).replace("GITHUB", GITHUB).replace("KEY_HEADER", KEY_HEADER);
+        String t = text.replace("AWS", AWS).replace("GITHUB", GITHUB).replace("KEY_HEADER", KEY_HEADER).replace("JWT", JWT);
         assertThat(rules(call("text", t))).contains(rule);
     }
 
@@ -205,5 +213,11 @@ class ScanToolTest {
         assertThat(capped.get("truncated").asBoolean()).isTrue();
 
         assertThat(call("nothing", "x").asText()).startsWith("Error:").contains("text");
+    }
+
+    private static String base64Url(String json) {
+        return java.util.Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }
