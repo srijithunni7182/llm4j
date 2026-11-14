@@ -96,4 +96,9 @@ final class RunEffectContext implements EffectContext {
     public Clock clock() {
         return executor.clock();
     }
+
+    @Override
+    public String lookup(String reference) {
+        return executor.lookupReference(reference);
+    }
 }

@@ -32,6 +32,11 @@ public final class Options {
         this.values = Map.copyOf(values);
     }
 
+    /** Every option given, by name. */
+    public Map<String, String> values() {
+        return java.util.Collections.unmodifiableMap(values);
+    }
+
     public boolean has(String name) {
         return values.containsKey(name);
     }

@@ -677,7 +677,7 @@ public class HarnessExecutor implements LoomEngine {
     private String scriptRef = "script";
     private boolean lenient;
     private final io.github.llm4j.loom.tools.ToolFactory toolFactory =
-            new io.github.llm4j.loom.tools.ToolFactory();
+            new io.github.llm4j.loom.tools.ToolFactory().declarations(this::declaredTool);
     private Path baseDir = Path.of("").toAbsolutePath();
     private io.github.llm4j.loom.knowledge.EmbeddingFactory embeddingFactory;
     private final Map<String, io.github.llm4j.loom.knowledge.KnowledgeIndex> knowledge =
@@ -956,6 +956,27 @@ public class HarnessExecutor implements LoomEngine {
 
     /** What a value is, with the variables it was built from. */
     record Tracked<T>(T value, Provenance.Tag tag, java.util.Set<String> from) {}
+
+    /**
+     * The value of {@code secret.NAME} or {@code env.NAME}, looked up now, for a tool that resolves
+     * its secrets on each call (phase 35, C4); null for anything else or when it is not set.
+     */
+    /** The script's declaration of a tool, or null. */
+    private io.github.llm4j.loom.ast.ToolDef declaredTool(String name) {
+        for (io.github.llm4j.loom.ast.ToolDef t : script.getTools()) if (t.getName().equals(name)) return t;
+        return null;
+    }
+
+    String lookupReference(String reference) {
+        if (reference == null) return null;
+        io.github.llm4j.loom.ast.ToolDef.OptionValue v =
+                reference.startsWith("secret.")
+                        ? io.github.llm4j.loom.ast.ToolDef.OptionValue.secret(reference.substring(7))
+                        : reference.startsWith("env.")
+                                ? io.github.llm4j.loom.ast.ToolDef.OptionValue.env(reference.substring(4))
+                                : null;
+        return v == null ? null : credentials.apply(v.lookupKey());
+    }
 
     /**
      * The origin of what {@code use name} returns (phase 35, D12 and D15). A kind that names the

@@ -67,6 +67,16 @@ public interface ToolKind {
                         + "\" does not say what it reaches, so it is assumed to reach everything");
     }
 
+    /** As {@link io.github.llm4j.agent.tool.ToolKind#resolvedPerCall}. */
+    default Set<String> resolvedPerCall() {
+        return Set.of();
+    }
+
+    /** As {@link io.github.llm4j.agent.tool.ToolKind#references}. */
+    default Map<String, String> references() {
+        return Map.of();
+    }
+
     /**
      * The top-level fields of a tool's result that may hold text a model wrote, as in {@link
      * io.github.llm4j.agent.tool.ToolKind#uncheckedResult}; none by default.

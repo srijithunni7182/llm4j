@@ -636,7 +636,31 @@ final class WorkspaceTool extends GenericTool {
         return SnapshotStore.describe(snapshots.save(name, tree.files()));
     }
 
+    /**
+     * A sandbox serving from this workspace keeps a lease in the store (D7); restoring the files
+     * under a running program would change what it serves mid-request, so restore waits (G59).
+     */
+    private void refuseWhileServed() throws IOException {
+        Path leases = store.resolve("leases");
+        if (!Files.isDirectory(leases, LinkOption.NOFOLLOW_LINKS)) return;
+        List<String> handles;
+        try (Stream<Path> files = Files.list(leases)) {
+            handles =
+                    files.map(f -> f.getFileName().toString())
+                            .filter(n -> n.endsWith(".json"))
+                            .map(n -> n.substring(0, n.length() - ".json".length()))
+                            .sorted()
+                            .toList();
+        }
+        if (!handles.isEmpty())
+            throw new ToolRefusal(
+                    "restore is refused while a sandbox serves from this workspace ("
+                            + String.join(", ", handles)
+                            + "): stop it first");
+    }
+
     private Map<String, Object> restore(Map<String, Object> args) throws IOException {
+        refuseWhileServed();
         SnapshotStore.Manifest m =
                 snapshots.load(SnapshotStore.checkName(optionalText(args, "name")));
         Map<String, Path> stored = new TreeMap<>();

@@ -477,6 +477,23 @@ class WorkspaceToolTest {
         assertThat(call("action", "diff", "name", "missing").asText()).contains("no snapshot");
     }
 
+    // ---- G59: no restore under a served program
+
+    @Test
+    void restoreIsRefusedWhileASandboxServesFromTheWorkspace() throws Exception {
+        call("action", "snapshot", "name", "clean");
+        Files.writeString(ws.resolve("notes.txt"), "changed\n");
+        Path leases = Files.createDirectories(dir.resolve("snaps/leases"));
+        Files.writeString(leases.resolve("llm4j-serve-1a2b.json"), "{\"handle\":\"llm4j-serve-1a2b\"}");
+        assertThat(call("action", "restore", "name", "clean").asText())
+                .contains("llm4j-serve-1a2b")
+                .contains("stop it first");
+        assertThat(Files.readString(ws.resolve("notes.txt"))).isEqualTo("changed\n");
+        Files.delete(leases.resolve("llm4j-serve-1a2b.json"));
+        assertThat(call("action", "restore", "name", "clean").get("restored").asInt()).isPositive();
+        assertThat(Files.readString(ws.resolve("notes.txt"))).isEqualTo("keep\n");
+    }
+
     // ---- G57: restore is exact, idempotent and bounded
 
     @Test

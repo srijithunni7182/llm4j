@@ -65,6 +65,24 @@ public interface ToolKind {
                         + " reach everything");
     }
 
+    /**
+     * Option-name prefixes whose values stay references ({@code secret.NAME}, {@code env.NAME})
+     * when the tool is built: the tool resolves them on each call through {@link
+     * EffectContext#lookup}, so it never holds the value. A host refuses a literal under them.
+     */
+    default Set<String> resolvedPerCall() {
+        return Set.of();
+    }
+
+    /**
+     * Options that name another tool of the script, by option, with the kind that tool must be: a
+     * {@code sandbox}'s {@code workspace: Data}. A host checks the named tool exists and is of that
+     * kind, and passes its options to this one as {@code <option>.<name>}.
+     */
+    default java.util.Map<String, String> references() {
+        return java.util.Map.of();
+    }
+
     /** In {@link #uncheckedResult}: the whole result may hold text a model wrote. */
     String WHOLE_RESULT = "*";
 

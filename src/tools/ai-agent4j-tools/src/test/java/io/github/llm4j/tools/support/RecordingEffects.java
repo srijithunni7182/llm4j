@@ -29,6 +29,9 @@ public final class RecordingEffects implements EffectContext {
     public final Set<Path> reserved = new HashSet<>();
     public volatile String step = "main/s0";
 
+    /** What {@link #lookup} answers: a reference such as {@code secret.PYPI} to its value. */
+    public final Map<String, String> references = new java.util.concurrent.ConcurrentHashMap<>();
+
     /**
      * When set, the step as effects identify it (a host that can run a step again); otherwise the
      * step itself.
@@ -96,6 +99,11 @@ public final class RecordingEffects implements EffectContext {
     @Override
     public Clock clock() {
         return clock;
+    }
+
+    @Override
+    public String lookup(String reference) {
+        return references.get(reference);
     }
 
     public List<Event> audited(String name) {

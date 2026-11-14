@@ -67,6 +67,16 @@ public final class ToolFactory {
     private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
     private final Map<String, String> sources = new LinkedHashMap<>();
     private final List<String> loadProblems = new java.util.ArrayList<>();
+    private Function<String, ToolDef> declarations = name -> null;
+
+    /**
+     * How this factory finds the other tools of the script, for a kind whose option names one
+     * ({@link ToolKind#references()}); without it no tool is found.
+     */
+    public ToolFactory declarations(Function<String, ToolDef> declarations) {
+        this.declarations = java.util.Objects.requireNonNull(declarations, "declarations");
+        return this;
+    }
 
     /**
      * A factory that knows the built-in kinds and the kinds the jars on the project's class path
@@ -194,6 +204,7 @@ public final class ToolFactory {
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.VerifyKind()));
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ScanKind()));
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.WorkspaceKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.SandboxKind()));
         register.accept(new GraphKind());
         register.accept(
                 simple(
@@ -451,9 +462,23 @@ public final class ToolFactory {
                                 + ": env.<NAME> or secret.<NAME>)");
             }
         }
+        for (Map.Entry<String, String> ref : kind.references().entrySet()) {
+            ToolDef.OptionValue named = def.getOptions().get(ref.getKey());
+            if (named == null) continue;
+            ToolDef target = declarations.apply(named.value());
+            if (target == null)
+                out.add(ref.getKey() + ": names no tool " + named.value() + " (declare tool " + named.value() + " { use: " + ref.getValue() + " ... })");
+            else if (!ref.getValue().equals(target.getKind()))
+                out.add(ref.getKey() + ": " + named.value() + " is a " + target.getKind() + " tool, not a " + ref.getValue() + " tool");
+        }
         for (Map.Entry<String, ToolDef.OptionValue> e : def.getOptions().entrySet()) {
             String key = e.getKey();
             if (key.equals(DESCRIPTION)) continue;
+            String filled = filledFrom(kind, key);
+            if (filled != null) {
+                out.add(key + " is taken from the tool " + filled + ": names; don't write it here");
+                continue;
+            }
             if (key.equals(REACH)) {
                 if (!kind.name().equals("class"))
                     out.add(
@@ -475,6 +500,12 @@ public final class ToolFactory {
                 continue;
             }
             String prefix = prefixOf(kind, key);
+            if (prefix != null && kind.resolvedPerCall().contains(prefix) && !e.getValue().isReference()) {
+                out.add(
+                        key
+                                + " must name a secret or a variable (secret.NAME or env.NAME): the tool looks it up on each call and never holds the value");
+                continue;
+            }
             if (prefix != null) {
                 String problem = checkPrefixed(prefix, key, e.getValue(), env);
                 if (problem != null) out.add(problem);
@@ -538,6 +569,12 @@ public final class ToolFactory {
         return kind == null
                 ? null
                 : kind.agentProblem(resolve(kind, def, env), def.getName(), agentName, approved);
+    }
+
+    /** The option a key is filled from when it is {@code <reference>.<name>}, else null. */
+    private static String filledFrom(ToolKind kind, String key) {
+        for (String ref : kind.references().keySet()) if (key.startsWith(ref + ".")) return ref;
+        return null;
     }
 
     private static String prefixOf(ToolKind kind, String key) {
@@ -663,22 +700,52 @@ public final class ToolFactory {
         return new NamedTool(def.getName(), tool);
     }
 
-    private static Map<String, String> resolve(
-            ToolKind kind, ToolDef def, Function<String, String> env) {
+    private Map<String, String> resolve(ToolKind kind, ToolDef def, Function<String, String> env) {
+        return resolve(kind, def, env, new java.util.HashSet<>());
+    }
+
+    /**
+     * A tool this one names (workspace: Data) lends its options as workspace.root, ..., and so on
+     * down: an http tool that reaches: a sandbox sees reaches.workspace.store. {@code seen} stops a
+     * loop of tools that name each other.
+     */
+    private Map<String, String> resolve(
+            ToolKind kind, ToolDef def, Function<String, String> env, Set<String> seen) {
+        Map<String, String> out = values(kind, def, env);
+        if (!seen.add(def.getName())) return out;
+        for (Map.Entry<String, String> ref : kind.references().entrySet()) {
+            ToolDef.OptionValue named = def.getOptions().get(ref.getKey());
+            ToolDef target = named == null ? null : declarations.apply(named.value());
+            if (target == null || !ref.getValue().equals(target.getKind())) continue;
+            ToolKind targetKind = kinds.get(target.getKind());
+            if (targetKind == null) continue;
+            resolve(targetKind, target, env, seen)
+                    .forEach((k, v) -> out.put(ref.getKey() + "." + k, v));
+        }
+        return out;
+    }
+
+    private static Map<String, String> values(ToolKind kind, ToolDef def, Function<String, String> env) {
         Map<String, String> out = new LinkedHashMap<>();
         Map<String, ToolDef.OptionValue> all = new LinkedHashMap<>(kind.defaults());
         all.putAll(def.getOptions());
         all.forEach(
                 (k, v) -> {
                     // an invoker.NAME has no value yet: its text stands in for it while the options
-                    // are checked, and create() takes it out again
+                    // are checked, and create() takes it out again. An option the kind resolves
+                    // on each call keeps its reference too, and the tool looks it up when it runs.
                     String value =
-                            v.fromInvoker()
+                            v.fromInvoker() || (v.isReference() && perCall(kind, k))
                                     ? v.toString()
                                     : v.isReference() ? env.apply(v.lookupKey()) : v.value();
                     if (!isUnset(value)) out.put(k, value);
                 });
         return out;
+    }
+
+    private static boolean perCall(ToolKind kind, String key) {
+        for (String p : kind.resolvedPerCall()) if (key.startsWith(p)) return true;
+        return false;
     }
 
     private static Set<String> union(Set<String> a, Set<String> b) {

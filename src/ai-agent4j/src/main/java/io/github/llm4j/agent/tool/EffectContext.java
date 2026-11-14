@@ -52,6 +52,15 @@ public interface EffectContext {
 
     Clock clock();
 
+    /**
+     * The value of a reference a tool holds instead of a secret ({@code secret.NAME} or {@code
+     * env.NAME}), looked up now, so the tool never keeps the value; null when the host has none
+     * (the default, and outside a run).
+     */
+    default String lookup(String reference) {
+        return null;
+    }
+
     /** A context that records nothing: for tools used outside an executor. */
     static EffectContext noop() {
         return new EffectContext() {

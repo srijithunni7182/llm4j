@@ -56,6 +56,16 @@ final class GenericKindAdapter implements ToolKind {
     }
 
     @Override
+    public Set<String> resolvedPerCall() {
+        return kind.resolvedPerCall();
+    }
+
+    @Override
+    public Map<String, String> references() {
+        return kind.references();
+    }
+
+    @Override
     public Set<String> uncheckedResult(Map<String, String> options) {
         return kind.uncheckedResult(options);
     }
