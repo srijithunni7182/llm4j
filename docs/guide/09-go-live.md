@@ -268,7 +268,7 @@ cp .env.example .env        # then put your key after GEMINI_API_KEY=
 `weave init` writes `.env.example` and a `.gitignore` that ignores `.env`.
 
 - `weave run`, `weave check`, `weave eval` and `weave next` read the file, say which names they found (never the values), and let a variable already set in your shell win.
-- `weave` **refuses** a `.env` that git tracks, because its keys are already in the history. Remove it with `git rm --cached .env` and rotate them.
+- `weave` refuses a `.env` that git tracks, because its keys are already in the history. Remove it with `git rm --cached .env` and rotate them.
 - `weave` **warns** when the file is not ignored or other users can read it.
 - `--env-file <file>` / `--no-env-file` choose another file or none.
 - A judge model from another provider (`weave eval --judge ...`) needs that provider's key in the same file.
