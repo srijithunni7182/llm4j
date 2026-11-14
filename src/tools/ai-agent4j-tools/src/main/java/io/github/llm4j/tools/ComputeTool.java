@@ -259,6 +259,18 @@ final class ComputeTool extends GenericTool {
             } catch (NumberFormatException e) {
                 throw new ToolRefusal("csv: row " + r + ", column " + column + " is not a number");
             }
+            // An exponent makes a short cell a huge number (1e999999999 is a gigabyte written
+            // out): the same digit bound as calc.
+            if (v.precision() > Expression.MAX_RESULT_DIGITS
+                    || Math.abs((long) v.scale()) > Expression.MAX_RESULT_DIGITS)
+                throw new ToolRefusal(
+                        "csv: row "
+                                + r
+                                + ", column "
+                                + column
+                                + " has more than "
+                                + Expression.MAX_RESULT_DIGITS
+                                + " digits");
             target.add(v);
         }
         Map<String, Object> out = new LinkedHashMap<>();

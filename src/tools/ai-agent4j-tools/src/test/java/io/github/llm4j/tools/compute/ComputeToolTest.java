@@ -307,6 +307,19 @@ class ComputeToolTest {
                     + "north,,empty amount\n"
                     + "\"north\",2.25,\"a \"\"quoted\"\" word\"\r\n";
 
+    /** A tiny cell must not make a huge number: toPlainString of 1e999999999 is a gigabyte. */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "1e999999999,sum",
+        "1E999999999,max",
+        "1e-999999999,min",
+        "1e-999999999,mean"
+    })
+    void csvRefusesACellWithAnExponentTooLargeToWrite(String cell, String op) throws Exception {
+        JsonNode out = call("action", "csv", "text", "a\n" + cell + "\n", "column", "a", "op", op);
+        assertThat(out.toString()).contains("row 1").contains("digits");
+    }
+
     @Test
     void csvCountsSumsAndAverages() throws Exception {
         assertThat(value("action", "csv", "text", SALES, "column", "amount", "op", "sum"))
