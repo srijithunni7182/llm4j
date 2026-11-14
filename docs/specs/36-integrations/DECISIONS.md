@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D13 are taken, five decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D14 are taken, four decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -20,7 +20,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D11 | Recording and replaying tool results | **taken** (a small change: `Capture` reads the `use` results already in the journal into `tools:`) |
 | D12 | Health and drift | **taken** (pins checked offline by `check`; `doctor` for reachability only; live drift through `connect --refresh --check`) |
 | D13 | The documentation and the code agree | **taken** (wire the two orphaned effect paths in 36a, and test the guide's claims through the production path) |
-| D14 | Security rules and documents | open |
+| D14 | Security rules and documents | **taken** (LA31 extended, LA34, LA35; a `reach:` on `mcp` blocks; four documents) |
 | D15 | Testing: fakes, guards, canaries | open |
 | D16 | Names | open |
 | D17 | Visibility: the ecosystem and the time-to-first-safe-call benchmark | open |
@@ -282,13 +282,22 @@ tool Resize {
 
 ## D14. Security rules and documents
 
-**Why.** New things start programs, reach remote servers and hold tokens.
+**Why.** New things start programs, reach remote servers and carry tokens. **What changed since the first draft:** with one tool per OpenAPI operation (D3) the new `openapi` kind can compute the audit's three legs the way `http` does (it reads untrusted content, reaches private data when it carries a credential, and sends outward only if its declared effect changes things), which removes the "assumes all three" noise for OpenAPI. MCP is still assumed to do all three, because the audit cannot read a server and a declared effect does not change the legs; so every agent with an MCP server and another tool tends to get a trifecta finding, which makes integrations feel hard. Credentials are the consumer's (D8), so there are no OAuth scopes for the audit to name.
 
-Proposed (numbers continue after 35's LA33): **extend LA31** to an MCP stdio server and a `command` adapter run at `none` or `process`; **LA34:** an `openapi` tool without `operation:` exposes the whole API (the legacy mode of D3; medium); **LA35:** a `pin` differs from the spec or tool list it pins (a warning in `weave check`, an error in `weave audit --strict`); a `docs/security/integrations.md` page (what the guards cover, how a token is stored, why an MCP server is a program); every rule listed in `weave-audit.md` and mapped in `owasp-llm-top-10.md`; matching `weave review` rules (regenerated with `make regen`).
-
-**Recommendation: all of it.**
-
-**Decision (owner):** open.
+**Decision (owner): accepted as proposed.** Numbers continue after phase 35's LA31 to LA33.
+| Rule | Fires when | Severity |
+|---|---|---|
+| **LA31, extended** | A program runs, from `sandbox`, a `command` adapter or an MCP stdio server, at `none` or `process`, or an MCP server has **no `isolation:` line** (the legacy state of D7); the finding names the tool and the command | medium; high when the server gets secrets through `env:` or the network is `open` |
+| **LA34** | An `openapi` tool has no `operation:` (D3's legacy mode) and so exposes the whole API | medium |
+| **LA35** | A `pin` differs from the spec file it pins (D12) | a warning in `weave check`; an error in `weave audit --strict` |
+**An addition for accuracy:** an optional **`reach:` on an `mcp` block**, with the vocabulary class tools already use (`none`, `reads`, `fetches`, `writes`, `sends`), so the owner can say what a server can do and the audit is not forced to the worst case; a small parser and documentation change.
+**What the audit prints for each integration:** for an OpenAPI tool, the method, path and host and its effect (declared or assumed); for an `mcp` block, the command or address, the isolation level, the names (never the values) of the `env:` secrets, the declared effects, and a note that annotations are untrusted and not used on their own.
+**Documents**
+1. **`docs/security/integrations.md`:** what the guards cover (`NetPolicy`, timeouts, size caps, redaction), why one tool per operation is the safe shape, how a credential is passed in and never logged, why an MCP server is a program, why annotations and results are untrusted, and what pins do and do not prove.
+2. **The new and extended rules** are listed in `weave-audit.md` and mapped in `owasp-llm-top-10.md` (the supply-chain, excessive-agency and prompt-injection categories, as existing rules are); `SecurityDocTest` checks it.
+3. **`weave review` rules** for the same facts, regenerated with `make regen`.
+4. **`SECURITY.md` and `secure-by-construction.md`** get a short pointer.
+**Not added:** a rule about a credential reaching a remote host (the host binding on secrets already limits where a stored secret goes, and a consumer's token is the consumer's to scope).
 
 ## D15. Testing: fakes, guards, canaries
 
