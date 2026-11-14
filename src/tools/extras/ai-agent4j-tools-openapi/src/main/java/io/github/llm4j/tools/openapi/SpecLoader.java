@@ -316,7 +316,11 @@ public final class SpecLoader {
         }
         String title = api.getInfo() != null && api.getInfo().getTitle() != null ? api.getInfo().getTitle() : "";
         String version = api.getInfo() != null && api.getInfo().getVersion() != null ? api.getInfo().getVersion() : "";
-        return new ApiDescription(title, version, servers, operations);
+        String text =
+                api.getInfo() != null && api.getInfo().getDescription() != null
+                        ? api.getInfo().getDescription()
+                        : "";
+        return new ApiDescription(title, text, version, servers, operations);
     }
 
     private static String withDefaults(Server server) {

@@ -21,8 +21,9 @@ import java.util.Map;
  */
 final class LegacyTool extends GenericTool {
 
-    private static final int LISTED_OPERATIONS = 60;
-    private static final int SUMMARY_CHARS = 80;
+    private static final int LISTED_OPERATIONS = 100;
+    private static final int SUMMARY_CHARS = 120;
+    private static final int DESCRIPTION_CHARS = 200;
 
     private final ApiDescription description;
     private final ApiClient client;
@@ -44,11 +45,21 @@ final class LegacyTool extends GenericTool {
         this.declared = Map.copyOf(declared);
     }
 
+    /**
+     * What the model is told, in the words the older tool used so a script's prompt still fits. The
+     * specification's own text is untrusted, so each piece of it is cut to a short single line.
+     */
     private static String describe(ApiDescription d) {
         StringBuilder out =
-                new StringBuilder("Calls the " + Limits.excerpt(d.title(), SUMMARY_CHARS) + " API. Arguments: ");
-        out.append("endpoint (a path from the list), method, parameters (an object of the path, query and ")
-                .append("header values), body (an object, for POST, PUT and PATCH). Operations:");
+                new StringBuilder(
+                        "Calls the "
+                                + (d.title().isBlank() ? "HTTP" : Limits.excerpt(d.title(), SUMMARY_CHARS))
+                                + " API");
+        if (!d.description().isBlank())
+            out.append(" (").append(Limits.excerpt(d.description(), DESCRIPTION_CHARS)).append(")");
+        out.append(
+                ". Arguments: {\"endpoint\": \"<path>\", \"method\": \"GET|POST|…\", "
+                        + "\"parameters\": {<name>: <value>}, \"body\": {…}}. Endpoints:");
         int shown = 0;
         for (ApiOperation op : d.operations()) {
             if (shown++ == LISTED_OPERATIONS) {
@@ -57,6 +68,24 @@ final class LegacyTool extends GenericTool {
             }
             out.append("\n- ").append(op.method()).append(' ').append(op.path());
             if (!op.summary().isBlank()) out.append(": ").append(Limits.excerpt(op.summary(), SUMMARY_CHARS));
+            if (!op.parameters().isEmpty()) {
+                out.append(" [params: ");
+                out.append(
+                        String.join(
+                                ", ",
+                                op.parameters().stream()
+                                        .map(
+                                                p ->
+                                                        p.name()
+                                                                + " ("
+                                                                + p.location()
+                                                                + (p.schema().path("type").asText("").isEmpty()
+                                                                        ? ""
+                                                                        : ", " + p.schema().path("type").asText())
+                                                                + ")")
+                                        .toList()));
+                out.append("]");
+            }
         }
         return out.toString();
     }
@@ -105,6 +134,17 @@ final class LegacyTool extends GenericTool {
     @Override
     protected String run(Map<String, Object> args, String idempotencyKey) {
         ApiOperation op = find(args);
+        // the older tool sent whatever body the model gave to a POST, PUT or PATCH, whether or not
+        // the description declared one
+        if (op.body() == null && args.get("body") != null && !op.isRead() && !op.method().equals("DELETE"))
+            op =
+                    new ApiOperation(
+                            op.id(),
+                            op.method(),
+                            op.path(),
+                            op.summary(),
+                            op.parameters(),
+                            new ApiOperation.Body(false, "application/json", null));
         Object given = args.get("parameters");
         Map<?, ?> parameters = given instanceof Map<?, ?> m ? m : Map.of();
         Map<String, Object> typed = new LinkedHashMap<>();

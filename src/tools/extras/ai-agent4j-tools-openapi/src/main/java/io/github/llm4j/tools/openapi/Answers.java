@@ -87,14 +87,14 @@ final class Answers {
         byte[] body = reply.body();
         if (body.length == 0) return head;
         String type = reply.contentType();
-        boolean text = isTextual(type);
+        boolean text = isTextual(type) || (isBlank(type) && readsAsText(body));
         boolean tooLong = body.length > settings.maxBytes();
         if (settings.saveDir() == null) {
             if (!text)
                 throw new ToolRefusal(
                         head
                                 + ": the response is "
-                                + (type == null ? "of unknown type" : type)
+                                + (isBlank(type) ? "of unknown type" : type)
                                 + ", not text, so it isn't returned (save_dir: keeps such an answer in a"
                                 + " file)");
             String shown = new String(body, StandardCharsets.UTF_8);
@@ -162,6 +162,30 @@ final class Answers {
         return contentType == null
                 ? ""
                 : contentType.toLowerCase(Locale.ROOT).split(";")[0].trim();
+    }
+
+    private static boolean isBlank(String type) {
+        return type == null || type.isBlank();
+    }
+
+    /**
+     * An answer that names no content type is taken as text when its bytes are: valid UTF-8 with no
+     * control characters. Older services send plain bodies this way, and the tool this replaces
+     * returned them.
+     */
+    private static boolean readsAsText(byte[] body) {
+        try {
+            String text =
+                    StandardCharsets.UTF_8
+                            .newDecoder()
+                            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                            .decode(java.nio.ByteBuffer.wrap(body))
+                            .toString();
+            return text.chars().noneMatch(c -> c < 0x20 && c != '\n' && c != '\r' && c != '\t');
+        } catch (java.nio.charset.CharacterCodingException e) {
+            return false;
+        }
     }
 
     /** Whether the content type is text a model can read. */

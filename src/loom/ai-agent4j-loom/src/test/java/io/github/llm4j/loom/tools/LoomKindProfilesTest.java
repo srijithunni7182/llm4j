@@ -19,7 +19,12 @@ class LoomKindProfilesTest {
 
     @Test
     void theCatalogHasExactlyTheKindsAFactoryHas() {
-        assertThat(ToolFactory.standardKindNames()).isEqualTo(new ToolFactory().kinds());
+        // a factory has the built-in kinds and those the jars on the class path bring: openapi is
+        // the latter since phase 36 (the ai-agent4j-tools-openapi module), found with ServiceLoader
+        java.util.Set<String> expected = new java.util.TreeSet<>(ToolFactory.standardKindNames());
+        expected.addAll(new ToolFactory().jarKinds().keySet());
+        assertThat(new ToolFactory().kinds()).isEqualTo(expected);
+        assertThat(new ToolFactory().jarKinds()).containsOnlyKeys("openapi");
         assertThat(ToolFactory.standardKind("no_such_kind")).isEmpty();
     }
 
@@ -56,11 +61,14 @@ class LoomKindProfilesTest {
     }
 
     @Test
-    void openApiCanDoAnythingItsSpecOffers() {
-        ToolProfile p = profile("openapi", Map.of("spec", "specs/pets.json"));
+    void openApiCanDoAnythingItsSpecOffersUnlessItNamesOneOperationAndItsEffect() {
+        ToolProfile p =
+                ToolFactory.knownKind("openapi")
+                        .orElseThrow()
+                        .profile(Map.of("spec", "specs/pets.json", "auth_value", "env.TOKEN"));
         assertThat(p.untrusted() && p.privateData() && p.outward()).isTrue();
         assertThat(p.effect()).isEqualTo(TaskEffect.CHANGES);
-        assertThat(p.note()).isEqualTo("any operation in specs/pets.json");
+        assertThat(p.note()).contains("any operation of specs/pets.json");
     }
 
     @Test

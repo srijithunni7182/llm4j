@@ -130,6 +130,12 @@ final class McpServers implements AutoCloseable {
         return servers.containsKey(server);
     }
 
+    /** The tools a server listed, as it gave them. */
+    List<Map<String, Object>> listed(String server) {
+        Booted booted = servers.get(server);
+        return booted == null ? List.of() : List.copyOf(booted.tools());
+    }
+
     /** The names of the tools a server lists. */
     List<String> toolNames(String server) {
         Booted booted = servers.get(server);

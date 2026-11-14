@@ -7,12 +7,17 @@ import java.util.Optional;
  * An OpenAPI description, reduced to what a tool needs.
  *
  * @param title the description's title
+ * @param description the description's own text about the API, or empty
  * @param version the API's version as the description states it
  * @param servers the {@code servers} entries, with variables filled by their defaults
  * @param operations every operation this kind can call
  */
 public record ApiDescription(
-        String title, String version, List<String> servers, List<ApiOperation> operations) {
+        String title,
+        String description,
+        String version,
+        List<String> servers,
+        List<ApiOperation> operations) {
 
     public ApiDescription {
         servers = List.copyOf(servers);

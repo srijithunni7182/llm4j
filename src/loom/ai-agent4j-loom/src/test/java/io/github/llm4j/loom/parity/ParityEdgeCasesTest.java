@@ -241,8 +241,8 @@ class ParityEdgeCasesTest {
                 .put("spec", ToolDef.OptionValue.literal(dir.resolve("api.json").toString()));
         api.getOptions().put("auth_query", ToolDef.OptionValue.literal("key"));
         api.getOptions().put("auth_value", ToolDef.OptionValue.env("K"));
-        assertThat(f.problems(api, Map.of("K", "v")::get)).isEmpty();
-        Tool tool = f.create(api, Map.of("K", "v")::get, Path.of("/elsewhere"));
+        assertThat(f.problems(api, Map.of("K", "value-1234")::get)).isEmpty();
+        Tool tool = f.create(api, Map.of("K", "value-1234")::get, Path.of("/elsewhere"));
         assertThat(tool.getDescription())
                 .contains("Calls the T API (Test API)")
                 .contains("POST /a: Make an a");

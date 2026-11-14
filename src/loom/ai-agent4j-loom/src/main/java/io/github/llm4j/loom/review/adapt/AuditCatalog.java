@@ -183,7 +183,7 @@ public final class AuditCatalog {
         {
             "LA35",
             "An operation changed since it was pinned",
-            "An openapi tool's pin: no longer matches the operation's signature in the local description (its method, path, parameters or request schema), so what the agent calls is not what was reviewed. A warning in weave check, an error with --strict; a description that is not a local file is checked by weave connect --refresh --check."
+            "An openapi tool's pin: no longer matches the operation's signature in the local description (its method, path, parameters or request schema), so what the agent calls is not what was reviewed. Raised by weave check (a warning, an error with --strict), not in the audit report, because the audit reads no files; a description that is not a local file is checked by weave connect --refresh --check."
         },
     };
 

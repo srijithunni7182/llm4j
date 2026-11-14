@@ -124,7 +124,7 @@ class InvokerSecretsSweepTest {
     void aPausedRunResumesWithAFreshTokenAndNeverRepeatsAFinishedStep() throws Exception {
         String script =
                 """
-                tool Refunds { use: openapi  spec: "refunds.json"  auth_header: "Authorization"  auth_value: invoker.token }
+                tool Refunds { use: openapi  spec: "refunds.json"  allow_http: true  allow_private: true  retries: 0  auth_header: "Authorization"  auth_value: invoker.token }
                 agent Scout { model: "m"  system: "You are Scout."  tools: [Refunds] }
                 workflow Main() {
                     delegate "first" to Scout -> first

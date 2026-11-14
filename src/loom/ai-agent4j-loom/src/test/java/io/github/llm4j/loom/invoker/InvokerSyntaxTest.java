@@ -217,6 +217,9 @@ class InvokerSyntaxTest {
                         "tools/ToolFactory.java",
                                 4L, // defaults of kinds; after the invoker check; after the invoker
                         // check; resolve() (invoker handled first)
+                        "execution/McpChecks.java",
+                                2L, // an mcp block's env: checkVariable refuses invoker. before it looks
+                        // anything up; environmentOf runs only on a block that passed that check
                         "execution/HarnessExecutor.java",
                                 3L); // credentialValue (invoker handled first); option() (providers
         // are refused invoker at load); lookupReference (builds only secret. and env. values, so an

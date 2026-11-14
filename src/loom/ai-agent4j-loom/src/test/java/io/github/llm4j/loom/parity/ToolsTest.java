@@ -233,7 +233,7 @@ class ToolsTest {
         HarnessExecutor e =
                 executor(
                         """
-                tool Petstore { use: openapi  spec: "pets.json"  auth_header: "X-API-Key"  auth_value: env.PET_KEY }
+                tool Petstore { use: openapi  spec: "pets.json"  allow_http: true  allow_private: true  auth_header: "X-API-Key"  auth_value: env.PET_KEY }
                 agent A { model: "m" tools: [Petstore] }
                 workflow Main() { delegate "pets?" to A -> x }
                 """,
@@ -256,7 +256,7 @@ class ToolsTest {
                                                 """
                 tool P { use: openapi  spec: "x.json"  auth_value: env.K }
                 """,
-                                                Map.of("K", "v"))
+                                                Map.of("K", "value-1234"))
                                         .initialize())
                 .hasMessageContaining(
                         "auth_value goes with exactly one of auth_header or auth_query");
@@ -266,7 +266,7 @@ class ToolsTest {
                                                 """
                 tool P { use: openapi  spec: "x.json"  auth_header: "H"  auth_query: "q"  auth_value: env.K }
                 """,
-                                                Map.of("K", "v"))
+                                                Map.of("K", "value-1234"))
                                         .initialize())
                 .hasMessageContaining("use auth_header or auth_query, not both");
     }

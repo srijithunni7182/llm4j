@@ -33,7 +33,7 @@ final class InvokerHarness implements AutoCloseable {
     /** An agent that reads {@code Refunds} with the token of whoever runs the workflow. */
     static final String SCRIPT =
             """
-            tool Refunds { use: openapi  spec: "refunds.json"  auth_header: "Authorization"  auth_value: invoker.token }
+            tool Refunds { use: openapi  spec: "refunds.json"  allow_http: true  allow_private: true  retries: 0  auth_header: "Authorization"  auth_value: invoker.token }
             agent Scout { model: "m"  system: "You are Scout."  tools: [Refunds] }
             workflow Main() { delegate "refunds?" to Scout -> x }
             """;
