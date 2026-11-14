@@ -107,27 +107,41 @@ public final class ProcessSandbox implements SandboxBackend {
         long transferTo(OutputStream out) throws IOException;
     }
 
+    /**
+     * Reads a stream until it ends, on a thread of its own that ends with it. The read blocks for as
+     * long as the program runs, so it must not hold a thread of the common pool: two runs at once
+     * would take the pool and stall each other, and other work on it, until their timeout.
+     */
     static CompletableFuture<HeadAndTail> drain(Source source, long cap) {
-        return CompletableFuture.supplyAsync(
-                () -> {
-                    HeadAndTail kept = new HeadAndTail(cap);
-                    try {
-                        source.transferTo(
-                                new OutputStream() {
-                                    @Override
-                                    public void write(int b) {
-                                        kept.add((byte) b);
-                                    }
+        CompletableFuture<HeadAndTail> done = new CompletableFuture<>();
+        Thread reader =
+                new Thread(
+                        () -> {
+                            HeadAndTail kept = new HeadAndTail(cap);
+                            try {
+                                source.transferTo(
+                                        new OutputStream() {
+                                            @Override
+                                            public void write(int b) {
+                                                kept.add((byte) b);
+                                            }
 
-                                    @Override
-                                    public void write(byte[] b, int off, int len) {
-                                        for (int i = off; i < off + len; i++) kept.add(b[i]);
-                                    }
-                                });
-                    } catch (IOException closed) {
-                        // the process ended
-                    }
-                    return kept;
-                });
+                                            @Override
+                                            public void write(byte[] b, int off, int len) {
+                                                for (int i = off; i < off + len; i++) kept.add(b[i]);
+                                            }
+                                        });
+                            } catch (IOException closed) {
+                                // the process ended
+                            } catch (RuntimeException failed) {
+                                done.completeExceptionally(failed);
+                                return;
+                            }
+                            done.complete(kept);
+                        },
+                        "sandbox-output");
+        reader.setDaemon(true);
+        reader.start();
+        return done;
     }
 }
