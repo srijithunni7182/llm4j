@@ -1,7 +1,9 @@
 package io.github.llm4j.loom.execution;
 
 import io.github.llm4j.agent.Tool;
+import io.github.llm4j.agent.task.TaskEffect;
 import io.github.llm4j.loom.ast.McpServerDef;
+import io.github.llm4j.loom.security.McpEffects;
 import io.github.llm4j.mcp.McpClient;
 import io.github.llm4j.mcp.McpException;
 import io.github.llm4j.mcp.McpToolAdapter;
@@ -35,7 +37,11 @@ final class McpServers implements AutoCloseable {
     private static final int EXCERPT_CHARS = 2000;
     private static final int MIN_SECRET_CHARS = 4;
 
-    private record Booted(McpClient client, StdioMcpTransport[] latest, List<Map<String, Object>> tools) {}
+    private record Booted(
+            McpServerDef def,
+            McpClient client,
+            StdioMcpTransport[] latest,
+            List<Map<String, Object>> tools) {}
 
     private final Map<String, Booted> servers = new LinkedHashMap<>();
 
@@ -83,7 +89,7 @@ final class McpServers implements AutoCloseable {
         McpClient client = McpClient.restarting(factory, MAX_RESTARTS, timeout);
         try {
             client.initialize();
-            return new Booted(client, latest, client.listTools());
+            return new Booted(def, client, latest, client.listTools());
         } catch (Exception e) {
             client.close();
             throw e;
@@ -143,6 +149,24 @@ final class McpServers implements AutoCloseable {
         return out;
     }
 
+    /**
+     * The names of the tools of these servers the developer declared to read or touch nothing
+     * ({@code effects:}); every other tool is assumed to change things.
+     */
+    Set<String> notChanging(List<String> serverNames) {
+        Set<String> out = new java.util.LinkedHashSet<>();
+        for (String name : serverNames) {
+            Booted booted = servers.get(name);
+            if (booted == null) continue;
+            for (Map<String, Object> listed : booted.tools()) {
+                String tool = String.valueOf(listed.get("name"));
+                if (McpEffects.resolve(booted.def(), tool, listed).effect() != TaskEffect.CHANGES)
+                    out.add(tool);
+            }
+        }
+        return out;
+    }
+
     @Override
     public void close() {
         for (Map.Entry<String, Booted> e : servers.entrySet()) {
@@ -159,12 +183,21 @@ final class McpServers implements AutoCloseable {
      * A tool of a server. A failure carries the end of the server's error stream (already redacted
      * and bounded) so a trace or {@code weave why} shows what the server said.
      */
-    private static final class ServerTool extends McpToolAdapter {
+    static final class ServerTool extends McpToolAdapter {
         private final Booted booted;
+        private final TaskEffect effect;
 
         ServerTool(Booted booted, Map<String, Object> listed) {
             super(booted.client(), listed);
             this.booted = booted;
+            this.effect =
+                    McpEffects.resolve(booted.def(), String.valueOf(listed.get("name")), listed)
+                            .effect();
+        }
+
+        /** What the developer declared for this tool, or {@code changes} when nobody did. */
+        TaskEffect effect() {
+            return effect;
         }
 
         @Override

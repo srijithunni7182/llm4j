@@ -4,6 +4,8 @@ import io.github.llm4j.loom.ast.AgentDef;
 import io.github.llm4j.loom.ast.DecisionDef;
 import io.github.llm4j.loom.ast.KnowledgeDef;
 import io.github.llm4j.loom.ast.LoomScript;
+import io.github.llm4j.agent.task.TaskEffect;
+import io.github.llm4j.agent.tool.ToolProfile;
 import io.github.llm4j.loom.ast.McpServerDef;
 import io.github.llm4j.loom.ast.RewindStmt;
 import io.github.llm4j.loom.ast.StatementWalker;
@@ -201,13 +203,35 @@ public final class SecurityAudit {
         }
         boolean memory = a.getMemory() != null && a.getMemory().getFacts() != null;
         if (memory) privateData.add("memory facts");
-        if (!a.getMcpServers().isEmpty()) {
-            for (String mcp : a.getMcpServers()) {
-                untrusted.add("mcp " + mcp);
-                privateData.add("mcp " + mcp);
+        for (String mcp : a.getMcpServers()) {
+            McpServerDef server =
+                    script.getMcpServers().stream()
+                            .filter(m -> m.getName().equals(mcp))
+                            .findFirst()
+                            .orElse(null);
+            // what the developer says the server reaches narrows the legs (D14); without it the
+            // audit cannot see into a server and assumes all three
+            ToolProfile reach =
+                    server != null && server.getReach() != null
+                            ? io.github.llm4j.loom.tools.ReachDeclaration.profile(
+                                    server.getReach(), "mcp " + mcp)
+                            : null;
+            untrusted.add("mcp " + mcp);
+            if (reach == null || reach.privateData()) privateData.add("mcp " + mcp);
+            if (reach == null || reach.outward()) {
                 outward.add("mcp " + mcp);
                 if (!a.isApproveAll()) unapprovedOutward.add("mcp " + mcp);
             }
+            // a tool the developer declared to change things needs approval, like any other
+            if (server != null)
+                server.getToolEffects()
+                        .forEach(
+                                (tool, effect) -> {
+                                    if (effect == TaskEffect.CHANGES
+                                            && !a.isApproveAll()
+                                            && !a.getApprove().contains(tool))
+                                        unapproved.add(tool);
+                                });
         }
         // a grounded agent reads pages it did not choose, whatever its allow list says
         if (a.getGrounding() != null) {

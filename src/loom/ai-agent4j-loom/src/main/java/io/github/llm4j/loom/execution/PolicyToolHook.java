@@ -35,6 +35,7 @@ final class PolicyToolHook implements ToolHook {
     private final AgentDef agent;
     private final Set<String> changing;
     private final boolean everythingUnknownChanges;
+    private final Set<String> declaredNotChanging;
     private final Map<String, AtomicInteger> refusals = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
@@ -47,16 +48,32 @@ final class PolicyToolHook implements ToolHook {
             AgentDef agent,
             Set<String> changing,
             boolean everythingUnknownChanges) {
+        this(executor, agent, changing, everythingUnknownChanges, Set.of());
+    }
+
+    /**
+     * @param declaredNotChanging the tools of the agent's MCP servers the developer declared to read
+     *     or touch nothing ({@code effects:}); they are not checked as changing tools
+     */
+    PolicyToolHook(
+            HarnessExecutor executor,
+            AgentDef agent,
+            Set<String> changing,
+            boolean everythingUnknownChanges,
+            Set<String> declaredNotChanging) {
         this.executor = executor;
         this.agent = agent;
         this.changing = Set.copyOf(changing);
         this.everythingUnknownChanges = everythingUnknownChanges;
+        this.declaredNotChanging = Set.copyOf(declaredNotChanging);
     }
 
     @Override
     public Decision beforeCall(String toolName, Map<String, Object> arguments) {
         if (!changing.contains(toolName)
-                && !(everythingUnknownChanges && !executor.isDeclaredTool(toolName))) {
+                && !(everythingUnknownChanges
+                        && !executor.isDeclaredTool(toolName)
+                        && !declaredNotChanging.contains(toolName))) {
             return Decision.allow();
         }
         String text = textOf(arguments);

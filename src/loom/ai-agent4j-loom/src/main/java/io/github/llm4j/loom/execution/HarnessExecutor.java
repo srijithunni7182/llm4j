@@ -2842,7 +2842,11 @@ public class HarnessExecutor implements LoomEngine {
                 if (!changing.isEmpty() || !agentDef.getMcpServers().isEmpty())
                     agentBuilder.addToolHook(
                             new PolicyToolHook(
-                                    this, agentDef, changing, !agentDef.getMcpServers().isEmpty()));
+                                    this,
+                                    agentDef,
+                                    changing,
+                                    !agentDef.getMcpServers().isEmpty(),
+                                    mcpServers.notChanging(agentDef.getMcpServers())));
                 agentBuilder.addToolHook(forbidden.hook());
             }
             if (agentDef.isApproveAll() || !agentDef.getApprove().isEmpty()) {
