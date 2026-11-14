@@ -4,7 +4,7 @@
 
 Key facts:
 - **License, Java and build:** Apache 2.0; Java 17+; Maven.
-- **Coordinates:** group `io.github.srijithunni7182`, version `6.2.0`; artifacts `ai-agent4j`, `ai-agent4j-addons`, `ai-agent4j-tools`, `ai-agent4j-loom`, `loom-inspect-core`, `loom-inspect`, `loom-fabric`, `llm4j-spring-boot-starter`, `eval4j`, `eval4j-report` (see the Version Matrix).
+- **Coordinates:** group `io.github.srijithunni7182`, version `6.2.0`; artifacts `ai-agent4j`, `ai-agent4j-addons`, `ai-agent4j-tools`, `ai-agent4j-tools-search`, `ai-agent4j-tools-documents`, `ai-agent4j-tools-git`, `ai-agent4j-tools-browser`, `ai-agent4j-loom`, `loom-inspect-core`, `loom-inspect`, `loom-fabric`, `llm4j-spring-boot-starter`, `eval4j`, `eval4j-report` (see the Version Matrix).
 - **Providers:** Gemini, Anthropic Claude, OpenAI, xAI, Perplexity, Kimi, Qwen, Sarvam (V2 chat, including the Token Factory's open-weight models such as `glm5.3`, `gemma4` and `deepseekv4.1-flash-1017`), Ollama and any OpenAI-style server behind one `LLMClient` contract (Kimi, Qwen and the Perplexity Orchestrator are preview). A request can carry `Grounding.webSearch()` for web search with typed citations (Perplexity, OpenAI and xAI on the Responses API supported; Gemini and Claude preview). The system prompt, finish reasons, streaming and typed exceptions (`AuthenticationException`, `RateLimitException` with the reset time, `ContentBlockedException`) behave the same everywhere.
 - **An agent is an object:** `ReActAgent.builder()` with a client, tools, skills, memory, an approval callback and a `Budget`. A tool is a class implementing `Tool`, and `requiresApproval(args)` makes a call wait for a person.
 - **Loom** is a small declarative language (`.loom` files) run by the JVM runtime `ai-agent4j-loom` and the `weave` command line. The script governs and the agents reason.
@@ -59,6 +59,10 @@ Key facts:
 - [Safety model](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/ai-agent4j-tools/docs/safety.md): what a hostile call tries, what stops it, and what the tools don't do
 - [Writing a tool](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/ai-agent4j-tools/docs/writing-a-tool.md): building your own on the same contracts
 - [The tool modules](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/README.md): the light module (the core and Jackson only, pinned by a test) and the optional modules under `extras` for tools that need a dependency
+- [search](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/extras/ai-agent4j-tools-search/README.md): web search through a provider you choose and key; results untrusted
+- [documents](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/extras/ai-agent4j-tools-documents/README.md): the text of PDF, DOCX and HTML files, with the page or paragraph each part came from (character offsets)
+- [git](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/extras/ai-agent4j-tools-git/README.md): status, diff, log, branch, commit and an approved push, through the sandbox; a repository's hooks never run
+- [browser](https://github.com/srijithunni7182/llm4j/blob/main/src/tools/extras/ai-agent4j-tools-browser/README.md): an installed Chrome over the DevTools protocol, every request a page makes checked
 
 ## Loom (workflows that run for days)
 

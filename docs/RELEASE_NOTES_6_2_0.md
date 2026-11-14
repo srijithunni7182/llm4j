@@ -20,6 +20,21 @@ All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX
 - **`workspace` (phase 35c).** A directory an agent reads and edits: exact-once patches, `find` and `grep`, and `snapshot`, `restore` and `diff`. `allow:` is required, `protect:` keeps paths read only, links are never followed, `.git` is never written and keys are never read. A rewind still undoes nothing by itself: to try again from a clean state, a script restores a snapshot at the start of each attempt and rewinds with `side effects: repeat` ([the guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#editing-files-and-trying-again-workspace), [workspace](../src/tools/ai-agent4j-tools/docs/workspace.md)). `file` is unchanged.
 
 - **`sandbox` (phase 35d).** Runs an allow-listed program on a workspace's files in the isolation the script declares, with no default: `container` (Docker or Podman, with the workspace as the only mount, protected paths read only, no capabilities, and no network unless `network: allow` lists hosts reached through an egress proxy) or `process` (not isolation; it needs `network: open` and `weave audit` flags it, LA31). `container` never falls back. Secrets reach a program only by name (`env.NAME: secret.REF`), looked up on each call. `serve` keeps a program running under a lease, and `use: http  reaches: <sandbox>` calls it on its one loopback port (LA32). New audit rules LA31 to LA33. See [sandbox](../src/tools/ai-agent4j-tools/docs/sandbox.md) and [the threat model](security/sandbox.md).
+
+- **Four optional tool modules (phase 35e).** Each is its own artifact; add one only when you want its tool, and `weave check`
+  names the module when a script uses its kind without it.
+  - [`ai-agent4j-tools-search`](../src/tools/extras/ai-agent4j-tools-search/): `search`, web search through a provider you
+    name and key (the reference provider is the Brave Search API; none is chosen for you). No dependency.
+  - [`ai-agent4j-tools-documents`](../src/tools/extras/ai-agent4j-tools-documents/): `documents`, the text of PDF, DOCX and
+    HTML files with the page or paragraph each part came from, as character offsets into the text. Brings Apache PDFBox
+    3.0.8 (Apache 2.0, about 3.8 MB with its own dependencies); a `-weave` jar carries it for `weave --classes`.
+  - [`ai-agent4j-tools-git`](../src/tools/extras/ai-agent4j-tools-git/): `git` through the sandbox, with a push only to the
+    branches the script allows and only when approved; a repository's hooks and configured programs never run. No dependency.
+  - [`ai-agent4j-tools-browser`](../src/tools/extras/ai-agent4j-tools-browser/): `browser`, an installed Chrome driven over
+    the DevTools protocol with the JDK, every request a page makes checked, a fresh profile per run, screenshots as files.
+    Verified with Chrome for Testing 153. No dependency.
+- **A tool that holds something open is closed when the run ends** (a browser): Loom closes every built tool that is
+  `AutoCloseable` at the end of a run, however it ends, and builds it again for the next.
 - **The light tools module cannot grow a dependency unnoticed.** A test pins what it depends on (the core, Jackson and the optional mail library); a tool that needs more goes in its own module under `src/tools/extras`.
 
 ## Starting workflows and supervising them (phase 33, Loom)

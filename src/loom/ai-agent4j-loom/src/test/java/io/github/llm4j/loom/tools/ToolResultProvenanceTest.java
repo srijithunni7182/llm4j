@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Phase 35, D12, D15 and G64: no model-written value becomes trusted by passing through {@code
- * compute}, {@code verify} or {@code scan}. The mock model's answer carries the canary "mock"; at
+ * compute}, {@code verify}, {@code scan} or a {@code sandbox} program. The mock model's answer carries the canary "mock"; at
  * the exit (a tool of the host's that changes things) the runtime's belief "a model wrote this"
  * must hold wherever the canary is, and counts the host parsed stay trusted.
  */
@@ -132,6 +132,28 @@ class ToolResultProvenanceTest {
                                     use Hook(text = "{found.count}")
                                 }
                                 """);
+        assertThat(exits.get(exits.size() - 2).modelWritten()).isTrue();
+        assertThat(exits.get(exits.size() - 1).value()).isEqualTo("{text=0}");
+        assertThat(exits.get(exits.size() - 1).modelWritten()).isFalse();
+    }
+
+    @Test
+    void whatAProgramPrintsFromAModelsAnswerIsStillTheModelsAndItsExitCodeIsData() throws Exception {
+        Files.createDirectories(dir.resolve("work"));
+        List<Exit> exits =
+                run(
+                        HEADER
+                                + """
+                                tool Data { use: workspace  root: "work"  allow: "**" }
+                                tool Box  { use: sandbox  workspace: Data  isolation: process  network: open  allow: "cat"  unattended: true }
+                                workflow Main(q) {
+                                    delegate "{q}" to A -> answer
+                                    use Box(program = "cat", stdin = answer) -> printed
+                                    use Hook(text = "{printed.stdout}")
+                                    use Hook(text = "{printed.exit}")
+                                }
+                                """);
+        assertThat(exits.get(exits.size() - 2).value()).contains("mock");
         assertThat(exits.get(exits.size() - 2).modelWritten()).isTrue();
         assertThat(exits.get(exits.size() - 1).value()).isEqualTo("{text=0}");
         assertThat(exits.get(exits.size() - 1).modelWritten()).isFalse();

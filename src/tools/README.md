@@ -8,8 +8,8 @@ keeps them light and the build settings they share.
 
 | Folder | Artifact (`io.github.srijithunni7182`) | What it is |
 |---|---|---|
-| [`ai-agent4j-tools/`](ai-agent4j-tools/) | `ai-agent4j-tools` | The light tools: `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`. Depends on the core and Jackson only |
-| [`extras/`](extras/) | `ai-agent4j-tools-extras-parent` | The parent of the optional tool modules, each of which needs a dependency of its own |
+| [`ai-agent4j-tools/`](ai-agent4j-tools/) | `ai-agent4j-tools` | The light tools: `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, `compute`, `verify`, `scan`, `workspace` and `sandbox`. Depends on the core and Jackson only |
+| [`extras/`](extras/) | `ai-agent4j-tools-extras-parent` | The parent of the optional tool modules: [`search`](extras/ai-agent4j-tools-search/), [`documents`](extras/ai-agent4j-tools-documents/), [`git`](extras/ai-agent4j-tools-git/) and [`browser`](extras/ai-agent4j-tools-browser/) |
 | `pom.xml` | `ai-agent4j-tools-parent` | This parent |
 
 You depend on a module, never on a parent. A parent pom is published only so the modules that inherit from it can be

@@ -12,6 +12,7 @@ This repository uses the following canonical Maven coordinates for broad adoptio
 | ai-agent4j | `io.github.srijithunni7182:ai-agent4j:6.2.0` |
 | ai-agent4j-addons | `io.github.srijithunni7182:ai-agent4j-addons:6.2.0` |
 | ai-agent4j-tools | `io.github.srijithunni7182:ai-agent4j-tools:6.2.0` |
+| ai-agent4j-tools-search, -documents, -git, -browser | `io.github.srijithunni7182:ai-agent4j-tools-search:6.2.0` (also `-documents`, `-git`, `-browser`): optional tool modules; only `-documents` brings a library (Apache PDFBox) |
 | ai-agent4j-loom | `io.github.srijithunni7182:ai-agent4j-loom:6.2.0` |
 | loom-inspect-core, loom-inspect, loom-fabric | `io.github.srijithunni7182:loom-inspect-core:6.2.0` (also `loom-inspect`, `loom-fabric`): the live run page and the Fabric server |
 | llm4j-spring-boot-starter | `io.github.srijithunni7182:llm4j-spring-boot-starter:6.2.0` (Spring Boot 3.2 and later; Loom, tools, addons and spring-jdbc are optional) |
