@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 and D2 are taken, sixteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D3 are taken, fifteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -9,7 +9,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 |---|---|---|
 | D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, one review gate after 36a) |
 | D2 | Where OpenAPI lives, and the compatibility plan | **taken** (a new `openapi` kind in an extras module on the shared HTTP layer; scripts switch at once; the old Java classes deprecated, removed at the next major) |
-| D3 | The OpenAPI call model: one generic tool, or one tool per operation | open |
+| D3 | The OpenAPI call model: one generic tool, or one tool per operation | **taken** (one declared tool per operation, with `operation:`; the legacy all-operations tool kept and warned about until the next major) |
 | D4 | Effects and idempotency taken from the system's own description, and the lockfile | open |
 | D5 | Large answers and pagination | open |
 | D6 | The MCP client: transports, versions, what it reads | open |
@@ -59,15 +59,23 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 
 ## D3. The OpenAPI call model: one generic tool, or one tool per operation
 
-**Why.** Today the agent gets one tool whose arguments are `endpoint` and `method`, and a description of every endpoint; a large API makes a large description, and a model chooses a path as free text.
+**Why.** Today the agent gets one tool whose arguments are `endpoint` and `method`, with a description of every endpoint; a large API makes a large description, a model chooses a path as free text, and one spec describes both reads and writes under one name.
+**What the engine does (read):** an agent's `tools:` names are each resolved to **one tool**, wrapped for approval by that name, and added; policy hooks, `Capabilities`, `approve:` and the audit key off the declared name. MCP is the exception: an agent's `mcp_servers:` go through a separate loop that lists a server's tools and adds each directly, **without the approval and decision wrappers**, and a failed `tools/list` is logged and swallowed (whether MCP tools honour `approve:` some other way is not read; it is a 36a read, see D6).
 
-- **A. One tool per allowed operation,** with typed parameters taken from the operation's schema, an `operations:` list that is **required** (no default of "all"), an explicit `all: true` that the audit flags, and a cap on the number of operations per tool.
-- **B. Keep the single generic tool,** with the list as an option.
-- **C. Both,** chosen by an option.
+- **A. One declaration expands into one tool per operation,** as MCP servers do: it changes the engine, the audit, the review facts, the graph and `weave test`'s scripting. Large.
+- **B. Keep the single generic tool** with a required `operations:` allow-list and strict validation: small, but the model still builds paths and methods as free text and approval is for the whole tool.
+- **C. One declared tool per operation,** each with `operation:` and typed parameters from that operation's own schema, written by `weave connect` (D10).
 
-**Recommendation: A.** Typed per-operation tools are what the model's function calling handles best, they make approval, effect and audit per operation natural (the `effects:` map is already keyed by `operationId`), and a required list is deny-by-default. The generic form stays only in the deprecated core class.
-
-**Decision (owner):** open.
+**Decision (owner): option C.** The owner's reason, which settles it: *one spec describes both a GET and a POST, but their effects differ*; if each operation is its own declared tool, each carries its own effect (a GET reads, a POST changes), approval and audit entry.
+```loom
+tool Pet_get  { use: openapi  spec: "specs/petstore.json"  operation: "getPetById"  effect: reads }
+tool Pet_add  { use: openapi  spec: "specs/petstore.json"  operation: "addPet"  effect: changes }
+agent Shop { tools: [Pet_get, Pet_add]  approve: [Pet_add] }
+```
+- **No engine change:** one name still means one tool, so approval, effect, profile, audit entry and test scripting work as they do. Deny by default is natural: an agent gets only the operations declared, and there is no "all" to forget.
+- **Typed parameters:** the parser already provides each operation's `operationId`, parameters and request-body schema (read), so the tool's schema is built from them.
+- **Compatibility:** a script with `use: openapi spec:` and no `operation:` keeps the legacy behaviour, on the new guarded HTTP layer: one tool exposing every operation, with a warning in `weave check` and the finding of D14 saying it exposes the whole API; it becomes an error at the next major.
+- **Names:** the tool name is whatever is declared; `weave connect` suggests `<Tool>_<operationId>` and derives one from the method and path when the spec has none; names must satisfy providers' tool-name rules, which the check enforces. The separate `operations:` allow-list of option B is not added.
 
 ## D4. Effects and idempotency from the system's own description, and the lockfile
 
