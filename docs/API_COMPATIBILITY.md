@@ -101,6 +101,9 @@ Most changes below are **additive**: a script or program that does not use the n
 | 6.2.0 | `wait h -> r` on an unfinished child binds a value that raises on read, and more | [Closing the phase 33 gaps](#closing-the-phase-33-gaps-phase-34a) |
 | 6.2.0 | The graph of a `parallel` block has the branches as nodes of their own | [Graph of a `parallel` block](#the-graph-of-a-parallel-block) |
 | 6.2.0 | The default log level of `weave run`, `resume`, `tick` and `daemon` is WARNING | [Judge validation, strings and CLI options](#judge-validation-strings-and-cli-options) |
+| 6.2.0 | `use: openapi` is the kind of a new module on the shared HTTP layer; the core OpenAPI classes are deprecated for removal | [Integrations (phase 36)](#integrations-phase-36) |
+| 6.2.0 | An `mcp` block gains `args`, `env`, `isolation` and more; its tools get approval; a server's annotations are not an effect | [Integrations (phase 36)](#integrations-phase-36) |
+| 6.2.0 | `credential_rejected`: a new `ErrorCategory`, `Outcome.Status` and failure category | [Integrations (phase 36)](#integrations-phase-36) |
 | 6.2.0 | `weave review` excludes setup findings from `--fail-on` by default | [Review setup findings](#review-setup-findings-and-cost-fields) |
 | 6.2.0 | A2A: `parseRequest` throws `UnsupportedOperation` and `PushNotificationNotSupported` where it threw `MethodNotFound` | [A2A server half](#a2a-server-half-phase-32-follow-up) |
 
@@ -480,6 +483,43 @@ All additive. No existing property, type or signature changes.
 ## Tools (phase 35)
 
 Newest first. The tools module moved, tool kinds say what they reach, and new kinds and modules were added.
+
+### Integrations (phase 36)
+
+**New**
+
+- **`ai-agent4j-tools-openapi`**, a module whose `OpenApiKind` is the `openapi` tool kind: one declared tool per operation (`operation:`), `base_url`, `server`, `pin`, `max_bytes`, `save_dir`, `save_max_bytes` and the shared network options. `weave` bundles it (Loom depends on it), so `use: openapi` works out of the box.
+- **An `mcp` block** takes `args` (a list; each entry one argument), `env`, `env_inherit`, `isolation` (`none` or `process`), `timeout`, `reach` and `pin`. **`weave mcp list`** (with `--server`, `--write`, `--yes`) starts each server under its declared isolation and lists its tools. `weave check` warns when an `openapi` tool's `pin:` no longer matches the local description.
+- **Audit rules** LA31 (extended to an `mcp` server with no isolation or at `none` or `process`), LA34 (an `openapi` tool with no `operation:`) and LA35 (a pin that no longer matches; raised by `weave check`).
+- **`credential_rejected`:** `ErrorCategory.CREDENTIAL_REJECTED` and `Outcome.Status.CREDENTIAL_REJECTED` are added at the **end** of their enums, so no existing value moves, and `credential_rejected` joins the categories a workflow test can inject with `fail:`. `Outcome.credentialRejected(String)`, `CredentialRejected` (a `ToolRefusal`) and a tool's outcome `credential_rejected` in the audit trail.
+- **Additive members:** `ToolKind.lateBound()` and `ToolKind.create(name, options, lateBound, baseDir, context)` (default methods: a kind that does not list an option as late-bound is unaffected), `McpTransport.onClose` (a default method), `StdioMcpTransport.scrubbed`, `McpClient.restarting`, the exceptions `McpException`, `McpToolException`, `McpTimeoutException` and `McpServerExitedException`, `McpPin`, `NetOptions` (now public), and an `HttpSupport` constructor that takes a trust manager and socket factory (certificate and host-name checks stay on).
+
+**Behaviour change**
+
+- **The address a description names is not trusted.** The old tool called whatever `servers` entry the description gave, over any scheme and to any address. The new kind sends every request through `NetPolicy`: unless the declaration names `base_url:`, a loopback, private or link-local address is refused, and plain http needs `allow_http: true`. *Migration:* for an internal API write `base_url:` (the host you name is your own choice), or `allow_private: true` (and `allow_http: true` when it is not https).
+- **Requests are guarded and bounded.** A timeout (default 15 s), retries of a read on a 429, a 5xx or a dropped connection (default 2, honouring `Retry-After`; other methods only with `idempotency: true` or `on_unknown: retry`), and a size limit that says it cut. *Migration:* `retries: 0` restores a single attempt.
+- **A longer answer is no longer cut at 2,000 characters.** It is shown up to `max_bytes` (default 64 KiB) and says when it was cut; `save_dir:` keeps a long or non-text answer whole. A binary answer with no `save_dir` is refused with a hint, where the old tool returned its bytes as text. An answer that names no content type is returned when its bytes are text.
+- **PATCH works** (the old tool listed it and then refused it). Path values are percent-encoded and a value that would climb out of the address (`..`) is refused; the old tool substituted them raw. A header parameter that looks like a credential is not offered to a model.
+- **`auth_value` must be at least four characters**, as for every other kind.
+- **The description is read by llm4j, not the parser.** A remote description and each external reference are fetched through the guarded layer and pasted in; a reference outside the description's folder, or nested more than twelve deep, is refused.
+- **A tool of an `mcp` server is wrapped like any other tool.** `approve: all` and `approve: [tool]` now reach it (they did not), and decisions see its evidence. A tool whose result says `isError` is a failure (it was returned as an answer). A server that cannot list its tools is a load error (it was logged and the agent ran without them); a request that is not answered in 30 seconds is a timeout, a server that exits is restarted twice and then reported, and a call in flight when it exits is not repeated.
+- **A server's annotations are no longer used as an effect.** `McpEffects.resolve` used to take `readOnlyHint: true` as `reads` when the annotations had been read; nothing in production ever called it. An undeclared MCP tool changes; `weave mcp list` shows what the annotations suggest. *Migration:* `weave mcp list --write`, or an `effects:` entry per tool.
+- **`approve:` may name a tool of an MCP server** that the agent does not list under `tools:`; a name that is neither is a load error when the servers start.
+- **The error stream of an `mcp` server** with an `isolation:` line is captured, redacted and bounded instead of inherited; the environment is only what `env:` and `env_inherit:` give. A block with no `isolation:` line behaves as before, with a warning (`weave check`) and LA31.
+- **The older all-operations form keeps working** (an `openapi` tool with no `operation:`): the arguments `endpoint`, `method`, `parameters` and `body`, the tool's description, and a per-operation `effects:` map that now reaches the journal. `weave check`'s description of it is shorter: the specification's own text is cut to a short line each. It ends at the next major version, and `weave audit` reports it (LA34).
+- **`StdioMcpTransport` no longer logs message bodies** and a server's output that fails to parse is logged by length only.
+
+**Incompatible**
+
+- `Capabilities.operationEffect(ToolDef, String, Capabilities)` (public, Loom) is removed: nothing in production called it. The per-operation effects reach the run through the tool kind.
+- A `switch` over `Outcome.Status` or `ErrorCategory` without a default needs a case for the new value.
+- The Loom-side kind class `io.github.llm4j.loom.tools.OpenApiKind` is gone (it was package-private).
+
+**Deprecated:** `OpenAPITool`, `OpenAPIParser`, `OpenAPISpec`, `OpenAPIEndpoint` and `OpenAPIParameter` in `io.github.llm4j.agent.tools.openapi` (since 6.2.0, `forRemoval = true`; removed with `swagger-parser` from the core at the next major version). *Migration for Java users:* add `ai-agent4j-tools-openapi` and build the tool with `new OpenApiKind().create(name, options, baseDir)` (see that module's README); the options are the script's (`spec`, `operation`, `base_url`, `auth_header` and `auth_value`, ...). The old classes keep working until then and are unguarded: they use a bare `HttpClient`, and the parser fetches remote references on its own.
+
+**Unchanged:** every script that loads today still loads. `use: openapi spec: "x.json"` with no other option is the older all-operations tool; an `mcp` block with only `transport`, `cmd` and `effects` runs as before.
+
+---
 
 ### The extras modules (phase 35e)
 

@@ -3,7 +3,17 @@ package io.github.llm4j.agent.tools.openapi;
 import java.util.List;
 import java.util.Map;
 
-/** Represents a single API endpoint from an OpenAPI specification. */
+/**
+ * Represents a single API endpoint from an OpenAPI specification.
+ *
+ * @deprecated since 6.2.0, for removal at the next major version. Its replacement is the {@code
+ *     openapi} tool kind of the {@code ai-agent4j-tools-openapi} module ({@code OpenApiKind}, one tool
+ *     per operation), which sends every request through the shared HTTP layer: the address rules of
+ *     {@code NetPolicy}, a timeout, a size cap and retries. This class uses a bare {@code HttpClient}
+ *     with none of them, and its parser fetches remote descriptions and references on its own. See
+ *     docs/API_COMPATIBILITY.md, "Integrations (phase 36)", for the migration.
+ */
+@Deprecated(since = "6.2.0", forRemoval = true)
 public class OpenAPIEndpoint {
     private final String path;
     private final String method;
