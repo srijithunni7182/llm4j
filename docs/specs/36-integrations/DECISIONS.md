@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D8 are taken, ten decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D9 are taken, nine decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -15,7 +15,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D6 | The MCP client: transports, versions, what it reads | **taken** (both eras, stdio and Streamable HTTP, tools only; stdio and fixes in 36a, the modern era, HTTP and authorization in 36b) |
 | D7 | An MCP server or a command as a program: isolation, arguments, secrets | **taken** (the `sandbox` rules, in three states so existing scripts do not break; six rules) |
 | D8 | Authentication: the consumer brings the token | **taken** (pass-in only: every door accepts `invoker.NAME`, per request and per run, with typed credential errors; llm4j never acquires, stores or refreshes a token) |
-| D9 | Typed command adapters | open |
+| D9 | Typed command adapters | **taken** (a `command` kind on the sandbox backend: an author's template, typed `param.<name>` options, isolation required) |
 | D10 | `weave connect`: authoring an integration | open |
 | D11 | Recording and replaying tool results | open |
 | D12 | Health and drift | open |
@@ -181,15 +181,32 @@ D9's `command` adapters use the same process machinery, so the rules apply once.
 
 ## D9. Typed command adapters
 
-**Why.** `sandbox` (35-D6) takes a program and a free argument list, so an agent builds its own command line within an allow-list. A command the owner wants to offer, `ffmpeg` or `git` or a converter, is better offered as a tool with named, typed, validated parameters.
+**Why.** `sandbox` (35-D6) takes a program and a free argument list; `shell` (read) starts a named program directly with an argument list, with no shell involved, but the agent still supplies any arguments it likes within an allow-list. A command the owner wants to offer (`ffmpeg`, `git`, a converter) is better offered with named, validated parameters.
 
-- **A. A `command` kind on the sandbox backend:** a template and typed parameters (`path` in or out of the workspace, `int` with a range, `enum`, `string` with a pattern, `flag`), each value a **single argument, never split or re-parsed**, an output reading (`text`, `json`, `lines`), an exit-code mapping, an effect and idempotency declared or inferred (a `path(out)` writes), isolation required as for `sandbox`.
+- **A. A `command` kind on the sandbox backend:** one declared tool is one command, with a template and typed parameters.
 - **B. Named templates inside `sandbox`.**
 - **C. Nothing;** a script uses `sandbox` and trusts the agent's arguments.
 
-**Recommendation: A.** One tool per command gives the model a per-command schema, makes injection through an argument impossible by construction, and gives the audit an exact description. It needs 35's `sandbox` and so lands after 35d.
-
-**Decision (owner):** open.
+**Decision (owner): option A.** One tool per command gives the model a per-command schema, makes injection through an argument impossible by construction, gives the audit an exact description, and matches the one-declared-tool-per-operation choice of D3.
+```loom
+tool Resize {
+    use: command
+    description: "Resize an image in the workspace"
+    isolation: container  image: "dpokidov/imagemagick:7"  workspace: Data
+    run: "convert {input} -resize {percent}% {output}"
+    param.input:   "path in"
+    param.output:  "path out"
+    param.percent: "int 1..400"
+    effect: changes
+}
+```
+1. **The template is the author's.** It is split once, at load, into an argument list (double quotes group words). A placeholder fills inside one argument, and **a value is never split, re-parsed or interpreted**: a value containing spaces, `;` or `--flag` stays one argument. The agent supplies only the parameters.
+2. **Parameters use the existing option mechanism:** a `param.<name>` prefix, as `http` does for `header.`, so there is no grammar change. Types: `path in` (must exist, inside the workspace), `path out` (inside the workspace; it writes), `int a..b`, `number a..b`, `enum a|b|c`, `string` with an optional pattern and a maximum length, `bool` with the text it adds when true.
+3. **Output:** `output: text | json | lines`, a bounded size, and `ok_exit:` for the exit codes that count as success; anything else is a failure carrying a redacted excerpt of the error stream.
+4. **Effect** is declared with `effect:`; a tool with any `path out` parameter defaults to a local write, and `weave check` hints when it is missing.
+5. **Isolation is required,** with the levels and fail-closed rules of `sandbox` and of D7's MCP servers (`image:`, `workspace:`, `network:`); it runs through `SandboxBackend`, is a journaled effect, and is simulated in `weave test`.
+6. **Three kinds, one rule for choosing,** written into the docs: `shell` for a few host commands with free arguments, `command` for a command to be typed and validated, `sandbox` for general program execution.
+**Costs, accepted:** it needs 35's sandbox and so lands after 35d; path parameters rely on the workspace jail; the `workspace:` link to another tool is subject to the unread question of whether an option can name another tool (35's R2), with the same fallback as `sandbox`.
 
 ## D10. `weave connect`: authoring an integration
 
