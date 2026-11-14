@@ -2954,12 +2954,95 @@ public class LoomParser {
                 advance();
                 consume(TokenType.COLON, "Expect ':' after effects.");
                 parseEffectMap(mcp.getName(), mcp::putToolEffect);
+            } else if (!isAtEnd() && !check(TokenType.RBRACE)) {
+                parseMcpOption(mcp);
             } else {
                 throw error(peek(), "Unexpected token in mcp body: " + peek().getType());
             }
         }
         consume(TokenType.RBRACE, "Expect '}' after mcp server body.");
         return mcp;
+    }
+
+    private static final java.util.Set<String> MCP_OPTIONS =
+            java.util.Set.of(
+                    "args", "env", "env_inherit", "isolation", "timeout", "reach", "pin");
+
+    /** One of the options of an {@code mcp} block after {@code transport}, {@code cmd} and {@code effects}. */
+    private void parseMcpOption(McpServerDef mcp) {
+        Token key = word("Expect an option of the mcp block, e.g. args: [\"--flag\"]");
+        if (!MCP_OPTIONS.contains(key.getValue()))
+            throw error(
+                    key,
+                    "unknown option "
+                            + key.getValue()
+                            + " in mcp "
+                            + mcp.getName()
+                            + "; it takes transport, cmd, "
+                            + String.join(", ", new java.util.TreeSet<>(MCP_OPTIONS))
+                            + " and effects");
+        consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+        switch (key.getValue()) {
+            case "args" -> {
+                if (!mcp.getArgs().isEmpty()) throw error(key, "args is given twice");
+                stringList(key, mcp::addArg);
+            }
+            case "env_inherit" -> {
+                if (!mcp.getEnvInherit().isEmpty()) throw error(key, "env_inherit is given twice");
+                stringList(key, mcp::addEnvInherit);
+            }
+            case "env" -> parseMcpEnv(mcp, key);
+            case "isolation" -> mcp.setIsolation(word("Expect none or process after isolation:").getValue());
+            case "timeout" -> {
+                Token number = consume(TokenType.NUMBER_LITERAL, "Expect a time after timeout:, e.g. 20s");
+                mcp.setTimeout(duration(number, number.getValue() + unitSuffix(number)));
+            }
+            case "reach" -> mcp.setReach(word("Expect what the server reaches after reach:").getValue());
+            default -> mcp.setPin(consume(TokenType.STRING_LITERAL, "Expect a quoted pin after pin:").getValue());
+        }
+        match(TokenType.COMMA);
+    }
+
+    /** {@code ["a", "b"]}: strings, with or without commas. */
+    private void stringList(Token key, java.util.function.Consumer<String> into) {
+        consume(TokenType.LBRACKET, "Expect '[' after " + key.getValue() + ":.");
+        while (!check(TokenType.RBRACKET) && !isAtEnd()) {
+            into.accept(
+                    consume(
+                                    TokenType.STRING_LITERAL,
+                                    "Expect a quoted string in " + key.getValue() + ":.")
+                            .getValue());
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACKET, "Expect ']' after " + key.getValue() + ":.");
+    }
+
+    /** {@code { NAME: env.X, MODE: "read" }}. */
+    private void parseMcpEnv(McpServerDef mcp, Token key) {
+        consume(TokenType.LBRACE, "Expect '{' after env:.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token name = word("Expect a variable name, e.g. env: { TOKEN: env.MY_TOKEN }");
+            consume(TokenType.COLON, "Expect ':' after " + name.getValue() + ".");
+            if (mcp.getEnvValues().containsKey(name.getValue()))
+                throw error(name, "variable " + name.getValue() + " is given twice in env:");
+            mcp.putEnvValue(name.getValue(), optionValue());
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after env:.");
+    }
+
+    private java.time.Duration duration(Token at, String text) {
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("(\\d+)(ms|s|m|h)").matcher(text);
+        if (!m.matches())
+            throw error(at, "a time is a number and ms, s, m or h, e.g. 20s; got " + text);
+        long n = Long.parseLong(m.group(1));
+        return switch (m.group(2)) {
+            case "ms" -> java.time.Duration.ofMillis(n);
+            case "s" -> java.time.Duration.ofSeconds(n);
+            case "m" -> java.time.Duration.ofMinutes(n);
+            default -> java.time.Duration.ofHours(n);
+        };
     }
 
     /**

@@ -22,7 +22,8 @@ import java.util.List;
  * the official schema.
  *
  * <p>Arguments: {@code --log FILE}, {@code --page N} (tools per {@code tools/list} page), {@code
- * --endless} (every page has a next page), {@code --answer VERSION} (the protocol version it
+ * --endless} (every page has a next page), {@code --fail-list} ({@code tools/list} answers with an
+ * error), {@code --answer VERSION} (the protocol version it
  * answers with), {@code --stderr TEXT} (written to the error stream at start), {@code --flood
  * BYTES} (that much written to the error stream), then {@code --} and anything after it, which the
  * {@code argv} tool reports.
@@ -53,6 +54,7 @@ public final class FakeMcpServer {
         Path log = null;
         int page = 0;
         boolean endless = false;
+        boolean failList = false;
         String answer = "2025-11-25";
         List<String> rest = new ArrayList<>();
         for (int i = 0; i < args.length; i++) {
@@ -60,6 +62,7 @@ public final class FakeMcpServer {
                 case "--log" -> log = Path.of(args[++i]);
                 case "--page" -> page = Integer.parseInt(args[++i]);
                 case "--endless" -> endless = true;
+                case "--fail-list" -> failList = true;
                 case "--answer" -> answer = args[++i];
                 case "--stderr" -> System.err.println(args[++i]);
                 case "--flood" -> flood(Integer.parseInt(args[++i]));
@@ -84,7 +87,15 @@ public final class FakeMcpServer {
             JsonNode params = message.path("params");
             switch (method) {
                 case "initialize" -> reply.set("result", initialize(answer));
-                case "tools/list" -> reply.set("result", list(params, page, endless));
+                case "tools/list" -> {
+                    if (failList)
+                        reply.set(
+                                "error",
+                                JSON.createObjectNode()
+                                        .put("code", -32603)
+                                        .put("message", "the tool list is unavailable"));
+                    else reply.set("result", list(params, page, endless));
+                }
                 case "tools/call" -> {
                     ObjectNode result = call(params, rest);
                     if (result == null) continue; // a tool that never answers

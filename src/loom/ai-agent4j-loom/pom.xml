@@ -139,6 +139,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- A real MCP server over stdio and the official-schema validator, for the MCP tests (not published) -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>llm4j-mcp-testkit</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Contract test: the graph JSON is validated against its published schema -->
         <dependency>
             <groupId>com.networknt</groupId>

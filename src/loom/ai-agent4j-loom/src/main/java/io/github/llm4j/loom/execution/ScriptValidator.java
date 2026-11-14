@@ -514,10 +514,7 @@ public class ScriptValidator {
             if (r.getPrimaryModel() == null)
                 c.error(r.getLine(), "routing " + r.getName(), "needs primary: \"<model>\"");
         }
-        for (McpServerDef m : c.script().getMcpServers()) {
-            if (m.getCmd() == null || m.getCmd().isBlank())
-                c.error(m.getLine(), "mcp " + m.getName(), "needs cmd: \"<command>\"");
-        }
+        McpChecks.run(c);
     }
 
     private void checkStatements(Checker c) {
