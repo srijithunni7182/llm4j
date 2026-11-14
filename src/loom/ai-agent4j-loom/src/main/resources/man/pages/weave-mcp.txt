@@ -1,0 +1,11 @@
+## EXAMPLES
+weave mcp list agent.loom                  start each mcp server of the script and list its tools, with what their annotations suggest
+weave mcp list agent.loom --server Files   only that mcp block
+weave mcp list agent.loom --write          show the change, ask, then write effects: and pin: into the block
+weave mcp list agent.loom --write --yes    write it without the question (the change is still shown)
+## NOTES
+The annotations are the server's own word and are untrusted: nothing is acted on until you write it into the script. A tool you already described keeps your effect; only tools with no effects: entry get a proposal. The server starts as its block says (isolation:, args:, env:), is asked for its tool list and is stopped; no tool is called. The pin is a short hash of the tool list (names, input schemas, annotations); a later run of this command says whether it still matches.
+## EXIT STATUS
+0 listed (and written, when asked). 1 a server could not start or list its tools, or the script could not be written. 2 the script could not be read, has no such mcp block, or a bad option.
+## SEE ALSO
+weave man check, weave man audit

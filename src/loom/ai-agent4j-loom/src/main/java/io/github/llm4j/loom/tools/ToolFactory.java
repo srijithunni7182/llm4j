@@ -383,13 +383,23 @@ public final class ToolFactory {
         return java.util.Collections.unmodifiableMap(sources);
     }
 
-    /** The kinds that came from jars or folders on the class path, with where each came from. */
+    /**
+     * The kinds weave brings in a module of its own and loads with {@code ServiceLoader} like any
+     * jar's (phase 36): they are part of weave, so they are not reported as kinds from jars.
+     */
+    static final Set<String> BUNDLED = Set.of("openapi");
+
+    /**
+     * The kinds that came from jars or folders on the class path, with where each came from. The
+     * kinds weave bundles ({@link #BUNDLED}) are not among them.
+     */
     public Map<String, String> jarKinds() {
         Map<String, String> out = new java.util.TreeMap<>();
         sources.forEach(
                 (name, source) -> {
-                    if (!source.equals(BUILT_IN) && !source.startsWith("the host ("))
-                        out.put(name, source);
+                    if (!source.equals(BUILT_IN)
+                            && !source.startsWith("the host (")
+                            && !BUNDLED.contains(name)) out.put(name, source);
                 });
         return out;
     }

@@ -19,12 +19,13 @@ class LoomKindProfilesTest {
 
     @Test
     void theCatalogHasExactlyTheKindsAFactoryHas() {
-        // a factory has the built-in kinds and those the jars on the class path bring: openapi is
-        // the latter since phase 36 (the ai-agent4j-tools-openapi module), found with ServiceLoader
+        // a factory has the built-in kinds, those weave bundles in a module (openapi since phase 36,
+        // found with ServiceLoader, and not reported as a kind from a jar) and any a jar brings
         java.util.Set<String> expected = new java.util.TreeSet<>(ToolFactory.standardKindNames());
+        expected.add("openapi");
         expected.addAll(new ToolFactory().jarKinds().keySet());
         assertThat(new ToolFactory().kinds()).isEqualTo(expected);
-        assertThat(new ToolFactory().jarKinds()).containsOnlyKeys("openapi");
+        assertThat(new ToolFactory().jarKinds()).isEmpty();
         assertThat(ToolFactory.standardKind("no_such_kind")).isEmpty();
     }
 

@@ -27,6 +27,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave review`](#weave-review) — Reviews a script without running it: security, validity and the other lenses in one ranked list, each finding with why it matters and what to do.
 - [`weave audit`](#weave-audit) — Reviews a script's security without running it: what each agent can reach, where untrusted content, private data and a way out meet in one agent, unapproved effects, budgets and outside dependencies.
 - [`weave rules`](#weave-rules) — Works with review rules and rule packs, offline: list, facts, check, test, new, add, diff, docs, explain.
+- [`weave mcp`](#weave-mcp) — Looks at the MCP servers a script declares.
 
 ### Test and evaluate
 
@@ -91,10 +92,6 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave serve`](#weave-serve) — Serves check, graph and review to an editor over standard input and output (JSON-RPC with Content-Length framing).
 - [`weave dap`](#weave-dap) — Speaks the Debug Adapter Protocol on standard input and output, so an editor can debug a workflow.
-
-### Other
-
-- [`weave mcp`](#weave-mcp) — Looks at the MCP servers a script declares.
 
 ## Pages
 
@@ -2465,6 +2462,27 @@ weave mcp [OPTIONS] <command>
 **Options**
 
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+**Examples**
+
+```
+weave mcp list agent.loom                  start each mcp server of the script and list its tools, with what their annotations suggest
+weave mcp list agent.loom --server Files   only that mcp block
+weave mcp list agent.loom --write          show the change, ask, then write effects: and pin: into the block
+weave mcp list agent.loom --write --yes    write it without the question (the change is still shown)
+```
+
+**Notes**
+
+The annotations are the server's own word and are untrusted: nothing is acted on until you write it into the script. A tool you already described keeps your effect; only tools with no effects: entry get a proposal. The server starts as its block says (isolation:, args:, env:), is asked for its tool list and is stopped; no tool is called. The pin is a short hash of the tool list (names, input schemas, annotations); a later run of this command says whether it still matches.
+
+**Exit status**
+
+0 listed (and written, when asked). 1 a server could not start or list its tools, or the script could not be written. 2 the script could not be read, has no such mcp block, or a bad option.
+
+**See also**
+
+weave man check, weave man audit
 
 #### `weave mcp list`
 
