@@ -148,7 +148,6 @@ public final class ToolFactory {
                         Set.of(),
                         Set.of("api_key"),
                         (n, o, dir) -> new WebSearchTool(o.get("api_key"), o.get("cx"))));
-        register.accept(new OpenApiKind());
         register.accept(
                 simple(
                         "calculator",
@@ -240,7 +239,8 @@ public final class ToolFactory {
                     "search", "ai-agent4j-tools-search",
                     "documents", "ai-agent4j-tools-documents",
                     "git", "ai-agent4j-tools-git",
-                    "browser", "ai-agent4j-tools-browser");
+                    "browser", "ai-agent4j-tools-browser",
+                    "openapi", "ai-agent4j-tools-openapi");
 
     private static final ToolProfile SEARCH_RESULTS =
             ToolProfile.of(true, false, false, false, "web search results");
@@ -722,6 +722,18 @@ public final class ToolFactory {
                                 lateBound.put(key, invoker.apply(value.value()));
                         });
         lateBound.keySet().forEach(options::remove);
+        // the effects of a tool that holds several operations, for a kind that takes them
+        if (kind.optional().contains("effects") && !def.getOperationEffects().isEmpty()) {
+            List<String> pairs = new java.util.ArrayList<>();
+            def.getOperationEffects()
+                    .forEach(
+                            (operation, effect) ->
+                                    pairs.add(
+                                            operation
+                                                    + "="
+                                                    + effect.name().toLowerCase(java.util.Locale.ROOT)));
+            options.put("effects", String.join(",", pairs));
+        }
         String description = options.remove(DESCRIPTION);
         options.remove(REPLAY);
         options.remove(REACH);

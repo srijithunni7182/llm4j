@@ -193,11 +193,18 @@ public record Capabilities(
                                         "tool kind \"" + kind + "\" is not one the audit knows"));
     }
 
-    /** The options as written: a reference is its text ({@code env.NAME}), never its value. */
+    /**
+     * The options as written: a reference is its text ({@code env.NAME}), never its value; and the
+     * declared {@code effect:}, when there is one, as {@code effect}.
+     */
     public static Map<String, String> written(ToolDef t) {
         Map<String, String> out = new java.util.LinkedHashMap<>();
         t.getOptions()
                 .forEach((name, v) -> out.put(name, v.isReference() ? v.toString() : v.value()));
+        // the declared effect is not an option, but a kind that can compute its legs from it
+        // (openapi: what leaves the system only if it changes things) is told
+        t.getEffect()
+                .ifPresent(e -> out.putIfAbsent("effect", e.name().toLowerCase(Locale.ROOT)));
         return out;
     }
 

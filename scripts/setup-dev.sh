@@ -20,7 +20,7 @@ fi
 
 step "installing the A2A and MCP test kits, the core, the tools module, eval4j, eval4j-report, Loom and loom-inspect-core from this checkout"
 mvn -q -B -DskipTests -Djacoco.skip=true -Dspotless.check.skip=true \
-  -pl src/a2a-testkit,src/mcp-testkit,src/ai-agent4j,src/tools,src/tools/ai-agent4j-tools,src/eval4j,src/eval4j-report,src/loom/ai-agent4j-loom,src/loom/loom-inspect-core install
+  -pl src/a2a-testkit,src/mcp-testkit,src/ai-agent4j,src/tools,src/tools/ai-agent4j-tools,src/tools/extras,src/tools/extras/ai-agent4j-tools-openapi,src/eval4j,src/eval4j-report,src/loom/ai-agent4j-loom,src/loom/loom-inspect-core install
 
 ext=src/loom/vscode-loom
 if command -v node > /dev/null 2>&1 && [ -f "$ext/package.json" ]; then

@@ -65,6 +65,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- The openapi tool kind (phase 36): found with ServiceLoader, so use: openapi works out of the box. Brings swagger-parser. -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-tools-openapi</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- The JDBC driver of the sql tool. Optional, so the library does not push it onto anyone; the runnable weave jar (the cli classifier) includes it. -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -292,7 +299,6 @@
                                         <include>io.github.llm4j.loom.execution.ThreadScope*</include>
                                         <include>io.github.llm4j.loom.execution.InvokerSource</include>
                                         <include>io.github.llm4j.loom.execution.InvokerRefs</include>
-                                        <include>io.github.llm4j.loom.tools.OpenApiKind</include>
                                         <include>io.github.llm4j.loom.cli.InvokerOptions*</include>
                                     </includes>
                                     <limits>
@@ -908,7 +914,6 @@
                                 <param>io.github.llm4j.loom.execution.ThreadScope*</param>
                                 <param>io.github.llm4j.loom.execution.InvokerSource</param>
                                 <param>io.github.llm4j.loom.execution.InvokerRefs</param>
-                                <param>io.github.llm4j.loom.tools.OpenApiKind</param>
                                 <param>io.github.llm4j.loom.cli.InvokerOptions*</param>
                                 <param>io.github.llm4j.loom.tools.ToolFactory*</param>
                                 <param>io.github.llm4j.loom.ast.ToolDef*</param>
@@ -926,7 +931,6 @@
                                 <param>io.github.llm4j.loom.execution.InvokerSourceTest</param>
                                 <param>io.github.llm4j.loom.execution.ConcurrentTopLevelRunsTest</param>
                                 <param>io.github.llm4j.loom.execution.CredentialValueTest</param>
-                                <param>io.github.llm4j.loom.tools.OpenApiKindTest</param>
                                 <param>io.github.llm4j.loom.tools.ToolFactoryInvokerTest</param>
                                 <param>io.github.llm4j.loom.cli.InvokerCliTest</param>
                                 <param>io.github.llm4j.loom.cli.WeaveEnvTest</param>
