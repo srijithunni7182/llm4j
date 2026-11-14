@@ -58,7 +58,9 @@ final class McpScriptEditor {
         List<String> added = new ArrayList<>();
         if (!merged.isEmpty()) {
             List<String> parts = new ArrayList<>();
-            merged.forEach((tool, effect) -> parts.add(tool + ": " + effect.name().toLowerCase(Locale.ROOT)));
+            merged.forEach(
+                    (tool, effect) ->
+                            parts.add(spell(tool) + ": " + effect.name().toLowerCase(Locale.ROOT)));
             added.add("effects: { " + String.join(", ", parts) + " }");
         }
         added.add("pin: \"" + pin + "\"");
@@ -75,6 +77,11 @@ final class McpScriptEditor {
             rebuilt = kept.replaceAll("\\s+$", "") + " " + String.join(" ", added) + " ";
         }
         return source.substring(0, bodyStart) + rebuilt + source.substring(close);
+    }
+
+    /** A tool name as the script writes it: bare when it is a word, quoted when it has other characters. */
+    private static String spell(String tool) {
+        return tool.matches("[A-Za-z_][A-Za-z0-9_]*") ? tool : "\"" + tool.replace("\"", "\\\"") + "\"";
     }
 
     /** Whether the text at {@code at} is inside a line comment. */

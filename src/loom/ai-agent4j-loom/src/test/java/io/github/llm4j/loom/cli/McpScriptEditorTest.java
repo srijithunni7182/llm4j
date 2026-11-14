@@ -117,4 +117,76 @@ class McpScriptEditorTest {
 
         assertThat(diff).contains("+").contains("effects").contains("pin").doesNotContain("-    cmd");
     }
+
+    @Test
+    void aCommentedOutBlockOfTheSameNameIsNotTheBlock() {
+        String before = "// mcp Files { cmd: \"old\" }\nmcp Files { cmd: \"srv\" }\n" + TAIL;
+
+        String after = McpScriptEditor.apply(before, "Files", effects("t", TaskEffect.READS), "sha256-1212121212121212");
+
+        assertThat(after).startsWith("// mcp Files { cmd: \"old\" }\n").contains("cmd: \"srv\"");
+        assertThat(parsed(after).getPin()).isEqualTo("sha256-1212121212121212");
+    }
+
+    @Test
+    void aBraceInACommentInsideTheBlockIsNotItsEnd() {
+        String before = "mcp Files {\n    cmd: \"srv\" // the } here\n}\n" + TAIL;
+
+        String after = McpScriptEditor.apply(before, "Files", effects("t", TaskEffect.READS), "sha256-3434343434343434");
+
+        assertThat(parsed(after).getToolEffects()).containsKey("t");
+        assertThat(after).endsWith(TAIL);
+    }
+
+    @Test
+    void anEscapedQuoteInAStringDoesNotEndIt() {
+        String before = "mcp Files { cmd: \"srv\" args: [\"a \\\" }\", \"b\"] }\n" + TAIL;
+
+        String after = McpScriptEditor.apply(before, "Files", effects("t", TaskEffect.READS), "sha256-5656565656565656");
+
+        assertThat(parsed(after).getArgs()).containsExactly("a \" }", "b");
+    }
+
+    @Test
+    void nestedBracesInTheBlockAreBalanced() {
+        String before = "mcp Files {\n    cmd: \"srv\"\n    env: { MODE: \"read\" }\n}\n" + TAIL;
+
+        String after = McpScriptEditor.apply(before, "Files", effects("t", TaskEffect.READS), "sha256-7878787878787878");
+
+        assertThat(parsed(after).getEnvValues()).containsKey("MODE");
+        assertThat(parsed(after).getToolEffects()).containsKey("t");
+    }
+
+    @Test
+    void anUnclosedBlockIsAnError() {
+        assertThatThrownBy(() -> McpScriptEditor.apply("mcp Files { cmd: \"srv\"\n", "Files", effects(), "sha256-9999999999999999"))
+                .hasMessageContaining("closing brace");
+    }
+
+    @Test
+    void theNewLinesKeepTheIndentationOfTheBlock() {
+        String before = "    mcp Files {\n        cmd: \"srv\"\n    }\n" + TAIL;
+
+        String after = McpScriptEditor.apply(before, "Files", effects("t", TaskEffect.READS), "sha256-abababababababab");
+
+        assertThat(after).contains("\n        effects: { t: reads }\n").contains("\n        pin: \"sha256-abababababababab\"\n    }");
+    }
+
+    @Test
+    void theDiffOfTwoEqualTextsIsEmptyAndAnEditShowsExactlyTheChangedLines() {
+        assertThat(McpScriptEditor.diff("a\nb\n", "a\nb\n")).isEmpty();
+        assertThat(McpScriptEditor.diff("a\nb\nc\n", "a\nX\nc\n")).isEqualTo("- b\n+ X\n");
+        assertThat(McpScriptEditor.diff("a\nb\n", "a\nb\nc\n")).isEqualTo("+ c\n");
+        assertThat(McpScriptEditor.diff("a\nb\nc\n", "a\nc\n")).isEqualTo("- b\n");
+        assertThat(McpScriptEditor.diff("x\n", "y\n")).isEqualTo("- x\n+ y\n");
+    }
+
+    @Test
+    void theEffectsOfAnExistingEntryWithAQuotedNameAreKept() {
+        String before = "mcp Files { cmd: \"srv\" effects: { \"read-file\": reads } }\n" + TAIL;
+
+        String after = McpScriptEditor.apply(before, "Files", effects("other", TaskEffect.CHANGES), "sha256-cdcdcdcdcdcdcdcd");
+
+        assertThat(parsed(after).getToolEffects()).containsEntry("read-file", TaskEffect.READS).containsEntry("other", TaskEffect.CHANGES);
+    }
 }

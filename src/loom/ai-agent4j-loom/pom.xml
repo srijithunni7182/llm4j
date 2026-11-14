@@ -948,5 +948,48 @@
                 </plugins>
             </build>
         </profile>
-    </profiles>
+            <!-- Mutation testing of what decides things in the MCP and integration code (phase 36, D15):
+             mvn -Pmutation-integrations org.pitest:pitest-maven:mutationCoverage -->
+        <profile>
+            <id>mutation-integrations</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.loom.security.McpEffects</param>
+                                <param>io.github.llm4j.loom.execution.McpChecks</param>
+                                <param>io.github.llm4j.loom.execution.PinChecks</param>
+                                <param>io.github.llm4j.loom.security.IntegrationAudit</param>
+                                <param>io.github.llm4j.loom.cli.McpScriptEditor</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.loom.effects.McpHintsTest</param>
+                                <param>io.github.llm4j.loom.depth.McpBlockRuntimeTest</param>
+                                <param>io.github.llm4j.loom.execution.PinChecksTest</param>
+                                <param>io.github.llm4j.loom.security.IntegrationAuditTest</param>
+                                <param>io.github.llm4j.loom.cli.McpScriptEditorTest</param>
+                                <param>io.github.llm4j.loom.execution.McpChecksTest</param>
+                            </targetTests>
+                            <threads>2</threads>
+                            <timeoutFactor>4</timeoutFactor>
+                            <mutationThreshold>85</mutationThreshold>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+</profiles>
 </project>
