@@ -33,15 +33,15 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 
 **Two doors, one control layer.** A system is reached through OpenAPI, MCP, a command, a file or a document, a page, or plain `http`. Every door yields tools that carry, from phase 35's `profile`, an effect, a reach and an isolation, and that run through the same guards (principle 33).
 
-**A lockfile for integrations.** The audit runs nothing, so it cannot ask an MCP server for its tools, and an OpenAPI spec can change under a script. A small committed file records, for each integration, what it described (the spec's hash and operations, an MCP server's tool list with annotations) and the effects inferred from it. `weave check` compares a script to its lockfile offline; `weave doctor --network` compares the lockfile to the live system (drift). This one idea gives the audit its MCP hints, gives drift detection, and gives `weave connect` something to write.
+**Declared effects and pins.** The audit runs nothing and reads no files, so it cannot ask an MCP server for its tools or open a spec. The tooling does that once: `weave connect` and `weave mcp list --write` read the spec or the server, propose each operation's effect and retry behaviour, and, when a person approves, write them into the script as declared values with a `pin` (a hash) that later detects drift. `weave check` compares a local spec with its pin offline; `weave doctor --network` compares a remote one. There is no lockfile.
 
-**A guided way in.** `weave connect` reads an OpenAPI file, an MCP server, or a command's help, and writes a tool declaration with the operations chosen, the effects inferred and marked assumed, the lockfile, test fakes from the examples, and runs the audit. Where there is no spec, a model drafts a typed command adapter or an `http` tool, and code verifies the draft against samples before anything is emitted (principle 36).
+**A guided way in.** `weave connect` reads an OpenAPI file, an MCP server, or a command's help, and writes one tool declaration per chosen operation with the effects proposed and approved and the pin, test fakes from the examples, and runs the audit. Where there is no spec, a model drafts a typed command adapter or an `http` tool, and code verifies the draft against samples before anything is emitted (principle 36).
 
 ## 3. Sub-phases
 
 | Sub-phase | What | Gate |
 |---|---|---|
-| 36a | **Fix what exists.** `openapi` rebuilt on the shared HTTP guards; operation list, base URL, size cap and saved large answers; effects inferred; MCP script surface (environment, arguments, errors, paging, timeouts); the lockfile and `weave mcp list`; the guide corrected and the docs tests that would have caught the MCP gap | The owner reviews the branch before 36b |
+| 36a | **Fix what exists.** `openapi` rebuilt on the shared HTTP guards as one tool per operation (`operation:`), with a base URL, a size cap and saved large answers; MCP script surface (environment, arguments, errors, paging, timeouts) and MCP tools given the same wrappers as other tools; `weave mcp list` and the pins; the guide corrected and the docs tests that would have caught the MCP gap | The owner reviews the branch before 36b |
 | 36b | **Reach.** An MCP transport for remote servers with version negotiation and authorization; OAuth for the HTTP kinds (client credentials, refresh tokens, a device sign-in command); bounded pagination | |
 | 36c | **Safe commands.** MCP stdio servers under the isolation rules; the typed `command` kind on the sandbox backend | |
 | 36d | **Authoring.** `weave connect`, deterministic first, model-assisted for systems without a spec | |

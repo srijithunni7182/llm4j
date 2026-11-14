@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D3 are taken, fifteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D4 are taken, fourteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -10,7 +10,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D1 | The scope and staging of this phase | **taken** (one phase, six sub-phases, one review gate after 36a) |
 | D2 | Where OpenAPI lives, and the compatibility plan | **taken** (a new `openapi` kind in an extras module on the shared HTTP layer; scripts switch at once; the old Java classes deprecated, removed at the next major) |
 | D3 | The OpenAPI call model: one generic tool, or one tool per operation | **taken** (one declared tool per operation, with `operation:`; the legacy all-operations tool kept and warned about until the next major) |
-| D4 | Effects and idempotency taken from the system's own description, and the lockfile | open |
+| D4 | Effects and idempotency taken from the system's own description, and the pins | **taken** (the tooling infers and a person approves; the result is written into the script as declared values with a pin; no lockfile) |
 | D5 | Large answers and pagination | open |
 | D6 | The MCP client: transports, versions, what it reads | open |
 | D7 | An MCP server or a command as a program: isolation, arguments, secrets | open |
@@ -77,17 +77,30 @@ agent Shop { tools: [Pet_get, Pet_add]  approve: [Pet_add] }
 - **Compatibility:** a script with `use: openapi spec:` and no `operation:` keeps the legacy behaviour, on the new guarded HTTP layer: one tool exposing every operation, with a warning in `weave check` and the finding of D14 saying it exposes the whole API; it becomes an error at the next major.
 - **Names:** the tool name is whatever is declared; `weave connect` suggests `<Tool>_<operationId>` and derives one from the method and path when the spec has none; names must satisfy providers' tool-name rules, which the check enforces. The separate `operations:` allow-list of option B is not added.
 
-## D4. Effects and idempotency from the system's own description, and the lockfile
+## D4. Effects and idempotency from the system's own description, and the pins
 
-**Why.** Principle 34. Today an OpenAPI operation is assumed to change things even when it is a GET, and the MCP hints that the guide says are used are not (DESIGN §1). The audit runs nothing, so it cannot ask an MCP server.
+**Why.** Principle 34. Today every OpenAPI operation is assumed to change things, a GET included, and the MCP hint logic (`McpEffects`) exists but nothing calls it (DESIGN §1). The audit runs nothing and reads no files: `ToolKind.check` is documented as touching neither the network nor the files, and `profile` (35-D2) is the same kind of pure question. So a kind cannot open a spec at audit time and the audit cannot start an MCP server.
 
-- **A. Inference rules plus a lockfile.** OpenAPI: GET, HEAD and OPTIONS read; PUT and DELETE change and are idempotent; POST and PATCH change and are not, unless the operation declares an idempotency key. MCP: `readOnlyHint` reads, `destructiveHint` changes, `idempotentHint` marks idempotent, an absent hint is the worst case. All are shown as *assumed*; a declared `effects:` wins. The audit reads a committed lockfile (`integrations.lock`: spec hash and operations, an MCP server's tool list with annotations, the inferred effects) and `weave mcp list --write` and `weave connect` create it.
-- **B. Inference only,** no lockfile: MCP stays at the worst case because the audit cannot connect.
-- **C. Declared only:** the owner writes every effect.
+- **A. A lockfile** (`integrations.lock`) read by the host and passed to the kinds: a new file format and mechanism.
+- **A′. Write it into the script.** `weave connect` (D10) and `weave mcp list --write` read the spec or the server, propose the effect and the retry behaviour, **a person approves, and the result is written into each declaration as declared values**, with a pin for drift detection. No new file format.
+- **B. Infer at audit time from the local spec:** breaks the rule that the audit touches no files.
+- **C. Declared only,** with no tooling to help.
 
-**Recommendation: A.** The lockfile is the one device that lets the audit see an MCP server's hints without running it, gives drift detection (D12) and gives `weave connect` something to write. A script whose lockfile is missing or stale gets the worst case and a message that says how to refresh it.
-
-**Decision (owner):** open.
+**Decision (owner): option A′, with no lockfile.** Reasons: with one tool per operation (D3) the effect is already an explicit property of each declaration; the tooling proposes and a person approves what a tool may change (principle 36); a declared effect is final for the runtime and the audit (the guide), so the report contains no guesses; the audit stays pure; and no new file format is added in the last framework phase. A hand-written tool that states no effect gets the cautious `changes` and a hint saying to declare it or run `weave connect`.
+**What the tooling infers and writes**
+| Source | Rule | Written into the declaration |
+|---|---|---|
+| OpenAPI GET, HEAD, OPTIONS | reads | `effect: reads` |
+| OpenAPI PUT, DELETE | changes, safe to repeat | `effect: changes`, `on_unknown: retry` |
+| OpenAPI POST, PATCH | changes, not safe to repeat | `effect: changes`, `on_unknown: skip` |
+| A POST with an idempotency-key header parameter | repeat is safe with the key | `idempotency: true`, `on_unknown: retry` |
+| MCP `readOnlyHint: true` | reads | `effects: { tool: reads }` |
+| MCP `destructiveHint` set, or no hint | changes | `effects: { tool: changes }` |
+| MCP `idempotentHint: true` | safe to repeat | `on_unknown: retry` |
+MCP's `openWorldHint` is left unmapped (the audit's three legs do not correspond to it cleanly) and is shown in the audit note.
+**Pins for drift.** A `pin` option on an `openapi` tool and on an `mcp` block holds a hash of the spec or of the server's tool list including its annotations. `weave check` verifies a local spec file against its pin offline and warns on a mismatch; `weave doctor --network` compares the pin with a remote spec or a live server (D12).
+**What this gives the MCP hints:** `weave mcp list` (the missing command) becomes the caller of `McpEffects`, and the guide is corrected to say the hints are read by that command and written into the script, not "used when read" (D13).
+**Cost, accepted:** scripts are more explicit and a little longer, and someone who hand-writes a tool without running `connect` gets the cautious default.
 
 ## D5. Large answers and pagination
 
@@ -155,11 +168,11 @@ Signed requests (AWS Signature V4) and client certificates (mTLS) are **out**: a
 
 **Why.** The ease of integration is the moat; today a tool declaration is written by hand.
 
-- **A. Deterministic first.** From an OpenAPI file or an MCP server: list the operations, let the person choose them, write the tool declaration, infer the effects (marked assumed), write the lockfile (D4), write test fakes from the spec's examples, run `weave check` and `weave audit`. **A model-assisted mode** for a system with no spec: from a command's help, documentation or sample files, a model drafts a `command` adapter or an `http` tool; **code verifies the draft against the samples** in a fake and the draft is never emitted if it fails; a person approves every effect classification.
+- **A. Deterministic first.** From an OpenAPI file or an MCP server: list the operations, let the person choose them, write the tool declaration with the effects proposed and, once a person approves them, written as declared values, and the pin (D4), write test fakes from the spec's examples, run `weave check` and `weave audit`. **A model-assisted mode** for a system with no spec: from a command's help, documentation or sample files, a model drafts a `command` adapter or an `http` tool; **code verifies the draft against the samples** in a fake and the draft is never emitted if it fails; a person approves every effect classification.
 - **B. Deterministic only.**
 - **C. Model-assisted only.**
 
-**Recommendation: A, in two steps:** the deterministic part in 36d with the lockfile, the model-assisted part after it in the same sub-phase if the first works. It is principle 36 applied to authoring: a model drafts, code proves, a person approves.
+**Recommendation: A, in two steps:** the deterministic part in 36d with the pins, the model-assisted part after it in the same sub-phase if the first works. It is principle 36 applied to authoring: a model drafts, code proves, a person approves.
 
 **Decision (owner):** open.
 
@@ -178,11 +191,11 @@ Signed requests (AWS Signature V4) and client certificates (mTLS) are **out**: a
 
 **Why.** Systems change: an API drops an operation, an MCP server renames a tool. Nothing detects it today (`doctor` checks keys and models).
 
-- **A. The lockfile of D4 checked in two places:** `weave check` compares a script to its lockfile offline; `weave doctor --network` fetches each spec and MCP tool list and reports a difference, and tests each endpoint's reachability without making a call that changes anything.
+- **A. The pins of D4 checked in two places:** `weave check` compares a local spec file to its `pin` offline and warns on a mismatch; `weave doctor --network` fetches each spec and MCP tool list and reports a difference, and tests each endpoint's reachability without making a call that changes anything.
 - **B. `doctor` only.**
 - **C. Nothing.**
 
-**Recommendation: A.** The lockfile already exists for D4, so drift detection costs a comparison. `doctor --network` never calls an operation that changes anything.
+**Recommendation: A.** The pins already exist for D4, so drift detection costs a comparison. `doctor --network` never calls an operation that changes anything.
 
 **Decision (owner):** open.
 
@@ -190,7 +203,7 @@ Signed requests (AWS Signature V4) and client certificates (mTLS) are **out**: a
 
 **Why.** The guide says MCP hints are used when read; the code does not call them. Principle 39.
 
-Proposed: (1) wire the hints through the lockfile (D4) and add the missing `weave mcp list`; (2) a **docs test** that runs the guide's table of default effects against `Capabilities`, so a documented default that is not wired fails; (3) a test that an MCP hint in a lockfile changes the audit's effect; (4) the same treatment for every claim the guide makes about tool behaviour that a test can state.
+Proposed: (1) give `McpEffects` its caller in the missing `weave mcp list --write` (D4) and correct the guide; (2) a **docs test** that runs the guide's table of default effects against `Capabilities`, so a documented default that is not wired fails; (3) a test that `weave mcp list --write` turns a hint into a declared effect in the script; (4) the same treatment for every claim the guide makes about tool behaviour that a test can state.
 
 **Recommendation: all four.** The cheapest way to stop this recurring is a test that reads the claim.
 
@@ -200,7 +213,7 @@ Proposed: (1) wire the hints through the lockfile (D4) and add the missing `weav
 
 **Why.** New things start programs, reach remote servers and hold tokens.
 
-Proposed (numbers continue after 35's LA33): **extend LA31** to an MCP stdio server and a `command` adapter run at `none` or `process`; **LA34:** an integration exposes all operations of a system, or more than a stated number (medium); **LA35:** an integration's lockfile is missing or differs from its declaration (a warning in `weave check`, an error in `weave audit --strict`); the audit note names an OAuth tool's **scopes**; a `docs/security/integrations.md` page (what the guards cover, how a token is stored, why an MCP server is a program); every rule listed in `weave-audit.md` and mapped in `owasp-llm-top-10.md`; matching `weave review` rules (regenerated with `make regen`).
+Proposed (numbers continue after 35's LA33): **extend LA31** to an MCP stdio server and a `command` adapter run at `none` or `process`; **LA34:** an `openapi` tool without `operation:` exposes the whole API (the legacy mode of D3; medium); **LA35:** a `pin` differs from the spec or tool list it pins (a warning in `weave check`, an error in `weave audit --strict`); the audit note names an OAuth tool's **scopes**; a `docs/security/integrations.md` page (what the guards cover, how a token is stored, why an MCP server is a program); every rule listed in `weave-audit.md` and mapped in `owasp-llm-top-10.md`; matching `weave review` rules (regenerated with `make regen`).
 
 **Recommendation: all of it.**
 
@@ -210,7 +223,7 @@ Proposed (numbers continue after 35's LA33): **extend LA31** to an MCP stdio ser
 
 **Why.** Principles 36 and 38, and the repository's rule that the default build has no network.
 
-Proposed: **fakes** (a scripted HTTP server for OpenAPI and OAuth with `MockWebServer`; a scripted MCP server, in process and as a stdio program; a fake clock for token expiry and `Retry-After`); **guards tested by breaking them once:** an OpenAPI spec whose server is a loopback or metadata address is refused (SSRF), a timeout fires, a cap says it truncated and saves the rest, retries respect `Retry-After`, a canary token appears in no log, trace, journal, capture or exception, an MCP `isError` becomes a failure, a command parameter containing spaces, `;` or `--flag` stays one argument, a draft adapter that fails its samples is not emitted, a stale lockfile is flagged; **canaries** through OpenAPI and MCP results into the provenance oracle (results are `unchecked`); a **mutation profile** for the new decision-making classes (the inference rules, the OAuth refresh logic, the argument builder, the lockfile comparison) at 85% or more.
+Proposed: **fakes** (a scripted HTTP server for OpenAPI and OAuth with `MockWebServer`; a scripted MCP server, in process and as a stdio program; a fake clock for token expiry and `Retry-After`); **guards tested by breaking them once:** an OpenAPI spec whose server is a loopback or metadata address is refused (SSRF), a timeout fires, a cap says it truncated and saves the rest, retries respect `Retry-After`, a canary token appears in no log, trace, journal, capture or exception, an MCP `isError` becomes a failure, a command parameter containing spaces, `;` or `--flag` stays one argument, a draft adapter that fails its samples is not emitted, a pin mismatch is flagged; **canaries** through OpenAPI and MCP results into the provenance oracle (results are `unchecked`); a **mutation profile** for the new decision-making classes (the inference rules, the OAuth refresh logic, the argument builder, the pin comparison) at 85% or more.
 
 **Recommendation: all of it,** with the real-server contract tests tagged `@Tag("integration")`.
 
@@ -220,7 +233,7 @@ Proposed: **fakes** (a scripted HTTP server for OpenAPI and OAuth with `MockWebS
 
 **Why.** Words in a script and in a tool's options are public from the day they ship.
 
-Proposed: kinds `openapi` (the options `spec`, `base_url`, `server`, `operations`, `all`, `max_bytes`, `timeout`, `retries`, and the auth options of `http`), `command`; the `mcp` block gains `args`, `env`, `isolation`, `workspace`, `network`, `url` (for a remote server) and `auth`; commands `weave connect`, `weave mcp list`, `weave secret login`; the file `integrations.lock`; the extras module `ai-agent4j-tools-openapi`. Option names follow `http` and `sandbox` wherever they mean the same thing.
+Proposed: kinds `openapi` (the options `spec`, `operation`, `effect`, `on_unknown`, `pin`, `base_url`, `server`, `max_bytes`, `timeout`, `retries`, and the auth options of `http`), `command`; the `mcp` block gains `args`, `env`, `isolation`, `workspace`, `network`, `url` (for a remote server) and `auth` and `pin`; commands `weave connect`, `weave mcp list`, `weave secret login`; the extras module `ai-agent4j-tools-openapi`. Option names follow `http` and `sandbox` wherever they mean the same thing.
 
 **Recommendation: these.**
 
