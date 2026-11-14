@@ -3183,8 +3183,38 @@ public class HarnessExecutor implements LoomEngine {
                 endData.put("compactions", tracing.compactions());
                 if (totals.totalSearches() > 0) endData.put("searches", totals.totalSearches());
                 trace(TraceEvent.RUN_END, null, "workflow " + workflowName + " " + ended, endData);
+                closeTools();
             }
         }
+    }
+
+    /**
+     * At the end of a run, however it ended, a tool that holds something open (a browser) is
+     * closed and dropped, so the next run builds it afresh. Other tools are kept as before.
+     */
+    private void closeTools() {
+        for (Map.Entry<String, Tool> e : new java.util.ArrayList<>(createdTools.entrySet())) {
+            AutoCloseable open = closeable(e.getValue());
+            if (open == null) continue;
+            createdTools.remove(e.getKey());
+            try {
+                open.close();
+            } catch (Exception failure) {
+                log.warning("tool " + e.getKey() + " did not close cleanly: " + failure.getMessage());
+            }
+        }
+    }
+
+    /** The tool under its wrappers, when it holds something open; else null. */
+    static AutoCloseable closeable(Tool tool) {
+        Tool t = tool;
+        for (int depth = 0; t != null && depth < 8; depth++) {
+            if (t instanceof AutoCloseable c) return c;
+            if (t instanceof io.github.llm4j.loom.tools.NamedTool named) t = named.delegate();
+            else if (t instanceof io.github.llm4j.tools.EffectTool effect) t = effect.effectful();
+            else return null;
+        }
+        return null;
     }
 
     @Override
