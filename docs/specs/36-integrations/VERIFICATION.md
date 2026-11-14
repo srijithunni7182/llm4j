@@ -104,7 +104,7 @@ The state of each row after 36a is in section 1b; a row not named there is `not 
 
 ## 1b. What the build reached (kept current; written at the end of each sub-phase)
 
-**36a, written 2026-11-14 (the gate: the session stopped here and waits for the owner).** Levels: E1 a unit or wire-level test, E2 an engine test with a scripted model, E3 a kill-and-resume or concurrency test, **E4 nothing**. Every guard test below was broken on purpose once and failed; the exceptions are named.
+**36a, written 2026-11-14 (the gate: the session stopped here and waits for the owner).** Levels: E1 a unit or wire-level test, E2 an engine test with a scripted model, E3 a kill-and-resume or concurrency test, **E4 nothing**. Every guard test below was broken on purpose once and failed; the exceptions are named. **Test-first was kept for the MCP client, the Loom `mcp` surface, the audit rules, the pin check, the editor and the command; it was not kept for the openapi module, whose first draft of the code was written before its tests** (the guards were proved afterwards by breaking each one, and the tests that found real bugs, such as the unquoted tool name in the editor, were written after the code).
 
 | Row | Reached | Evidence (tests) and what is missing |
 |---|---|---|
