@@ -1,0 +1,56 @@
+# Phase 36: design
+
+Status: **draft.** Facts marked (read) come from the source on the phase 35 branch at the time of writing; anything marked (not read) must be read before the work that depends on it starts. Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md). **This phase builds on phase 35** (`ToolProfile`, the kind registry, `sandbox`, `workspace`) and starts only after 35 is merged.
+
+## 1. What the code does today (read)
+
+**OpenAPI** (`src/ai-agent4j/.../agent/tools/openapi/`, 1,000 lines in six files; Loom's `tools/OpenApiKind.java`):
+- One tool, `OpenAPITool`, takes `endpoint`, `method`, `parameters` and `body`; its description lists every endpoint of the spec. The request builder handles GET, POST, PUT and DELETE; a `SUPPORTED_METHODS` check refuses others.
+- It uses `HttpClient.newHttpClient()` directly: **no `NetPolicy`** (the SSRF guard the repository's rule requires), **no request timeout, no retries, no `Retry-After`.** Only the first `servers` entry of the spec is used and there is no override.
+- A successful answer is **cut at 2,000 characters**; the response body is logged at INFO after credentials are scrubbed.
+- Auth is a key in a header or in the query, with one retry on a 401 when the credential can refresh (`RequestAuth.Resolved.canRetry`).
+- `OpenApiKind` takes `spec` (required) and `auth_header`, `auth_query`, `auth_value` (a secret): no operation list, no base URL, no timeout or size option.
+- `OpenAPIParser` uses `io.swagger.parser.v3` (a heavy library, a dependency of the **core** `pom.xml`) and reads a URL, a file or a string.
+- The guide says an `openapi` tool may declare `effects: { operationId: reads|changes }`; an undeclared operation is assumed `changes`, a GET included.
+
+**`http`** (`src/ai-agent4j-tools/.../HttpKind.java`, `HttpSupport.java`): `base_url`, `methods`, `allow_paths`, `auth_*`, `max_bytes`, `follow_redirects`, header prefixes and the shared network options; `HttpSupport` has `NetPolicy`, timeouts, retries with backoff and `Retry-After`, redirects and idempotency. There is no pagination.
+
+**MCP** (`src/ai-agent4j/.../mcp/`, 549 lines; `McpServerDef` and `HarnessExecutor` in Loom):
+- `McpClient` sends `initialize` with a fixed `protocolVersion` of `2024-11-05` and no client capabilities, then `tools/list` (no paging) and `tools/call`. It returns the raw result; a tool-level `isError` in a result is not examined. No resources, prompts, sampling or notifications are handled.
+- The only transport is `StdioMcpTransport` (a command and an environment map; the server's error stream is inherited).
+- A script declares `mcp Name { transport: "stdio"  cmd: "..."  effects: {...} }`. The parser accepts nothing else: `cmd` is one string split on whitespace, and **there is no clause for the environment**, so a script cannot give a server an API key. Servers start at engine boot; a failure is a load error.
+- `McpEffects` (`security/McpEffects.java`) maps `readOnlyHint` and `destructiveHint` to an effect, and the guide says the hints are used when read. **Nothing in production code calls it; only `McpHintsTest` does.** Its message tells the user to run `weave mcp list`, **a command that does not exist.**
+
+**Credentials** (`src/ai-agent4j/.../secret/`): `SecretStore` implementations (environment, encrypted file, in memory, chained), `SecretRef` and `CredentialSource`, and `InvokerCredentials`, an interface the host implements to hand a run the credentials of whoever started it (for example an OAuth access token, refreshed on every request). **No OAuth flow ships in the library;** the only OAuth code is in an unpublished example application.
+
+**Record and replay:** `weave capture` turns a run into a test case with the recorded models, classifiers, people, tasks and failures; `weave regress` tries a candidate on past runs with recorded answers only. **No tool results are recorded.**
+**Generation and health:** `weave generate` turns a description into a workflow project; `weave doctor` and `weave preflight` check keys, models, the run store and agent probes, not integration endpoints.
+
+**Not read:** the exact `SUPPORTED_METHODS` set, how Loom maps a path and method to an `operationId` for the `effects:` map at run time, the swagger-parser version and its transitive weight, `RequestAuth`'s remaining cases, and the MCP specification's current requirements (transports, authorization, version negotiation), which must be read from the specification when 36b starts.
+
+## 2. The target shape
+
+**Two doors, one control layer.** A system is reached through OpenAPI, MCP, a command, a file or a document, a page, or plain `http`. Every door yields tools that carry, from phase 35's `profile`, an effect, a reach and an isolation, and that run through the same guards (principle 33).
+
+**A lockfile for integrations.** The audit runs nothing, so it cannot ask an MCP server for its tools, and an OpenAPI spec can change under a script. A small committed file records, for each integration, what it described (the spec's hash and operations, an MCP server's tool list with annotations) and the effects inferred from it. `weave check` compares a script to its lockfile offline; `weave doctor --network` compares the lockfile to the live system (drift). This one idea gives the audit its MCP hints, gives drift detection, and gives `weave connect` something to write.
+
+**A guided way in.** `weave connect` reads an OpenAPI file, an MCP server, or a command's help, and writes a tool declaration with the operations chosen, the effects inferred and marked assumed, the lockfile, test fakes from the examples, and runs the audit. Where there is no spec, a model drafts a typed command adapter or an `http` tool, and code verifies the draft against samples before anything is emitted (principle 36).
+
+## 3. Sub-phases
+
+| Sub-phase | What | Gate |
+|---|---|---|
+| 36a | **Fix what exists.** `openapi` rebuilt on the shared HTTP guards; operation list, base URL, size cap and saved large answers; effects inferred; MCP script surface (environment, arguments, errors, paging, timeouts); the lockfile and `weave mcp list`; the guide corrected and the docs tests that would have caught the MCP gap | The owner reviews the branch before 36b |
+| 36b | **Reach.** An MCP transport for remote servers with version negotiation and authorization; OAuth for the HTTP kinds (client credentials, refresh tokens, a device sign-in command); bounded pagination | |
+| 36c | **Safe commands.** MCP stdio servers under the isolation rules; the typed `command` kind on the sandbox backend | |
+| 36d | **Authoring.** `weave connect`, deterministic first, model-assisted for systems without a spec | |
+| 36e | **Replay and health.** Tool results in `capture` and `regress`; drift and endpoint checks | |
+| 36f | **The ecosystem** pass and the time-to-first-safe-call benchmark | |
+
+## 4. Risks (for the owner to weigh against the decisions)
+
+1. **Moving OpenAPI out of the core is a compatibility break** for Java users of `io.github.llm4j.agent.tools.openapi` (D2). It is the price of a light core and of one set of guards.
+2. **The MCP specification moves.** The client's version is two years of drift behind; the current transports and authorization must be read from the specification, not from memory (R-items in VERIFICATION).
+3. **OAuth is easy to get subtly wrong:** storing refresh tokens, rotating them, scopes, and never logging a token. The guards and the canary tests carry it.
+4. **A model-drafted adapter is the largest new attack surface in the phase.** The draft is verified against samples and its effects are a person's decision (principle 36); a draft that fails verification is never emitted.
+5. **The phase is large and is the last for a while.** The gate after 36a and the order are meant to let the owner stop after any sub-phase with something whole.
