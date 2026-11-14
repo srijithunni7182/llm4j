@@ -28,7 +28,6 @@ class StubbedChildTest {
 
     static final String SCRIPT =
             """
-            substitution: braces
             agent Researcher { model: "gemini-2.5-flash" system: "Research." }
             workflow Research(topic) {
                 delegate "Find {topic}" to Researcher -> notes

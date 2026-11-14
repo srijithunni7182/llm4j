@@ -19,8 +19,6 @@ import java.util.Set;
  */
 final class ToolFacts implements FactProvider {
 
-    private static final Set<String> JOURNALED =
-            Set.of("webhook", "email", "http", "file", "shell", "sql");
     private static final List<String> REACH =
             List.of("none", "reads", "fetches", "writes", "sends");
 
@@ -59,7 +57,7 @@ final class ToolFacts implements FactProvider {
             out.set(e, "effect", c.level().name().toLowerCase(Locale.ROOT));
             out.set(e, "effectSource", c.effectSource().name().toLowerCase(Locale.ROOT));
             out.set(e, "effectReason", c.effectReason());
-            out.set(e, "journaled", JOURNALED.contains(kind));
+            out.set(e, "journaled", def != null && Capabilities.profile(def).journaled());
             out.set(e, "idempotentDeclared", false);
             tools.put(name, e);
         }

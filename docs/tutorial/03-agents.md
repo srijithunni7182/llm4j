@@ -5,8 +5,6 @@ An agent is a worker: a model plus the instructions, tools and limits that shape
 ## The anatomy of an agent
 
 ```loom
-substitution: braces
-
 agent Analyst {
     model: "gemini-2.5-flash"
     system: "You are an analyst. Be precise and say when you are unsure."
@@ -63,8 +61,6 @@ Why bother: each prompt gets its own history in version control, its own review,
 A persona is a reusable character: a role, a tone and some rules. Declare it once and give it to several agents:
 
 ```loom
-substitution: braces
-
 persona Mentor {
     role: "a patient senior engineer"
     tone: "warm and direct"
@@ -90,7 +86,6 @@ Loom also ships a few built-in personas by name, such as `technicalAnalyst`.
 Rules that belong to the whole team (house style, what never to do) can go in one place:
 
 ```loom
-substitution: braces
 shared_prompt: "We write for Acme's customers: plain English, short sentences, and say 'I do not know' when you do not."
 
 agent Writer   { model: "gemini-2.5-flash"  system: "You write short articles." }
@@ -160,8 +155,6 @@ workflow Main(q) {
 A routing policy chooses the model for you and falls back when one is down or rate-limited. Declare it once and give it to agents with `routing:` instead of `model:`:
 
 ```loom
-substitution: braces
-
 routing Reliable {
     strategy: fallback
     primary: "gemini-2.5-pro"
@@ -197,8 +190,6 @@ agent Analyst {
 Some models can search the web inside their own calls. Turn it on with `grounding`:
 
 ```loom
-substitution: braces
-
 agent Researcher {
     model: "perplexity/openai/gpt-5.6-sol"
     system: "Answer with sources."

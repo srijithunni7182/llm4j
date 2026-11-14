@@ -49,6 +49,69 @@ public interface ToolKind {
         return null;
     }
 
+    /**
+     * What a tool of this kind with these options reaches and does, for an audit. {@code options}
+     * are as written in the declaration: a reference to the environment or a secret store stays its
+     * reference text, never its value. Touches neither the network nor the files.
+     *
+     * <p>A kind that does not override this is assumed to reach everything and change things
+     * ({@link ToolProfile#unknown}): an audit never trusts a kind that has not said.
+     */
+    default ToolProfile profile(Map<String, String> options) {
+        return ToolProfile.unknown(
+                "tool kind \""
+                        + name()
+                        + "\" does not say what it reaches, so it is assumed to"
+                        + " reach everything");
+    }
+
+    /**
+     * Option-name prefixes whose values stay references ({@code secret.NAME}, {@code env.NAME})
+     * when the tool is built: the tool resolves them on each call through {@link
+     * EffectContext#lookup}, so it never holds the value. A host refuses a literal under them.
+     */
+    default Set<String> resolvedPerCall() {
+        return Set.of();
+    }
+
+    /**
+     * Options that name another tool of the script, by option, with the kind that tool must be: a
+     * {@code sandbox}'s {@code workspace: Data}. A host checks the named tool exists and is of that
+     * kind, and passes its options to this one as {@code <option>.<name>}.
+     */
+    default java.util.Map<String, String> references() {
+        return java.util.Map.of();
+    }
+
+    /**
+     * Whether a host builds a tool of this kind when a run starts rather than at its first use: a
+     * kind whose building asks the machine for something it needs (a container runtime) or cleans
+     * up after a crashed run (a program a sandbox left serving) says so, and a run then fails or
+     * cleans up before any step.
+     */
+    default boolean buildsAtRunStart() {
+        return false;
+    }
+
+    /** In {@link #uncheckedResult}: the whole result may hold text a model wrote. */
+    String WHOLE_RESULT = "*";
+
+    /**
+     * The top-level fields of a tool's result (a JSON object) that may hold text a model wrote,
+     * whatever the arguments were: a test name in a report a model's code produced, a page's text,
+     * a program's output. A host keeps those fields marked as unchecked model text, so they cannot
+     * leave a workflow as if a person or the code had written them; the other fields (counts,
+     * statuses) are data the tool parsed. {@link #WHOLE_RESULT} marks the whole result.
+     *
+     * <p>A kind that names fields here has parsed the rest of its result itself, so a host trusts
+     * those other fields whatever the arguments were. The default is none: a host treats the result
+     * as the tool's own data, except that a tool that computes only from its arguments (one whose
+     * {@link #profile} reaches nothing) gives its result the origin of those arguments.
+     */
+    default Set<String> uncheckedResult(Map<String, String> options) {
+        return Set.of();
+    }
+
     /** What is wrong with the options, or null. Touches neither the network nor the files. */
     String check(Map<String, String> options, Path baseDir);
 

@@ -1,0 +1,12 @@
+{
+  "scriptName": "tool_workspace.loom",
+  "workflowName": "main",
+  "steps": [
+    { "kind": "use", "tool": "Data" },
+    { "kind": "use", "tool": "Data" },
+    { "kind": "use", "tool": "Data" },
+    { "kind": "use", "tool": "Data" },
+    { "kind": "use", "tool": "Data" },
+    { "kind": "note", "text": "first draft" }
+  ]
+}

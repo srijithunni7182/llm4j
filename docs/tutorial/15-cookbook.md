@@ -29,8 +29,6 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 ### Recipe: pull fields out of text
 
 ```loom-parse
-substitution: braces
-
 extractor Contact {
     model: "gemini-2.5-flash"
     instructions: "Find the person's name and, if stated, their phone number."
@@ -58,8 +56,6 @@ The extractor sees only the email, never the run so far or the shared prompt. A 
 ### Recipe: let the reasoning agent think, then extract
 
 ```loom-parse
-substitution: braces
-
 agent Researcher {
     model: "gemini-2.5-pro"
     system: "Research the topic. Answer in plain prose; explain your reasoning, then state your conclusions."
@@ -103,8 +99,6 @@ Files come only from `media_root`. See chapter 3 and chapter 5.
 ### Recipe: a cheaper model when money runs low
 
 ```loom
-substitution: braces
-
 budget { tokens: 100000 }
 
 agent Writer      { model: "gemini-2.5-pro"    system: "You write careful, detailed drafts." }
@@ -123,8 +117,6 @@ workflow Main(topic) {
 ### Recipe: ask a person only when the model is unsure
 
 ```loom
-substitution: braces
-
 intentclassifier Intent {
     model: "gemini-2.5-flash"
     choose kind: refund | question | other
@@ -228,7 +220,6 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 |---|---|---|
 | `loop until (...)` with no `max` | A model that is never satisfied runs, and bills, forever | `max N` and an `on_exhausted` block |
 | A variable set and never read | Usually a typo, or a branch that does nothing | Use it or delete it |
-| A variable that is also a plain word in a prompt | In the older mode the word is replaced by the value | `substitution: braces` |
 | A tool step with no `retry`/`timeout`/`on_failure` | One slow call stalls or ends the run | Add all three |
 | An agent that can send, with no approval | Nobody decides before it acts | Let it propose and `use Tool(...) approve` after it; `approve: [Tool]` for an assistant a person works with |
 | One shared variable written by two `parallel` branches | A race: you get one of the answers | One variable per branch |
@@ -246,7 +237,6 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 
 ```text
 // comment
-substitution: braces
 import "other.loom"
 
 budget { tokens: 200000  calls: 150  warn_at: 80% }
@@ -260,7 +250,7 @@ persona Name { role: "..."  tone: "..."  constraints: ["..."] }
 provider Name { use: ollama  base_url: "..."  api_key: env.NAME }
 routing Name { strategy: fallback  primary: "m1"  fallback: ["m2", "m3"] }
 knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "idx.json" }
-tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options...  effect: none|reads|changes }
+tool Name { use: webhook|email|http|file|shell|sql|compute|verify|scan|workspace|sandbox|openapi|class|...  ...options...  effect: none|reads|changes }
 mcp Name { transport: "stdio"  cmd: "..." }
 extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
 evaluator Name { model: "..."  samples: 3  unsure below 0.8  fallback: ["..."] }
@@ -359,5 +349,7 @@ weave guide                               the built-in language guide
 - Put it in front of people: [Going live](../guide/09-go-live.md).
 - Understand the safety model: [Secure by construction](../security/secure-by-construction.md).
 - Get your coding agent to help: `weave guide --install-skill` teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom, and to look commands up instead of guessing.
+
+Next: [Files, checks and running code](16-files-checks-and-code.md).
 
 Back to the [tutorial index](README.md).

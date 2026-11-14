@@ -141,7 +141,7 @@ Every finding has a stable id. The last column is the phase that owns it. A find
 | F47 | `expecting {...}` must come before `retry`, and the parse error does not say so. | S1, S2 3.1.6 | V |
 | F48 | In a scripted task result the word `value` is reserved, and the error does not say what to write instead. | S1, S2 3.1.6 | V |
 | F49 | A string cannot contain `\"`. | S2 3.1.6 | V |
-| F50 | A variable's name is replaced wherever the bare word appears in a string, not only as `{name}`. The lint (`wordsThatAreVariables`) caught two cases and missed `out` inside `length-out-of-range(...)`, which printed a file path into a message. | S2 3.1.5 | V, **C** (the code documents "the older bare-name form") |
+| F50 | A variable's name is replaced wherever the bare word appears in a string, not only as `{name}`. The lint (`wordsThatAreVariables`) caught two cases and missed `out` inside `length-out-of-range(...)`, which printed a file path into a message. | S2 3.1.5 | V, **C** (the code documents "the older bare-name form"). Fixed in 6.2.0: only `{name}` is replaced. |
 | F51 | Parallel branches that fall back by `set`ting a shared variable need a separate variable each; there is no join or collect construct. | S2 3.1.6 | V |
 | F52 | The scripted-test harness scripts every task, so real task code is never exercised inside a workflow test. | S1 §4 | V |
 | F53 | Fabric and the deployer: scripts assume jars in the skill's `bin/` (F13); `run-observed` expects the store's master key beside it as `<store>.key`; no `weave fabric up`; `fabric-status` does not show when each client last reported. | S2 3.5 | V |

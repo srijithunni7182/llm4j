@@ -7,7 +7,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 EVIDENCE="$ROOT/.kiro/specs/loom-remote-answers/evidence"
-MODULES="src/ai-agent4j,src/ai-agent4j-tools,src/loom/ai-agent4j-loom"
+MODULES="src/ai-agent4j,src/tools/ai-agent4j-tools,src/loom/ai-agent4j-loom"
 MODULE=src/loom/ai-agent4j-loom
 BASELINE=95732b2   # the earned-autonomy sign-off, before the remote-answers work
 SHA=$(git rev-parse HEAD)
@@ -42,7 +42,7 @@ g1() {
     else
       echo "   BUILD FAILURE" | tee -a "$out"; FAILED+=("G1 run $((i+1))"); tail -30 "$EVIDENCE/.g1-run$i.log" >> "$out"
     fi
-    counts[$i]="core: $(totals src/ai-agent4j); tools: $(totals src/ai-agent4j-tools); loom: $(totals $MODULE)"; echo "   ${counts[$i]}" | tee -a "$out"
+    counts[$i]="core: $(totals src/ai-agent4j); tools: $(totals src/tools/ai-agent4j-tools); loom: $(totals $MODULE)"; echo "   ${counts[$i]}" | tee -a "$out"
   done
   [ "${counts[0]}" = "${counts[1]}" ] || { echo "   test counts differ between the two plain runs" | tee -a "$out"; FAILED+=("G1 counts"); }
   rm -f "$EVIDENCE"/.g1-run*.log
@@ -65,7 +65,7 @@ g4() {
   python3 - "$work/baseline" "$ROOT" "$SHA" "$BASELINE" > "$out" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 from pathlib import Path
-MODS = ["src/ai-agent4j", "src/ai-agent4j-tools", "src/loom/ai-agent4j-loom"]
+MODS = ["src/ai-agent4j", "src/tools/ai-agent4j-tools", "src/loom/ai-agent4j-loom"]
 def cases(root):
     out = {}
     for m in MODS:

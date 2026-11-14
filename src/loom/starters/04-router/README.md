@@ -16,8 +16,6 @@ Read more: [04-control-flow.md](../../../../docs/tutorial/04-control-flow.md), [
 // 04-router: decide which specialist should answer. The classifier only labels; the script's own `alt` does the routing,
 // so no wording in a message can change which branch runs.
 
-substitution: braces
-
 agent Classifier {
     model: "gemini-2.5-flash"
     system: "Classify the customer message."

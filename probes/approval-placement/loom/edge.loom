@@ -1,6 +1,4 @@
 // P12, Loom side: the agent drafts; a person is asked once, about the exact text that will be sent; the script sends.
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short announcement." }
 

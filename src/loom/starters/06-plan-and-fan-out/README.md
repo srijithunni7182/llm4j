@@ -18,8 +18,6 @@ Read more: [04-control-flow.md](../../../../docs/tutorial/04-control-flow.md).
 // typed: `owner` can only be one of the two agents, so a model cannot send work anywhere else, and each answer is stored
 // under its task's name in one variable, `results`, so a task name cannot overwrite anything.
 
-substitution: braces
-
 budget { tokens: 300000  calls: 40 }
 
 agent Planner {

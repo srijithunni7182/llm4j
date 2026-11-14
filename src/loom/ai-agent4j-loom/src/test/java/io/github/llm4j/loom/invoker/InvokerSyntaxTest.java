@@ -218,8 +218,9 @@ class InvokerSyntaxTest {
                                 4L, // defaults of kinds; after the invoker check; after the invoker
                         // check; resolve() (invoker handled first)
                         "execution/HarnessExecutor.java",
-                                2L); // credentialValue (invoker handled first); option() (providers
-        // are refused invoker at load)
+                                3L); // credentialValue (invoker handled first); option() (providers
+        // are refused invoker at load); lookupReference (builds only secret. and env. values, so an
+        // invoker. reference finds nothing and the tool refuses the call)
         Path root = Path.of("src/main/java/io/github/llm4j/loom");
         try (Stream<Path> files = Files.walk(root)) {
             Map<String, Long> found =

@@ -1,14 +1,16 @@
 # Publishing to Maven Central
 
-One command from the repository root builds, tests, signs and uploads **eleven libraries and the parent pom** as a single bundle to the
+One command from the repository root builds, tests, signs and uploads **fifteen libraries and three parent poms** as a single bundle to the
 [Sonatype Central Portal](https://central.sonatype.com/):
 
 | Artifact (`io.github.srijithunni7182`) | What it is |
 |---|---|
 | `llm4j-parent` | the parent pom the others inherit (must be published, or the others cannot be resolved) |
+| `ai-agent4j-tools-parent`, `ai-agent4j-tools-extras-parent` | the parents of the tool modules ([src/tools](../src/tools/README.md)); published for the same reason |
 | `ai-agent4j` | the agent library |
 | `ai-agent4j-addons` | RAG stores and embeddings (heavy engines are **optional** dependencies) |
 | `ai-agent4j-tools` | built-in tools |
+| `ai-agent4j-tools-search`, `-documents`, `-git`, `-browser` | the optional tool modules ([extras](../src/tools/extras/README.md)); `documents` also publishes a `-weave` jar with PDFBox inside |
 | `eval4j`, `eval4j-report` | evaluation library and its reports |
 | `ai-agent4j-loom` | Loom: the thin library jar, plus the runnable `weave` jar as the `cli` classifier |
 | `loom-inspect-core`, `loom-inspect`, `loom-fabric` | live observability for Loom runs, and the Fabric server (`-all` jar) |
@@ -47,7 +49,7 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
 3. Tag and push: `git tag v6.2.0 && git push origin v6.2.0`. The workflow `Build, Validate, and Deploy` runs the tests on JDK 17 and 21,
    then `mvn -B -Prelease deploy` (tests again, sign, upload). You can also start it by hand with *Run workflow → deploy*.
 4. **Review in the Portal.** By default the upload is *not* published (`central.autoPublish=false`): open
-   *Deployments* in the Central Portal, check the twelve artifacts (eleven libraries and the parent pom) and their signatures validated, then press **Publish**.
+   *Deployments* in the Central Portal, check the eighteen artifacts (fifteen libraries and three parent poms) and their signatures validated, then press **Publish**.
    Publishing is permanent. Once you trust the flow, tick `auto_publish` when starting the workflow by hand, or pass
    `-Dcentral.autoPublish=true`.
 5. Central syncs in 10–30 minutes; then the artifacts appear at `search.maven.org` and are resolvable from any build.

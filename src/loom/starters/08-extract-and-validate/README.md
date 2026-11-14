@@ -18,8 +18,6 @@ Read more: [05-structured-answers-and-failure.md](../../../../docs/tutorial/05-s
 // fields it must fill (never the run so far), a field the text does not state is `missing` (or fails the step if it is
 // required), and the script then applies its own rules to the fields.
 
-substitution: braces
-
 budget { tokens: 80000  calls: 15 }
 
 extractor Invoice {

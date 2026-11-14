@@ -18,8 +18,6 @@ Read more: [08-people-in-the-loop.md](../../../../docs/tutorial/08-people-in-the
 // `sleep` pauses the run and holds no thread; it carries on when the answer arrives or the time has passed. Write the script as if
 // the time simply passes.
 
-substitution: braces
-
 budget { tokens: 80000  calls: 15 }
 
 rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }

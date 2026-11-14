@@ -21,6 +21,13 @@ final class OpenApiKind implements ToolKind {
         return "openapi";
     }
 
+    /** Any operation of the spec: reads, private data, writes and sends, all possible. */
+    @Override
+    public io.github.llm4j.agent.tool.ToolProfile profile(Map<String, String> options) {
+        return io.github.llm4j.agent.tool.ToolProfile.of(
+                true, true, true, true, "any operation in " + options.get("spec"));
+    }
+
     @Override
     public Set<String> required() {
         return Set.of("spec");

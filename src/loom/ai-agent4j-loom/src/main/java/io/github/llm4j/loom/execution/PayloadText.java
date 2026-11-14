@@ -7,7 +7,7 @@ import java.util.logging.Logger;
 
 /**
  * Turns the text a script wrote into the text an agent is sent: {@code {name}} and {@code
- * {var.field}} placeholders filled from the run's variables (and the legacy bare names), a schema
+ * {var.field}} placeholders filled from the run's variables (nothing else is replaced), a schema
  * written as the words a model is told, and a model's JSON answer read back into a value.
  */
 final class PayloadText {
@@ -20,11 +20,6 @@ final class PayloadText {
 
         /** The workflow's own variables. */
         VariableContext context();
-
-        /** Whether a variable's bare name is replaced too (the default), or only {@code {name}}. */
-        default boolean bareNamesReplaced() {
-            return true;
-        }
 
         /**
          * A variable or {@code var.field} path whose value was put into the text. The runtime
@@ -46,17 +41,15 @@ final class PayloadText {
 
     String resolve(String rawPayload) {
         if (rawPayload == null) return null;
-        // {name} and {var.field.sub} are replaced by values; bare names (the legacy form) only in
-        // the text the
-        // script wrote — never inside a value just inserted, so one variable's text can't rewrite
-        // another's.
+        // Only {name} and {var.field.sub} are replaced, in one pass over the text the script wrote,
+        // so a value just inserted is never read again and one variable's text can't rewrite another's.
         VariableContext scope = host.view();
         Map<String, Object> vars = scope.getAll();
         java.util.regex.Matcher m = PLACEHOLDER.matcher(rawPayload);
         StringBuilder out = new StringBuilder();
         int last = 0;
         while (m.find()) {
-            out.append(bareNames(rawPayload.substring(last, m.start())));
+            out.append(rawPayload, last, m.start());
             String name = m.group(1);
             if (PAYLOAD_PATH.matcher(m.group()).matches()) {
                 // Like conditions, a missing field reads as empty (e.g. a step that failed and set
@@ -73,39 +66,8 @@ final class PayloadText {
             }
             last = m.end();
         }
-        out.append(bareNames(rawPayload.substring(last)));
+        out.append(rawPayload.substring(last));
         return out.toString();
-    }
-
-    /**
-     * Bare-name substitution, for backward compatibility with older scripts. Workflow variables
-     * only: block-local names (for each items, _error) are common words, so they must be written
-     * {like.this}.
-     */
-    private String bareNames(String text) {
-        if (text.isEmpty() || !host.bareNamesReplaced()) return text;
-        Map<String, Object> vars = host.context().getAll();
-        if (vars.isEmpty()) return text;
-        // One pass, longest names first: a value put in is never scanned again.
-        String alternatives =
-                vars.keySet().stream()
-                        .filter(k -> !k.isEmpty())
-                        .sorted((x, y) -> Integer.compare(y.length(), x.length()))
-                        .map(java.util.regex.Pattern::quote)
-                        .collect(java.util.stream.Collectors.joining("|"));
-        if (alternatives.isEmpty()) return text;
-        return java.util.regex.Pattern.compile(alternatives)
-                .matcher(text)
-                .replaceAll(
-                        r -> {
-                            Object value = vars.get(r.group());
-                            // an ordinary word that happens to be a handle's name is only a word
-                            if (value instanceof io.github.llm4j.loom.runtime.ChildHandle
-                                    || value instanceof io.github.llm4j.loom.runtime.Unavailable)
-                                return java.util.regex.Matcher.quoteReplacement(r.group());
-                            host.touched(r.group());
-                            return java.util.regex.Matcher.quoteReplacement(String.valueOf(value));
-                        });
     }
 
     /**

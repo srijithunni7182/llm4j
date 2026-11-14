@@ -1,10 +1,13 @@
 package io.github.llm4j.loom.security;
 
 import io.github.llm4j.agent.task.TaskEffect;
+import io.github.llm4j.agent.tool.ToolProfile;
 import io.github.llm4j.loom.ast.ToolDef;
+import io.github.llm4j.loom.tools.ReachDeclaration;
+import io.github.llm4j.loom.tools.ToolFactory;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * What a tool lets an agent do, in the three terms that make up the "lethal trifecta": read content
@@ -85,23 +88,6 @@ public record Capabilities(
         return declared != null ? declared : whole.level();
     }
 
-    static final Set<String> SEARCH =
-            Set.of("duckduckgo", "serpapi", "google_search", "web_search");
-    static final Set<String> HARMLESS =
-            Set.of(
-                    "calculator",
-                    "datetime",
-                    "current_time",
-                    "translate",
-                    "transliterate",
-                    "detect_language",
-                    "speak",
-                    "transcribe");
-
-    static Capabilities none(String note) {
-        return new Capabilities(false, false, false, false, true, note);
-    }
-
     static Capabilities unknown(String note) {
         return new Capabilities(true, true, true, true, false, note);
     }
@@ -167,88 +153,78 @@ public record Capabilities(
                 + " tool; say what it does with effect: none | reads | changes";
     }
 
-    /** A built-in tool used by name, or one the host registered (null declaration). */
+    /**
+     * A built-in tool used by name ({@link ToolFactory#BUILT_INS}), or one the host registered (no
+     * declaration). A built-in that reaches nothing is noted as such.
+     */
     static Capabilities ofName(String name) {
-        if (SEARCH.contains(name))
-            return new Capabilities(true, false, false, false, true, "web search results");
-        if (HARMLESS.contains(name)) return none("built-in");
-        return unknown("registered by the host (.loot or Java): the audit can't see what it does");
-    }
-
-    static Capabilities of(ToolDef t) {
-        String kind = t.getKind() == null ? "" : t.getKind().toLowerCase(Locale.ROOT);
-        return switch (kind) {
-            case "duckduckgo", "serpapi", "google_search" -> new Capabilities(
-                    true, false, false, false, true, "web search results");
-            case "calculator",
-                    "datetime",
-                    "current_time",
-                    "translate",
-                    "transliterate",
-                    "detect_language",
-                    "speak",
-                    "transcribe" -> none(kind);
-            case "webhook" -> new Capabilities(
-                    false, false, true, true, true, "posts to a fixed URL");
-            case "email" -> new Capabilities(
-                    false,
-                    false,
-                    true,
-                    true,
-                    true,
-                    opt(t, "to") != null
-                            ? "mails fixed recipients"
-                            : "mails recipients the agent chooses from allow_to");
-            case "http" -> {
-                boolean writes = writes(opt(t, "methods"));
-                yield new Capabilities(
-                        true,
-                        opt(t, "auth_value") != null || opt(t, "auth_header") != null,
-                        writes,
-                        writes,
-                        true,
-                        writes
-                                ? "calls " + opt(t, "base_url") + " with " + opt(t, "methods")
-                                : "reads from " + opt(t, "base_url"));
-            }
-            case "file" -> {
-                String mode = opt(t, "mode") == null ? "read" : opt(t, "mode");
-                boolean reads = mode.contains("read");
-                boolean writes = !mode.equals("read");
-                yield new Capabilities(
-                        false,
-                        reads,
-                        false,
-                        writes,
-                        true,
-                        mode + " in " + (opt(t, "root") == null ? "." : opt(t, "root")));
-            }
-            case "shell" -> new Capabilities(
-                    false, true, true, true, true, "runs " + opt(t, "allow"));
-            case "sql" -> new Capabilities(false, true, false, false, true, "read-only queries");
-            case "openapi" -> new Capabilities(
-                    true, true, true, true, true, "any operation in " + opt(t, "spec"));
-            case "knowledge_graph" -> new Capabilities(
-                    false,
-                    true,
-                    false,
-                    !"true".equals(opt(t, "read_only")),
-                    true,
-                    "a knowledge graph");
-            case "skill_registry" -> new Capabilities(
-                    true, false, false, false, true, "skills fetched from " + opt(t, "url"));
-            case "class" -> declared(t);
-            default -> unknown("tool kind \"" + kind + "\" is not one the audit knows");
-        };
+        String kind = ToolFactory.BUILT_INS.get(name);
+        java.util.Optional<io.github.llm4j.loom.tools.ToolKind> builtIn =
+                kind == null ? java.util.Optional.empty() : ToolFactory.standardKind(kind);
+        if (builtIn.isEmpty())
+            return unknown(
+                    "registered by the host (.loot or Java): the audit can't see what it does");
+        ToolProfile p = builtIn.get().profile(Map.of());
+        boolean reaches = p.untrusted() || p.privateData() || p.outward();
+        return from(reaches || !p.known() ? p : withNote(p, "built-in"));
     }
 
     /**
-     * A tool of the author's own. The audit never loads or runs it, so it believes only what the
-     * script says: {@code reach:} in the tool's entry. Without one it assumes the worst. A
-     * declaration is the author's word, and the note says so.
+     * What a declared tool reaches: its kind's own answer ({@link
+     * io.github.llm4j.loom.tools.ToolKind#profile}) from the options as written. A kind Loom does
+     * not have is assumed to reach everything.
      */
-    private static Capabilities declared(ToolDef t) {
-        return fromReach(opt(t, "reach"), "Java class " + opt(t, "class"));
+    static Capabilities of(ToolDef t) {
+        return from(profile(t));
+    }
+
+    /**
+     * The kind's statement about a declared tool, before any {@code effect:} the developer wrote:
+     * what it reaches, whether its calls are journaled, its isolation. A kind Loom does not have
+     * reaches everything.
+     */
+    public static ToolProfile profile(ToolDef t) {
+        String kind = t.getKind() == null ? "" : t.getKind().toLowerCase(Locale.ROOT);
+        return ToolFactory.knownKind(kind)
+                .map(k -> k.profile(written(t)))
+                .orElseGet(
+                        () ->
+                                ToolProfile.unknown(
+                                        "tool kind \"" + kind + "\" is not one the audit knows"));
+    }
+
+    /** The options as written: a reference is its text ({@code env.NAME}), never its value. */
+    public static Map<String, String> written(ToolDef t) {
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        t.getOptions()
+                .forEach((name, v) -> out.put(name, v.isReference() ? v.toString() : v.value()));
+        return out;
+    }
+
+    private static ToolProfile withNote(ToolProfile p, String note) {
+        return new ToolProfile(
+                p.untrusted(),
+                p.privateData(),
+                p.outward(),
+                p.effect(),
+                p.isolation(),
+                p.journaled(),
+                p.known(),
+                note);
+    }
+
+    /** The audit's view of a profile: its effect assumed from the kind, the note as the reason. */
+    static Capabilities from(ToolProfile p) {
+        return new Capabilities(
+                p.untrusted(),
+                p.privateData(),
+                p.outward(),
+                p.effect() == TaskEffect.CHANGES,
+                p.known(),
+                p.note(),
+                p.effect(),
+                EffectSource.ASSUMED,
+                p.note());
     }
 
     /**
@@ -256,27 +232,7 @@ public record Capabilities(
      * Name.reach} in the .loot file); null reach means undeclared.
      */
     static Capabilities fromReach(String reach, String cls) {
-        if (reach == null)
-            return unknown(
-                    cls
-                            + ": the audit can't see what it does (say what it reaches with reach: none | reads | fetches | writes | sends)");
-        String by =
-                cls
-                        + ", declared reach: "
-                        + reach
-                        + " (the author's word; the audit does not check it)";
-        return switch (reach) {
-            case "none" -> new Capabilities(false, false, false, false, true, by);
-            case "reads" -> new Capabilities(false, true, false, false, true, by);
-            case "fetches" -> new Capabilities(true, false, false, false, true, by);
-            case "writes" -> new Capabilities(false, true, false, true, true, by);
-            case "sends" -> new Capabilities(false, true, true, true, true, by);
-            default -> unknown(
-                    cls
-                            + ": reach: "
-                            + reach
-                            + " is not one of none, reads, fetches, writes, sends");
-        };
+        return from(ReachDeclaration.profile(reach, cls));
     }
 
     static boolean writes(String methods) {

@@ -53,6 +53,47 @@ public interface ToolKind {
     }
 
     /**
+     * What a tool of this kind with these options reaches and does, for {@code weave audit}, the
+     * review, the rewind checks and {@code weave test}. {@code options} are as written in the
+     * declaration: a reference stays its reference text ({@code env.NAME}), never its value.
+     * Touches neither the network nor the files.
+     *
+     * <p>A kind that does not override this is assumed to reach everything and change things.
+     */
+    default io.github.llm4j.agent.tool.ToolProfile profile(Map<String, String> options) {
+        return io.github.llm4j.agent.tool.ToolProfile.unknown(
+                "tool kind \""
+                        + name()
+                        + "\" does not say what it reaches, so it is assumed to reach everything");
+    }
+
+    /** As {@link io.github.llm4j.agent.tool.ToolKind#resolvedPerCall}. */
+    default Set<String> resolvedPerCall() {
+        return Set.of();
+    }
+
+    /** As {@link io.github.llm4j.agent.tool.ToolKind#references}. */
+    default Map<String, String> references() {
+        return Map.of();
+    }
+
+    /**
+     * Whether the run builds a tool of this kind when it starts rather than at its first use (see
+     * {@link io.github.llm4j.agent.tool.ToolKind#buildsAtRunStart()}).
+     */
+    default boolean buildsAtRunStart() {
+        return false;
+    }
+
+    /**
+     * The top-level fields of a tool's result that may hold text a model wrote, as in {@link
+     * io.github.llm4j.agent.tool.ToolKind#uncheckedResult}; none by default.
+     */
+    default Set<String> uncheckedResult(Map<String, String> options) {
+        return Set.of();
+    }
+
+    /**
      * Extra checks on the resolved options (e.g. exactly one of two); returns a problem or null.
      */
     default String check(Map<String, String> options) {

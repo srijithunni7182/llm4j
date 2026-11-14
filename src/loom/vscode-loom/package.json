@@ -2,7 +2,7 @@
   "name": "vscode-llm4j-loom",
   "displayName": "Loom for llm4j: AI agent workflows",
   "description": "Build, review, test and run multi-agent AI workflows: generate from a sentence, see the graph, review for cost and security. Loom language support (.loom, .loot).",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "publisher": "srijithunni7182",
   "homepage": "https://github.com/srijithunni7182/llm4j/tree/main/src/loom",
   "bugs": {

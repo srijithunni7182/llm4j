@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.srijithunni7182</groupId>
+        <artifactId>ai-agent4j-tools-parent</artifactId>
+        <version>6.2.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ai-agent4j-tools</artifactId>
+    <packaging>jar</packaging>
+
+    <name>AI Agent4J - Tools</name>
+    <description>Ready-made, guarded tools for ai-agent4j agents: webhook, email, http, file, shell and read-only sql.</description>
+
+    <dependencies>
+        <!-- Core library: the Tool interface, the rate-limit Sleeper and OkHttp -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- SMTP for the email tool. Optional: only needed (and only loaded) when an email tool is built. -->
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+            <version>2.0.3</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver</artifactId>
+            <version>5.3.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail</artifactId>
+            <version>2.1.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- The weight rule: WeightRuleTest pins the list this writes (see ../README.md) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- A parent-process variable the shell tool's tests check does NOT reach a program -->
+                    <environmentVariables>
+                        <LOOM_TEST_MARKER>marker-from-parent-9f3a</LOOM_TEST_MARKER>
+                    </environmentVariables>
+                    <systemPropertyVariables>
+                        <user.language>en</user.language>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                        <configuration>
+                            <rules>
+                                <!-- The tools as a whole -->
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes><include>io.github.llm4j.tools</include></includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <!-- The classes that decide what a model may do: held to a higher bar -->
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes>
+                                        <include>io.github.llm4j.tools.NetPolicy</include>
+                                        <include>io.github.llm4j.tools.SqlGuard</include>
+                                        <include>io.github.llm4j.tools.RequestPath</include>
+                                        <include>io.github.llm4j.tools.Redactor</include>
+                                        <include>io.github.llm4j.tools.EffectTool</include>
+                                        <include>io.github.llm4j.tools.PathGuard</include>
+                                        <include>io.github.llm4j.tools.MailAddress</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.90</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+            Mutation tests of the classes that decide what a model may do with the phase 35 tools (TEST_STRATEGY §4):
+            mvn -Pmutation-tools org.pitest:pitest-maven:mutationCoverage -pl src/tools/ai-agent4j-tools
+            The build fails below 85% of mutants killed. Kill a survivor with a better assertion; never exclude it.
+        -->
+        <profile>
+            <id>mutation-tools</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.tools.Expression*</param>
+                                <param>io.github.llm4j.tools.Csv*</param>
+                                <param>io.github.llm4j.tools.ComputeTool*</param>
+                                <param>io.github.llm4j.tools.Verdict*</param>
+                                <param>io.github.llm4j.tools.JUnitReport*</param>
+                                <param>io.github.llm4j.tools.SchemaCheck*</param>
+                                <param>io.github.llm4j.tools.VerifyTool*</param>
+                                <param>io.github.llm4j.tools.ScanRules*</param>
+                                <param>io.github.llm4j.tools.ScanTool*</param>
+                                <param>io.github.llm4j.tools.RootedFiles*</param>
+                                <param>io.github.llm4j.tools.Globs*</param>
+                                <param>io.github.llm4j.tools.WorkspaceJail*</param>
+                                <param>io.github.llm4j.tools.PatchApplier*</param>
+                                <param>io.github.llm4j.tools.SnapshotStore*</param>
+                                <param>io.github.llm4j.tools.WorkspaceTool*</param>
+                                <param>io.github.llm4j.tools.SandboxKind*</param>
+                                <param>io.github.llm4j.tools.SandboxTool*</param>
+                                <param>io.github.llm4j.tools.Leases*</param>
+                                <param>io.github.llm4j.tools.HeadAndTail*</param>
+                                <param>io.github.llm4j.tools.EgressProxy*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.tools.compute.*Test</param>
+                                <param>io.github.llm4j.tools.verify.*Test</param>
+                                <param>io.github.llm4j.tools.scan.*Test</param>
+                                <param>io.github.llm4j.tools.CsvTest</param>
+                                <param>io.github.llm4j.tools.workspace.*Test</param>
+                                <param>io.github.llm4j.tools.sandbox.*Test</param>
+                                <param>io.github.llm4j.tools.ContainerSandboxArgumentsTest</param>
+                            </targetTests>
+                            <!-- the Docker tests need a daemon and are not part of the score -->
+                            <excludedGroups><param>integration</param></excludedGroups>
+                            <mutationThreshold>85</mutationThreshold>
+                            <threads>4</threads>
+                            <timeoutFactor>3</timeoutFactor>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

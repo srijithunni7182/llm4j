@@ -25,6 +25,14 @@ public interface Effectful extends Tool {
     EffectPolicy policy();
 
     /**
+     * The policy for this call, for a tool whose calls differ: a restore that is safe to repeat
+     * after an unknown outcome, beside an append that is not. Defaults to {@link #policy()}.
+     */
+    default EffectPolicy policy(Map<String, Object> args) {
+        return policy();
+    }
+
+    /**
      * A short, non-sensitive description of what the call touches (a host, a path), for audit and
      * trace.
      */

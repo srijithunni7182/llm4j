@@ -26,6 +26,13 @@ final class GraphKind implements ToolKind {
         return "knowledge_graph";
     }
 
+    /** Reads private data (the graph); writes to it unless {@code read_only: true}. */
+    @Override
+    public io.github.llm4j.agent.tool.ToolProfile profile(Map<String, String> options) {
+        return io.github.llm4j.agent.tool.ToolProfile.of(
+                false, true, false, !"true".equals(options.get("read_only")), "a knowledge graph");
+    }
+
     @Override
     public Set<String> required() {
         return Set.of("store");

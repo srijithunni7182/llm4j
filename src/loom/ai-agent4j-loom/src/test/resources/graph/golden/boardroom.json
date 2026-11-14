@@ -36,7 +36,7 @@
             "line": 10
           },
           "attrs": {
-            "text": "proposal"
+            "text": "{proposal}"
           }
         },
         {
@@ -78,7 +78,7 @@
             "line": 17
           },
           "attrs": {
-            "text": "finance_report"
+            "text": "{finance_report}"
           }
         },
         {

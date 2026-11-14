@@ -193,11 +193,6 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
-                        public boolean bareNamesReplaced() {
-                            return !"braces".equals(script.getSubstitution());
-                        }
-
-                        @Override
                         public void touched(String path) {
                             java.util.Set<String> into = touches.get();
                             if (into != null) into.add(path);
@@ -677,7 +672,7 @@ public class HarnessExecutor implements LoomEngine {
     private String scriptRef = "script";
     private boolean lenient;
     private final io.github.llm4j.loom.tools.ToolFactory toolFactory =
-            new io.github.llm4j.loom.tools.ToolFactory();
+            new io.github.llm4j.loom.tools.ToolFactory().declarations(this::declaredTool);
     private Path baseDir = Path.of("").toAbsolutePath();
     private io.github.llm4j.loom.knowledge.EmbeddingFactory embeddingFactory;
     private final Map<String, io.github.llm4j.loom.knowledge.KnowledgeIndex> knowledge =
@@ -956,6 +951,54 @@ public class HarnessExecutor implements LoomEngine {
 
     /** What a value is, with the variables it was built from. */
     record Tracked<T>(T value, Provenance.Tag tag, java.util.Set<String> from) {}
+
+    /**
+     * The value of {@code secret.NAME} or {@code env.NAME}, looked up now, for a tool that resolves
+     * its secrets on each call (phase 35, C4); null for anything else or when it is not set.
+     */
+    /** The script's declaration of a tool, or null. */
+    private io.github.llm4j.loom.ast.ToolDef declaredTool(String name) {
+        for (io.github.llm4j.loom.ast.ToolDef t : script.getTools()) if (t.getName().equals(name)) return t;
+        return null;
+    }
+
+    String lookupReference(String reference) {
+        if (reference == null) return null;
+        io.github.llm4j.loom.ast.ToolDef.OptionValue v =
+                reference.startsWith("secret.")
+                        ? io.github.llm4j.loom.ast.ToolDef.OptionValue.secret(reference.substring(7))
+                        : reference.startsWith("env.")
+                                ? io.github.llm4j.loom.ast.ToolDef.OptionValue.env(reference.substring(4))
+                                : null;
+        return v == null ? null : credentials.apply(v.lookupKey());
+    }
+
+    /**
+     * The origin of what {@code use name} returns (phase 35, D12 and D15). A kind that names the
+     * fields of its result that may hold model text has them kept unchecked, and the rest (counts,
+     * statuses) is data it parsed. A kind that names none and reaches nothing computes only from
+     * its arguments, so its result has their origin. Any other tool's result is its own data, as
+     * before.
+     */
+    Provenance.Tag useResultTag(String name, Provenance.Tag arguments) {
+        io.github.llm4j.loom.ast.ToolDef def = null;
+        for (io.github.llm4j.loom.ast.ToolDef t : script.getTools())
+            if (t.getName().equals(name)) def = t;
+        if (def == null || def.getKind() == null) return Provenance.NOT_MODEL;
+        Map<String, String> written = io.github.llm4j.loom.security.Capabilities.written(def);
+        java.util.Set<String> fields = toolFactory.uncheckedResultOf(def.getKind(), written);
+        Provenance.Tag own =
+                fields.isEmpty()
+                        ? Provenance.NOT_MODEL
+                        : fields.contains(io.github.llm4j.agent.tool.ToolKind.WHOLE_RESULT)
+                                ? Provenance.UNCHECKED
+                                : Provenance.model(fields);
+        // a kind that names its text fields has parsed the rest itself: counts stay its data
+        if (!fields.isEmpty()) return own;
+        io.github.llm4j.agent.tool.ToolProfile p = toolFactory.profileOf(def.getKind(), written);
+        boolean computesOnly = p.known() && !p.untrusted() && !p.privateData() && !p.outward();
+        return computesOnly ? arguments : Provenance.NOT_MODEL;
+    }
 
     /**
      * Runs {@code work}, which fills text from variables or copies one, and returns its value with
@@ -2004,6 +2047,11 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
+                        public List<String> toolKindProblems() {
+                            return toolFactory.loadProblems();
+                        }
+
+                        @Override
                         public String agentToolProblem(
                                 io.github.llm4j.loom.ast.ToolDef def,
                                 String agent,
@@ -2389,6 +2437,17 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private final Map<String, Tool> createdTools = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Builds the tools whose kind asks for it when the run starts (a sandbox: its runtime is asked
+     * for, and what a crashed run left serving is stopped) before any step. A simulated run builds
+     * nothing: building may stop a program.
+     */
+    private void buildToolsAtRunStart() {
+        if (simulate) return;
+        for (io.github.llm4j.loom.ast.ToolDef def : script.getTools())
+            if (toolFactory.buildsAtRunStart(def.getKind())) createTool(def);
+    }
 
     private Tool createTool(io.github.llm4j.loom.ast.ToolDef def) {
         return createdTools.computeIfAbsent(
@@ -3063,6 +3122,7 @@ public class HarnessExecutor implements LoomEngine {
             trace(TraceEvent.RUN_START, null, "workflow " + workflowName, startData);
         }
         try {
+            if (topLevel) buildToolsAtRunStart();
             rootNext.set(true);
             runBlock(targetWorkflow.getStatements(), "s");
             log.info("Workflow completed: " + workflowName);
@@ -3118,8 +3178,38 @@ public class HarnessExecutor implements LoomEngine {
                 endData.put("compactions", tracing.compactions());
                 if (totals.totalSearches() > 0) endData.put("searches", totals.totalSearches());
                 trace(TraceEvent.RUN_END, null, "workflow " + workflowName + " " + ended, endData);
+                closeTools();
             }
         }
+    }
+
+    /**
+     * At the end of a run, however it ended, a tool that holds something open (a browser) is
+     * closed and dropped, so the next run builds it afresh. Other tools are kept as before.
+     */
+    private void closeTools() {
+        for (Map.Entry<String, Tool> e : new java.util.ArrayList<>(createdTools.entrySet())) {
+            AutoCloseable open = closeable(e.getValue());
+            if (open == null) continue;
+            createdTools.remove(e.getKey());
+            try {
+                open.close();
+            } catch (Exception failure) {
+                log.warning("tool " + e.getKey() + " did not close cleanly: " + failure.getMessage());
+            }
+        }
+    }
+
+    /** The tool under its wrappers, when it holds something open; else null. */
+    static AutoCloseable closeable(Tool tool) {
+        Tool t = tool;
+        for (int depth = 0; t != null && depth < 8; depth++) {
+            if (t instanceof AutoCloseable c) return c;
+            if (t instanceof io.github.llm4j.loom.tools.NamedTool named) t = named.delegate();
+            else if (t instanceof io.github.llm4j.tools.EffectTool effect) t = effect.effectful();
+            else return null;
+        }
+        return null;
     }
 
     @Override
@@ -3753,19 +3843,6 @@ public class HarnessExecutor implements LoomEngine {
         return Duration.ofSeconds(Long.parseLong(val));
     }
 
-    /**
-     * Resolves variable references in a payload string.
-     *
-     * <p>Variables are referenced using curly-brace delimiters: {@code {varName}}. This prevents
-     * substring collisions that would occur with bare name substitution (e.g., {@code id} being
-     * substituted inside {@code child_id}).
-     *
-     * <p><b>Legacy support</b>: bare variable names (no braces) that exactly match a context key
-     * are also substituted for backward compatibility with existing {@code .loom} scripts.
-     *
-     * @param rawPayload the raw payload string from the AST node
-     * @return the payload with all resolvable variable references replaced
-     */
     /** One look at a loop's condition: true when the loop should stop. */
     private boolean loopDone(LoopStmt loop, int rounds) {
         boolean done = ConditionEvaluator.evaluate(loop.getCondition(), view());
@@ -4410,9 +4487,7 @@ public class HarnessExecutor implements LoomEngine {
             data.put("step", String.valueOf(last.get("step")));
             auditLogger.logConversationEvent(sessionId, null, "run_resumed", data);
         }
-        // Published only once a run has paused: older scripts may use "_run" inside words
-        // (bare-name
-        // substitution would rewrite them).
+        // Published only once a run has paused, so a run that never paused sees no "_run".
         if (last != null) {
             Map<String, Object> run = new java.util.LinkedHashMap<>();
             run.put("resumes", resumes);

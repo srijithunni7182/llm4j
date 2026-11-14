@@ -1,6 +1,4 @@
 // P14, Loom side: the same tool, with the retry removed and an approval on the step.
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 
 workflow Main(text) {

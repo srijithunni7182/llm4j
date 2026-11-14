@@ -63,6 +63,6 @@ Using Spring? Add the [Spring Boot starter](../src/spring/llm4j-spring-boot-star
 
 - [Developer guide](../DEVELOPER_GUIDE.md): from a sentence to a deployed, watched workflow
 - [Tutorial](tutorial/README.md), chapter by chapter
-- [18 starters](../src/loom/starters/README.md)
+- [20 starters](../src/loom/starters/README.md)
 - [Getting started with ai-agent4j](../src/ai-agent4j/wiki/Getting-Started.md) · [Secret Store](../src/ai-agent4j/wiki/Secret-Store.md)
 - [Command reference](COMMAND_REFERENCE.md)

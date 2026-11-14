@@ -95,7 +95,7 @@ class UseStatementTest {
         return new Run(error, ex.getContext().getAll(), events, ex.getJournal(), asked);
     }
 
-    static final String SUBSTITUTION = "substitution: braces\n";
+    static final String SUBSTITUTION = "";
 
     // ---- R1: the statement
 

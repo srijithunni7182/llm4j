@@ -215,7 +215,7 @@ workflow Main(topic) {
 
 ### Rules every agent needs
 
-Put `substitution: braces` at the top of a new script so that only `{name}` is replaced; with the default (`legacy`) a bare word that is also a variable name (an `out` inside "length out of range") is replaced too. `weave check --substitution braces` shows what an existing script would change and `--fix-substitution` rewrites it after you see the diff. When a `parallel` branch may fail while the others still count, give each branch its own flag set in its `on_failure` (see `LOOM_GUIDE.md`, "Parallel branches that fall back").
+Only `{name}` and `{name.field}` are replaced in a text; a plain word is always a word, even when a variable has that name. When a `parallel` branch may fail while the others still count, give each branch its own flag set in its `on_failure` (see `LOOM_GUIDE.md`, "Parallel branches that fall back").
 
 Put what every agent must know (tone, house style, shared facts, a glossary, the brief) in one `shared_prompt: "…"` or `shared_prompt: prompt "house-rules"` at the top of the script instead of pasting it into each agent. It comes first in every agent's system prompt, the same bytes each time; keep dates and run ids out of it. See `LOOM_GUIDE.md`, "A Prompt Every Agent Starts With".
 

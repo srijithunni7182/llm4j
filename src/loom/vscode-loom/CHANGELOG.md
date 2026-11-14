@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.0
+
+- **Tools that compute, check, edit and run (phase 35).** Hover on `use:` lists `compute`, `verify`, `scan`, `workspace` and `sandbox` (and the optional `search`, `documents`, `git` and `browser`), and hover explains `isolation`, `protect`, `network`, `image`, `serve_port` and `reaches`. Three snippets (`tool-workspace`, `tool-sandbox`, `tool-check`) pass `weave check`. The grammar does not list kinds. `substitution` is no longer a keyword: the setting is gone, since only `{name}` is ever replaced. Needs the engine's phase 35.
+
 ## 1.6.1
 
 - **A shorter Marketplace page.** The README is now a one-screen overview: what the extension does in bullets, screenshots, how to start, and links into the repository. The full reference (every command, view, setting, snippet and keyboard key) moved to [REFERENCE.md](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/vscode-loom/REFERENCE.md). Nothing in the extension changed.
@@ -43,7 +47,7 @@
 - **Loom: Set Up My Coding Agent** is offered once. When you open a folder that has a `.loom` file and no coding-agent set-up, a notification asks whether to set it up (*Set up*, *Not now*, *Don't ask again*). *Not now* is remembered for that workspace, *Don't ask again* for all of them, and it writes nothing until you choose; *Set up* runs the same command as the welcome view's button, which shows what it will write first.
 - The engine this extension carries now reports whether it is a release or a development build, and which commit (`weave --version`).
 
-- **`substitution`** is highlighted as a keyword (the setting that makes only `{name}` replaced); a string with `\"` no longer ends early in the editor.
+- A string with `\"` no longer ends early in the editor.
 - **The Outline shows how far the project is.** A *Project progress* group at the top lists the ten stages of `weave next` with an icon and a word for each state (done, failing, not started, skipped, stale), marks the next step, and a click types that step's command into a terminal for you to run. It asks the engine at most once in three seconds and keeps the last answer when the engine is busy; without Java it says progress needs the engine.
 - **The status bar shows the next step** (`Loom 4/10 · The script checks clean`); clicking it types that step's command into a terminal. The Outline and the status bar ask again when a file under `eval/`, `EVAL_DESIGN.md`, a `*.test.yaml` or a `.loom` file changes, not only on a `.loom` save.
 - **Loom: Run Once With a Cap…** (also a button on the Outline) starts the first real run with the cap as the first question, the worst-case estimate beside it, then any inputs, and types `weave run … --max-cost` (or `--max-tokens`) into a terminal. Nothing runs until you press Enter.

@@ -44,8 +44,8 @@ public final class LanguageTools {
         return b.build();
     }
 
-    static void registerAll(ToolFactory factory) {
-        factory.register(
+    static void registerAll(java.util.function.Consumer<ToolKind> into) {
+        into.accept(
                 kind(
                         "translate",
                         Set.of("target", "source"),
@@ -75,7 +75,7 @@ public final class LanguageTools {
                                         return sarvam.translate(r.build()).getTranslatedText();
                                     });
                         }));
-        factory.register(
+        into.accept(
                 kind(
                         "transliterate",
                         Set.of("target", "source"),
@@ -106,7 +106,7 @@ public final class LanguageTools {
                                                 .getTransliteratedText();
                                     });
                         }));
-        factory.register(
+        into.accept(
                 kind(
                         "detect_language",
                         Set.of(),
@@ -121,8 +121,8 @@ public final class LanguageTools {
                                             sarvam.detectLanguage(text(args, "text"))
                                                     .getDetectedLanguageCode());
                         }));
-        factory.register(new SpeakKind());
-        factory.register(
+        into.accept(new SpeakKind());
+        into.accept(
                 kind(
                         "transcribe",
                         Set.of("language", "model", "translate_to_english"),
@@ -188,6 +188,11 @@ public final class LanguageTools {
         @Override
         public String name() {
             return "speak";
+        }
+
+        @Override
+        public io.github.llm4j.agent.tool.ToolProfile profile(Map<String, String> options) {
+            return io.github.llm4j.agent.tool.ToolProfile.of(false, false, false, false, "speak");
         }
 
         @Override
@@ -288,6 +293,12 @@ public final class LanguageTools {
             @Override
             public Map<String, ToolDef.OptionValue> defaults() {
                 return DEFAULTS;
+            }
+
+            @Override
+            public io.github.llm4j.agent.tool.ToolProfile profile(Map<String, String> options) {
+                return io.github.llm4j.agent.tool.ToolProfile.of(
+                        false, false, false, false, kindName);
             }
 
             @Override

@@ -27,8 +27,6 @@ explains it).
 // 04-router: decide which specialist should answer. The classifier only labels; the script's own `alt` does the routing,
 // so no wording in a message can change which branch runs.
 
-substitution: braces
-
 agent Classifier {
     model: "gemini-2.5-flash"
     system: "Classify the customer message."
@@ -77,8 +75,6 @@ Stages that matter: 1 (is it a classifier?), 2 (a case per label and per confusa
 ```loom
 // 03-review-loop: write, review, rewrite until the reviewer is satisfied. The loop is bounded: it can never run away.
 
-substitution: braces
-
 budget { tokens: 150000  calls: 20 }
 
 agent Writer   { model: "gemini-2.5-flash"  system: "Write clear, short product descriptions."  temperature: 0.7 }
@@ -120,8 +116,6 @@ Stages that matter: 2 (a draft the reviewer should reject), 5 (cost near the mod
 ```loom
 // 05-parallel-research: ask several specialists at the same time, and carry on even if one of them fails.
 // Each branch has its own flag (web_ok, docs_ok): branches run together, so they must never share one variable.
-
-substitution: braces
 
 budget { tokens: 200000  calls: 20 }
 
@@ -176,8 +170,6 @@ Stages that matter: 6 (`on_failure` on every branch), 8 (a test where one branch
 // typed: `owner` can only be one of the two agents, so a model cannot send work anywhere else, and each answer is stored
 // under its task's name in one variable, `results`, so a task name cannot overwrite anything.
 
-substitution: braces
-
 budget { tokens: 300000  calls: 40 }
 
 agent Planner {
@@ -227,8 +219,6 @@ Stages that matter: 5 (cost of the largest plan), 6 (`on_failure` per task), 7 (
 // 07-approval: the model drafts, a person approves once, at the edge, and the script sends. No model carries out the
 // send, so no wording in a message can talk it past the approval; the person sees the exact text that will be posted.
 
-substitution: braces
-
 budget { tokens: 100000  calls: 20 }
 
 agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short, polite announcement from the facts you are given."  temperature: 0.4  guard { pii: mask } }
@@ -265,8 +255,6 @@ Stages that matter: 7 (audit and the lethal trifecta), 8 (the approved, declined
 // 08-extract-and-validate: turn free text into checked fields. The extractor sees only the text it is handed and the
 // fields it must fill (never the run so far), a field the text does not state is `missing` (or fails the step if it is
 // required), and the script then applies its own rules to the fields.
-
-substitution: braces
 
 budget { tokens: 80000  calls: 15 }
 
@@ -320,8 +308,6 @@ Stages that matter: 2 (the awkward documents), 3 (the extractor's instructions),
 // 09-handbook-qa: answer questions from your own documents. The relevant passages are found first (by meaning) and put
 // in front of the question, and the agent is told to say so when the handbook does not answer.
 
-substitution: braces
-
 budget { tokens: 80000  calls: 10 }
 
 knowledge Handbook {
@@ -366,8 +352,6 @@ Stages that matter: 2 (unanswerable and injected-document cases), 7 (audit), 9 (
 // 12-wait-for-a-person: a workflow that can wait for days. With a run journal (weave run --journal ...), a question to a person or a
 // `sleep` pauses the run and holds no thread; it carries on when the answer arrives or the time has passed. Write the script as if
 // the time simply passes.
-
-substitution: braces
 
 budget { tokens: 80000  calls: 15 }
 
@@ -415,8 +399,6 @@ Stages that matter: 9 (run with `--journal`), then the llm4j-loom-deployer skill
 ```loom
 // 11-daily-digest: a workflow that runs itself on a clock. The `schedule` block is kept in a trigger store, so it survives restarts
 // (weave schedule sync, then weave daemon or weave tick). A missed run happens once, not once per missed day.
-
-substitution: braces
 
 budget { tokens: 120000  calls: 12 }
 
@@ -472,8 +454,6 @@ Stages that matter: 6 (`on_failure` that halts loudly), 9 (the store, the daemon
 // 16-step-by-step-agent: a long job done one small step at a time. What is done and what is next is a typed value the script owns
 // (`progress`), not something an agent has to remember in a long conversation that may be compacted. The worker is fresh every
 // round and sees no transcript; an extractor reads its report and writes the new progress; the loop is bounded.
-
-substitution: braces
 
 budget { tokens: 150000  calls: 40 }
 
@@ -539,8 +519,6 @@ Stages that matter: 5 (cost per round, the round limit), 14 (context and compact
 // sees only the rules and the reply, judges it at the edge; if the reply breaks a rule an editor rewrites it, and the
 // rewrite is checked again.
 
-substitution: braces
-
 budget { tokens: 120000  calls: 20 }
 
 evaluator Compliance { model: "gemini-2.5-pro" }
@@ -581,7 +559,6 @@ Stages that matter: 2 (a reply that breaks each rule), 7 (audit), 8 (a violation
 // how long it sits idle, and a judge asks whether it stays on topic. A researcher that finds nothing asks its supervisor for help with a signal, and the supervisor steers it. A child that spends too much is cancelled and keeps
 // what it had; one that drifts is steered. Every child has its own budget, and a restart finds the same children again.
 
-substitution: braces
 max_children: 3
 
 budget { tokens: 400000  calls: 80 }
@@ -638,6 +615,133 @@ workflow Main(question) {
 - `never calls` refuses the call before it runs; a steer needs an agent marked `steerable`. `weave audit` lists who may steer a child (LA28) and each judged rule (LA29).
 
 Stages that matter: 5 (cost per child, the reservation), 7 (audit, rule LA30 for a signal read), 8 (trajectory tests with `children:`, `signals:`, `events:` and `fired:`), 15 (stop and supervise).
+
+## 13. Edit, check, and try again from a clean state
+
+**Use it when:** An agent changes files (a report, a configuration, code) and a check decides whether the change is right: a schema, a
+test report, a linter. When the check fails, the next attempt should start from the files as they were, not from the failed attempt.
+
+**Decide with the person:**
+
+- What judges the work, and that it is out of the agent's reach (`protect:` on the schema or the tests).
+- How many attempts (`at most N times`) and what happens after the last (`if it still fails`: halt, keep the last, or ask a person).
+- Who approves the agent's writes, or whether the folder is a scratch copy nobody needs to watch.
+
+<!-- starter:19-report-writer -->
+```loom
+// 19-report-writer: an agent writes a report into a folder, a check validates it, and when the check fails the workflow puts
+// the folder back as it was and tries again with what the check said. Restore is a step the script takes: snapshot once,
+// restore at the start of each attempt, and rewind with side effects: repeat so the attempt's writes run again.
+
+budget { tokens: 200000  calls: 30 }
+
+tool Draft { use: workspace  root: "report"  allow: "*.json, *.md"  mode: readwrite  overwrite: true  protect: "report.schema.json" }
+tool Check { use: verify  root: "report" }
+
+agent Writer {
+    model: "gemini-2.5-flash"
+    system: "You write report.json in your folder: a JSON object with a title, a summary of at most 80 words and a list of findings. Read report.schema.json first. Use the feedback to fix what failed."
+    tools: [Draft]
+    approve: [Draft]
+    temperature: 0.3
+}
+
+workflow Main(brief) {
+    use Draft(action = "snapshot", name = "clean")
+    checkpoint Clean starting with feedback = "none"
+    use Draft(action = "restore", name = "clean")
+
+    delegate "Write report.json for this brief: {brief}\nFeedback from the last check: {feedback}" to Writer -> written
+    use Check(format = "schema", schema = "report.schema.json", source = "report.json") -> result
+
+    rewind to Clean
+        when (result.failed > 0)
+        at most 2 times
+        carrying feedback = "{result.items}"
+        side effects: repeat
+        if it still fails { halt "report.json still does not match its schema after three attempts" }
+
+    note "{written}"
+    return result.status
+}
+```
+
+**What to keep and what to watch:**
+
+- Restore is a step the script takes, not something a rewind does: snapshot once before the checkpoint, restore first in every attempt
+  (the first time it changes nothing), and `side effects: repeat` so the attempt's writes run again. With `keep`, the second restore is
+  taken for the first and nothing is put back.
+- `verify` gives counts the script can trust (`result.failed`); its item texts are what the agent wrote, so they go back to the agent as
+  feedback, never decide anything on their own. A report it cannot read counts as a failure.
+
+Stages that matter: 2 (a case the check rejects), 6 (the rewind and its limit), 8 (a trajectory test that the second attempt restored).
+
+## 14. Run a model's code, and check its answer
+
+**Use it when:** The answer needs a computation a model should not do in its head: totals over a file, a data transformation, a test
+run. An agent writes the code; a sandbox runs it; the workflow checks the result itself before it leaves.
+
+**Decide with the person:**
+
+- Where the code runs: `isolation: container` (Docker or Podman, an image you name) is the sandbox; `process` is not isolation and the audit
+  says so. There is no default.
+- What the code may reach: `network: none` unless it must install something (`network: allow` with the hosts it needs).
+- How the script checks the answer without trusting it: the schema of the result (`verify`), a figure recomputed exactly (`compute`), a
+  scan before anything leaves (`scan`).
+
+<!-- starter:20-data-analyst -->
+```loom
+// 20-data-analyst: an agent writes a short script, a sandbox runs it against a CSV with no network, the workflow checks the
+// script's answer against its own exact sum of the same column, and scans the summary before it leaves. The model's code
+// runs in a container, sees only the data folder, and cannot change sales.csv.
+
+budget { tokens: 150000  calls: 20 }
+
+tool Data  { use: workspace  root: "data"  allow: "*.py, *.csv, *.json"  mode: readwrite  overwrite: true  protect: "sales.csv" }
+tool Py    { use: sandbox  workspace: Data  isolation: container  image: "python:3.12-slim"  allow: "python3"  network: none  timeout: "2m"  unattended: true }
+tool Calc  { use: compute }
+tool Check { use: verify  root: "data" }
+tool Scan  { use: scan }
+
+agent Analyst {
+    model: "gemini-2.5-flash"
+    system: "You write analysis.py in your folder. It reads sales.csv with the standard library only and writes result.json: {\"total\": <the sum of the revenue column>, \"note\": <one sentence>}. Do not print anything else."
+    tools: [Data]
+    approve: [Data]
+    temperature: 0.2
+}
+
+workflow Main(question) {
+    delegate "{question}\nWrite analysis.py as your instructions say." to Analyst -> written
+    use Py(program = "python3", args = "[\"analysis.py\"]") -> ran
+    alt (ran.exit != 0) { halt "analysis.py failed: {ran.stderr}" }
+
+    use Check(format = "schema", schema = "result.schema.json", source = "result.json") -> shape
+    alt (shape.failed > 0) { halt "result.json is not in the expected shape: {shape.items}" }
+
+    use Data(action = "read", path = "result.json") -> result
+    use Calc(action = "json", document = result.content, path = "total") -> claimed
+    use Data(action = "read", path = "sales.csv") -> sales
+    use Calc(action = "csv", text = sales.content, column = "revenue", op = "sum") -> total
+    use Calc(action = "calc", expression = "{claimed.value} - {total.value}") -> difference
+    alt (difference.value != "0") { halt "the script's total {claimed.value} is not the sum of the revenue column ({total.value})" }
+
+    use Scan(text = result.content) -> found
+    alt (found.count > 0) { halt "the result holds something that must not leave: {found.findings}" }
+    note "{written}"
+    return result.content
+}
+```
+
+**What to keep and what to watch:**
+
+- The model's program is a name from `allow:` and an argument list; a script gives `args` as the text of a JSON list. No shell reads it.
+- The data the code reads is protected (`protect:`), so the code cannot change what it is judged against; the workspace is the only folder
+  the container sees.
+- What the program prints is unchecked text: compare figures with `compute`, never with what the program says about them.
+
+Stages that matter: 7 (audit: LA31 if it runs at `process`, LA33 for any network), 8 (tests with scripted tool results), 9 (Docker on the
+machine it will run on: a missing runtime stops the run before its first step).
 
 ## Shapes that are not a pattern of their own
 

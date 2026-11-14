@@ -162,4 +162,35 @@ public final class Criteria {
             return weight;
         }
     }
+
+    /**
+     * Passes when the output is {@link Evidence} of a check that passed (its status, and no
+     * failure or error), so an evaluation can rest on a test report or a schema check rather than
+     * on the model's account of it. Anything else fails, saying what it was given.
+     */
+    public static Criterion evidencePassed(String name) {
+        return evidence(name, e -> e.passed() ? null : e.kind() + " " + e.status() + ": " + e.count("failed") + " failed, " + e.count("errors") + " errors");
+    }
+
+    /** Passes when the output is {@link Evidence} whose count {@code count} is at most {@code max}. */
+    public static Criterion evidenceAtMost(String name, String count, long max) {
+        return evidence(name, e -> e.count(count) <= max ? null : count + " is " + e.count(count) + ", more than " + max);
+    }
+
+    private static Criterion evidence(String name, Function<Evidence, String> problem) {
+        return new Criterion() {
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public CriterionResult score(EvalScenario scenario, Object output) {
+                if (!(output instanceof Evidence e))
+                    return CriterionResult.fail("expected the evidence of a check, got " + (output == null ? "nothing" : output.getClass().getSimpleName()));
+                String why = problem.apply(e);
+                return why == null ? CriterionResult.pass(e.kind() + " " + e.status()) : CriterionResult.fail(why);
+            }
+        };
+    }
 }

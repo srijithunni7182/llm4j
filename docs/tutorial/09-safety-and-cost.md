@@ -9,8 +9,6 @@ This chapter is the safety toolbox: budgets, guards, secrets, and the two comman
 A budget caps what model calls may spend, in **tokens** (the default), **calls**, or **money** (with a price table you supply). The runtime enforces it at the call itself: before each call it checks what is left and **refuses without calling the model** if the call cannot fit. Budgets go in three places:
 
 ```loom
-substitution: braces
-
 budget { tokens: 200000  calls: 150  warn_at: 80% }          // the whole run
 
 agent Writer {
@@ -104,8 +102,6 @@ Among its findings, `weave review` prints a typical and a worst-case estimate fo
 An agent's `guard` protects everything it does:
 
 ```loom
-substitution: braces
-
 agent Support {
     model: "gemini-2.5-flash"
     system: "You answer customers."
@@ -133,8 +129,6 @@ Audit logs record counts and kinds, never the data itself.
 To protect a whole block of steps, wrap it:
 
 ```loom
-substitution: braces
-
 agent Summarizer { model: "gemini-2.5-flash"  system: "Summarise the text." }
 agent Admin { model: "gemini-2.5-flash"  system: "Tell the administrator what happened." }
 
@@ -206,8 +200,6 @@ The **leak guard** is a guard that needs no model. `guard { prompt_leak: block  
 **Never write a key in a script.** A literal secret is a load error, on purpose. Keys come from the environment (`env.NAME`) or the encrypted secret store (`secret.NAME`):
 
 ```loom-parse
-substitution: braces
-
 provider Box { use: sarvam  api_key: secret.BOX_KEY  base_url: "https://box.example.com" }
 tool Search  { use: serpapi  api_key: secret.SERP_KEY }
 
@@ -300,7 +292,7 @@ Run both in CI next to `weave check`. `weave audit --fail-on medium` makes mediu
 
 ## Effects are recorded, and never repeated
 
-Every step that changes the world (a `webhook`, an `email`, an `http` POST, a `file` write, a `shell` command, a `run` task that declares a change) is written to the journal **before and after** it happens. If the process dies in between, a resume does not blindly repeat a payment: a step that cannot be proven idempotent is stopped and flagged for a person to check, and one that is idempotent runs again with the *same* idempotency key, so the receiver can deduplicate. A retry, a resume or a rewind never repeats a send.
+Every step that changes the world (a `webhook`, an `email`, an `http` POST, a `file` write, a `shell` command, a `workspace` write or restore, a `sandbox` run, a `run` task that declares a change) is written to the journal **before and after** it happens. If the process dies in between, a resume does not blindly repeat a payment: a step that cannot be proven idempotent is stopped and flagged for a person to check, and one that is idempotent runs again with the *same* idempotency key, so the receiver can deduplicate. A retry, a resume or a rewind never repeats a send.
 
 ## Everything in one place: the safe-by-default checklist
 

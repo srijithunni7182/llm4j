@@ -1,5 +1,4 @@
-// With substitution: braces only {name} and {name.field} are replaced; a bare word stays as written.
-substitution: braces
+// Only {name} and {name.field} are replaced: the word "out" in "out of range" stays as written, though out is a variable.
 agent Checker { model: "gemini-2.5-flash" system: "You check lengths." }
 
 workflow Check(out) {

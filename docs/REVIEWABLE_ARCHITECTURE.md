@@ -11,8 +11,6 @@ In a code-first framework the workflow is general-purpose code. Which step sees 
 In Loom the workflow is a small language. A tool can know, before anything runs, which agents and tools are declared, what each tool does to the world (`effect: none | reads | changes`), where a value written by a model can flow, and where a value leaves the workflow. That is what makes the checks below possible. Here is a small workflow and the graph `weave graph` draws from it:
 
 ```loom
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short announcement." }
 
@@ -67,8 +65,6 @@ Mistakes 6 and 9 were mostly addressed before this program (the cost rules and t
 *A reviewer can see this in ten lines, and so can the tool.* A reply is made by a model and returned. Nothing checks it against the rules the company wrote, so the only thing standing between the model and a customer is a sentence in a prompt. Here a policy is declared, and the reply leaves with no check before it:
 
 ```loom
-substitution: braces
-
 evaluator Compliance { model: "gemini-2.5-pro" }
 policy HouseRules: "house-rules" checked by Compliance
 agent Support { model: "gemini-2.5-flash"  system: "Answer customers." }
@@ -80,15 +76,13 @@ workflow Main(question) {
 ```
 
 ```text check
-✗ line 9: return in Main: a value written by a model (Support, line 8) reaches this return without a check against HouseRules. Add: check <variable> against HouseRules using <Evaluator> before the return.
+✗ line 7: return in Main: a value written by a model (Support, line 6) reaches this return without a check against HouseRules. Add: check <variable> against HouseRules using <Evaluator> before the return.
 1 problem in main.loom
 ```
 
 The fix puts the check at the exit, where an editor rewrites a reply that breaks a rule. The rules stay in `policies/house-rules.md`, written for whoever owns compliance, and never go into a prompt:
 
 ```loom clean LR11
-substitution: braces
-
 evaluator Compliance { model: "gemini-2.5-pro" }
 policy HouseRules: "house-rules" checked by Compliance
 agent Support { model: "gemini-2.5-flash"  system: "Answer customers." }
@@ -108,8 +102,6 @@ An agent that holds a tool that sends is covered too: with a policy declared, it
 An agent that has to think (it has tools) and must also answer in a large nested schema has no room to reason in its answer. It makes leaps or breaks the format. Thinking and formatting are two jobs.
 
 ```loom
-substitution: braces
-
 tool Files { use: file  root: "data"  mode: read }
 agent Analyst {
     model: "gemini-2.5-flash"
@@ -129,7 +121,7 @@ workflow Main(request) {
 ```
 
 ```text review LP10
-MEDIUM  LP10  Prompts        main.loom:4
+MEDIUM  LP10  Prompts        main.loom:2
         Agent Analyst reasons (it has tools) and must answer in a schema with a nested object
         why: An agent told to answer in JSON only has no room to think in its answer, so it makes logical leaps or breaks the format. The thinking and the formatting are two jobs.
         fix: Let the agent answer in prose, and pull the fields out with an extractor; or make the schema small and flat; or accept the finding with a reason.
@@ -138,8 +130,6 @@ MEDIUM  LP10  Prompts        main.loom:4
 The fix is to let the agent write prose, and then pull the fields out with an `extractor`:
 
 ```loom clean LP10
-substitution: braces
-
 tool Files { use: file  root: "data"  mode: read }
 agent Analyst { model: "gemini-2.5-flash"  system: "Read the order files and report on the request in plain prose."  tools: [Files] }
 extractor Invoice {
@@ -166,8 +156,6 @@ workflow Main(request) {
 An evaluator is a model judging, in production, whether a reply breaks a rule. If nobody has tested it, the rule is a hope. In Loom the gate is in `weave check`, and no flag skips it:
 
 ```loom
-substitution: braces
-
 evaluator Compliance { model: "gemini-2.5-pro" }
 policy HouseRules: "house-rules" checked by Compliance
 agent Support { model: "gemini-2.5-flash"  system: "Answer customers." }
@@ -180,7 +168,7 @@ workflow Main(question) {
 ```
 
 ```text check bare
-✗ line 3: evaluator Compliance: Evaluator `Compliance` has no case that breaks `HouseRules.no_refund_promise` (and no clean case). A policy rule nobody has tested is not binding: write one of each in `eval/golden/compliance.yaml`.
+✗ line 1: evaluator Compliance: Evaluator `Compliance` has no case that breaks `HouseRules.no_refund_promise` (and no clean case). A policy rule nobody has tested is not binding: write one of each in `eval/golden/compliance.yaml`.
 1 problem in main.loom
 ```
 
@@ -191,8 +179,6 @@ The same script with a case that breaks the rule and a clean case, in `eval/gold
 When the question is put to a person from inside an agent's tool loop, the person is asked a question about an action whose text may change when the loop restarts. In a scheduled workflow, nobody may be there:
 
 ```loom
-substitution: braces
-
 schedule Weekly {
     cron: "0 9 * * 1"
     run: Main(facts = "weekly news")
@@ -212,7 +198,7 @@ workflow Main(facts) {
 ```
 
 ```text review LH05
-MEDIUM  LH05  Human oversight main.loom:8
+MEDIUM  LH05  Human oversight main.loom:6
         Agent Drafter asks a person part-way through its work, in a workflow nobody is watching
         why: The run stops in the middle of the agent's reasoning and holds its whole conversation until someone answers, possibly hours later, from a phone. The person sees one tool call without the job it belongs to.
         fix: Let the agent propose, then approve once at the edge: use Tool(...) approve, run Task(...) approve, or a decide. In an interactive assistant, an approval inside the loop is fine.
@@ -225,8 +211,6 @@ The fix is the script at the top of this page: the agent proposes, a person is a
 In most frameworks a step sees everything said before it. A step that only reads fields out of text then answers differently depending on what ran earlier, so testing it alone does not predict its behaviour in the workflow. In Loom an agent used for this is reported:
 
 ```loom
-substitution: braces
-
 agent Chat { model: "gemini-2.5-flash"  system: "Chat with the customer." }
 agent Reader {
     model: "gemini-2.5-flash"
@@ -242,7 +226,7 @@ workflow Main(text) {
 ```
 
 ```text review LP09
-MEDIUM  LP09  Prompts        main.loom:4
+MEDIUM  LP09  Prompts        main.loom:2
         Agent Reader pulls fields out of text
         why: An agent is briefed with the whole run so far and the shared prompt, so what it extracts can depend on what ran before it. An extractor does the same job without seeing either.
         fix: Declare an extractor with the same fields and use extract instead of delegate (weave review --fix-finding LP09 shows the rewrite).
@@ -255,8 +239,6 @@ An `extractor` is handed only the text it is told to read. The probe ran the ext
 Using a model for something a program does in a line. Asking an agent to add numbers is slow, costs money and sometimes gets the answer wrong:
 
 ```loom
-substitution: braces
-
 agent Helper { model: "gemini-2.5-flash"  system: "You help." }
 
 workflow Main(figures) {
@@ -266,7 +248,7 @@ workflow Main(figures) {
 ```
 
 ```text review LC07
-INFO    LC07  Cost and performance main.loom:6
+INFO    LC07  Cost and performance main.loom:4
         delegate Helper asks a model for something a program could do
         why: Arithmetic, format checks and table lookups are exact in code and cost nothing per call; a model does them at a price and can get them wrong.
         fix: Do it in a run task and keep the model for what needs judgement.
@@ -281,8 +263,6 @@ The fix is a task: a few lines of Java registered with the host, called with `ru
 If the first agent invents a fact, an amount or an order number, the second acts on it with confidence. The mistake travels downstream and becomes an action:
 
 ```loom
-substitution: braces
-
 tool Pay { use: webhook  url: env.PAY_HOOK  effect: changes }
 agent Planner { model: "gemini-2.5-flash"  system: "Work out what refund the customer is owed." }
 agent Payer { model: "gemini-2.5-flash"  system: "Make the payment you are told to make."  tools: [Pay] }
@@ -295,7 +275,7 @@ workflow Main(complaint) {
 ```
 
 ```text review LR11
-MEDIUM  LR11  Reliability    main.loom:9
+MEDIUM  LR11  Reliability    main.loom:7
         delegate Payer acts on what agent Planner wrote (plan), and nothing checks it on the way
         why: If the first agent invents a fact (an amount, an order id), the second acts on it with confidence. The mistake travels downstream and becomes an action.
         fix: Check the hand-off with the cheapest thing that works: extract the fields and test them (alt, or a task), check the text against a policy, or add approve to the acting step.
@@ -304,8 +284,6 @@ MEDIUM  LR11  Reliability    main.loom:9
 Check the hand-off with the cheapest thing that works: pull the fields out with an extractor and test them in code, check the text against a policy, or ask a person once at the acting step:
 
 ```loom clean LR11
-substitution: braces
-
 tool Pay { use: webhook  url: env.PAY_HOOK  effect: changes }
 agent Planner { model: "gemini-2.5-flash"  system: "Work out what refund the customer is owed." }
 extractor Invoice {
@@ -338,8 +316,6 @@ In the probe, a made-up amount reached a paying tool with nothing between the ag
 A long agent job whose progress lives only in a chat transcript that may be compacted. In Loom the script is the state machine: what is done and what is next is a typed variable the script owns, the worker is fresh each round, and an extractor writes the new progress. This is [starter 16](../src/loom/starters/16-step-by-step-agent/), and its graph shows the loop. There is no review rule here; it is a recipe.
 
 ```loom
-substitution: braces
-
 agent Worker {
     model: "gemini-2.5-flash"
     system: "You do ONE step of a larger job. Report in plain prose what you did."
@@ -372,8 +348,6 @@ In the probe, each framework could keep progress where compaction does not touch
 A loop that runs until a model says it is done, with nothing to stop it if it never does. Loom bounds loops, retries and budgets, and reports the ones that are not:
 
 ```loom
-substitution: braces
-
 agent A { model: "gemini-2.5-flash"  system: "Work." }
 
 workflow Main(q) {
@@ -385,7 +359,7 @@ workflow Main(q) {
 ```
 
 ```text review LR03
-MEDIUM  LR03  Reliability    main.loom:6
+MEDIUM  LR03  Reliability    main.loom:4
         loop until x==yes has no maximum number of rounds
         why: A loop that only stops when its condition becomes true can run for ever if the condition never does, and every round may call a model.
         fix: Add a maximum, such as max 5, and say what happens when it is reached.
@@ -398,8 +372,6 @@ The fix is a maximum, with a handler for when it runs out: `loop until (x == "ye
 A planner reads untrusted input and names the agent that runs next. If its reply can be any agent, then a sentence in the input can send work to the one that can send mail:
 
 ```loom
-substitution: braces
-
 tool Mail { use: webhook  url: env.MAIL_HOOK  effect: changes }
 agent Planner { model: "gemini-2.5-flash"  system: "Pick the agent for the task."  output_schema: { owner: string, task: string } }
 agent Worker { model: "gemini-2.5-flash"  system: "Do the task." }
@@ -413,15 +385,13 @@ workflow Main(request) {
 ```
 
 ```text check
-✗ line 10: delegate {plan.owner}: a model chooses which agent runs here, and any agent could be chosen, including Privileged, which can change things or reach private data. Bound it: write the agents after it, delegate ... to {plan.owner} in [Researcher, Writer], or make the field an enum in the schema of the agent or extractor that writes it.
+✗ line 8: delegate {plan.owner}: a model chooses which agent runs here, and any agent could be chosen, including Privileged, which can change things or reach private data. Bound it: write the agents after it, delegate ... to {plan.owner} in [Researcher, Writer], or make the field an enum in the schema of the agent or extractor that writes it.
 1 problem in main.loom
 ```
 
 The fix names the agents the planner may pick, and keeps each result under a key that cannot overwrite anything. A value outside the list is refused when the step runs. `weave audit` still notes the choice (LA22, low here, because the agent it can reach changes nothing) so a reviewer sees that a model's word picks a route:
 
 ```loom clean -
-substitution: braces
-
 tool Mail { use: webhook  url: env.MAIL_HOOK  effect: changes }
 agent Planner { model: "gemini-2.5-flash"  system: "Pick the agent for the task."  output_schema: { owner: string, task: string } }
 agent Worker { model: "gemini-2.5-flash"  system: "Do the task." }
@@ -441,8 +411,6 @@ In the probe, LangGraph's `Command(goto=<the model's reply>)` ran the privileged
 A planner returns a list and the workflow runs one step per item. If the list is long because the input told the planner to make it long, the bill and the blast radius are the model's choice:
 
 ```loom
-substitution: braces
-
 agent Planner { model: "gemini-2.5-flash"  system: "You plan."  output_schema: { tasks: list<string> } }
 agent Worker { model: "gemini-2.5-flash"  system: "You work." }
 
@@ -456,7 +424,7 @@ workflow Main(q) {
 ```
 
 ```text review LR13
-MEDIUM  LR13  Reliability    main.loom:8
+MEDIUM  LR13  Reliability    main.loom:6
         for each t in plan.tasks walks over plan.tasks, a list a model wrote, with no maximum
         why: The length of the list is chosen by a model (or by text that steered it), so this step may run once for every item of a list of any length. Budgets stop the total, but they stop it part-way, with some items done.
         fix: Add max N after the list (and tell the agent that wrote it the limit in its instructions). Add on_too_many { ... } if something other than failing should happen.
@@ -469,8 +437,6 @@ The fix is `for each t in plan.tasks max 4 { ... }`: a longer list fails the wor
 A loop that stops when the agent that wrote the work says it is finished. Such an agent tends to say yes:
 
 ```loom
-substitution: braces
-
 agent Writer {
     model: "gemini-2.5-flash"
     system: "Write the report, then say whether it is finished."
@@ -487,7 +453,7 @@ workflow Main(topic) {
 ```
 
 ```text review LR12
-MEDIUM  LR12  Reliability    main.loom:10
+MEDIUM  LR12  Reliability    main.loom:8
         loop until verdict.done==true ends when agent Writer says it is done, and Writer also wrote the work
         why: An agent that decides its own work is finished tends to say yes. The loop stops when the writer is satisfied, not when the work is good.
         fix: Let a different agent review it (starter 03's shape), check the criteria in code with a task (best when they can be checked, such as tests passing), or check the text against a policy.
@@ -496,8 +462,6 @@ MEDIUM  LR12  Reliability    main.loom:10
 Let a different agent review it (starter 03's shape), check the criteria in code, or ask a person:
 
 ```loom clean LR12
-substitution: braces
-
 agent Writer { model: "gemini-2.5-flash"  system: "Write the report." }
 agent Reviewer {
     model: "gemini-2.5-pro"
@@ -522,8 +486,6 @@ workflow Main(topic) {
 A number a chat model writes about its own answer is not a calibrated probability. Gating on it needs a calibrated source or calibration measured on the golden dataset before the threshold is trusted:
 
 ```loom
-substitution: braces
-
 agent Triage { model: "gemini-2.5-flash"  system: "Classify the ticket and say how confident you are."  output_schema: { label: string, confidence: number } }
 
 workflow Main(ticket) {
@@ -543,8 +505,6 @@ Loom does not check this one: detecting it would rest on field names. It is taug
 A coding agent, or a developer who has never heard of these practices, does not need to know them. It writes a first draft, runs `weave check`, and reads what comes back. Here is a plausible first draft of a support workflow that sends the reply to a channel:
 
 ```loom
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 evaluator Compliance { model: "gemini-2.5-pro" }
 policy HouseRules: "house-rules" checked by Compliance
@@ -558,17 +518,15 @@ workflow Main(question) {
 ```
 
 ```text check
-⚠ line 10: workflow Main: receipt is set here and never used (warning)
-✗ line 10: use Notify: Notify changes things and is not marked safe to repeat, so a retry after an unknown outcome could do it twice; remove retry, or declare the tool idempotent
-✗ line 11: return in Main: a value written by a model (Support, line 9) reaches this return without a check against HouseRules. Add: check <variable> against HouseRules using <Evaluator> before the return.
+⚠ line 8: workflow Main: receipt is set here and never used (warning)
+✗ line 8: use Notify: Notify changes things and is not marked safe to repeat, so a retry after an unknown outcome could do it twice; remove retry, or declare the tool idempotent
+✗ line 9: return in Main: a value written by a model (Support, line 7) reaches this return without a check against HouseRules. Add: check <variable> against HouseRules using <Evaluator> before the return.
 2 problems in main.loom
 ```
 
 Each line names the step and says what to do. The exit code is 2, and `weave check --format json` gives the same problems as data, so a loop can read them, fix them and run the check again. The draft has two errors and a warning: a retry on a step that changes something could post twice, the reply reaches the caller with no check against the policy, and the receipt is never used. The agent fixes the errors, puts the check before the send, and asks a person once about the exact text. The second run has only the warning left, which it can fix or leave:
 
 ```loom
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 evaluator Compliance { model: "gemini-2.5-pro" }
 policy HouseRules: "house-rules" checked by Compliance
@@ -585,14 +543,12 @@ workflow Main(question) {
 ```
 
 ```text check
-⚠ line 12: workflow Main: receipt is set here and never used (warning)
+⚠ line 10: workflow Main: receipt is set here and never used (warning)
 ✓ main.loom: ready to run (1 warning)
   next: weave next says what to do now; weave guide recipes has tested changes to copy
 ```
 
 ```loom clean LR11,LA02,LH05
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 evaluator Compliance { model: "gemini-2.5-pro" }
 policy HouseRules: "house-rules" checked by Compliance

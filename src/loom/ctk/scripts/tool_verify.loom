@@ -1,0 +1,11 @@
+// Canonical CTK test: tool_verify
+// A verify tool turns a JUnit report into counts the script can trust; a report it cannot read counts as one failure.
+// mocks/tool_verify.json holds the report.
+
+tool Check { use: verify }
+
+workflow main(text) {
+    use Check(format = "junit", report = text) -> result
+    use Check(format = "junit", report = "not a report") -> broken
+    note "{result.failed} of {result.total} failed; unreadable: {broken.failed} {broken.status}"
+}

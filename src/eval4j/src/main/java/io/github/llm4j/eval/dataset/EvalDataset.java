@@ -120,8 +120,15 @@ public record EvalDataset(
             String file = entry.getKey() + ".yaml";
             for (EvalScenario s : entry.getValue()) {
                 String label = s.id() != null ? s.id() : s.name();
-                if ((s.input() == null || s.input().isBlank()) && s.namedInputs().isEmpty()) {
+                boolean ownInput = (s.input() != null && !s.input().isBlank()) || !s.namedInputs().isEmpty();
+                if (s.stepList().isEmpty() && !ownInput) {
                     problems.add(new Problem(file, label, "has no input", false));
+                }
+                for (int i = 0; i < s.stepList().size(); i++) {
+                    EvalStep step = s.stepList().get(i);
+                    boolean stepInput = (step.input() != null && !step.input().isBlank())
+                            || (step.inputs() != null && !step.inputs().isEmpty());
+                    if (!stepInput) problems.add(new Problem(file, label, "step " + (i + 1) + " has no input", false));
                 }
                 if (s.id() != null) {
                     String first = seen.putIfAbsent(s.id(), file);

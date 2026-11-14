@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 EVIDENCE="$ROOT/.kiro/specs/loom-generic-tools/evidence"
 MODULE=src/loom/ai-agent4j-loom        # the Loom runtime
-TOOLS=src/ai-agent4j-tools              # the tools library (the six tools and their guards)
+TOOLS=src/tools/ai-agent4j-tools              # the tools library (the six tools and their guards)
 BASELINE=71f67cb   # the merged nifty-lovelace head, before the generic tools
 SHA=$(git rev-parse HEAD)
 mkdir -p "$EVIDENCE"

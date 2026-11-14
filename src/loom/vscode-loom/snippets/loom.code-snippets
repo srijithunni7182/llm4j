@@ -27,7 +27,7 @@
     "body": [
       "delegate \"${1:Write a short post from the notes}\" to ${2:Writer} -> ${3:answer_text}"
     ],
-    "description": "Ask an agent and keep the answer. Name the variable so it cannot be an ordinary word in your text (answer_text, not answer): a variable's name is replaced everywhere in a string."
+    "description": "Ask an agent and keep the answer. Put a variable into the text as {name}: only {name} is replaced, a plain word stays a word."
   },
   "delegate-shape": {
     "prefix": "delegate-expecting",
@@ -416,5 +416,29 @@
     "body": [
       "wait any ${1:work} timeout ${2:10m} -> ${3:event}"
     ]
+  },
+  "tool-workspace": {
+    "prefix": "tool-workspace",
+    "body": [
+      "tool ${1:Code} { use: workspace  root: \"${2:.}\"  allow: \"${3:**}\"  mode: readwrite  protect: \"${4:tests/**}\" }"
+    ],
+    "description": "A directory an agent edits with exact patches, searches, snapshots and restores; protect keeps what judges the work read only."
+  },
+  "tool-sandbox": {
+    "prefix": "tool-sandbox",
+    "body": [
+      "tool ${1:Code} { use: workspace  root: \"${2:.}\"  allow: \"**\"  mode: readwrite }",
+      "tool ${3:Tests} { use: sandbox  workspace: ${1:Code}  isolation: container  image: \"${4:python:3.12-slim}\"  allow: \"${5:python3}\"  network: none }"
+    ],
+    "description": "Run allow-listed programs on a workspace in a container with no network. Isolation has no default; a missing runtime stops the run, nothing falls back."
+  },
+  "tool-check": {
+    "prefix": "tool-check",
+    "body": [
+      "tool ${1:Calc}  { use: compute }",
+      "tool ${2:Check} { use: verify }",
+      "tool ${3:Scan}  { use: scan }"
+    ],
+    "description": "Tools that compute and check, and reach nothing: exact arithmetic and dates, a test report or schema check as counts, secrets and personal data found."
   }
 }

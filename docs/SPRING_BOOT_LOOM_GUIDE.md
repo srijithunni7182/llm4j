@@ -21,7 +21,7 @@ Nothing here makes llm4j depend on Spring. The starter wires `LoomHost` (in `ai-
 ```
 
 Loom is optional in the starter so it never arrives uninvited. If you set `llm4j.loom.script` without it, start-up fails and names the artifact to add.
-Add `loom-inspect` as well if you want the live run page, `ai-agent4j-tools` if the workflow uses `use: webhook`, `email`, `http`, `file`, `shell` or `sql` tools, and `spring-boot-starter-jdbc` if you want runs kept in a database.
+Add `loom-inspect` as well if you want the live run page, `ai-agent4j-tools` if the workflow uses `use: webhook`, `email`, `http`, `file`, `shell`, `sql`, `compute`, `verify`, `scan`, `workspace` or `sandbox` tools, and `spring-boot-starter-jdbc` if you want runs kept in a database.
 
 ## 2. Put the workflow on the class path
 

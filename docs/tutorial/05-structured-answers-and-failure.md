@@ -7,8 +7,6 @@ Models return text. Workflows need values they can branch on and fields they can
 If you ask an agent "is this billing or technical?", it might reply "I think this is probably about billing!" A script cannot branch on that. Give the agent an `output_schema` and it must answer in a fixed shape:
 
 ```loom
-substitution: braces
-
 agent Classifier {
     model: "gemini-2.5-flash"
     system: "Classify the customer message."
@@ -58,8 +56,6 @@ sequenceDiagram
 Every field is **required**. Write the schema as the contract you need, not the one you hope for. Fields keep the order you write them in.
 
 ```loom
-substitution: braces
-
 agent Auditor {
     model: "gemini-2.5-flash"
     system: "Audit the system description."
@@ -94,8 +90,6 @@ So a model that answers in YAML costs you one extra call, not a broken run.
 If an agent is used in several ways, put the schema on the step instead of the agent:
 
 ```loom
-substitution: braces
-
 agent Lead { model: "gemini-2.5-flash"  system: "You lead the review." }
 
 workflow Main(text) {
@@ -115,8 +109,6 @@ workflow Main(text) {
 An agent with an `output_schema` can pull fields out of text, but it is an *agent*: it is given the whole run so far and the shared prompt, it can pick up the house voice, and what it extracts can depend on what ran before it. For a step that only reads, that is more than it needs. An **extractor** is a step that is handed only the text you name and the fields you want, and remembers nothing.
 
 ```loom-parse
-substitution: braces
-
 extractor Invoice {
     model: "gemini-2.5-flash"
     instructions: "Read the invoice. Use the vendor's legal name."
@@ -191,8 +183,6 @@ agent Analyst {
 Fixed:
 
 ```loom-parse
-substitution: braces
-
 tool Files { use: file  root: "data"  mode: read }
 
 agent Analyst {
@@ -231,8 +221,6 @@ Things go wrong. The model provider returns an error, a tool times out, an answe
 ### `retry`, `backoff`, `timeout`
 
 ```loom
-substitution: braces
-
 agent Writer { model: "gemini-2.5-flash"  system: "You summarise documents." }
 
 workflow Main(doc) {
@@ -268,8 +256,6 @@ A step refused by a **budget** goes to `on_failure` too, but is never retried: r
 When one branch of a `parallel` block may fail and the others should still count, give each branch its own flag and set it in its own `on_failure`:
 
 ```loom
-substitution: braces
-
 agent WebResearcher  { model: "gemini-2.5-flash"  system: "Search the web and report what you find in five lines."  tools: [web_search] }
 agent DocsResearcher { model: "gemini-2.5-flash"  system: "Report what the company documents say, in five lines." }
 agent Writer         { model: "gemini-2.5-flash"  system: "Write a short report from the notes. Say what is missing." }
@@ -330,8 +316,6 @@ This is starter [05-parallel-research](../../src/loom/starters/05-parallel-resea
 This is starter [08-extract-and-validate](../../src/loom/starters/08-extract-and-validate/): free text becomes checked fields, the script applies its own rule, and the run stops on purpose when the text cannot be read.
 
 ```loom-parse
-substitution: braces
-
 extractor Invoice {
     model: "gemini-2.5-flash"
     instructions: "Read the invoice. Use the vendor's legal name."

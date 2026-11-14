@@ -66,7 +66,14 @@ test('A1: the real engine\'s review of a real script reaches the page, and the p
     assert.match(strip, new RegExp(`${total('high')} high · ${total('medium')} medium · ${total('low')} low`, 'i'));
     assert.match(strip, /trifecta present/);
     assert.equal(await page.$$eval('#flist .fd', (r) => r.length), findings.length);
-    assert.ok((await page.$$eval('[data-node] .np', (r) => r.length)) >= 2, 'steps carry badges');
+    // A step shows one badge per severity of the findings placed on it, counted from the engine's review.
+    const onStep = findings.filter((f) => f.location && f.location.node === 'n1');
+    assert.ok(onStep.length > 0, 'the engine places a finding on the delegate step');
+    const badges = await page.$$eval('[data-node="n1"] .np', (r) => r.map((b) => b.getAttribute('aria-label')));
+    const expected = ['high', 'medium', 'low', 'info']
+      .filter((s) => onStep.some((f) => f.severity === s))
+      .map((s) => `${onStep.filter((f) => f.severity === s).length} ${s} findings`);
+    assert.deepEqual(badges, expected, 'the step carries its findings as badges');
     await context.close();
   } finally {
     engine.dispose();

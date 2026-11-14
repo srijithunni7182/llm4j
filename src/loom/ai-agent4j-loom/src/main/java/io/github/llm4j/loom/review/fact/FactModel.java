@@ -88,13 +88,10 @@ public final class FactModel {
                 .string("bindsVariable", "The variable its result is bound to")
                 .bool(
                         "passesNoVariable",
-                        "A delegate or handoff whose task text passes no variable (no {…}, and under legacy substitution no bare variable name)")
+                        "A delegate or handoff whose task text passes no variable (no {…})")
                 .bool(
                         "readsFreeText",
                         "A branch or loop condition reads a field of an answer whose agent has no output_schema")
-                .string(
-                        "payloadHitsVariable",
-                        "A workflow variable whose name appears inside the literal text of the prompt, empty when none")
                 .bool("fansOutModelList", "A for each over a list that an agent or extractor wrote")
                 .number("fanoutBound", "A for each's declared max, 0 when none")
                 .string("fanoutList", "The path of the list a for each walks over")

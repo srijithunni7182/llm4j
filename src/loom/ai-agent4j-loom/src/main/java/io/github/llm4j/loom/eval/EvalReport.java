@@ -186,6 +186,9 @@ public final class EvalReport {
         m.put("unjudged", run.count(Status.UNJUDGED));
         m.put("notRun", run.notRun());
         if (run.cost() != null) m.put("cost", run.cost().toPlainString());
+        Map<String, Object> perPass =
+                CostPerPass.json(run.cost(), run.count(Status.PASS), run.count(Status.PASS) + run.count(Status.FAIL));
+        if (perPass != null) m.put("costPerPass", perPass);
         if (run.stoppedBecause() != null) m.put("stopped", run.stoppedBecause());
         if (!run.dimensions().isEmpty()) m.put("dimensions", run.dimensions());
         List<Map<String, Object>> rs = new ArrayList<>();

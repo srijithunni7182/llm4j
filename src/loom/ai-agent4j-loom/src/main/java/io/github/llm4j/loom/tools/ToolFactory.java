@@ -3,6 +3,7 @@ package io.github.llm4j.loom.tools;
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
 import io.github.llm4j.agent.tool.Effectful;
+import io.github.llm4j.agent.tool.ToolProfile;
 import io.github.llm4j.agent.tools.CalculatorTool;
 import io.github.llm4j.agent.tools.CurrentTimeTool;
 import io.github.llm4j.agent.tools.DateTimeTool;
@@ -60,12 +61,63 @@ public final class ToolFactory {
      */
     static final String REPLAY = "replay";
 
-    private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
+    /** Where a built-in kind comes from, in {@link #sources()}. */
+    public static final String BUILT_IN = "built in";
 
+    private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
+    private final Map<String, String> sources = new LinkedHashMap<>();
+    private final List<String> loadProblems = new java.util.ArrayList<>();
+    private Function<String, ToolDef> declarations = name -> null;
+
+    /**
+     * How this factory finds the other tools of the script, for a kind whose option names one
+     * ({@link ToolKind#references()}); without it no tool is found.
+     */
+    public ToolFactory declarations(Function<String, ToolDef> declarations) {
+        this.declarations = java.util.Objects.requireNonNull(declarations, "declarations");
+        return this;
+    }
+
+    /**
+     * A factory that knows the built-in kinds and the kinds the jars on the project's class path
+     * bring ({@link io.github.llm4j.loom.init.ProjectClasses#loader()}, which {@code --classes}
+     * sets).
+     */
     public ToolFactory() {
-        register(
+        this(io.github.llm4j.loom.init.ProjectClasses.loader());
+    }
+
+    /**
+     * A factory that knows the built-in kinds ({@link #standardKinds()}) and the kinds the jars
+     * visible to {@code loader} list in {@code
+     * META-INF/services/io.github.llm4j.agent.tool.ToolKind}. A name is registered once: a jar that
+     * brings a name already known, or a kind that fails to load, is left out and reported in {@link
+     * #loadProblems()}.
+     */
+    public ToolFactory(ClassLoader loader) {
+        standardKinds().forEach(k -> add(k, BUILT_IN));
+        DiscoveredKinds found = DiscoveredKinds.in(loader);
+        loadProblems.addAll(found.problems());
+        for (DiscoveredKinds.Found f : found.kinds()) {
+            String clash = clash(f.kind().name(), f.source());
+            if (clash == null) add(f.kind(), f.source());
+            else loadProblems.add(clash);
+        }
+    }
+
+    /**
+     * The kinds a script can name with no host code: one new instance of each, in the order they
+     * are listed. The one place the built-in kinds are listed (D3); what each reaches is its own
+     * {@link ToolKind#profile} (D2).
+     */
+    static java.util.List<ToolKind> standardKinds() {
+        java.util.List<ToolKind> out = new java.util.ArrayList<>();
+        java.util.function.Consumer<ToolKind> register = out::add;
+
+        register.accept(
                 simple(
                         "duckduckgo",
+                        o -> SEARCH_RESULTS,
                         Set.of(),
                         Set.of("base_url"),
                         Set.of(),
@@ -74,9 +126,10 @@ public final class ToolFactory {
                                         ? new DuckDuckGoSearchTool(
                                                 new OkHttpClient(), o.get("base_url"))
                                         : new DuckDuckGoSearchTool()));
-        register(
+        register.accept(
                 simple(
                         "serpapi",
+                        o -> SEARCH_RESULTS,
                         Set.of("api_key"),
                         Set.of("base_url"),
                         Set.of("api_key"),
@@ -87,38 +140,43 @@ public final class ToolFactory {
                                                 new OkHttpClient(),
                                                 o.get("base_url"))
                                         : new SerpApiSearchTool(o.get("api_key"))));
-        register(
+        register.accept(
                 simple(
                         "google_search",
+                        o -> SEARCH_RESULTS,
                         Set.of("api_key", "cx"),
                         Set.of(),
                         Set.of("api_key"),
                         (n, o, dir) -> new WebSearchTool(o.get("api_key"), o.get("cx"))));
-        register(new OpenApiKind());
-        register(
+        register.accept(new OpenApiKind());
+        register.accept(
                 simple(
                         "calculator",
+                        o -> ToolProfile.of(false, false, false, false, "calculator"),
                         Set.of(),
                         Set.of(),
                         Set.of(),
                         (n, o, dir) -> new CalculatorTool()));
-        register(
+        register.accept(
                 simple(
                         "datetime",
+                        o -> ToolProfile.of(false, false, false, false, "datetime"),
                         Set.of(),
                         Set.of(),
                         Set.of(),
                         (n, o, dir) -> new DateTimeTool()));
-        register(
+        register.accept(
                 simple(
                         "current_time",
+                        o -> ToolProfile.of(false, false, false, false, "current_time"),
                         Set.of(),
                         Set.of(),
                         Set.of(),
                         (n, o, dir) -> new CurrentTimeTool()));
-        register(
+        register.accept(
                 simple(
                         "class",
+                        o -> ReachDeclaration.profile(o.get(REACH), "Java class " + o.get("class")),
                         Set.of("class"),
                         Set.of(),
                         Set.of(),
@@ -135,17 +193,29 @@ public final class ToolFactory {
                             }
                             return (Tool) c.getDeclaredConstructor().newInstance();
                         }));
-        LanguageTools.registerAll(this);
-        register(new GenericKindAdapter(new io.github.llm4j.tools.WebhookKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.FileKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.HttpKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.EmailKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.ShellKind()));
-        register(new GenericKindAdapter(new io.github.llm4j.tools.SqlKind()));
-        register(new GraphKind());
-        register(
+        LanguageTools.registerAll(register);
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.WebhookKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.FileKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.HttpKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.EmailKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ShellKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.SqlKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ComputeKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.VerifyKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ScanKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.WorkspaceKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.SandboxKind()));
+        register.accept(new GraphKind());
+        register.accept(
                 simple(
                         "skill_registry",
+                        o ->
+                                ToolProfile.of(
+                                        true,
+                                        false,
+                                        false,
+                                        false,
+                                        "skills fetched from " + o.get("url")),
                         Set.of("url"),
                         Set.of("api_key"),
                         Set.of("api_key"),
@@ -156,6 +226,74 @@ public final class ToolFactory {
                             if (o.containsKey("api_key")) b.apiKey(o.get("api_key"));
                             return new io.github.llm4j.agent.tool.SkillDiscoveryTool(b.build());
                         }));
+        return out;
+    }
+
+    /** What a search kind's results are: content from the web, nothing else. */
+    /**
+     * The kinds of the optional extras modules (phase 35, D4), by the module that brings each: only
+     * so a script that uses one without its jar is told which module to add (G39). Loom depends on
+     * none of them.
+     */
+    static final Map<String, String> EXTRAS =
+            Map.of(
+                    "search", "ai-agent4j-tools-search",
+                    "documents", "ai-agent4j-tools-documents",
+                    "git", "ai-agent4j-tools-git",
+                    "browser", "ai-agent4j-tools-browser");
+
+    private static final ToolProfile SEARCH_RESULTS =
+            ToolProfile.of(true, false, false, false, "web search results");
+
+    /** The built-in kinds by name, made on first use. */
+    private static final class Standard {
+        static final Map<String, ToolKind> KINDS = byName(standardKinds());
+    }
+
+    private static Map<String, ToolKind> byName(List<ToolKind> list) {
+        Map<String, ToolKind> out = new LinkedHashMap<>();
+        list.forEach(k -> out.put(k.name(), k));
+        return java.util.Collections.unmodifiableMap(out);
+    }
+
+    /** The kinds the jars visible to the last loader asked about bring, found once per loader. */
+    private static final java.util.concurrent.atomic.AtomicReference<
+                    Map.Entry<ClassLoader, Map<String, ToolKind>>>
+            DISCOVERED = new java.util.concurrent.atomic.AtomicReference<>();
+
+    /**
+     * A kind a script can name with no host code, for asking what it reaches: a built-in, else one
+     * a jar on the project's class path brings ({@link
+     * io.github.llm4j.loom.init.ProjectClasses#loader()}). A jar's kind with a built-in's name is
+     * not one: the built-in wins, and {@code weave check} reports the jar.
+     */
+    public static java.util.Optional<ToolKind> knownKind(String name) {
+        java.util.Optional<ToolKind> builtIn = standardKind(name);
+        if (builtIn.isPresent()) return builtIn;
+        ClassLoader loader = io.github.llm4j.loom.init.ProjectClasses.loader();
+        Map.Entry<ClassLoader, Map<String, ToolKind>> last = DISCOVERED.get();
+        if (last == null || last.getKey() != loader) {
+            Map<String, ToolKind> found = new LinkedHashMap<>();
+            DiscoveredKinds.in(loader)
+                    .kinds()
+                    .forEach(f -> found.putIfAbsent(f.kind().name(), f.kind()));
+            last = Map.entry(loader, java.util.Collections.unmodifiableMap(found));
+            DISCOVERED.set(last);
+        }
+        return java.util.Optional.ofNullable(last.getValue().get(name));
+    }
+
+    /** The names of the built-in kinds, sorted. */
+    public static Set<String> standardKindNames() {
+        return java.util.Collections.unmodifiableSet(new TreeSet<>(Standard.KINDS.keySet()));
+    }
+
+    /**
+     * The built-in kind of this name, for asking what it reaches ({@link ToolKind#profile}). Never
+     * used to build a tool: a tool is built by a factory, which holds its own kinds.
+     */
+    public static java.util.Optional<ToolKind> standardKind(String name) {
+        return java.util.Optional.ofNullable(Standard.KINDS.get(name));
     }
 
     @FunctionalInterface
@@ -165,6 +303,7 @@ public final class ToolFactory {
 
     private static ToolKind simple(
             String kind,
+            Function<Map<String, String>, ToolProfile> profile,
             Set<String> required,
             Set<String> optional,
             Set<String> secrets,
@@ -191,6 +330,11 @@ public final class ToolFactory {
             }
 
             @Override
+            public ToolProfile profile(Map<String, String> options) {
+                return profile.apply(options);
+            }
+
+            @Override
             public Tool create(String name, Map<String, String> options, Path baseDir)
                     throws Exception {
                 return creator.create(name, options, baseDir);
@@ -198,9 +342,86 @@ public final class ToolFactory {
         };
     }
 
+    /**
+     * Adds a kind the host supplies.
+     *
+     * @throws IllegalArgumentException when a kind of that name is already registered: a name is
+     *     registered once, so nothing can quietly replace {@code file} or {@code shell}
+     */
     public ToolFactory register(ToolKind kind) {
-        kinds.put(kind.name(), kind);
+        String source = "the host (" + kind.getClass().getName() + ")";
+        String clash = clash(kind.name(), source);
+        if (clash != null) throw new IllegalArgumentException(clash);
+        add(kind, source);
         return this;
+    }
+
+    private void add(ToolKind kind, String source) {
+        kinds.put(kind.name(), kind);
+        sources.put(kind.name(), source);
+    }
+
+    /** Why a kind of this name from {@code source} cannot be added, or null. */
+    private String clash(String name, String source) {
+        String existing = sources.get(name);
+        return existing == null
+                ? null
+                : "tool kind \""
+                        + name
+                        + "\" from "
+                        + source
+                        + " has the name of the one from "
+                        + existing
+                        + "; a name is registered once, so it was not loaded (remove one of them)";
+    }
+
+    /**
+     * Where each kind came from, by name: {@link #BUILT_IN}, the jar or folder that listed it, or
+     * the host.
+     */
+    public Map<String, String> sources() {
+        return java.util.Collections.unmodifiableMap(sources);
+    }
+
+    /** The kinds that came from jars or folders on the class path, with where each came from. */
+    public Map<String, String> jarKinds() {
+        Map<String, String> out = new java.util.TreeMap<>();
+        sources.forEach(
+                (name, source) -> {
+                    if (!source.equals(BUILT_IN) && !source.startsWith("the host ("))
+                        out.put(name, source);
+                });
+        return out;
+    }
+
+    /**
+     * The kinds that could not be added: one that failed to load, or a name already registered.
+     * Each names where it came from; {@code weave check} reports them as errors.
+     */
+    public List<String> loadProblems() {
+        return List.copyOf(loadProblems);
+    }
+
+    /**
+     * The fields of a result of this kind that may hold model text ({@link
+     * ToolKind#uncheckedResult}); a kind this factory does not have: the whole result.
+     */
+    public Set<String> uncheckedResultOf(String kind, Map<String, String> options) {
+        ToolKind k = kinds.get(kind);
+        return k == null
+                ? Set.of(io.github.llm4j.agent.tool.ToolKind.WHOLE_RESULT)
+                : k.uncheckedResult(options);
+    }
+
+    /**
+     * What a tool of this kind with these options (as written) reaches; a kind this factory does
+     * not have is assumed to reach everything.
+     */
+    public ToolProfile profileOf(String kind, Map<String, String> options) {
+        ToolKind k = kinds.get(kind);
+        return k == null
+                ? ToolProfile.unknown("tool kind \"" + kind + "\" is not one the audit knows")
+                : k.profile(options);
     }
 
     public Set<String> kinds() {
@@ -229,7 +450,26 @@ public final class ToolFactory {
         List<String> out = new java.util.ArrayList<>();
         ToolKind kind = kinds.get(def.getKind());
         if (kind == null) {
-            out.add("unknown tool kind '" + def.getKind() + "'; use one of " + kinds());
+            String module = EXTRAS.get(def.getKind());
+            out.add(
+                    module != null
+                            ? "the tool kind '"
+                                    + def.getKind()
+                                    + "' comes in the optional module "
+                                    + module
+                                    + ", which is not on the class path: add the dependency"
+                                    + " io.github.srijithunni7182:"
+                                    + module
+                                    + " to your project, or give weave its jar (weave --classes "
+                                    + module
+                                    + "-<version>-weave.jar, or the plain jar for a module with no"
+                                    + " dependency of its own)"
+                            : "unknown tool kind '"
+                                    + def.getKind()
+                                    + "'; use one of "
+                                    + kinds()
+                                    + " (a kind from an optional module needs its jar: weave --classes"
+                                    + " <jar>, or a dependency of your project)");
             return out;
         }
         for (String req : kind.required()) {
@@ -247,9 +487,23 @@ public final class ToolFactory {
                                 + ": env.<NAME> or secret.<NAME>)");
             }
         }
+        for (Map.Entry<String, String> ref : kind.references().entrySet()) {
+            ToolDef.OptionValue named = def.getOptions().get(ref.getKey());
+            if (named == null) continue;
+            ToolDef target = declarations.apply(named.value());
+            if (target == null)
+                out.add(ref.getKey() + ": names no tool " + named.value() + " (declare tool " + named.value() + " { use: " + ref.getValue() + " ... })");
+            else if (!ref.getValue().equals(target.getKind()))
+                out.add(ref.getKey() + ": " + named.value() + " is a " + target.getKind() + " tool, not a " + ref.getValue() + " tool");
+        }
         for (Map.Entry<String, ToolDef.OptionValue> e : def.getOptions().entrySet()) {
             String key = e.getKey();
             if (key.equals(DESCRIPTION)) continue;
+            String filled = filledFrom(kind, key);
+            if (filled != null) {
+                out.add(key + " is taken from the tool " + filled + ": names; don't write it here");
+                continue;
+            }
             if (key.equals(REACH)) {
                 if (!kind.name().equals("class"))
                     out.add(
@@ -271,6 +525,12 @@ public final class ToolFactory {
                 continue;
             }
             String prefix = prefixOf(kind, key);
+            if (prefix != null && kind.resolvedPerCall().contains(prefix) && !e.getValue().isReference()) {
+                out.add(
+                        key
+                                + " must name a secret or a variable (secret.NAME or env.NAME): the tool looks it up on each call and never holds the value");
+                continue;
+            }
             if (prefix != null) {
                 String problem = checkPrefixed(prefix, key, e.getValue(), env);
                 if (problem != null) out.add(problem);
@@ -334,6 +594,18 @@ public final class ToolFactory {
         return kind == null
                 ? null
                 : kind.agentProblem(resolve(kind, def, env), def.getName(), agentName, approved);
+    }
+
+    /** Whether a tool of {@code kindName} is built when a run starts (an unknown kind is not). */
+    public boolean buildsAtRunStart(String kindName) {
+        ToolKind kind = kinds.get(kindName);
+        return kind != null && kind.buildsAtRunStart();
+    }
+
+    /** The option a key is filled from when it is {@code <reference>.<name>}, else null. */
+    private static String filledFrom(ToolKind kind, String key) {
+        for (String ref : kind.references().keySet()) if (key.startsWith(ref + ".")) return ref;
+        return null;
     }
 
     private static String prefixOf(ToolKind kind, String key) {
@@ -459,22 +731,52 @@ public final class ToolFactory {
         return new NamedTool(def.getName(), tool);
     }
 
-    private static Map<String, String> resolve(
-            ToolKind kind, ToolDef def, Function<String, String> env) {
+    private Map<String, String> resolve(ToolKind kind, ToolDef def, Function<String, String> env) {
+        return resolve(kind, def, env, new java.util.HashSet<>());
+    }
+
+    /**
+     * A tool this one names (workspace: Data) lends its options as workspace.root, ..., and so on
+     * down: an http tool that reaches: a sandbox sees reaches.workspace.store. {@code seen} stops a
+     * loop of tools that name each other.
+     */
+    private Map<String, String> resolve(
+            ToolKind kind, ToolDef def, Function<String, String> env, Set<String> seen) {
+        Map<String, String> out = values(kind, def, env);
+        if (!seen.add(def.getName())) return out;
+        for (Map.Entry<String, String> ref : kind.references().entrySet()) {
+            ToolDef.OptionValue named = def.getOptions().get(ref.getKey());
+            ToolDef target = named == null ? null : declarations.apply(named.value());
+            if (target == null || !ref.getValue().equals(target.getKind())) continue;
+            ToolKind targetKind = kinds.get(target.getKind());
+            if (targetKind == null) continue;
+            resolve(targetKind, target, env, seen)
+                    .forEach((k, v) -> out.put(ref.getKey() + "." + k, v));
+        }
+        return out;
+    }
+
+    private static Map<String, String> values(ToolKind kind, ToolDef def, Function<String, String> env) {
         Map<String, String> out = new LinkedHashMap<>();
         Map<String, ToolDef.OptionValue> all = new LinkedHashMap<>(kind.defaults());
         all.putAll(def.getOptions());
         all.forEach(
                 (k, v) -> {
                     // an invoker.NAME has no value yet: its text stands in for it while the options
-                    // are checked, and create() takes it out again
+                    // are checked, and create() takes it out again. An option the kind resolves
+                    // on each call keeps its reference too, and the tool looks it up when it runs.
                     String value =
-                            v.fromInvoker()
+                            v.fromInvoker() || (v.isReference() && perCall(kind, k))
                                     ? v.toString()
                                     : v.isReference() ? env.apply(v.lookupKey()) : v.value();
                     if (!isUnset(value)) out.put(k, value);
                 });
         return out;
+    }
+
+    private static boolean perCall(ToolKind kind, String key) {
+        for (String p : kind.resolvedPerCall()) if (key.startsWith(p)) return true;
+        return false;
     }
 
     private static Set<String> union(Set<String> a, Set<String> b) {

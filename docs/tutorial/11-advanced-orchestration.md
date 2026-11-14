@@ -7,8 +7,6 @@ By now you can build a workflow that routes, loops, fans out, uses tools, asks p
 A run can stop and carry on, but only forward. If a late step shows that an early one was wrong, you would have to start over and pay for everything again. **Checkpoints and rewinds** let a workflow go back to a named point, keep what it learned, and try again.
 
 ```loom
-substitution: braces
-
 agent Collector { model: "gemini-2.5-flash"  system: "Collect sources on the topic. Use the feedback to look somewhere new."  temperature: 0.5 }
 agent Writer    { model: "gemini-2.5-flash"  system: "Write a short report from the sources."  temperature: 0.5 }
 agent Reviewer  {
@@ -111,8 +109,6 @@ flowchart LR
 ```
 
 ```loom
-substitution: braces
-
 agent Triager {
     model: "gemini-2.5-flash"
     system: "You are Triager. Decide whether a refund request should be approved, rejected or escalated."
@@ -218,8 +214,6 @@ Then bind it with `ladder: RefundLadder` and `ceiling: suggest` in the `decision
 A `schedule` makes a workflow run itself on a clock:
 
 ```loom
-substitution: braces
-
 tool Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
 
 agent Reader { model: "gemini-2.5-flash"  system: "Find today's most useful news for the topic and report five items."  tools: [web_search] }
@@ -266,8 +260,6 @@ This is starter [11-daily-digest](../../src/loom/starters/11-daily-digest/). The
 A long tool loop makes the prompt grow until the model's context window is full. An agent's `context` block says **how it keeps the prompt inside the window**:
 
 ```loom
-substitution: braces
-
 agent Researcher {
     model: "claude-sonnet-5-5"
     system: "Research the question thoroughly with the tools, then answer."
@@ -317,8 +309,6 @@ flowchart LR
 - an `extractor Progress` that reads the goal, the previous progress and the worker's report, and writes the new progress into a variable.
 
 ```loom-parse
-substitution: braces
-
 tool Files { use: file  root: "work"  mode: write }
 
 agent Worker {
@@ -357,8 +347,6 @@ The progress is now typed, **journaled** (a resumed run continues from it, as st
 `call` runs a workflow to the end before the next line. Sometimes you want the opposite: start several workflows at once, keep an eye on them, step in when one goes wrong, and wait for the rest. `start` does that. It gives the workflow a **run of its own** (a *child*), hands you a **handle** at once, and the script carries on.
 
 ```loom
-substitution: braces
-
 budget { tokens: 300000 }
 
 agent Researcher { model: "gemini-2.5-flash" system: "Research the topic in a short paragraph." }

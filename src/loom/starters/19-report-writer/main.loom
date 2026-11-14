@@ -1,0 +1,35 @@
+// 19-report-writer: an agent writes a report into a folder, a check validates it, and when the check fails the workflow puts
+// the folder back as it was and tries again with what the check said. Restore is a step the script takes: snapshot once,
+// restore at the start of each attempt, and rewind with side effects: repeat so the attempt's writes run again.
+
+budget { tokens: 200000  calls: 30 }
+
+tool Draft { use: workspace  root: "report"  allow: "*.json, *.md"  mode: readwrite  overwrite: true  protect: "report.schema.json" }
+tool Check { use: verify  root: "report" }
+
+agent Writer {
+    model: "gemini-2.5-flash"
+    system: "You write report.json in your folder: a JSON object with a title, a summary of at most 80 words and a list of findings. Read report.schema.json first. Use the feedback to fix what failed."
+    tools: [Draft]
+    approve: [Draft]
+    temperature: 0.3
+}
+
+workflow Main(brief) {
+    use Draft(action = "snapshot", name = "clean")
+    checkpoint Clean starting with feedback = "none"
+    use Draft(action = "restore", name = "clean")
+
+    delegate "Write report.json for this brief: {brief}\nFeedback from the last check: {feedback}" to Writer -> written
+    use Check(format = "schema", schema = "report.schema.json", source = "report.json") -> result
+
+    rewind to Clean
+        when (result.failed > 0)
+        at most 2 times
+        carrying feedback = "{result.items}"
+        side effects: repeat
+        if it still fails { halt "report.json still does not match its schema after three attempts" }
+
+    note "{written}"
+    return result.status
+}

@@ -51,6 +51,31 @@ final class GenericKindAdapter implements ToolKind {
     }
 
     @Override
+    public io.github.llm4j.agent.tool.ToolProfile profile(Map<String, String> options) {
+        return kind.profile(options);
+    }
+
+    @Override
+    public Set<String> resolvedPerCall() {
+        return kind.resolvedPerCall();
+    }
+
+    @Override
+    public Map<String, String> references() {
+        return kind.references();
+    }
+
+    @Override
+    public boolean buildsAtRunStart() {
+        return kind.buildsAtRunStart();
+    }
+
+    @Override
+    public Set<String> uncheckedResult(Map<String, String> options) {
+        return kind.uncheckedResult(options);
+    }
+
+    @Override
     public String check(Map<String, String> options, Path baseDir) {
         return kind.check(options, baseDir);
     }

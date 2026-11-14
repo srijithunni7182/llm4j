@@ -25,7 +25,6 @@ public class LoomScript implements Node {
     private final List<EvaluatorDef> evaluators = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private final List<Integer> importLines = new ArrayList<>();
-    private String substitution = "legacy";
     private String sharedPrompt;
     private String sharedPromptRef;
     private int sharedPromptLine;
@@ -207,18 +206,6 @@ public class LoomScript implements Node {
 
     public void setMaxDepth(Integer maxDepth) {
         this.maxDepth = maxDepth;
-    }
-
-    /**
-     * {@code substitution: braces}: only {@code {name}} is replaced by a variable's value. The
-     * default, {@code legacy}, also replaces a variable's name where it is written as a plain word.
-     */
-    public String getSubstitution() {
-        return substitution;
-    }
-
-    public void setSubstitution(String substitution) {
-        this.substitution = substitution;
     }
 
     public void setSharedPrompt(String text, String ref, int line) {

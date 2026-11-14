@@ -1,0 +1,4 @@
+- id: report-001
+  name: A short report on a brief
+  input: "Quarterly support tickets: most were about passwords"
+  expected_output_contains: "passed"

@@ -182,11 +182,6 @@ public final class StaticSinkChecks {
         Known out = new Known(Provenance.NOT_MODEL, 0, null);
         Matcher m = PLACEHOLDER.matcher(text);
         while (m.find()) out = worse(out, lookup(m.group(1), env));
-        if (!"braces".equals(script.getSubstitution())) {
-            for (String name : env.keySet())
-                if (Pattern.compile("\\b" + Pattern.quote(name) + "\\b").matcher(text).find())
-                    out = worse(out, env.get(name));
-        }
         return out;
     }
 

@@ -82,7 +82,7 @@ Then make one of your own. 👇
 | 🔭 | **[loom-inspect and Fabric](src/loom/loom-inspect/)** | A live page per run or one server for the fleet: cost, context windows and what compaction cut, tool health, **the lethal trifecta and suspected injection**, incidents, a time bar, **Pause / Suspend / Stop**. |
 | 🧠 | **[Engram](src/engram/engram-core/)** | Memory that retrieves and synthesises, so prompts stay small and agents stay sharp. |
 | 🧩 | **[Addons](src/ai-agent4j-addons/)** | **Local ONNX embeddings** (data never leaves), pgvector and Pinecone. |
-| 🔧 | **[Tools](src/ai-agent4j-tools/)** | `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`, with allow-lists and journals. |
+| 🔧 | **[Tools](src/tools/ai-agent4j-tools/)** | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, `compute`, `verify`, `scan`, `workspace` and `sandbox`, with allow-lists and journals; optional `search`, `documents`, `git` and `browser`. |
 | 🏷️ | **[Classification](src/ai-agent4j/wiki/Classification.md)** | Typed questions (a choice, a yes/no, a score) answered in one call; `intentclassify` in Loom. |
 | 🌱 | **[Spring Boot starter](src/spring/llm4j-spring-boot-starter/)** | Clients, budgets, agents, tools, RAG and the Loom runtime as beans, wired from `application.yml`. |
 | 🧩 | **[VS Code extension](src/loom/vscode-loom/README.md)** | The live graph, the review panel, generate and change, a step debugger, the guide, and one-click set-up for your coding agent. |

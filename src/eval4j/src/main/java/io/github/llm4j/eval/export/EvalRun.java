@@ -647,6 +647,25 @@ public final class EvalRun {
         }
     }
 
+    /**
+     * What one pass cost (phase 35, D17): the cost over the passes, with a 95% interval from the
+     * Wilson interval of the pass rate; {@code usd} is absent when nothing passed and {@code highUsd}
+     * when the interval reaches zero passes. Null when no case was judged.
+     */
+    static Map<String, Object> costPerPass(double costUsd, int passedCount, int judged) {
+        if (judged <= 0) return null;
+        io.github.llm4j.eval.compare.PromptComparison.Interval rate =
+                io.github.llm4j.eval.compare.PromptComparison.wilson(passedCount, judged);
+        double perCase = costUsd / judged;
+        Map<String, Object> m = new LinkedHashMap<>();
+        if (passedCount > 0) m.put("usd", costUsd / passedCount);
+        if (rate.high() > 0) m.put("lowUsd", perCase / rate.high());
+        if (rate.low() > 0) m.put("highUsd", perCase / rate.low());
+        m.put("passed", passedCount);
+        m.put("judged", judged);
+        return m;
+    }
+
     // ---- run.json -------------------------------------------------------------------------
 
     private Map<String, Object> runJson(String status, String endedAt) {
@@ -704,6 +723,8 @@ public final class EvalRun {
         summary.put("bySource", src);
         if (costMicros.get() > 0) {
             summary.put("costUsd", costMicros.get() / 1_000_000.0);
+            Map<String, Object> perPass = costPerPass(costMicros.get() / 1_000_000.0, passed.get(), passed.get() + failed.get());
+            if (perPass != null) summary.put("costPerPass", perPass);
         }
         Map<String, Object> tests = new LinkedHashMap<>();
         testCounts.forEach((k, v) -> tests.put(k.toLowerCase(java.util.Locale.ROOT), v.get()));

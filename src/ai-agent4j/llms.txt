@@ -32,7 +32,7 @@ Maven: `io.github.srijithunni7182:ai-agent4j:5.0`. This file covers the core lib
   - `Effectful`: is this call a read or an effect?
   - `EffectJournal`: record effects so they are never repeated;
   - `ToolKind`.
-- Ready-made, hardened tools (`webhook`, `email`, `http`, `file`, `shell`, read-only `sql`) are in the separate `ai-agent4j-tools` module.
+- Ready-made, hardened tools (`webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, `compute`, `verify`, `scan`, `workspace` and `sandbox`) are in the separate `ai-agent4j-tools` module; `search`, `documents`, `git` and `browser` are optional modules beside it.
 - `DelegateTaskTool` (`delegate_task`): a manager agent builds a sub-agent on the fly with tools picked from a `ToolRegistry`. **The registry is the permission boundary**: register only what any sub-agent may hold. In Loom, prefer `delegate` to declared agents.
 
 ## Safety and control

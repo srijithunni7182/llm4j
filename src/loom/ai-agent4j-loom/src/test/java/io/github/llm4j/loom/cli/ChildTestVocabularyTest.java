@@ -23,7 +23,6 @@ class ChildTestVocabularyTest {
 
     static final String SCRIPT =
             """
-            substitution: braces
             evaluator TopicJudge { model: "gemini-2.5-flash" }
             agent Researcher { model: "gemini-2.5-flash" system: "Research." }
             workflow Research(topic) {

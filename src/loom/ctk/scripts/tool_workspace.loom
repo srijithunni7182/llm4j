@@ -1,0 +1,14 @@
+// Canonical CTK test: tool_workspace
+// A workspace snapshot and restore put the files back exactly: a write after the snapshot is undone by the restore.
+// mocks/tool_workspace.json holds the text written first.
+
+tool Data { use: workspace  root: "ctk-work"  allow: "**"  mode: readwrite  overwrite: true }
+
+workflow main(text) {
+    use Data(action = "write", path = "note.md", content = text)
+    use Data(action = "snapshot", name = "clean")
+    use Data(action = "write", path = "note.md", content = "changed")
+    use Data(action = "restore", name = "clean")
+    use Data(action = "read", path = "note.md") -> back
+    note "{back.content}"
+}

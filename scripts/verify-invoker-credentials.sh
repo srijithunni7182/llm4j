@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 SPEC=.kiro/specs/loom-invoker-credentials
 EVIDENCE="$ROOT/$SPEC/evidence"
-MODULES="src/ai-agent4j,src/ai-agent4j-tools,src/loom/ai-agent4j-loom"
+MODULES="src/ai-agent4j,src/tools/ai-agent4j-tools,src/loom/ai-agent4j-loom"
 LOOM=src/loom/ai-agent4j-loom
 BASELINE=724e474   # the last commit before any code of this change
 SHA=$(git rev-parse HEAD)
@@ -41,7 +41,7 @@ g1() {
     # shellcheck disable=SC2086
     if mvn -B -pl "$MODULES" test ${flags[$i]} > "$EVIDENCE/.g1-run$i.log" 2>&1; then echo "   BUILD SUCCESS" | tee -a "$out"
     else echo "   BUILD FAILURE" | tee -a "$out"; FAILED+=("G1 run $((i+1))"); tail -30 "$EVIDENCE/.g1-run$i.log" >> "$out"; fi
-    echo "   core: $(totals src/ai-agent4j); tools: $(totals src/ai-agent4j-tools); loom: $(totals $LOOM)" | tee -a "$out"
+    echo "   core: $(totals src/ai-agent4j); tools: $(totals src/tools/ai-agent4j-tools); loom: $(totals $LOOM)" | tee -a "$out"
   done
   rm -f "$EVIDENCE"/.g1-*.log
 }
@@ -80,7 +80,7 @@ g4() {
   python3 - "$work/baseline" "$ROOT" >> "$out" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 from pathlib import Path
-MODS = ["src/ai-agent4j", "src/ai-agent4j-tools", "src/loom/ai-agent4j-loom"]
+MODS = ["src/ai-agent4j", "src/tools/ai-agent4j-tools", "src/loom/ai-agent4j-loom"]
 def cases(root):
     out = {}
     for m in MODS:

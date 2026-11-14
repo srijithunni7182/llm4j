@@ -21,8 +21,6 @@ Read more: [08-people-in-the-loop.md](../../../../docs/tutorial/08-people-in-the
 // 07-approval: the model drafts, a person approves once, at the edge, and the script sends. No model carries out the
 // send, so no wording in a message can talk it past the approval; the person sees the exact text that will be posted.
 
-substitution: braces
-
 budget { tokens: 100000  calls: 20 }
 
 agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short, polite announcement from the facts you are given."  temperature: 0.4  guard { pii: mask } }

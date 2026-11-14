@@ -16,8 +16,6 @@ Read more: [11-advanced-orchestration.md](../../../../docs/tutorial/11-advanced-
 // 11-daily-digest: a workflow that runs itself on a clock. The `schedule` block is kept in a trigger store, so it survives restarts
 // (weave schedule sync, then weave daemon or weave tick). A missed run happens once, not once per missed day.
 
-substitution: braces
-
 budget { tokens: 120000  calls: 12 }
 
 tool Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }

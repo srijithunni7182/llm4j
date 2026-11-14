@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.srijithunni7182</groupId>
+        <artifactId>llm4j-parent</artifactId>
+        <version>6.2.0</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ai-agent4j-tools-parent</artifactId>
+    <packaging>pom</packaging>
+
+    <name>AI Agent4J - Tools Parent</name>
+    <description>Parent of the llm4j tool modules: the light ai-agent4j-tools and the optional extras. Holds the weight rule and the shared build settings.</description>
+
+    <!-- The light module first; the extras depend on it. See README.md for the layout and the weight rule. -->
+    <modules>
+        <module>ai-agent4j-tools</module>
+        <module>extras</module>
+    </modules>
+
+    <properties>
+        <junit.version>5.10.2</junit.version>
+        <!-- the same Jackson as the core, so a project that uses several modules gets one version -->
+        <jackson.version>2.23.0</jackson.version>
+        <assertj.version>3.27.7</assertj.version>
+    </properties>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!--
+                    The weight rule (phase 35, D4 rule 2). Every tool module writes its resolved direct dependencies to
+                    target/weight/dependencies.txt before its tests run, and a test in the module pins that list: the
+                    light module's to the core, Jackson and the optional mail library; each extras module's to its own
+                    allow-list. A module turns it on by naming the plugin in its <build><plugins>.
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.6.1</version>
+                    <executions>
+                        <execution>
+                            <id>weight-rule</id>
+                            <phase>process-test-resources</phase>
+                            <goals><goal>list</goal></goals>
+                            <configuration>
+                                <excludeTransitive>true</excludeTransitive>
+                                <outputFile>${project.build.directory}/weight/dependencies.txt</outputFile>
+                                <outputScope>true</outputScope>
+                                <sort>true</sort>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

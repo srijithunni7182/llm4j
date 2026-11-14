@@ -1,0 +1,8 @@
+{
+  "scriptName": "tool_scan.loom",
+  "workflowName": "main",
+  "steps": [
+    { "kind": "use", "tool": "Scan" },
+    { "kind": "note", "text": "1 found" }
+  ]
+}

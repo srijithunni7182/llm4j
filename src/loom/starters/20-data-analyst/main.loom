@@ -1,0 +1,40 @@
+// 20-data-analyst: an agent writes a short script, a sandbox runs it against a CSV with no network, the workflow checks the
+// script's answer against its own exact sum of the same column, and scans the summary before it leaves. The model's code
+// runs in a container, sees only the data folder, and cannot change sales.csv.
+
+budget { tokens: 150000  calls: 20 }
+
+tool Data  { use: workspace  root: "data"  allow: "*.py, *.csv, *.json"  mode: readwrite  overwrite: true  protect: "sales.csv" }
+tool Py    { use: sandbox  workspace: Data  isolation: container  image: "python:3.12-slim"  allow: "python3"  network: none  timeout: "2m"  unattended: true }
+tool Calc  { use: compute }
+tool Check { use: verify  root: "data" }
+tool Scan  { use: scan }
+
+agent Analyst {
+    model: "gemini-2.5-flash"
+    system: "You write analysis.py in your folder. It reads sales.csv with the standard library only and writes result.json: {\"total\": <the sum of the revenue column>, \"note\": <one sentence>}. Do not print anything else."
+    tools: [Data]
+    approve: [Data]
+    temperature: 0.2
+}
+
+workflow Main(question) {
+    delegate "{question}\nWrite analysis.py as your instructions say." to Analyst -> written
+    use Py(program = "python3", args = "[\"analysis.py\"]") -> ran
+    alt (ran.exit != 0) { halt "analysis.py failed: {ran.stderr}" }
+
+    use Check(format = "schema", schema = "result.schema.json", source = "result.json") -> shape
+    alt (shape.failed > 0) { halt "result.json is not in the expected shape: {shape.items}" }
+
+    use Data(action = "read", path = "result.json") -> result
+    use Calc(action = "json", document = result.content, path = "total") -> claimed
+    use Data(action = "read", path = "sales.csv") -> sales
+    use Calc(action = "csv", text = sales.content, column = "revenue", op = "sum") -> total
+    use Calc(action = "calc", expression = "{claimed.value} - {total.value}") -> difference
+    alt (difference.value != "0") { halt "the script's total {claimed.value} is not the sum of the revenue column ({total.value})" }
+
+    use Scan(text = result.content) -> found
+    alt (found.count > 0) { halt "the result holds something that must not leave: {found.findings}" }
+    note "{written}"
+    return result.content
+}

@@ -188,6 +188,23 @@ newsletter/
   tags: { kind: refund }                        # or ["kind:refund"]; read back as typed values
 ```
 
+A case that needs more than one turn runs in **steps**: each step has its own `input` (or `inputs`) and its own checks,
+the steps run in order as separate runs on the same project, so what one step leaves in its files is what the next
+finds. A step that fails stops the rest. The case's own checks read the last step's answer, and the case gives no
+`input` of its own.
+
+```yaml
+- id: page-then-form
+  name: A page, then a form on it
+  steps:
+    - input: "Create a page with a title"
+      expected_output_contains: "created"
+    - input: "Add a contact form to the page"
+      expected_output_not_contains: "error"
+      rubric: "The form has a name field and an email field"
+  expected_output_contains: "form"            # the last step's answer
+```
+
 ```bash
 weave eval newsletter/main.loom --init            # create eval/golden with a starter case per agent and one for the workflow (never overwrites)
 weave eval newsletter/main.loom --check           # validate the dataset: no model is called
@@ -211,7 +228,8 @@ weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the sa
 - **Datasets and baselines that cannot slide.** A dataset's identity is the `version:` its `dataset.yaml` declares (optional) and a hash of every case, so a changed case is a changed dataset even if nobody bumped the version; it is in the report. `--save-baseline --approver <name> --why "<reason>"` saves a finished real run as a new baseline under `eval/baselines/` (a mock or partial run is refused; a baseline is never replaced). `--baseline` compares a run with the current baseline **and the one before it**, so a slow decline across releases shows, and lists the cases that regressed or improved. A baseline taken on a different dataset is refused unless `--allow-version-change "<why>"` is given (recorded in the report). Re-baselining is never automatic.
 - **A case can state the answers it accepts.** Beside `expected_output_contains` a case may say `correct_conclusion`, `accepted_equivalents`, `rejected`, `acceptable_actions`, `unacceptable_actions` and `required_citations` (a single value is a list of one). The answer's **verdict** is `exact` (it holds the correct conclusion), `acceptable` (an equivalent), `rejected` (a rejected answer; the case fails) or `unmatched` (nothing the case lists; the case is *unjudged*, because it may be a correct answer nobody anticipated: read it, and if it is right add it to `accepted_equivalents`). Entries are short key phrases the answer must contain, any capitalisation, punctuation ignored; embedding or model comparison is not built, and if you are tempted to loosen matching, add equivalents instead. `required_citations` must each appear in the answer, and an `unacceptable_actions` entry must not appear in the answer or among the tools used. The report counts the verdicts and warns when more than about a tenth of the answers are unmatched (the ground truth is then incomplete).
 - **`weave eval --check` says what the dataset is made of.** It names a case class below a tenth of the cases (tag `class:unanswerable`, `class:obvious-wrong`, `class:conservative-action`), a reported slice (`domain:`, `difficulty:`, `split:`) with fewer than ten cases, and the mix of `source:` tags (`production`, `expert`, `synthetic`) as information. The shares are starting points; the dataset's owner sets the real ones.
-- **The cost section has the tail.** Beside the cost per passing case it gives the median and the p95 cost of a case, the *runaway* count (runs a limit stopped) and how many of those kept partial work.
+- **The cost section has the tail.** Beside the cost per passing case, with its 95% interval (from the pass rate's
+  interval: a cheap run that rarely passes is not cheap), it gives the median and the p95 cost of a case, the *runaway* count (runs a limit stopped) and how many of those kept partial work.
 - **Run protocols.** `eval-protocol.yaml` at the project root names the runs a team makes: `protocols: { commit: { split: validation, repetitions: 3 }, nightly: { split: validation, repetitions: 5 }, release: { repetitions: 10, release-gate: true, judge-samples: 3 }, drift: { split: validation, repetitions: 5, schedule: weekly, pinned: true } }`. The settings are `split`, `repetitions`, `release-gate`, `judge-samples`, `max-cost`, `max-tokens`, `schedule` and `pinned` (the last two are for the people and the CI file). `weave gate --protocol release` runs the gate's eval stage as that protocol, and `weave eval --protocol nightly` fills in what you did not give on the command line, and the report records the protocol's name. An unknown setting, a split that is not one, or a protocol that reads held-out cases without `release-gate: true` is refused by name. The numbers are the team's.
 - **Metamorphic cases.** `weave metamorphic --from eval/golden --out eval/golden-meta` derives, with no model, cases that test a relation between two runs: `irrelevant` (a neutral sentence added to the input), `order` (the input's sentences reversed) and `paraphrase` (reworded inputs you supply with `--paraphrases <file>`, a map from case id to text, written by a person or a model; the cases are tagged `source:synthetic`) must not change the conclusion, so each derived case keeps the original's expectations; `monotonicity` (the evidence a case marks with the tag `decisive:<text>` is removed) and `negation` (the tag `negate:<from>=><to>` flips it) must change it, so the derived case forbids the original conclusion and drops what the original required of its answer (it has no positive expectation, so it can fail or be unjudged but never pass: a changed answer is for a person to read). Each derived case is tagged `relation:<name>`, `pair:<id>` and `derived:metamorphic`. The originals and the derived cases are written to the new folder (never over the dataset); run them with `weave eval <script> --dataset <folder>`. A pair that passes alone and fails perturbed is named in the Cautions: the system may be matching surface features, or (for monotonicity and negation) ignoring the evidence.
 - **Routing is a matrix.** A case tagged `route:<Agent>` says which agent should handle it. The report lists, for each expected agent, the agents that took part in the run (a confusion matrix, not one accuracy figure). `--route-danger Expected>Actual` (repeatable) names a mistake that must never happen, such as an information-gathering request reaching an action-taking agent: the run **fails when any case lands in that cell**, whatever the average says.
@@ -322,7 +340,7 @@ cases:
 | Key | What it does |
 |---|---|
 | `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`, to test `retry`, `on_failure` and `rewind` |
-| `tools:`, `tasks:` | the tool or task returns this; tools that act (webhook, email, http, file, shell, sql) only *record* what they would have done, which `expect: { effects: … }` asserts |
+| `tools:`, `tasks:` | the tool or task returns this; tools whose calls are journaled (webhook, email, http, file, shell, sql, workspace, sandbox) only *record* what they would have done, which `expect: { effects: … }` asserts |
 | `real:` | `real: [RefundPolicy]` runs that task's own code instead of a scripted result, and `expect.calls` still counts it. Only a task that declares no effect on the world (`TaskEffect.NONE`) may be real; naming one that changes things, or does not say, is an error: *has effects; a test cannot run it for real; script its result in tasks:*. The class has to be on the class path (`weave test --classes <dir>`, or `target/classes`); a name in both `real:` and `tasks:` is an error |
 | `expect.told` | `told: { Billing: [ "customer 4417" ] }` asserts that an agent was told each text somewhere over the run (any capitalisation): a handoff that drops the fact fails the case instead of producing a confident answer built on a missing input |
 | `remotes:`, `channels:` | a `remote` agent is scripted one step per look: `Supplier: [ { state: working }, { state: input_required, question: "Which date?" }, { state: completed, text: "42 each", data: { price: 42 } } ]` (also `auth_required` with an `explanation`, `failed`, `rejected` and `canceled` with a `message`, `files: [ { link, name, type } ]`, or a single `{ reply: "…" }` for a plain message and no task); the last step repeats, so a remote that never finishes fails the step at its deadline in virtual time. `channels: { Desk: [ "Within 30 days.", { refuse: "no" }, { ignore: true } ] }` answers an `agent_channel` in order, and `asked:` sees each question. A remote or channel the case did not script fails the case |
@@ -403,7 +421,7 @@ tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }
 
 A tool that holds several operations declares each one: `effects: { listOrders: reads, createRefund: changes }` on an `openapi` tool (by `operationId`) and on an `mcp` server (by tool name). An operation not listed falls back to the tool's own effect.
 
-When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime and the other harmless built-ins `none`; search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
+When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime, `compute` and the other harmless built-ins `none` (so are `verify` and `scan` without a `root`); search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, `verify` and `scan` with a `root`, `workspace` in `read` mode, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` or `workspace` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
 
 `reach:` on a `class` tool (`none`, `reads`, `fetches`, `writes`, `sends`) is the older form and keeps working: `none` and `reads` give that effect, `fetches` gives `reads` plus the untrusted leg, `writes` and `sends` give `changes` (and `sends` the outward leg). Giving `effect:` and `reach:` on one tool is an error; keep `effect:`. A tool mapped in a `.loot` file takes `Name.reach = reads`, read by `weave audit --loot tools.loot`.
 
@@ -418,13 +436,23 @@ When you declare nothing, Loom assumes an effect from the kind of tool and says 
 | `translate`, `transliterate`, `detect_language`, `speak`, `transcribe` | see [Memory, Voice and Languages](#memory-voice-and-languages) |
 | `knowledge_graph` | `store` (file or `memory`), `read_only?` |
 | `skill_registry` | `url`, `api_key?` (env) |
+| `compute` | `max_bytes?`, `max_rows?` (see [Tools that compute and check](#tools-that-compute-and-check-compute-verify-scan)) |
+| `verify` | `root?`, `max_bytes?`, `max_items?` |
+| `scan` | `root?`, `rules?`, `pii?`, `max_bytes?`, `max_files?`, `max_findings?` |
+| `workspace` | `allow`, `root?`, `mode?`, `overwrite?`, `protect?`, `ignore?`, `store?`, size and count caps (see [Editing files and trying again](#editing-files-and-trying-again-workspace)) |
 
 - **Built-ins** work by name with no declaration: `web_search` (DuckDuckGo), `calculator`, `datetime`,
   `current_time`, and the language tools `translate`, `transliterate`, `detect_language`, `speak`,
   `transcribe` (with `SARVAM_API_KEY`).
 - A name in `tools:` is looked up in the script's declarations, then in tools the host registered
   (`.loot` or Java), then among the built-ins. The model sees the name you gave the tool.
-- Hosts can add their own kinds with `executor.addToolKind(...)`.
+- Hosts can add their own kinds with `executor.addToolKind(...)`. A jar can bring kinds too: each one it lists in
+  `META-INF/services/io.github.llm4j.agent.tool.ToolKind` is found when the jar is on the class path (`weave --classes
+  <jar>`, or a dependency of your project), and `weave check` lists the kinds it found and which jar brought each. A kind
+  name is registered once: a jar or a host cannot replace `file` or `shell`, and a jar whose kind fails to load or takes a
+  name already used makes `weave check` fail, naming the jar.
+- Each kind tells `weave audit` what a tool of it reaches (reads untrusted content, reaches private data, sends or changes
+  something). A kind that does not say is assumed to reach everything.
 
 **Knowledge bases** index your documents, and agents get the relevant passages:
 
@@ -473,16 +501,24 @@ agent Publisher {
 
 ### Generic Tools
 
-Six tool kinds cover what most long-running workflows need to touch the outside world, with no Java:
+These tool kinds cover what most long-running workflows need to touch the outside world, with no Java:
 
 | `use:` | For |
 |---|---|
 | [`webhook`](#webhook) | Post a message to Slack, Discord, Teams or any endpoint |
 | [`email`](#email) | Send mail over SMTP |
-| [`http`](#http) | Call a REST API that has no OpenAPI spec |
+| [`http`](#http) | Call a REST API that has no OpenAPI spec, or a program a sandbox serves (`reaches:`) |
 | [`file`](#file) | Read, list, write and append text files in one directory |
 | [`shell`](#shell) | Run a few named programs on the machine |
 | [`sql`](#sql) | Run read-only queries on a database |
+| [`compute`, `verify`, `scan`](#tools-that-compute-and-check-compute-verify-scan) | Exact arithmetic and dates, a test report or schema check as counts, secrets and personal data found |
+| [`workspace`](#editing-files-and-trying-again-workspace) | Edit a directory with exact patches, search it, snapshot and restore it |
+| [`sandbox`](#running-programs-sandbox) | Run allow-listed programs on a workspace, isolated in a container |
+
+Four more come in optional modules, each added with its jar (a script that uses one without it is told which module to
+add): `search` (web search through a provider you key), `documents` (the text of PDF, DOCX and HTML files with pages and
+paragraphs), `git` (through the sandbox) and `browser` (an installed Chrome, every request checked). See
+[the extras](../../tools/extras/README.md).
 
 They share these rules:
 
@@ -515,7 +551,7 @@ tool Db      { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PA
 
 #### What happens when a run is resumed
 
-A message sent twice is worse than most failures, so tools that change something (`webhook`, `email`, `shell`, `file`
+A message sent twice is worse than most failures, so tools that change something (`webhook`, `email`, `shell`, `workspace`, `sandbox`, `file`
 writes and appends, and `http` requests other than GET) are **journaled**. Each call is recorded before it happens and
 again after, in the run journal:
 
@@ -728,6 +764,102 @@ weave schedule sync digest.loom --store ~/.loom/triggers
 weave triggers install ~/.loom/triggers --env-file ~/.loom/env --apply
 ```
 
+### Tools that compute and check (`compute`, `verify`, `scan`)
+
+Three tool kinds do work a model is bad at, or should not be trusted with, and reach nothing outside the run (unless you
+give `verify` or `scan` a `root:` directory to read):
+
+| `use:` | For | Reference |
+|---|---|---|
+| `compute` | Exact arithmetic (`calc`), dates on the run's clock (`date`), a value out of JSON (`json`), figures over CSV (`csv`) | [compute](../../tools/ai-agent4j-tools/docs/compute.md) |
+| `verify` | A JUnit XML report, or a JSON document checked against a JSON Schema, as one record of counts | [verify](../../tools/ai-agent4j-tools/docs/verify.md) |
+| `scan` | Secrets and personal data in text or files, reported as a rule and a place, never the match | [scan](../../tools/ai-agent4j-tools/docs/scan.md) |
+
+```loom
+tool Calc  { use: compute }
+tool Check { use: verify  root: "out" }
+tool Scan  { use: scan }
+
+workflow Close(net, report) {
+    use Calc(action = "calc", expression = "{net} * 1.18") -> gross
+    use Check(format = "junit", source = report) -> tests
+    alt (tests.failed > 0) { halt "{tests.failed} tests failed" }
+    use Scan(text = "Total {gross.value}") -> found
+    return gross.value
+}
+```
+
+- **They change nothing**, so they need no approval, and a call replays exactly; `weave audit` sees them as reaching nothing,
+  or reading the files under `root`.
+- **What they return keeps its origin.** A value `compute` picks out of a model's answer is still the model's text when it
+  leaves the workflow. The counts and status of `verify` and the count of `scan` are data the tool parsed, but the test names
+  and messages of `verify`, and the file names of `scan`, stay unchecked model text (a model's code may have written them).
+- **`verify` fails closed:** a report it cannot read counts as one failure (`failed: 1`, `status: failed`), and a schema that
+  uses a keyword it does not check is refused rather than half-checked.
+- **`scan` is a net, not a proof:** a clean result means nothing its rules know was found.
+
+### Editing files and trying again (`workspace`)
+
+`use: workspace` is a directory an agent reads and edits: `read` (with a `version`), `list`, `exists`, `write`, `append`,
+`patch` (a list of `{old, new}` edits, each found exactly once, all or none), `find`, `grep`, and `diff`, `snapshot` and
+`restore`. `allow:` is required; `protect:` makes paths read only (the tests that judge the agent's work); a link is never
+followed; nothing under `.git` is written and keys and `.env` files are never read. The reference is
+[workspace](../../tools/ai-agent4j-tools/docs/workspace.md).
+
+A rewind never undoes a file by itself. To try again from a clean state, the script restores a snapshot itself:
+
+```loom
+tool Data { use: workspace  root: "work"  allow: "**"  mode: readwrite  overwrite: true }
+agent Writer { model: "gemini-2.5-flash"  system: "You write the report."  tools: [Data]  approve: [Data] }
+
+workflow Draft() {
+    use Data(action = "snapshot", name = "clean")
+    checkpoint Clean starting with feedback = "none"
+    use Data(action = "restore", name = "clean")
+    delegate "Write report.md. Feedback: {feedback}" to Writer -> done
+    use Data(action = "read", path = "report.md") -> report
+    rewind to Clean when (report.content == "") at most 2 times carrying feedback = "it was empty" side effects: repeat
+}
+```
+
+The snapshot is taken once, before the checkpoint. Every attempt starts by restoring it (the first time it changes nothing),
+and `side effects: repeat` lets the attempt's writes run again. With `keep`, the second attempt's restore is taken for the
+first one already done and is skipped, so the files are not put back. Snapshots and restores are journaled: a resumed run
+reuses the recorded snapshot, and a restore cut short by a crash is run again.
+
+### Running programs (`sandbox`)
+
+`use: sandbox` runs a program from its `allow:` list on a workspace's files: the tests of the code an agent fixes, a build,
+a script. The program is a name and an argument list (no shell), and the tool names its workspace, whose root and protected
+paths it takes. `isolation:` has no default: `container` (Docker or Podman: the workspace is the only mount, protected paths
+are read only, no network unless `network: allow` lists hosts) or `process` (a child process, which is not isolation; it
+needs `network: open`, and the audit flags it). The reference is [sandbox](../../tools/ai-agent4j-tools/docs/sandbox.md), and
+what it stops and what it does not is in [the threat model](../../../docs/security/sandbox.md).
+
+```loom
+tool Code  { use: workspace  root: "project"  allow: "**"  mode: readwrite  overwrite: true  protect: "tests/**" }
+tool Tests { use: sandbox  workspace: Code  isolation: container  image: "python:3.12-slim"  allow: "python3"  timeout: "5m" }
+tool Check { use: verify  root: "project" }
+agent Coder { model: "gemini-2.5-flash"  system: "You fix the code until the tests pass."  tools: [Code, Tests]  approve: [Code, Tests] }
+
+workflow Fix(issue) {
+    delegate "Fix this: {issue}" to Coder -> done
+    use Tests(program = "python3", args = "[\"-m\", \"pytest\", \"--junitxml=report.xml\"]") -> run
+    use Check(format = "junit", source = "report.xml") -> tests
+    return tests.failed
+}
+```
+
+- **A script gives `args` as the text of a JSON list** (a script has no list literal); an agent gives a list. Anything else
+  is refused, never split like a command line.
+- **Secrets by name:** `env.NAME: secret.REF` gives the program one variable, looked up on each call and scrubbed from its
+  output; nothing else of the environment is passed.
+- **Built when the run starts:** a missing container runtime stops the run before its first step, and `container` never
+  falls back to `process`. `weave check` looks at the script, not the machine, so it passes where Docker is not installed.
+- **Every run is journaled**, so a resumed or rewound run does not run a program again; `stdout` and `stderr` stay unchecked.
+- **`serve`** keeps a program running under a lease (`serve_port:` on the tool); `use: http  reaches: Tests` calls it on
+  that one loopback port while it runs, and `workspace restore` waits until it is stopped.
+
 ### Checkpoints, Rewind and Fork
 
 A run can stop and carry on, but only forward. If a late step shows that an early one was wrong, you would have to start over and pay for everything again. **Checkpoints and rewinds** let a workflow go back to a named point, keep what it learned, and try again: the script says what "going bad" means, and what to do about it.
@@ -801,9 +933,9 @@ So after a rewind the agents think again, but a Slack message with the same text
 | `keep` | The rewind goes ahead. Identical calls are found again, not repeated; a different call (other text) runs, and the trace says "a different effect after a rewind". |
 | `repeat` | The rewind goes ahead and every effect runs again. Each tool involved must be approved (`approve:`) or `unattended`. |
 
-`weave check` warns when the steps a rewind goes back over can change things outside the run, and asks you to say which you mean. The simplest safe design is to put the checkpoint, and the check that triggers the rewind, *before* the steps with effects.
+`weave check` warns when the steps a rewind goes back over can change things outside the run, and asks you to say which you mean. A tool counts when `weave audit` says it can change something: its kind's own answer, or the `effect:` you declared on it. The simplest safe design is to put the checkpoint, and the check that triggers the rewind, *before* the steps with effects.
 
-What a rewind does **not** undo: facts an agent saved with `memory { facts }`, knowledge indexes, and anything else a tool wrote outside the run. `weave check` warns about agents with fact memory. Going back also never un-sends anything.
+What a rewind does **not** undo: facts an agent saved with `memory { facts }`, knowledge indexes, and anything else a tool wrote outside the run. To put files back, restore a `workspace` snapshot at the start of the attempt (see [Editing files and trying again](#editing-files-and-trying-again-workspace)). `weave check` warns about agents with fact memory. Going back also never un-sends anything.
 
 #### From outside: `timeline`, `rewind`, `reset`, `fork`
 
@@ -1638,20 +1770,22 @@ workflow ApprovedTransfer(amount) {
 }
 ```
 
-### Where a variable is replaced (`substitution`)
+### Where a variable is replaced
 
-A variable is replaced where the text says `{name}` or `{name.field}`. Today a **bare** name is replaced too, in the same texts (the older form), so a message such as `length out of range` becomes wrong when a variable called `out` exists. That stays the default (`substitution: legacy`) until the next major version, which makes `braces` the default. Choose it now, at the top of the script:
+A variable is replaced where a text says `{name}` or `{name.field}`, and nowhere else. A plain word is always a word, even when a variable has that name: with a variable `out`, `"length out of range: {out}"` keeps "out of range" as written and fills in only `{out}`. This holds in every text the runtime fills in: the payloads of `delegate`, `broadcast` and `handoff`, the messages of `human_prompt`, `note` and `halt`, `set` and `return` values, task and `call` arguments, observe labels and expressions, and the `checkpoint` and `rewind` texts.
+
+Where a text is expected, a variable can also be written on its own, and then it means its value: `delegate draft to Editor`, `handoff reply to Support`, `call Helper(topic = topic)` and `observe "Inputs" {first + " and " + second}` are the same as `"{draft}"`, `"{reply}"`, `topic = "{topic}"` and `"{first} and {second}"`. An observe expression may also list values with commas: `{first, second}` is `"{first}, {second}"`.
 
 ```loom
-substitution: braces
+agent Checker { model: "gemini-2.5-flash"  system: "You check lengths." }
+
+workflow Check(out) {
+    delegate "length out of range: {out}" to Checker -> verdict
+    return verdict
+}
 ```
 
-With `braces`, only `{name}` and `{name.field}` are replaced, in every text the runtime fills in: the payloads of `delegate`, `broadcast` and `handoff`, the messages of `human_prompt`, `note` and `halt`, `set` and `return` values, task arguments, observe labels and expressions, and the `checkpoint` and `rewind` texts. `weave check` warns about a bare word that is also a variable in any of those places.
-
-To move an existing script over:
-
-- `weave check --substitution braces script.loom` lists every text that would change, with the variable and the position, and changes nothing.
-- `weave check --fix-substitution script.loom` shows the rewrite of each bare word that was meant as a variable (to `{name}`) as a diff and writes the file only after you answer yes (`--yes` answers for you in a script). A word that may be a variable or may be plain text is listed and left alone.
+There is no setting for this. A script that still says `substitution:` is refused with a message to delete the line.
 
 ### Where to ask a person
 
@@ -1672,8 +1806,6 @@ If one agent invents a fact (an amount, an order id) and the next acts on it, th
 When a model is not needed to call a tool (the arguments are already in variables), call it from the script:
 
 ```loom
-substitution: braces
-
 tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 
 workflow Announce(draft) {
@@ -2899,7 +3031,6 @@ workflow RobustTask() {
 `call` runs a workflow to the end before the next line. `start` does not: it gives the workflow a run of its own (a **child**), hands back a **handle** at once, and the script goes on. The script can then wait for the child, cancel it, steer it, read facts about it, and set rules that watch it while it runs. One workflow can run, watch and operate others, and the guarantees of a run come with it: the child has its own journal and budget, a restart finds it again, and an effect is never repeated.
 
 ```loom
-substitution: braces
 max_children: 3
 
 evaluator TopicJudge { model: "gemini-2.5-flash" }
