@@ -18,7 +18,12 @@ class IntegrationsCompatTest {
     @Test
     void theCoreOpenapiClassesAreDeprecatedForRemovalAndStillThere() throws Exception {
         for (String name :
-                List.of("OpenAPITool", "OpenAPIParser", "OpenAPISpec", "OpenAPIEndpoint", "OpenAPIParameter")) {
+                List.of(
+                        "OpenAPITool",
+                        "OpenAPIParser",
+                        "OpenAPISpec",
+                        "OpenAPIEndpoint",
+                        "OpenAPIParameter")) {
             Class<?> type = Class.forName("io.github.llm4j.agent.tools.openapi." + name);
             Deprecated deprecated = type.getAnnotation(Deprecated.class);
             assertThat(deprecated).as(name).isNotNull();
@@ -31,10 +36,23 @@ class IntegrationsCompatTest {
     void theOldErrorCategoriesKeepTheirPositionsAndTheNewOneIsLast() {
         List<String> before =
                 List.of(
-                        "INVALID_ARGUMENTS", "TIMEOUT", "NETWORK", "RATE_LIMITED", "AUTHENTICATION",
-                        "PERMISSION_DENIED", "NOT_FOUND", "CLIENT_ERROR", "SERVER_ERROR", "CONTENT_BLOCKED",
-                        "CONTEXT_OVERFLOW", "BUDGET", "REJECTED_BY_HUMAN", "REPEAT_BLOCKED", "UNKNOWN_TOOL",
-                        "APPROVAL_UNAVAILABLE", "OTHER");
+                        "INVALID_ARGUMENTS",
+                        "TIMEOUT",
+                        "NETWORK",
+                        "RATE_LIMITED",
+                        "AUTHENTICATION",
+                        "PERMISSION_DENIED",
+                        "NOT_FOUND",
+                        "CLIENT_ERROR",
+                        "SERVER_ERROR",
+                        "CONTENT_BLOCKED",
+                        "CONTEXT_OVERFLOW",
+                        "BUDGET",
+                        "REJECTED_BY_HUMAN",
+                        "REPEAT_BLOCKED",
+                        "UNKNOWN_TOOL",
+                        "APPROVAL_UNAVAILABLE",
+                        "OTHER");
 
         List<String> now = Arrays.stream(ErrorCategory.values()).map(Enum::name).toList();
 

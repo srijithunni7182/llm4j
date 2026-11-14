@@ -73,7 +73,6 @@ public enum ErrorCategory {
      */
     CREDENTIAL_REJECTED;
 
-
     private static final int MAX_CHAIN = 5;
 
     /**

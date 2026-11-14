@@ -118,8 +118,8 @@ public interface ToolKind {
     /**
      * Options that may be given as a credential of whoever runs the host's workflow, asked for on
      * every request and never held (see {@link io.github.llm4j.secret.CredentialSource}): a script
-     * writes {@code invoker.NAME}. A kind that lists an option here builds its tool from the sources
-     * it is given in {@link #create(String, Map, Map, Path, EffectContext)}.
+     * writes {@code invoker.NAME}. A kind that lists an option here builds its tool from the
+     * sources it is given in {@link #create(String, Map, Map, Path, EffectContext)}.
      */
     default Set<String> lateBound() {
         return Set.of();
@@ -142,8 +142,8 @@ public interface ToolKind {
             throws Exception;
 
     /**
-     * As {@link #create(String, Map, Path, EffectContext)}, with a source for each option written as
-     * a credential of the person running the workflow; those options are left out of {@code
+     * As {@link #create(String, Map, Path, EffectContext)}, with a source for each option written
+     * as a credential of the person running the workflow; those options are left out of {@code
      * options}. Only a kind that lists the option in {@link #lateBound()} is given a non-empty map.
      *
      * @param lateBound the credential source of each such option, by option name
@@ -157,7 +157,11 @@ public interface ToolKind {
             throws Exception {
         if (!lateBound.isEmpty()) {
             throw new IllegalStateException(
-                    "use: " + name() + " does not take " + lateBound.keySet() + " from the invoker");
+                    "use: "
+                            + name()
+                            + " does not take "
+                            + lateBound.keySet()
+                            + " from the invoker");
         }
         return create(name, options, baseDir, context);
     }

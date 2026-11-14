@@ -16,10 +16,10 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * The pin of an MCP server: a short hash of what its tool list promises, so a later change to a tool
- * is noticed. It covers each tool's name, input schema and annotations; not descriptions, titles,
- * examples or the order of tools or keys, so rewording documentation raises no alarm. A pin proves the
- * tool list is the one that was reviewed; it says nothing about what the tools do.
+ * The pin of an MCP server: a short hash of what its tool list promises, so a later change to a
+ * tool is noticed. It covers each tool's name, input schema and annotations; not descriptions,
+ * titles, examples or the order of tools or keys, so rewording documentation raises no alarm. A pin
+ * proves the tool list is the one that was reviewed; it says nothing about what the tools do.
  */
 public final class McpPin {
 
@@ -46,7 +46,9 @@ public final class McpPin {
                         tool -> {
                             ObjectNode entry = JSON.createObjectNode();
                             entry.put("name", String.valueOf(tool.get("name")));
-                            entry.set("inputSchema", canonical(JSON.valueToTree(tool.get("inputSchema"))));
+                            entry.set(
+                                    "inputSchema",
+                                    canonical(JSON.valueToTree(tool.get("inputSchema"))));
                             entry.set("annotations", canonical(annotationsOf(tool)));
                             list.add(entry);
                         });
