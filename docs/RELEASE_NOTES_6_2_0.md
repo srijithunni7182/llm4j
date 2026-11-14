@@ -33,6 +33,13 @@ All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX
   - [`ai-agent4j-tools-browser`](../src/tools/extras/ai-agent4j-tools-browser/): `browser`, an installed Chrome driven over
     the DevTools protocol with the JDK, every request a page makes checked, a fresh profile per run, screenshots as files.
     Verified with Chrome for Testing 153. No dependency.
+- **eval4j and `weave eval` (phase 35f).** A golden case can run in **steps** (`steps:`, each with its own input and
+  checks, in order, on the same project), so "create, then modify" is one case; `EvalScenario` gains the `steps`
+  component and keeps its earlier constructors. `Evidence` is the typed record of a check (the `verify` tool's counts and
+  status, its item texts unchecked) that a `Criterion` can read (`Criteria.evidencePassed`, `Criteria.evidenceAtMost`).
+  The cost per passing case now has its 95% interval, in the report, in `--json` (`costPerPass`) and in the run bundle's
+  summary; a run that spent nothing shows none, so a mock run reads as before (`EvalCharacterizationTest` pins every
+  evaluated script's output).
 - **A tool that holds something open is closed when the run ends** (a browser): Loom closes every built tool that is
   `AutoCloseable` at the end of a run, however it ends, and builds it again for the next.
 - **The light tools module cannot grow a dependency unnoticed.** A test pins what it depends on (the core, Jackson and the optional mail library); a tool that needs more goes in its own module under `src/tools/extras`.

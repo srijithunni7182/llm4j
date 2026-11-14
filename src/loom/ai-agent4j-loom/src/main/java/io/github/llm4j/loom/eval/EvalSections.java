@@ -509,7 +509,8 @@ public final class EvalSections {
                         : passing == 0
                                 ? "per passing case: none passed, so there is no cost per success"
                                 : "per passing case: "
-                                        + money(total.divide(BigDecimal.valueOf(passing), 6, RoundingMode.HALF_UP)));
+                                        + money(total.divide(BigDecimal.valueOf(passing), 6, RoundingMode.HALF_UP))
+                                        + CostPerPass.interval(total, passing, run.count(Status.PASS) + run.count(Status.FAIL)));
         l.addAll(CostTail.of(run.results()).lines(EvalSections::money));
         return l;
     }

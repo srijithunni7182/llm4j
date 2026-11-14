@@ -86,6 +86,7 @@ public final class EvalRunner {
     // ── an agent ─────────────────────────────────────────────────────────────────────────────
 
     public ScenarioResult agent(String file, String agent, EvalScenario s) {
+        if (!s.stepList().isEmpty()) return stepped("agent", agent, file, List.of(), s, modelOf.apply(agent));
         List<ScenarioResult.Check> checks = new ArrayList<>();
         HarnessExecutor executor = null;
         try {
@@ -216,6 +217,7 @@ public final class EvalRunner {
             List<String> parameters,
             EvalScenario s,
             String judgeModel) {
+        if (!s.stepList().isEmpty()) return stepped("workflow", workflow, file, parameters, s, judgeModel);
         String bad = inputProblem(workflow, parameters, s);
         if (bad != null) return finish("workflow", workflow, file, s, new ArrayList<>(), null, bad);
         List<ScenarioResult.Check> checks = new ArrayList<>();
@@ -263,6 +265,72 @@ public final class EvalRunner {
         } finally {
             if (executor != null) executor.shutdown();
         }
+    }
+
+    // ── a scenario in steps (phase 35, D17) ──────────────────────────────────────────────────
+
+    /**
+     * Runs a scenario's steps in order, each a run of its own on the same project (what one step
+     * leaves in its files is what the next finds), with each step's checks named after it. The
+     * scenario's own expectations read the last step's answer. A step that fails stops the rest.
+     */
+    private ScenarioResult stepped(
+            String kind, String target, String file, List<String> parameters, EvalScenario s, String judgeModel) {
+        List<ScenarioResult.Check> checks = new ArrayList<>();
+        if (s.input() != null || !s.namedInputs().isEmpty())
+            return finish(kind, target, file, s, checks, null, "a scenario with steps gives each step its input: move input: and inputs: into the steps");
+        BigDecimal total = null;
+        String output = "";
+        List<io.github.llm4j.eval.dataset.EvalStep> steps = s.stepList();
+        for (int i = 0; i < steps.size(); i++) {
+            int number = i + 1;
+            EvalScenario step = steps.get(i).asScenario(s, number);
+            if (kind.equals("workflow")) {
+                String bad = inputProblem(target, parameters, step);
+                if (bad != null) return finish(kind, target, file, s, checks, total, "step " + number + ": " + bad);
+            }
+            HarnessExecutor executor = null;
+            List<TraceEvent> events = new java.util.concurrent.CopyOnWriteArrayList<>();
+            List<ScenarioResult.Check> stepChecks = new ArrayList<>();
+            try {
+                executor = executors.create(e -> e.addTraceListener(events::add));
+                Set<String> tools = new HashSet<>();
+                if (kind.equals("workflow")) {
+                    executor.executeWorkflow(target, workflowInputs(parameters, step));
+                    output = outputOf(executor, events);
+                    events.stream()
+                            .filter(e -> TraceEvent.ACTION.equals(e.type()) && e.data().get("tool") != null)
+                            .forEach(e -> tools.add(String.valueOf(e.data().get("tool"))));
+                } else {
+                    AgentResult result = executor.runAgentTask(target, step.input() == null ? "" : step.input());
+                    output = result.getFinalAnswer() == null ? "" : result.getFinalAnswer();
+                    result.getSteps().forEach(st -> {
+                        if (st.getAction() != null) tools.add(st.getAction());
+                    });
+                }
+                total = add(total, cost(executor));
+                if (output.isBlank())
+                    return finish(kind, target, file, s, checks, total, "step " + number + ": it produced no output, so the steps after it did not run");
+                answerChecks(step, output, tools, stepChecks);
+                judge("rubric", step.rubricLines(), output, step, judgeModel, stepChecks);
+            } catch (BudgetExceeded e) {
+                stoppedByLimit = true;
+                return finish(kind, target, file, s, checks, add(total, cost(executor)), "step " + number + ": stopped by a limit: " + e.getMessage());
+            } catch (Exception e) {
+                return finish(kind, target, file, s, checks, add(total, cost(executor)), "step " + number + ": " + message(e));
+            } finally {
+                if (executor != null) executor.shutdown();
+            }
+            for (ScenarioResult.Check c : stepChecks)
+                checks.add(new ScenarioResult.Check("step " + number + " · " + c.kind(), c.text(), c.status(), c.detail(), c.dimension()));
+        }
+        answerChecks(s, output, Set.of(), checks);
+        judge("rubric", s.rubricLines(), output, s, judgeModel, checks);
+        return finish(kind, target, file, s, checks, total, null);
+    }
+
+    private static BigDecimal add(BigDecimal a, BigDecimal b) {
+        return a == null ? b : b == null ? a : a.add(b);
     }
 
     // ── checks ───────────────────────────────────────────────────────────────────────────────

@@ -57,7 +57,65 @@ public record EvalScenario(
         @SingleOrMany List<String> rejected,
         @JsonAlias("acceptable_actions") @SingleOrMany List<String> acceptableActions,
         @JsonAlias("unacceptable_actions") @SingleOrMany List<String> unacceptableActions,
-        @JsonAlias("required_citations") @SingleOrMany List<String> requiredCitations) {
+        @JsonAlias("required_citations") @SingleOrMany List<String> requiredCitations,
+        List<EvalStep> steps) {
+
+    /**
+     * The twenty-two-field form, before {@code steps} (phase 35): a scenario of one step.
+     */
+    public EvalScenario(
+            String name,
+            String input,
+            String expectedOutputContains,
+            String expectedOutput,
+            List<String> expectedTools,
+            List<String> context,
+            List<String> retrievalContext,
+            String id,
+            List<String> dimensions,
+            List<String> tags,
+            List<String> rubric,
+            List<String> expect,
+            Map<String, String> inputs,
+            List<String> expectedOutputNotContains,
+            Integer expectedMinWords,
+            Integer expectedMaxWords,
+            String correctConclusion,
+            List<String> acceptedEquivalents,
+            List<String> rejected,
+            List<String> acceptableActions,
+            List<String> unacceptableActions,
+            List<String> requiredCitations) {
+        this(
+                name,
+                input,
+                expectedOutputContains,
+                expectedOutput,
+                expectedTools,
+                context,
+                retrievalContext,
+                id,
+                dimensions,
+                tags,
+                rubric,
+                expect,
+                inputs,
+                expectedOutputNotContains,
+                expectedMinWords,
+                expectedMaxWords,
+                correctConclusion,
+                acceptedEquivalents,
+                rejected,
+                acceptableActions,
+                unacceptableActions,
+                requiredCitations,
+                null);
+    }
+
+    /** The steps, in order, never null; empty for a scenario of one step. */
+    public List<EvalStep> stepList() {
+        return steps == null ? List.of() : steps;
+    }
 
     /**
      * The sixteen-field form, before the answer set ({@code correct_conclusion}, {@code

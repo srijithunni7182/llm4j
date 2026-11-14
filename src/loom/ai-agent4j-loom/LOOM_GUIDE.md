@@ -188,6 +188,23 @@ newsletter/
   tags: { kind: refund }                        # or ["kind:refund"]; read back as typed values
 ```
 
+A case that needs more than one turn runs in **steps**: each step has its own `input` (or `inputs`) and its own checks,
+the steps run in order as separate runs on the same project, so what one step leaves in its files is what the next
+finds. A step that fails stops the rest. The case's own checks read the last step's answer, and the case gives no
+`input` of its own.
+
+```yaml
+- id: page-then-form
+  name: A page, then a form on it
+  steps:
+    - input: "Create a page with a title"
+      expected_output_contains: "created"
+    - input: "Add a contact form to the page"
+      expected_output_not_contains: "error"
+      rubric: "The form has a name field and an email field"
+  expected_output_contains: "form"            # the last step's answer
+```
+
 ```bash
 weave eval newsletter/main.loom --init            # create eval/golden with a starter case per agent and one for the workflow (never overwrites)
 weave eval newsletter/main.loom --check           # validate the dataset: no model is called
@@ -211,7 +228,8 @@ weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the sa
 - **Datasets and baselines that cannot slide.** A dataset's identity is the `version:` its `dataset.yaml` declares (optional) and a hash of every case, so a changed case is a changed dataset even if nobody bumped the version; it is in the report. `--save-baseline --approver <name> --why "<reason>"` saves a finished real run as a new baseline under `eval/baselines/` (a mock or partial run is refused; a baseline is never replaced). `--baseline` compares a run with the current baseline **and the one before it**, so a slow decline across releases shows, and lists the cases that regressed or improved. A baseline taken on a different dataset is refused unless `--allow-version-change "<why>"` is given (recorded in the report). Re-baselining is never automatic.
 - **A case can state the answers it accepts.** Beside `expected_output_contains` a case may say `correct_conclusion`, `accepted_equivalents`, `rejected`, `acceptable_actions`, `unacceptable_actions` and `required_citations` (a single value is a list of one). The answer's **verdict** is `exact` (it holds the correct conclusion), `acceptable` (an equivalent), `rejected` (a rejected answer; the case fails) or `unmatched` (nothing the case lists; the case is *unjudged*, because it may be a correct answer nobody anticipated: read it, and if it is right add it to `accepted_equivalents`). Entries are short key phrases the answer must contain, any capitalisation, punctuation ignored; embedding or model comparison is not built, and if you are tempted to loosen matching, add equivalents instead. `required_citations` must each appear in the answer, and an `unacceptable_actions` entry must not appear in the answer or among the tools used. The report counts the verdicts and warns when more than about a tenth of the answers are unmatched (the ground truth is then incomplete).
 - **`weave eval --check` says what the dataset is made of.** It names a case class below a tenth of the cases (tag `class:unanswerable`, `class:obvious-wrong`, `class:conservative-action`), a reported slice (`domain:`, `difficulty:`, `split:`) with fewer than ten cases, and the mix of `source:` tags (`production`, `expert`, `synthetic`) as information. The shares are starting points; the dataset's owner sets the real ones.
-- **The cost section has the tail.** Beside the cost per passing case it gives the median and the p95 cost of a case, the *runaway* count (runs a limit stopped) and how many of those kept partial work.
+- **The cost section has the tail.** Beside the cost per passing case, with its 95% interval (from the pass rate's
+  interval: a cheap run that rarely passes is not cheap), it gives the median and the p95 cost of a case, the *runaway* count (runs a limit stopped) and how many of those kept partial work.
 - **Run protocols.** `eval-protocol.yaml` at the project root names the runs a team makes: `protocols: { commit: { split: validation, repetitions: 3 }, nightly: { split: validation, repetitions: 5 }, release: { repetitions: 10, release-gate: true, judge-samples: 3 }, drift: { split: validation, repetitions: 5, schedule: weekly, pinned: true } }`. The settings are `split`, `repetitions`, `release-gate`, `judge-samples`, `max-cost`, `max-tokens`, `schedule` and `pinned` (the last two are for the people and the CI file). `weave gate --protocol release` runs the gate's eval stage as that protocol, and `weave eval --protocol nightly` fills in what you did not give on the command line, and the report records the protocol's name. An unknown setting, a split that is not one, or a protocol that reads held-out cases without `release-gate: true` is refused by name. The numbers are the team's.
 - **Metamorphic cases.** `weave metamorphic --from eval/golden --out eval/golden-meta` derives, with no model, cases that test a relation between two runs: `irrelevant` (a neutral sentence added to the input), `order` (the input's sentences reversed) and `paraphrase` (reworded inputs you supply with `--paraphrases <file>`, a map from case id to text, written by a person or a model; the cases are tagged `source:synthetic`) must not change the conclusion, so each derived case keeps the original's expectations; `monotonicity` (the evidence a case marks with the tag `decisive:<text>` is removed) and `negation` (the tag `negate:<from>=><to>` flips it) must change it, so the derived case forbids the original conclusion and drops what the original required of its answer (it has no positive expectation, so it can fail or be unjudged but never pass: a changed answer is for a person to read). Each derived case is tagged `relation:<name>`, `pair:<id>` and `derived:metamorphic`. The originals and the derived cases are written to the new folder (never over the dataset); run them with `weave eval <script> --dataset <folder>`. A pair that passes alone and fails perturbed is named in the Cautions: the system may be matching surface features, or (for monotonicity and negation) ignoring the evidence.
 - **Routing is a matrix.** A case tagged `route:<Agent>` says which agent should handle it. The report lists, for each expected agent, the agents that took part in the run (a confusion matrix, not one accuracy figure). `--route-danger Expected>Actual` (repeatable) names a mistake that must never happen, such as an information-gathering request reaching an action-taking agent: the run **fails when any case lands in that cell**, whatever the average says.
