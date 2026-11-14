@@ -1,6 +1,6 @@
 # Phase 36: decisions
 
-Status: **draft; D1 to D4 are taken, fourteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **draft; D1 to D5 are taken, thirteen decisions are open.** Each gives the question, why it matters, the options and a recommendation. The recommendation is a proposal: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS.md). Facts about the code are from DESIGN §1 and are marked (read) or (not read) there.
 
 ## Decision log
@@ -11,7 +11,7 @@ References: "35-D6" is decision D6 of [phase 35](../35-framework-tools/DECISIONS
 | D2 | Where OpenAPI lives, and the compatibility plan | **taken** (a new `openapi` kind in an extras module on the shared HTTP layer; scripts switch at once; the old Java classes deprecated, removed at the next major) |
 | D3 | The OpenAPI call model: one generic tool, or one tool per operation | **taken** (one declared tool per operation, with `operation:`; the legacy all-operations tool kept and warned about until the next major) |
 | D4 | Effects and idempotency taken from the system's own description, and the pins | **taken** (the tooling infers and a person approves; the result is written into the script as declared values with a pin; no lockfile) |
-| D5 | Large answers and pagination | open |
+| D5 | Large answers and pagination | **taken** (a cap that says it cut and a `save_dir` in 36a; bounded read-only pagination in 36b) |
 | D6 | The MCP client: transports, versions, what it reads | open |
 | D7 | An MCP server or a command as a program: isolation, arguments, secrets | open |
 | D8 | Authentication: OAuth and signed requests | open |
@@ -104,15 +104,23 @@ MCP's `openWorldHint` is left unmapped (the audit's three legs do not correspond
 
 ## D5. Large answers and pagination
 
-**Why.** An OpenAPI answer is cut at 2,000 characters today, which makes data-extraction integrations unusable; `http` has a `max_bytes` but returns text only.
+**Why.** An OpenAPI answer is cut at 2,000 characters today, which makes data-extraction integrations unusable; `http` (read) caps at `max_bytes` (default 64 KiB, at most 4 MiB), says when it cut, and reads the body capped as it arrives. Both return text only, so a binary answer has nowhere to go.
 
-- **A. A configurable cap that says it truncated, and answers larger than the cap saved to the workspace** (35's `workspace`), returning the path, the size and a preview; **bounded pagination** (a `Link` header, a cursor field, a page or offset parameter; `max_pages`) as an option of `http` and the OpenAPI kind through `HttpSupport`.
-- **B. The cap only;** pagination stays in the script, with a loop of `use` calls.
-- **C. Neither;** the cap is configurable and that is all.
+- **A. A cap that says it cut, plus saving the full answer to a directory,** and bounded pagination as a second step.
+- **B. The cap only;** pagination stays in the script with a loop of `use` calls.
+- **C. Neither.**
 
-**Recommendation: A in two steps:** the cap, the truncation marker and save-to-workspace in 36a; pagination in 36b. A script can already loop, but a tool that returns "page 1 of an unknown number" invites an agent to loop without bound, so the bound belongs in the tool.
-
-**Decision (owner):** open.
+**Decision (owner): option A, in two steps.**
+**Step 1 (36a): the cap, the marker and `save_dir`.**
+- `openapi` and `http` share the `max_bytes` default of `http` (64 KiB) and its marker.
+- **`save_dir:`** is a plain directory option with the path jail of the `file` tool. When an answer exceeds the cap, or is not text, the full body is written there and the tool returns the path, the size, the content type and a preview of the first part; the agent or script hands the file to `workspace`, `verify`, `compute csv` or `documents`.
+- The filename is derived from the tool name and a hash of the content, **never from anything the server sends** (no path traversal; replays are stable).
+- `save_max_bytes` has a named default and a hard ceiling (proposed 16 MiB and 128 MiB, to tune).
+- A tool with `save_dir` writes locally, so the audit shows a local write for it, as for `file` in write mode.
+- The text the tool returns is redacted; the saved body is kept as received.
+- It is a plain directory and not a link to the `workspace` tool because whether one tool's option can name another is unread (35's R2); if that turns out well, a later change can point `save_dir` at a workspace.
+**Step 2 (36b): bounded pagination,** for reads only, through the shared HTTP layer so `http` and `openapi` get it together: **`link`** (follow `Link: …; rel="next"`), **`cursor`** (the next cursor from a JSON path in the body, sent back in a named parameter) and **`page`** (increment a page or offset parameter until a page is empty); `max_pages` with a named default and the same total-size cap; refused on anything that changes state; each page passes every guard; the whole is one tool result. A tool that returns "page 1 of an unknown number" invites an agent to loop without bound, so the bound belongs in the tool.
+**Left out:** merging pages into one structure for the agent, streaming, resumable downloads.
 
 ## D6. The MCP client: transports, versions, what it reads
 
