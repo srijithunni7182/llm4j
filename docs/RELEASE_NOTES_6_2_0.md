@@ -29,7 +29,8 @@ All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX
     HTML files with the page or paragraph each part came from, as character offsets into the text. Brings Apache PDFBox
     3.0.8 (Apache 2.0, about 3.8 MB with its own dependencies); a `-weave` jar carries it for `weave --classes`.
   - [`ai-agent4j-tools-git`](../src/tools/extras/ai-agent4j-tools-git/): `git` through the sandbox, with a push only to the
-    branches the script allows and only when approved; a repository's hooks and configured programs never run. No dependency.
+    repository the script names (`push_url:`) and the branches it allows, and only when approved; a repository's hooks
+    never run, and a repository whose configuration names a program is refused. No dependency.
   - [`ai-agent4j-tools-browser`](../src/tools/extras/ai-agent4j-tools-browser/): `browser`, an installed Chrome driven over
     the DevTools protocol with the JDK, every request a page makes checked, a fresh profile per run, screenshots as files.
     Verified with Chrome for Testing 153. No dependency.

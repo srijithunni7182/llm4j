@@ -39,7 +39,7 @@ The container runtime is driven through its command line (`docker` or `podman`, 
 |---|---|
 | The workspace as the **only mount**, at `/workspace` | The program sees none of the host's files but the workspace's |
 | Protected paths (`protect:` on the workspace) **mounted read only** over it | A program that edits the tests it is judged by |
-| Every `.git` folder **mounted read only** (only the `git` tool's own sandbox writes it) | A program that plants a hook, a filter driver or a URL rewrite in `.git/config` for git to run later |
+| Every `.git` folder that exists when the run starts **mounted read only** (only the `git` tool's own sandbox writes it) | A program that plants a hook, a filter driver or a URL rewrite in `.git/config` for git to run later. A `.git` the program creates is its own; the `git` tool refuses a repository whose configuration names a program, whoever wrote it |
 | `--read-only` root and a small `/tmp` | Changes to the image that outlive the run |
 | `--cap-drop ALL`, `no-new-privileges`, the workspace owner's user id | Privilege inside the container; files the host user can't remove |
 | `--network none` (the default) | Any network at all |
@@ -64,7 +64,8 @@ The container runtime is driven through its command line (`docker` or `podman`, 
 A child process of the run, with the run's user, its files and its network, a scrubbed environment, a working
 directory inside the workspace, and limits on time and output. **That is not isolation.** It cannot keep the program
 off the network, so the script must write `network: open` to say so; it cannot enforce memory, processes, disk or
-read-only paths, so asking for any of them is a load error. It is there to try a workflow on your own machine. LA31
+read-only paths, so asking for any of them is a load error, and nothing keeps `.git` read only. It is there to try a
+workflow on your own machine. LA31
 flags it: medium, and high when a secret is passed in.
 
 ## Programs that keep running: `serve`

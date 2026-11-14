@@ -12,7 +12,7 @@ isolation, limits and journal, and takes the same options for them. It adds no d
 
 ```text
 tool Code { use: workspace  root: "project"  allow: "**"  mode: readwrite  overwrite: true }
-tool Repo { use: git  workspace: Code  isolation: container  image: "alpine/git:2.47.2"  network: allow  hosts: "github.com"  push: true  push_branches: "agent/*"  env.GIT_TOKEN: secret.GITHUB_TOKEN }
+tool Repo { use: git  workspace: Code  isolation: container  image: "alpine/git:2.47.2"  network: allow  hosts: "github.com"  push: true  push_branches: "agent/*"  push_url: "https://github.com/acme/app.git"  env.GIT_TOKEN: secret.GITHUB_TOKEN }
 agent Coder { model: "gemini-2.5-flash"  system: "Fix the issue, commit it on a new branch agent/<short-name> and push it."  tools: [Code, Repo]  approve: [Code, Repo] }
 ```
 
@@ -34,7 +34,7 @@ The sandbox's options work as they do there: `workspace`, `isolation` (required,
 |---|---|
 | `push` | `true` lets the agent push; default `false`. A tool that can push must be in the agent's `approve:` list, or `unattended: true` |
 | `push_branches` | Required with `push`. The branches a push may go to: `agent/*` (`*` within a part of the name, `**` across). Keep it off the branches people work on |
-| `remote` | The remote pushed to, default `origin` |
+| `push_url` | Required with `push`. The repository a push goes to: an https URL with no user or password, on a host in `hosts:`. Git is given this URL; a remote the repository's own configuration names is never used, since code in a sandbox could change it |
 | `author_name`, `author_email` | Who commits are by, default `llm4j agent` and `agent@localhost` |
 | `env.GIT_TOKEN` | A token for an https remote, as a secret (`secret.NAME`). Git reads it from its environment through a credential helper; it is never on a command line or in a result |
 
@@ -46,7 +46,7 @@ The sandbox's options work as they do there: `workspace`, `isolation` (required,
 | `branches` | | the local branches |
 | `branch` | `name` | creates the branch and switches to it |
 | `commit` | `message`, `paths` (a list; all changes by default) | `git add` then `git commit --no-verify` |
-| `push` | `branch` | `git push --no-verify <remote> HEAD:refs/heads/<branch>`, never forced |
+| `push` | `branch` | `git push --no-verify <push_url> HEAD:refs/heads/<branch>`, never forced |
 
 The result is `{"action", "exit", "isolation", "stdout", "stderr", "truncated"}`; a branch, commit or push that git refuses
 is an error, so it is not recorded as done.
@@ -57,9 +57,15 @@ is an error, so it is not recorded as done.
   pager, the editor, external diffs and text conversion, and every transport but https. A hook the repository holds never
   runs, even with `isolation: process` (a test proves it with a real `git`). Signing is off, and global attribute files
   are not read. A driver a repository defines (`filter`, a named `diff` or `merge`), a credential helper for one URL,
-  a URL rewrite or an included file cannot be turned off for every name it might use, so a `.git/config` with one of
-  those sections is refused before git runs, and so is a `.git` that is a file or a link. Code in the sandbox cannot
-  add one: every other sandbox mounts `.git` read only, and the `workspace` tool never writes it.
+  a URL rewrite or an included file cannot be turned off for every name it might use, so a repository whose
+  configuration has one of those sections (in `.git/config` or `.git/config.worktree`) is refused before git runs,
+  and so is a `.git` that is a file or a link, or one with a `commondir` (its configuration would live elsewhere).
+  This check is the guard wherever code could have written `.git`: a container sandbox mounts an existing `.git` read
+  only, but a `.git` the program creates during the run is its own, and `isolation: process` keeps nothing read only
+  (it is not isolation, and LA31 says so). The `workspace` tool never writes `.git`.
+- **A push goes only where the script says:** `push_url:` names the repository, and git is given that URL. A remote the
+  repository's configuration names is never used, so code that rewrote `.git/config` cannot send the commits or the
+  token to another repository on the same host.
 - **Names and paths are checked:** a branch name or path that is an option (`--force`), climbs out (`..`) or uses git's
   path magic (`:(top)`) is refused.
 - **Exactly once:** a commit, a new branch and a push are journaled effects; a resumed run does not push again.

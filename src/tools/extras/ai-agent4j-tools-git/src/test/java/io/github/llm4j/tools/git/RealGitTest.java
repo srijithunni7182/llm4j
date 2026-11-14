@@ -53,4 +53,39 @@ class RealGitTest {
         assertThat(tool.execute(Map.of("action", "log"))).contains("First").contains("llm4j agent");
         assertThat(tool.execute(Map.of("action", "status"))).contains("\"exit\":0");
     }
+
+    /**
+     * A filter driver planted where git reads configuration besides .git/config: real git runs it
+     * (shown first, outside the tool), and the tool refuses the repository, so it never does.
+     */
+    @Test
+    void aFilterPlantedInACommonDirectoryOrAWorktreeConfigNeverRuns() throws Exception {
+        Path repo = Files.createDirectories(dir.resolve("work"));
+        try {
+            assumeTrue(git(repo, "init", "-q") == 0, "git is not installed here");
+        } catch (java.io.IOException none) {
+            assumeTrue(false, "git is not installed here");
+        }
+        Path ran = dir.resolve("filter-ran");
+        String filter = "[filter \"x\"]\n\tclean = touch " + ran + "; cat\n";
+        Files.writeString(repo.resolve(".gitattributes"), "* filter=x\n");
+        Files.writeString(repo.resolve("a.txt"), "hello\n");
+        // config.worktree, read when extensions.worktreeConfig is on
+        assumeTrue(git(repo, "config", "extensions.worktreeConfig", "true") == 0, "this git has no worktreeConfig");
+        Files.writeString(repo.resolve(".git/config.worktree"), filter);
+        git(repo, "add", "--", "a.txt");
+        assertThat(ran).as("real git runs a filter from config.worktree").exists();
+        Files.delete(ran);
+        git(repo, "reset", "-q");
+        var tool = new GitKind().create("Repo", Map.of(
+                "workspace", "Code", "workspace.root", "work", "isolation", "process", "network", "open"), dir, EffectContext.noop());
+        assertThat(tool.execute(Map.of("action", "commit", "message", "First"))).contains("refused").contains("config.worktree");
+        assertThat(ran).as("the tool refused before git ran").doesNotExist();
+        // a common directory: the repository's configuration lives in another folder
+        Files.delete(repo.resolve(".git/config.worktree"));
+        Path common = Files.createDirectories(dir.resolve("common"));
+        Files.writeString(repo.resolve(".git/commondir"), common.toString() + "\n");
+        assertThat(tool.execute(Map.of("action", "commit", "message", "First"))).contains("refused").contains("commondir");
+        assertThat(ran).doesNotExist();
+    }
 }

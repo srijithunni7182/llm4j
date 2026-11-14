@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -26,7 +27,7 @@ import java.util.function.Function;
 public final class GitKind extends GenericKind {
 
     /** The options of the git tool itself; every other option is the sandbox's. */
-    static final Set<String> OWN = Set.of("push", "remote", "push_branches", "author_name", "author_email");
+    static final Set<String> OWN = Set.of("push", "push_url", "push_branches", "author_name", "author_email");
 
     static final String DEFAULT_AUTHOR = "llm4j agent";
     static final String DEFAULT_EMAIL = "agent@localhost";
@@ -104,7 +105,7 @@ public final class GitKind extends GenericKind {
         boolean push = "true".equals(options.get("push"));
         String note = "git on the workspace " + options.getOrDefault("workspace", "")
                 + " (isolation " + options.getOrDefault("isolation", "unset") + ")"
-                + (push ? "; pushes to " + options.getOrDefault("remote", "origin") + ", branches " + options.get("push_branches") : "; no push");
+                + (push ? "; pushes to " + options.get("push_url") + ", branches " + options.get("push_branches") : "; no push");
         return new ToolProfile(box.untrusted(), true, push, TaskEffect.CHANGES, box.isolation(), true, true, note);
     }
 
@@ -120,7 +121,7 @@ public final class GitKind extends GenericKind {
     }
 
     /** The settings of one declaration, checked. */
-    record Config(boolean push, String remote, List<java.util.regex.Pattern> pushBranches, String pushPattern, String author, String email, boolean token) {
+    record Config(boolean push, String pushUrl, List<java.util.regex.Pattern> pushBranches, String pushPattern, String author, String email, boolean token) {
 
         /** Whether a push may go to {@code branch}: {@code *} within a part of the name, {@code **} across. */
         boolean mayPush(String branch) {
@@ -141,25 +142,54 @@ public final class GitKind extends GenericKind {
         return java.util.regex.Pattern.compile(re.toString());
     }
 
+    /**
+     * The repository a push goes to, named by the script: an https URL with no user, password,
+     * query or fragment, on a host the tool may reach. The URL is given to git on the command line,
+     * never taken from the repository's own configuration, which code in a sandbox could change.
+     */
+    static String pushUrl(Options o) {
+        String given = o.get("push_url");
+        if (given == null)
+            throw new OptionException(
+                    "push_url: is required with push: true: the repository a push goes to, e.g. push_url: \"https://github.com/acme/app.git\"");
+        java.net.URI uri;
+        try {
+            uri = new java.net.URI(given);
+        } catch (java.net.URISyntaxException e) {
+            throw new OptionException("push_url: " + given + " is not a URL");
+        }
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        if (!"https".equals(uri.getScheme())
+                || uri.getHost() == null
+                || uri.getRawUserInfo() != null
+                || uri.getRawQuery() != null
+                || uri.getRawFragment() != null
+                || path.replace("/", "").isEmpty())
+            throw new OptionException(
+                    "push_url: must be an https URL of one repository, with no user, password, query or fragment, e.g. \"https://github.com/acme/app.git\"");
+        if ("allow".equals(o.string("network", "none"))) {
+            String host = uri.getHost().toLowerCase(Locale.ROOT);
+            boolean listed = o.list("hosts").stream().anyMatch(h -> h.toLowerCase(Locale.ROOT).equals(host));
+            if (!listed)
+                throw new OptionException("push_url: " + host + " is not in hosts:, so the push could not reach it");
+        }
+        return given;
+    }
+
     static Config config(Options o) {
         boolean push = o.bool("push", false);
         if (push && !o.has("push_branches"))
             throw new OptionException("push_branches: is required with push: true, e.g. push_branches: \"agent/*\" (never a branch people work on)");
-        if (!push && (o.has("push_branches") || o.has("remote")))
-            throw new OptionException("push_branches: and remote: go with push: true");
-        String remote = o.string("remote", "origin");
-        try {
-            GitCommands.ref(remote);
-        } catch (RuntimeException e) {
-            throw new OptionException("remote: " + e.getMessage());
-        }
+        if (!push && (o.has("push_branches") || o.has("push_url")))
+            throw new OptionException("push_branches: and push_url: go with push: true");
         if (push && "none".equals(o.string("network", "none")))
             throw new OptionException("network: a push needs the remote's host, e.g. network: allow  hosts: \"github.com\"");
+        String pushUrl = push ? pushUrl(o) : null;
         String pattern = o.get("push_branches");
         try {
             return new Config(
                     push,
-                    remote,
+                    pushUrl,
                     pattern == null ? List.of() : o.list("push_branches").stream().map(GitKind::glob).toList(),
                     pattern,
                     GitCommands.author(o.string("author_name", DEFAULT_AUTHOR)),

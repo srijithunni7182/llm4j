@@ -80,10 +80,22 @@ final class GitCommands {
         if (!Files.exists(git, LinkOption.NOFOLLOW_LINKS)) return null;
         if (!Files.isDirectory(git, LinkOption.NOFOLLOW_LINKS))
             return "refused: the workspace's .git is not a folder (a link or a file pointing elsewhere); the git tool works only on a repository inside the workspace";
-        Path config = git.resolve("config");
+        if (Files.exists(git.resolve("commondir"), LinkOption.NOFOLLOW_LINKS))
+            return "refused: .git/commondir makes git read its configuration from another folder; the git tool works only on a repository whose configuration is inside it";
+        for (String file : CONFIG_FILES) {
+            String refused = refusal(git.resolve(file), ".git/" + file);
+            if (refused != null) return refused;
+        }
+        return null;
+    }
+
+    /** The configuration files git reads in a repository: its own, and its worktree's. */
+    private static final List<String> CONFIG_FILES = List.of("config", "config.worktree");
+
+    private static String refusal(Path config, String file) throws java.io.IOException {
         if (!Files.exists(config, LinkOption.NOFOLLOW_LINKS)) return null;
         if (!Files.isRegularFile(config, LinkOption.NOFOLLOW_LINKS))
-            return "refused: .git/config is not a plain file";
+            return "refused: " + file + " is not a plain file";
         for (String line : Files.readAllLines(config, java.nio.charset.StandardCharsets.UTF_8)) {
             Matcher m = SECTION.matcher(line);
             if (!m.find()) continue;
@@ -91,7 +103,7 @@ final class GitCommands {
             String section = name.contains(".") ? name.substring(0, name.indexOf('.')) : name;
             boolean named = name.contains(".") || (m.group(2) != null && m.group(2).contains("\""));
             if (RUNS_PROGRAMS.contains(section) || (NAMED_DRIVERS.contains(section) && named))
-                return "refused: .git/config has a ["
+                return "refused: " + file + " has a ["
                         + section
                         + "] section, which can make git run a program or send the token elsewhere; remove it to use the git tool";
         }
@@ -140,8 +152,11 @@ final class GitCommands {
         return List.of("-c", "user.name=" + author, "-c", "user.email=" + email, "commit", "--no-verify", "--no-gpg-sign", "-m", message);
     }
 
-    static List<String> push(String remote, String branch) {
-        return List.of("push", "--no-verify", ref(remote), "HEAD:refs/heads/" + ref(branch));
+    /** A push to the URL the script names (checked by GitKind), never to a configured remote. */
+    static List<String> push(String url, String branch) {
+        if (url == null || !url.startsWith("https://"))
+            throw new ToolRefusal("a push needs the https URL the script names");
+        return List.of("push", "--no-verify", url, "HEAD:refs/heads/" + ref(branch));
     }
 
     /** A branch or remote name: no option, no {@code ..}, no lock file, no path climbing. */

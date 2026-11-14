@@ -28,7 +28,7 @@ class ReadmeTest {
         while (pair.find()) options.put(pair.group(1), pair.group(2).replace("\"", ""));
         options.put("workspace.root", "project");
         Files.createDirectories(dir.resolve("project"));
-        assertThat(options).containsKeys("push", "push_branches", "env.GIT_TOKEN");
+        assertThat(options).containsKeys("push", "push_branches", "push_url", "env.GIT_TOKEN");
         assertThat(new GitKind(s -> new FakeSandbox(Isolation.CONTAINER)).check(options, dir)).isNull();
         for (String own : GitKind.OWN) assertThat(readme).contains("`" + own + "`");
         for (String action : GitKind.actions()) assertThat(readme).contains("| `" + action + "`");

@@ -67,7 +67,8 @@ class GitKindTest {
         return o;
     }
 
-    static final Map<String, String> PUSH = options("push", "true", "push_branches", "agent/*", "network", "allow", "hosts", "github.com");
+    static final String URL = "https://github.com/acme/app.git";
+    static final Map<String, String> PUSH = options("push", "true", "push_branches", "agent/*", "push_url", URL, "network", "allow", "hosts", "github.com");
 
     JsonNode call(Map<String, String> o, Object... args) throws Exception {
         Map<String, Object> a = new HashMap<>();
@@ -132,6 +133,24 @@ class GitKindTest {
         assertThat(fake.requests).isEmpty();
     }
 
+    /** Git reads configuration beyond .git/config: a common directory, and a worktree's own file. */
+    @Test
+    void aRepositoryWhoseConfigurationLivesElsewhereIsRefused() throws Exception {
+        Files.createDirectories(dir.resolve("work/.git"));
+        Files.writeString(dir.resolve("work/.git/config"), "[core]\n\tbare = false\n");
+        Files.writeString(dir.resolve("work/.git/commondir"), "../elsewhere\n");
+        assertThat(call(options(), "action", "status").asText()).contains("refused").contains("commondir");
+        Files.delete(dir.resolve("work/.git/commondir"));
+        Files.writeString(
+                dir.resolve("work/.git/config"),
+                "[core]\n\trepositoryformatversion = 1\n[extensions]\n\tworktreeConfig = true\n");
+        Files.writeString(dir.resolve("work/.git/config.worktree"), "[filter \"x\"]\n\tclean = run\n");
+        assertThat(call(options(), "action", "status").asText()).contains("refused").contains(".git/config.worktree");
+        assertThat(fake.requests).isEmpty();
+        Files.writeString(dir.resolve("work/.git/config.worktree"), "[core]\n\tsparseCheckout = false\n");
+        assertThat(call(options(), "action", "status").get("exit").asInt()).isZero();
+    }
+
     @Test
     void anOrdinaryRepositoryConfigurationIsFine() throws Exception {
         Files.createDirectories(dir.resolve("work/.git"));
@@ -181,7 +200,9 @@ class GitKindTest {
         assertThat(call(PUSH, "action", "push", "branch", "agent/deep/x").asText()).as("* stays within a part").contains("not allowed");
         assertThat(fake.requests).isEmpty();
         call(PUSH, "action", "push", "branch", "agent/fix-1");
-        assertThat(gitArgs(0)).containsExactly("push", "--no-verify", "origin", "HEAD:refs/heads/agent/fix-1");
+        assertThat(gitArgs(0))
+                .as("the URL the script names, never a remote whose URL the repository's config sets")
+                .containsExactly("push", "--no-verify", URL, "HEAD:refs/heads/agent/fix-1");
         Map<String, String> wide = new HashMap<>(PUSH);
         wide.put("push_branches", "agent/**");
         step = "main/s2";
@@ -220,8 +241,14 @@ class GitKindTest {
         assertThat(k.check(options("isolation", null), dir)).contains("isolation");
         assertThat(k.check(options("push", "true"), dir)).contains("push_branches: is required");
         assertThat(k.check(options("push_branches", "x"), dir)).contains("go with push: true");
-        assertThat(k.check(options("push", "true", "push_branches", "agent/*"), dir)).contains("a push needs the remote's host");
-        assertThat(k.check(options("push", "true", "push_branches", "agent/*", "network", "open", "remote", "-x"), dir)).contains("remote:");
+        assertThat(k.check(options("push", "true", "push_branches", "agent/*", "push_url", URL), dir)).contains("a push needs the remote's host");
+        assertThat(k.check(options("push", "true", "push_branches", "agent/*", "network", "open"), dir)).contains("push_url: is required");
+        assertThat(k.check(options("push_url", URL), dir)).contains("go with push: true");
+        for (String bad : List.of("http://github.com/acme/app.git", "https://user:pw@github.com/acme/app.git", "https://github.com/acme/app.git?x=1", "https://github.com/", "ssh://github.com/acme/app.git", "-https://github.com/x"))
+            assertThat(k.check(options("push", "true", "push_branches", "agent/*", "network", "open", "push_url", bad), dir)).as(bad).contains("push_url:");
+        assertThat(k.check(options("push", "true", "push_branches", "agent/*", "network", "allow", "hosts", "gitlab.com", "push_url", URL), dir))
+                .contains("push_url:").contains("hosts");
+        assertThat(k.optional()).as("the remote's name is not an option: the URL is").contains("push_url").doesNotContain("remote");
         assertThat(k.check(options("author_email", "nope"), dir)).contains("author_email");
         assertThat(k.check(PUSH, dir)).isNull();
         assertThat(new GitKind().check(options("isolation", "process", "image", null), dir)).as("the sandbox's own rule: process needs network: open").contains("network");
@@ -238,7 +265,7 @@ class GitKindTest {
         assertThat(read.note()).contains("no push");
         ToolProfile push = k.profile(PUSH);
         assertThat(push.outward() && push.untrusted()).isTrue();
-        assertThat(push.note()).contains("pushes to origin").contains("agent/*");
+        assertThat(push.note()).contains("pushes to " + URL).contains("agent/*");
         assertThat(k.agentProblem(options(), "Repo", "Coder", false)).isNull();
         assertThat(k.agentProblem(PUSH, "Repo", "Coder", false)).contains("approve");
         assertThat(k.agentProblem(PUSH, "Repo", "Coder", true)).isNull();

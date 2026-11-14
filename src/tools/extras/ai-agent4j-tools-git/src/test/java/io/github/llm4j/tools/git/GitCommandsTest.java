@@ -34,8 +34,10 @@ class GitCommandsTest {
         assertThat(GitCommands.add(List.of())).containsExactly("add", "--", ".");
         assertThat(GitCommands.add(List.of("a.txt", "b/c.txt"))).containsExactly("add", "--", "a.txt", "b/c.txt");
         assertThat(GitCommands.commit("-rf message", "A", "a@b.c")).containsSubsequence("commit", "--no-verify", "--no-gpg-sign", "-m", "-rf message");
-        assertThat(GitCommands.push("origin", "agent/x")).containsExactly("push", "--no-verify", "origin", "HEAD:refs/heads/agent/x");
-        assertThat(GitCommands.push("origin", "agent/x")).noneMatch(s -> s.startsWith("--force") || s.startsWith("+"));
+        String url = "https://github.com/acme/app.git";
+        assertThat(GitCommands.push(url, "agent/x")).containsExactly("push", "--no-verify", url, "HEAD:refs/heads/agent/x");
+        assertThat(GitCommands.push(url, "agent/x")).noneMatch(s -> s.startsWith("--force") || s.startsWith("+"));
+        assertThatThrownBy(() -> GitCommands.push("origin", "agent/x")).as("a remote's name: its URL is the repository's to set").isInstanceOf(ToolRefusal.class);
     }
 
     @ParameterizedTest

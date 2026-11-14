@@ -37,7 +37,7 @@ final class GitTool extends GenericTool {
                 + GitCommands.MAX_LOG
                 + "), branches, branch (name: creates it and switches to it), commit (message, paths: what to add, all"
                 + " changes by default)"
-                + (c.push() ? ", push (branch, one of " + c.pushPattern() + ", to " + c.remote() + "; never forced)" : "")
+                + (c.push() ? ", push (branch, one of " + c.pushPattern() + ", to " + c.pushUrl() + "; never forced)" : "")
                 + ". Returns exit, stdout and stderr.";
     }
 
@@ -97,7 +97,7 @@ final class GitTool extends GenericTool {
         GitCommands.ref(branch);
         if (!config.mayPush(branch))
             throw new ToolRefusal("a push to " + branch + " is not allowed (push_branches: " + config.pushPattern() + ")");
-        return changed(git(GitCommands.push(config.remote(), branch)));
+        return changed(git(GitCommands.push(config.pushUrl(), branch)));
     }
 
     /** An action that changes something fails loudly when git does, so it is not recorded as done. */
