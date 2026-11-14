@@ -10,7 +10,7 @@ Status: **draft.** Facts marked (read) come from the source on the phase 35 bran
 - A successful answer is **cut at 2,000 characters**; the response body is logged at INFO after credentials are scrubbed.
 - Auth is a key in a header or in the query, with one retry on a 401 when the credential can refresh (`RequestAuth.Resolved.canRetry`).
 - `OpenApiKind` takes `spec` (required) and `auth_header`, `auth_query`, `auth_value` (a secret): no operation list, no base URL, no timeout or size option.
-- `OpenAPIParser` uses `io.swagger.parser.v3` (a heavy library, a dependency of the **core** `pom.xml`) and reads a URL, a file or a string.
+- `OpenAPIParser` uses `io.swagger.parser.v3` and reads a URL, a file or a string. `swagger-parser` 2.1.19 is a dependency of the **core** `pom.xml`: 13 jars and about 1.7 MB under `io/swagger` in the local repository, **not counting transitive jars of other groups** (the dependency plugin cannot resolve in the build environment, so a full tree was not obtained; `mvn dependency:tree` gives it where it can).
 - The guide says an `openapi` tool may declare `effects: { operationId: reads|changes }`; an undeclared operation is assumed `changes`, a GET included.
 
 **`http`** (`src/ai-agent4j-tools/.../HttpKind.java`, `HttpSupport.java`): `base_url`, `methods`, `allow_paths`, `auth_*`, `max_bytes`, `follow_redirects`, header prefixes and the shared network options; `HttpSupport` has `NetPolicy`, timeouts, retries with backoff and `Retry-After`, redirects and idempotency. There is no pagination.
