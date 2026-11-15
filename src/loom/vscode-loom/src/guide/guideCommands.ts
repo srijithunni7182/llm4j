@@ -100,3 +100,28 @@ async function finish(host: GuideHost, folder: string): Promise<boolean> {
     }
     return true;
 }
+
+/** What "Loom: Open Tutorial" needs: the jar, a place to write the page, and a browser. */
+export interface TutorialHost {
+    weave(args: string[]): Promise<string>;
+    /** A file the page may be written to (and replaced in) on every run. */
+    tutorialFile(): string;
+    openInBrowser(file: string): Promise<boolean>;
+    report(message: string, level: 'info' | 'warning' | 'error'): void;
+}
+
+/** "Loom: Open Tutorial": `weave guide tutorial` writes the tutorial as one offline web page, which is then opened in the browser. */
+export async function openTutorial(host: TutorialHost): Promise<boolean> {
+    const file = host.tutorialFile();
+    try {
+        await host.weave(['guide', 'tutorial', '--out', file, '--force']);
+    } catch (e) {
+        host.report(`Loom: could not write the tutorial: ${(e as Error).message}`, 'error');
+        return false;
+    }
+    if (!(await host.openInBrowser(file))) {
+        host.report(`Loom: could not open the browser. The tutorial is at ${file}.`, 'warning');
+        return false;
+    }
+    return true;
+}

@@ -67,3 +67,16 @@ test('the marketplace categories include AI, Testing and Visualization', () => {
     }
     assert.ok(manifest.files.includes('starters/**/*'));
 });
+
+test('every step shows the Loom logo, and the tutorial can be opened from the demo step and the tour', () => {
+    for (const s of walkthrough.steps) {
+        const md = fs.readFileSync(path.join(root, s.media.markdown), 'utf8');
+        const src = /<img src="([^"]+loom-logo-320\.png)"/.exec(md)?.[1];
+        assert.ok(src, `${s.id} shows the logo`);
+        assert.ok(fs.existsSync(path.join(root, path.dirname(s.media.markdown), src as string)), `${s.id}: logo file`);
+    }
+    assert.ok(walkthrough.steps[2].description.includes('(command:loom.openTutorial)'));
+    assert.ok(fs.readFileSync(path.join(root, 'media/walkthrough/04-command-palette-tour.md'), 'utf8').includes('(command:loom.openTutorial)'));
+    assert.ok(declared.has('loom.openTutorial'));
+    assert.match(fs.readFileSync(path.join(root, 'src/commands/guideCommands.ts'), 'utf8'), /registerCommand\('loom\.openTutorial'/);
+});

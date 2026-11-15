@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { AGENTS, GuideHost, installSkill, openGuide } from '../guide/guideCommands';
+import { AGENTS, GuideHost, installSkill, openGuide, openTutorial } from '../guide/guideCommands';
 import { GraphExitError } from '../graph/errors';
 import { WeaveGraphRunner } from '../graph/runner';
 import { handOffToAgent, syncAgentFiles } from '../guide/agentSkills';
@@ -55,5 +55,13 @@ export function registerGuideCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('loom.openGuide', () => openGuide(host)),
         vscode.commands.registerCommand('loom.installSkill', () => installSkill(host)),
+        vscode.commands.registerCommand('loom.openTutorial', () =>
+            openTutorial({
+                weave: host.weave,
+                tutorialFile: () => path.join(context.globalStorageUri.fsPath, 'loom-tutorial.html'),
+                openInBrowser: async (file) => Promise.resolve(vscode.env.openExternal(vscode.Uri.file(file))),
+                report: host.report,
+            }),
+        ),
     );
 }

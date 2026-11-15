@@ -136,6 +136,10 @@
         "title": "Loom: Open Guide"
       },
       {
+        "command": "loom.openTutorial",
+        "title": "Loom: Open Tutorial"
+      },
+      {
         "command": "loom.installSkill",
         "title": "Loom: Set Up My Coding Agent"
       },
@@ -627,13 +631,14 @@
           {
             "id": "loom.step.demo",
             "title": "Run a zero-key demo workflow",
-            "description": "Watch a multi-agent workflow run with mocked models: no key, no cost.\n[Try a Demo](command:loom.try)",
+            "description": "Watch a multi-agent workflow run with mocked models: no key, no cost.\n[Try a Demo](command:loom.try)\n[Open Loom Tutorial](command:loom.openTutorial)",
             "media": {
               "markdown": "media/walkthrough/03-zero-key-demo.md"
             },
             "completionEvents": [
               "onCommand:loom.try",
-              "onCommand:loom.newFromStarter"
+              "onCommand:loom.newFromStarter",
+              "onCommand:loom.openTutorial"
             ]
           },
           {

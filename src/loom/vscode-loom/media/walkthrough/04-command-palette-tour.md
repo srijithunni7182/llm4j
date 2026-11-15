@@ -1,3 +1,5 @@
+<img src="../loom-logo-320.png" width="96" alt="Loom logo">
+
 ## Everything Loom can do
 
 Open the Command Palette (Ctrl+Shift+P, or Cmd+Shift+P) and type `Loom:`. The commands that need an open `.loom` file act on the active one.
@@ -17,5 +19,7 @@ Debug with breakpoints, variable inspection and stepping back. [Run](command:loo
 Run under a budget cap with the live page (`loom-inspect` and Fabric). [Run](command:loom.observe)
 Scaffold from a starter. [Run](command:loom.newFromStarter)
 Write Docker, Compose and Kubernetes files from the script. [Run](command:loom.deploy)
+
+Learn the language: open the tutorial in your browser. [Run](command:loom.openTutorial)
 
 Not sure what is next? [Ask Loom](command:loom.next)

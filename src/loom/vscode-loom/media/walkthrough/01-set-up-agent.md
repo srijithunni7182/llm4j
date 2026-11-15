@@ -1,3 +1,5 @@
+<img src="../loom-logo-320.png" width="96" alt="Loom logo">
+
 ## Let your coding agent do the typing
 
 You do not need to learn `.loom` syntax, and you do not need to put a model API key into this extension. The coding agent you already use (Claude Code, GitHub Copilot, Cursor or Codex) can design, build, test and deploy a complete workflow when it has Loom's four skills.

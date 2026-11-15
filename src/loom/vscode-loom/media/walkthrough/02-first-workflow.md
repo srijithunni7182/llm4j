@@ -1,3 +1,5 @@
+<img src="../loom-logo-320.png" width="96" alt="Loom logo">
+
 ## Four gates, one workflow
 
 The skills work as a pipeline, and the agent does not move on until a gate is passed:
