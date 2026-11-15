@@ -225,6 +225,14 @@ final class EvalCommand implements Callable<Integer> {
     boolean yes;
 
     @Option(
+            names = "--effects",
+            paramLabel = "<real|simulate>",
+            description =
+                    "What a real run does with the tasks that change things (a payment, a send): real (default) runs them, and every question to a person is answered yes; simulate describes them instead, as --mock does, so nothing is paid or sent. The run says which tasks these are before it starts.",
+            defaultValue = "real")
+    String effects;
+
+    @Option(
             names = "--json",
             paramLabel = "<file>",
             description = "Also write the results as JSON.")
@@ -387,6 +395,10 @@ final class EvalCommand implements Callable<Integer> {
                                     + ", got "
                                     + c.judgeSamples
                                     + ".");
+            return 2;
+        }
+        if (!"real".equals(c.effects) && !"simulate".equals(c.effects)) {
+            env.err().println("Error: --effects takes real or simulate, got " + c.effects + ".");
             return 2;
         }
         Path scriptFile = c.script.toPath().toAbsolutePath();
@@ -661,6 +673,17 @@ final class EvalCommand implements Callable<Integer> {
                                     + ". Use --mock to check the wiring for free.");
             if (judgedLines > 0)
                 env.out().println(judgeLine(script, targets, judged -> judgeChoice(c, script, plan.dir(), env, judged), env));
+            List<String> changing = tasksThatChangeThings(script);
+            if (!changing.isEmpty()) {
+                String names = "task " + String.join(", task ", changing);
+                env.out()
+                        .println(
+                                "simulate".equals(c.effects)
+                                        ? "These steps change things and are described, not run: " + names + "."
+                                        : "These steps change things and will run for real: "
+                                                + names
+                                                + ". Every question to a person is answered yes. --effects simulate describes them instead.");
+            }
             if (!c.yes
                     && !env.human()
                             .promptHuman("Run it? (yes/no)")
@@ -685,10 +708,9 @@ final class EvalCommand implements Callable<Integer> {
                     fx.apply(fresh, registry, c.mock);
                     HarnessExecutor e = new HarnessExecutor(fresh, registry, models);
                     e.setHumanInterface(m -> "yes");
-                    if (c.mock)
-                        e.setSimulateTasks(
-                                true); // a free run must not save, send or pay: tasks that change
-                    // things are described, not run
+                    // a free run must not save, send or pay, and a real one only when it was not told
+                    // to simulate: tasks that change things are then described, not run
+                    if (c.mock || "simulate".equals(c.effects)) e.setSimulateTasks(true);
                     e.setBaseDir(scriptFile.getParent());
                     e.setEnvLookup(c.mock ? name -> "mock" : env.env());
                     e.setSecretStore(env.secrets());
@@ -992,6 +1014,22 @@ final class EvalCommand implements Callable<Integer> {
         if (c.maxCost != null) b.append(" --max-cost ").append(c.maxCost);
         if (c.prices != null) b.append(" --prices ").append(c.prices);
         return b.toString();
+    }
+
+    /** The tasks the script runs that change the outside world, by name, in the order they are first run. */
+    static List<String> tasksThatChangeThings(LoomScript script) {
+        io.github.llm4j.agent.task.TaskRegistry tasks = io.github.llm4j.agent.task.TaskRegistry.discovered();
+        java.util.Set<String> names = new java.util.LinkedHashSet<>();
+        for (var workflow : script.getWorkflows())
+            io.github.llm4j.loom.ast.StatementWalker.walk(
+                    workflow.getStatements(),
+                    statement -> {
+                        if (statement instanceof io.github.llm4j.loom.ast.RunStmt run
+                                && tasks.contains(run.getTaskName())
+                                && tasks.get(run.getTaskName()).effect() == io.github.llm4j.agent.task.TaskEffect.CHANGES)
+                            names.add(run.getTaskName());
+                    });
+        return List.copyOf(names);
     }
 
     static List<String> parameters(LoomScript script, String workflow) {
