@@ -17,6 +17,7 @@ chooses the arguments, so each one limits what a hostile or mistaken model can d
 | [`compute`](docs/compute.md) | Exact arithmetic, dates, JSON and CSV figures | Computes from its arguments only; exact decimals; every input bounded |
 | [`verify`](docs/verify.md) | Turns a test report or a schema check into typed counts | Runs nothing; a report it cannot read is a failure; names and messages stay unchecked |
 | [`scan`](docs/scan.md) | Finds secrets and personal data | Reports a rule and a place, never the match; a net, not a proof |
+| [`command`](docs/command.md) | Runs one command line you wrote, with typed holes the model fills | One argument per value, no shell; paths stay in the workspace; isolation required |
 
 Every tool returns text, never throws at the agent, and scrubs its credentials (plain, URL-encoded and Base64) from
 everything it returns. A tool with side effects is **journaled**: it records that a call is about to happen and that it

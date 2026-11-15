@@ -2,6 +2,7 @@
 
 ## 1.7.0
 
+- **Integrations (phase 36).** Hover on `use:` lists `command`, and hover explains `operation`, `pin`, `paginate`, `list_auth` and `ok_exit`, and says that `isolation` and `image` also apply to `command` and `mcp` and that `auth` can be `invoker.NAME` in a remote `mcp` block. Three snippets (`tool-openapi`, `tool-command`, `mcp-server`) pass `weave check`. The new `check` findings (a pin that no longer matches, a `command` with no isolation) reach the editor through `loom/check` with no change of the extension. Needs the engine's phase 36.
 - **Tools that compute, check, edit and run (phase 35).** Hover on `use:` lists `compute`, `verify`, `scan`, `workspace` and `sandbox` (and the optional `search`, `documents`, `git` and `browser`), and hover explains `isolation`, `protect`, `network`, `image`, `serve_port` and `reaches`. Three snippets (`tool-workspace`, `tool-sandbox`, `tool-check`) pass `weave check`. The grammar does not list kinds. `substitution` is no longer a keyword: the setting is gone, since only `{name}` is ever replaced. Needs the engine's phase 35.
 
 ## 1.6.1

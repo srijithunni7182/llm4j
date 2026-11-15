@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 2d9a91de20344371105778160868f0c39c3d52520fba66074ee4d5ba309d5c06 -->
+<!-- source-sha256: f5e061725e2ea3898dc989a4d7b582b53c5ad03f5326f76089dc922ee07dd7cc -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -1644,28 +1644,52 @@ extractor AnalystFields {
 }</code></pre></figure>
 <p>It is read-only in two layers: the connection is opened read-only, and each statement is checked (one statement, starting with <code>SELECT</code>, <code>WITH</code> or <code>VALUES</code>). Give it a database user that is itself read-only.</p>
 <h3 id="c06-an-api-from-its-spec-openapi">An API from its spec: <code>openapi</code></h3>
-<p>If an API has an OpenAPI spec, point at it and every operation becomes a tool:</p>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Petstore { use: openapi  spec: <span class="tk-s">"specs/petstore.json"</span>  auth_header: <span class="tk-s">"X-API-Key"</span>  auth_value: env.PETSTORE_KEY }
+<p>If an API has an OpenAPI spec, each operation you want becomes one tool, and each says what it does to the world:</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Pet_get { use: openapi  spec: <span class="tk-s">"specs/petstore.json"</span>  operation: <span class="tk-s">"getPetById"</span>  effect: reads }
+<span class="tk-k">tool</span> Pet_add { use: openapi  spec: <span class="tk-s">"specs/petstore.json"</span>  operation: <span class="tk-s">"addPet"</span>  effect: changes }
 
 <span class="tk-k">agent</span> Clerk {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Look up pets for the customer."</span>
-    tools: [Petstore]
+    tools: [Pet_get, Pet_add]
+    approve: [Pet_add]
 }</code></pre></figure>
+<p>A <code>GET</code> and a <code>POST</code> do different things, so they are two tools, with their own effect, their own approval and their own line in the audit. The agent gets only the operations you declared, with the arguments the spec gives them (a missing or mistyped one is refused before any request), and never writes a path or a method. You do not have to write these by hand: <code>weave connect openapi specs/petstore.json --read-only --write main.loom</code> lists the operations, proposes each effect, shows you the change and writes the tools with a <code>pin:</code> that notices when the API changes.</p>
 <p>An <code>openapi</code> tool can also act <strong>as the person who runs the workflow</strong>, with <code>auth_value: invoker.token</code>. The application supplies the token for each run, and you put <code>approve:</code> on the agents that use it. See &quot;Running as the person who runs the workflow&quot; in the <a href="https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md#running-as-the-person-who-runs-the-workflow" target="_blank" rel="noopener">reference</a>.</p>
 <h3 id="c06-mcp-servers">MCP servers</h3>
-<p>Any <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a> server can be a source of tools. Declare the server, then name it on the agent:</p>
+<p>Any <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a> server can be a source of tools. A server is a program, so say how it is isolated and what each tool does, then name it on the agent:</p>
 <figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">mcp</span> Files {
     transport: <span class="tk-s">"stdio"</span>
-    cmd: <span class="tk-s">"npx -y @modelcontextprotocol/server-filesystem ."</span>
+    cmd: <span class="tk-s">"npx"</span>
+    args: [<span class="tk-s">"-y"</span>, <span class="tk-s">"@modelcontextprotocol/server-filesystem"</span>, <span class="tk-s">"data"</span>]
+    isolation: container
+    image: <span class="tk-s">"node:22"</span>
+    workspace: <span class="tk-s">"data"</span>
+    <span class="tk-k">effects</span>: { read_file: reads, write_file: changes }
 }
 
 <span class="tk-k">agent</span> Clerk {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
     system: <span class="tk-s">"Use the file tools to answer."</span>
     mcp_servers: [Files]
+    approve: [write_file]
 }</code></pre></figure>
-<p>From Java the same thing is <code>McpClient</code> with <code>StdioMcpTransport</code> (<a href="https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/MCP-Integration.md" target="_blank" rel="noopener">MCP integration</a>). <code>weave audit</code> includes what MCP tools can reach, but it cannot see inside a server, so treat an MCP server like any other code you run.</p>
+<p>A server&#39;s own labels for its tools are untrusted, so llm4j never takes them as the effect: <code>weave connect mcp</code> shows what they suggest, you approve, and the <code>effects:</code> and a <code>pin:</code> go into the block. A remote server takes <code>transport: &quot;http&quot;</code> and a <code>url:</code>, with the caller&#39;s token as <code>auth: invoker.token</code>. From Java the same thing is <code>McpClient</code> with <code>StdioMcpTransport</code> or <code>McpHttpTransport</code> (<a href="https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/MCP-Integration.md" target="_blank" rel="noopener">MCP integration</a>). <code>weave audit</code> cannot see inside a server, so treat an MCP server like any other code you run, and read <a href="https://github.com/srijithunni7182/llm4j/blob/main/docs/security/integrations.md" target="_blank" rel="noopener">Securing integrations</a>.</p>
+<h3 id="c06-one-command-with-typed-holes-command">One command, with typed holes: <code>command</code></h3>
+<p>When an agent should be able to do exactly one thing, give it a command you wrote and let it fill only the blanks:</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Photos { use: workspace  root: <span class="tk-s">"photos"</span>  allow: <span class="tk-s">"**"</span>  mode: readwrite }
+<span class="tk-k">tool</span> Resize {
+    use: command
+    isolation: container
+    image: <span class="tk-s">"dpokidov/imagemagick:7"</span>
+    workspace: Photos
+    <span class="tk-k">run</span>: <span class="tk-s">"convert <span class="tk-v">{input}</span> -resize <span class="tk-v">{percent}</span>% <span class="tk-v">{output}</span>"</span>
+    param.input: <span class="tk-s">"path in"</span>
+    param.output: <span class="tk-s">"path out"</span>
+    param.percent: <span class="tk-s">"int 1..400"</span>
+}
+<span class="tk-k">agent</span> Editor { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You resize photos."</span>  tools: [Resize]  approve: [Resize] }</code></pre></figure>
+<p>Each <code>{name}</code> is filled inside one argument and nothing reads it again, so a value that holds a space, a <code>;</code> or <code>$(...)</code> is still just one argument; a path cannot leave the workspace and a number cannot leave its range. For a program with no description, <code>weave connect command</code> has a model draft the template from its <code>--help</code> text, then runs it on <strong>your</strong> samples before writing anything.</p>
 <h3 id="c06-your-own-tool-from-java">Your own tool, from Java</h3>
 <p>For something the generic tools do not cover, write a <code>Tool</code> in Java and expose it either with <code>use: class</code> or in a <code>.loot</code> file. <code>weave audit</code> never loads your code, so tell it what the tool does to the world with <code>effect:</code> (see <a href="#c06-does-this-tool-change-anything-effect">Does this tool change anything?</a>):</p>
 <figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Invoices { use: class  class: <span class="tk-s">"com.acme.tools.InvoiceTool"</span>  effect: reads }     <span class="tk-c">// none | reads | changes</span></code></pre></figure>

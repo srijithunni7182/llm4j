@@ -93,6 +93,10 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave serve`](#weave-serve) — Serves check, graph and review to an editor over standard input and output (JSON-RPC with Content-Length framing).
 - [`weave dap`](#weave-dap) — Speaks the Debug Adapter Protocol on standard input and output, so an editor can debug a workflow.
 
+### Other
+
+- [`weave connect`](#weave-connect) — Brings a system into a script: one tool per chosen operation, with the effect proposed and approved and a pin to notice drift.
+
 ## Pages
 
 ### `weave run`
@@ -2509,6 +2513,147 @@ weave mcp list [OPTIONS] <script>
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--write` — Write the proposed effects: (for tools the block does not describe) and the pin: into the script, after showing the change and asking.
 - `--yes` — With --write, do not ask first (the change is still shown).
+
+### `weave connect`
+
+Brings a system into a script: one tool per chosen operation, with the effect proposed and approved and a pin to notice drift.
+
+```
+weave connect [OPTIONS] <command>
+```
+
+**Commands**
+
+- `openapi` — Reads an OpenAPI description, lists its operations with the effect each would get (from its HTTP method), and writes one tool declaration per chosen operation with effect:, on_unknown: and pin:.
+- `mcp` — Starts an MCP server under the isolation you name (or reaches it at an https address), lists its tools with the effect each would get (from its annotations, the server's own untrusted word) and writes the mcp block with isolation:, effects: and pin:.
+- `command` — Drafts a typed command (use: command) from a program's --help text, with a model.
+- `http` — Drafts an http tool from a documentation page, a file or sample requests and responses, with a model.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave connect openapi`
+
+Reads an OpenAPI description, lists its operations with the effect each would get (from its HTTP method), and writes one tool declaration per chosen operation with effect:, on_unknown: and pin:.
+
+Without --write it only prints what it would write. With --refresh the argument is a script, and each pinned openapi tool is read again.
+
+```
+weave connect openapi [OPTIONS] <spec|script>
+```
+
+**Arguments**
+
+- `<spec|script>` — An OpenAPI description (a file or an https address); with --refresh, the script whose tools are read again.
+
+**Options**
+
+- `--auth-header=<header>` — The header the credential goes in (default: Authorization).
+- `--auth=<ref>` — Where the credential comes from, written as auth_value: env.NAME, secret.NAME or invoker.NAME. Never a value.
+- `--check` — With --refresh: change nothing, print the drift, and exit 1 when there is any (for CI).
+- `--operations=<ids>` — Only these operations, by operationId. (repeatable)
+- `--prefix=<name>` — The tools are named <name>_<operationId> (default: Api).
+- `--read-only` — Only the operations that read (GET, HEAD, OPTIONS).
+- `--refresh` — Read each pinned openapi tool of the script again and report what changed.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--write=<script>` — Add the tools to this script, after showing the change and asking.
+- `--yes` — The effects as proposed are approved: do not ask (the change is still shown).
+
+#### `weave connect mcp`
+
+Starts an MCP server under the isolation you name (or reaches it at an https address), lists its tools with the effect each would get (from its annotations, the server's own untrusted word) and writes the mcp block with isolation:, effects: and pin:.
+
+Without --write it only prints. With --refresh the argument is a script, and each pinned mcp block is read again.
+
+```
+weave connect mcp [OPTIONS] <command|url|script>
+```
+
+**Arguments**
+
+- `<command|url|script>` — The program that starts the server, or its https address; with --refresh, the script.
+
+**Options**
+
+- `--arg=<argument>` — An argument of the program (repeatable; each one stays one argument).
+- `--auth=<ref>` — For an https server: auth: env.NAME, secret.NAME or invoker.NAME. Never a value.
+- `--check` — With --refresh: change nothing, print the drift, and exit 1 when there is any (for CI).
+- `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--image=<image>` — The image of isolation: container.
+- `--isolation=<level>` — none, process (the default) or container.
+- `--list-auth=<ref>` — For an https server whose auth is invoker.NAME: the credential used only to list the tools.
+- `--name=<name>` — The block's name (default: Server).
+- `--network=<mode>` — none (the default) or open, for a container.
+- `--no-env-file` — Do not read a .env file, even if one is beside the script.
+- `--operations=<tools>` — Only declare effects for these tools. (repeatable)
+- `--read-only` — Refuse to write when the server has a tool that is not proposed as reading.
+- `--refresh` — Start each pinned mcp block of the script again and report what changed.
+- `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
+- `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
+- `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--workspace=<dir>` — The folder a container sees as its workspace.
+- `--write=<script>` — Add the block to this script, after showing the change and asking.
+- `--yes` — The effects as proposed are approved: do not ask (the change is still shown).
+
+#### `weave connect command`
+
+Drafts a typed command (use: command) from a program's --help text, with a model.
+
+You choose the isolation, the image, the network and the workspace; the model only proposes the template and the type of each parameter. The draft is checked, audited and run against your samples before it is written; a draft that fails is never written.
+
+```
+weave connect command [OPTIONS] <name>
+```
+
+**Arguments**
+
+- `<name>` — The tool's name.
+
+**Options**
+
+- `--budget=<tokens>` — The most tokens the drafting may use (default 20000).
+- `--help-file=<file>` — The program's --help output, saved to a file (it is not run for you).
+- `--image=<image>` — The image of isolation: container.
+- `--isolation=<level>` — container (the default) or process.
+- `--model=<model>` — The model that drafts (default: LOOM_GENERATE_MODEL).
+- `--network=<mode>` — none (the default) or open.
+- `--program=<program>` — The program the command runs (default: the tool's name in lower case).
+- `--repairs=<n>` — How many times a failing draft is repaired before it is dropped (default 2).
+- `--samples=<file>` — Your own samples, as JSON: [{"args": {...}, "expect_contains": "..."}]. The draft must answer each as you expect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--workspace-tool=<tool>` — The workspace tool of the script whose folder the command works in.
+- `--write=<script>` — Add the tool to this script, after showing the change and asking.
+- `--yes` — The effect as proposed is approved: do not ask (the change is still shown).
+
+#### `weave connect http`
+
+Drafts an http tool from a documentation page, a file or sample requests and responses, with a model.
+
+You give the base address and where the credential comes from; the model only proposes the methods and the paths. The draft is checked, audited and run against your samples before it is written; a draft that fails is never written.
+
+```
+weave connect http [OPTIONS] <name>
+```
+
+**Arguments**
+
+- `<name>` — The tool's name.
+
+**Options**
+
+- `--auth-header=<header>` — The header the credential goes in (default: Authorization).
+- `--auth=<ref>` — Where the credential comes from: env.NAME, secret.NAME or invoker.NAME. Never a value.
+- `--base-url=<https address>` — The address the calls go to.
+- `--budget=<tokens>` — The most tokens the drafting may use (default 20000).
+- `--docs=<file>` — The documentation or sample requests and responses, saved to a file.
+- `--model=<model>` — The model that drafts (default: LOOM_GENERATE_MODEL).
+- `--repairs=<n>` — How many times a failing draft is repaired before it is dropped (default 2).
+- `--samples=<file>` — Your own samples, as JSON: [{"args": {...}, "expect_contains": "..."}]. The draft must answer each as you expect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--write=<script>` — Add the tool to this script, after showing the change and asking.
+- `--yes` — The effect as proposed is approved: do not ask (the change is still shown).
 
 ### `weave fabric`
 

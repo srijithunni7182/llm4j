@@ -71,14 +71,14 @@ agent <AgentName> {
 *   **Tools** (declared in the script; secrets only from the environment; built-ins `web_search`, `calculator`, `datetime`, `current_time` need no declaration):
     ```loom
     tool Search { use: serpapi  api_key: env.SERPAPI_KEY }
-    tool Petstore { use: openapi  spec: "specs/petstore.json" }
+    tool Pet_get { use: openapi  spec: "specs/petstore.json"  operation: "getPetById"  effect: reads  pin: "sha256-0123456789abcdef" }   // one tool per operation; weave connect openapi writes these
     ```
 *   **Generic tools** (no Java; every secret `env.NAME`; lists are comma-separated strings; mark side effects with `approve:` where a person should decide):
     ```loom
     tool Slack  { use: webhook  url: env.SLACK_WEBHOOK  format: slack }                  // slack | discord | teams | json
     tool Mail   { use: email  host: "smtp.example.com"  username: env.U  password: env.P  from: "a@example.com"  to: "team@example.com" }   // or allow_to: "*@example.com"; outbox: "dir" writes .eml files
     tool Api    { use: http  base_url: "https://api.example.com"  auth_header: "Authorization"  auth_value: env.TOKEN  allow_paths: "/v1/*"  methods: "GET, POST" }
-    tool Mine   { use: openapi  spec: "specs/mine.json"  auth_header: "Authorization"  auth_value: invoker.token }   // acts as the person who runs the workflow: the application supplies invoker.token for each run (openapi auth_value only); put approve: on agents that use it
+    tool Mine   { use: openapi  spec: "specs/mine.json"  auth_header: "Authorization"  auth_value: invoker.token }   // acts as the person who runs the workflow: the application supplies invoker.token for each run (also `http` auth_value and a remote `mcp` block's auth); put approve: on agents that use it
     tool Notes  { use: file  root: "notes"  mode: readwrite }                             // read | write | readwrite; never outside the script's directory
     tool Ops    { use: shell  allow: "df, du"  unattended: true }                         // programs by name, no shell; the agent must approve it or the tool says unattended: true
     tool Db     { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD }   // read-only: one SELECT per call
@@ -87,7 +87,9 @@ agent <AgentName> {
     tool Scan   { use: scan }                                                             // secrets and personal data: a rule and a place, never the match
     tool Code   { use: workspace  root: "project"  allow: "**"  mode: readwrite  protect: "tests/**" }   // read, patch, find, grep, snapshot, restore
     tool Tests  { use: sandbox  workspace: Code  isolation: container  image: "python:3.12-slim"  allow: "python3" }   // isolation has no default; network: none unless allow/hosts
+    tool Resize { use: command  isolation: container  image: "dpokidov/imagemagick:7"  workspace: Code  run: "convert {input} -resize {percent}% {output}"  param.input: "path in"  param.output: "path out"  param.percent: "int 1..400" }   // the command is yours; the agent fills typed holes; each value is one argument, never a shell
     ```
+    An MCP server is `mcp Files { transport: "stdio"  cmd: "npx"  args: ["-y", "@example/files"]  isolation: container  image: "node:22"  network: none  effects: { read_file: reads, write_file: changes }  pin: "sha256-..." }` (give an agent `mcp_servers: [Files]`; a server's annotations are untrusted and only proposed as effects; `transport: "http"` with `url:` and `auth: invoker.NAME` reaches a remote one). Do not write the `effect:`, `effects:` or `pin:` of a system you have not read: run `weave connect openapi|mcp|command|http` (it proposes, a person approves, a credential is only ever a reference) and `weave connect ... --refresh --check` in CI to notice drift.
     Use the results with `use Tool(name = value) -> var`; a script gives a sandbox's `args` as the text of a JSON list: `args = "[\"-m\", \"pytest\"]"`. Restore is something the script does: snapshot before a checkpoint, restore at the start of each attempt, rewind with `side effects: repeat`. Optional modules add `search` (a keyed provider), `documents` (PDF, DOCX, HTML with pages and paragraphs), `git` (through the sandbox) and `browser` (an installed Chrome); each needs its jar.
     Calls that change something (`webhook`, `email`, `shell`, `file` writes, `http` non-GET, `workspace` writes, snapshots and restores, `sandbox` runs) are journaled, so a resumed run doesn't repeat them; `on_unknown: skip | retry` decides what to do when a crash left it unknown. `webhook` and `http` only reach https hosts that aren't on a private network.
 *   **Knowledge Bases** (retrieval for agents that list them in `knowledge: [..]`):

@@ -38,7 +38,7 @@ Each module answers the question the previous one raises.
 - [Agent Skills](../src/ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](../src/ai-agent4j/wiki/Agent-Personas.md) · [Prompt Registry](../src/ai-agent4j/wiki/Prompt-Registry-Guide.md)
 - [Memory](../src/ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](../src/ai-agent4j/wiki/SEMANTIC_MEMORY.md)
 - [RAG](../src/ai-agent4j/wiki/RAG-Support.md) · [Knowledge Graphs](../src/ai-agent4j/wiki/Knowledge-Graphs.md)
-- [MCP](../src/ai-agent4j/wiki/MCP-Integration.md) (also [this overview](MCP-Integration.md)) · [OpenAPI Tool](../src/ai-agent4j/wiki/OpenAPI-Tool.md)
+- [MCP](../src/ai-agent4j/wiki/MCP-Integration.md) (also [this overview](MCP-Integration.md)) · [OpenAPI Tool](../src/ai-agent4j/wiki/OpenAPI-Tool.md) (deprecated) · [Connecting a system](Connecting-a-System.md) (`weave connect`)
 
 ### Orchestrate
 

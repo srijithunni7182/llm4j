@@ -1,5 +1,7 @@
 # OpenAPI Tool
 
+> **Deprecated since 6.2.0.** The `OpenAPITool` below has none of the address rules, size caps or retry rules of the `http` tool, and it exposes a whole API under one effect. Use the `openapi` tool kind of [`ai-agent4j-tools-openapi`](../../tools/extras/ai-agent4j-tools-openapi/README.md): one tool per operation, each with its own declared effect and a pin, called through the guarded HTTP layer. In Loom, `weave connect openapi` writes the declarations. The core classes go away at the next major version; the migration is in [the 6.2 release notes](../../../docs/RELEASE_NOTES_6_2_0.md).
+
 The `OpenAPITool` is a powerful, dynamic tool that allows your ReAct agents to automatically discover and interact with any REST API described by an OpenAPI (Swagger) specification.
 
 Instead of manually creating a `Tool` class for every API endpoint, you simply provide the OpenAPI spec, and the agent figures out the rest!

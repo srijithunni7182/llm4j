@@ -118,7 +118,7 @@ const LOOM_KEYWORDS: Record<string, string> = {
     card:
         '**card** `: "https://host/.well-known/agent-card.json"`\n\nIn a `remote`: where its agent card is. https only; the card must stay on this host.',
     auth:
-        '**auth** `: secret.NAME`\n\nIn a `remote`: the secret that opens it, resolved per request for that host only. A literal key is a load error.',
+        '**auth** `: secret.NAME`\n\nIn a `remote`: the secret that opens it, resolved per request for that host only. In a remote `mcp` block (`transport: "http"`): the bearer token, `env.NAME`, `secret.NAME` or `invoker.NAME` (the caller\'s, asked for on every request). A literal key is a load error.',
     require_signed_card:
         '**require_signed_card** `: true|false`\n\nIn a `remote`: refuse a card that is not signed. llm4j does not verify the signature itself; with `true`, an unsigned card is refused.',
     audience:
@@ -138,17 +138,27 @@ const LOOM_KEYWORDS: Record<string, string> = {
     warn_at:
         '**warn_at** `: 80%`\n\nInside a `budget { }`: when to log a `budget_warning` (default 80%).',
     use:
-        '**use** `: webhook | email | http | file | shell | sql | compute | verify | scan | workspace | sandbox | serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. `webhook` posts to Slack, Discord or Teams; `email` sends over SMTP; `http` calls a REST API; `file` reads and writes text files in one directory; `shell` runs named programs; `sql` runs read-only queries; `compute` does exact arithmetic, dates, JSON and CSV; `verify` turns a test report or a schema check into counts; `scan` finds secrets and personal data; `workspace` edits a directory with patches, snapshots and restores; `sandbox` runs allow-listed programs on a workspace in a declared isolation. With their jars: `search`, `documents`, `git`, `browser`. Secret options (`url`, `password`, `api_key`, `auth_value`, and credential headers) must be `env.NAME` or `secret.NAME`; `auth_value` of `openapi` can also be `invoker.NAME`, a credential of the person running the workflow.',
+        '**use** `: webhook | email | http | file | shell | sql | compute | verify | scan | workspace | sandbox | command | serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. `webhook` posts to Slack, Discord or Teams; `email` sends over SMTP; `http` calls a REST API; `file` reads and writes text files in one directory; `shell` runs named programs; `sql` runs read-only queries; `compute` does exact arithmetic, dates, JSON and CSV; `verify` turns a test report or a schema check into counts; `scan` finds secrets and personal data; `workspace` edits a directory with patches, snapshots and restores; `sandbox` runs allow-listed programs on a workspace in a declared isolation; `command` runs one command line you wrote, with typed holes (`param.NAME`) the model fills, one argument per value. `openapi` is one operation of an OpenAPI description (`operation:`, `effect:`, `pin:`); `weave connect` writes it. With their jars: `search`, `documents`, `git`, `browser`. Secret options (`url`, `password`, `api_key`, `auth_value`, and credential headers) must be `env.NAME` or `secret.NAME`; `auth_value` of `openapi` and `http` (and `auth` of a remote `mcp` block) can also be `invoker.NAME`, a credential of the person running the workflow.',
     isolation:
-        '**isolation** `: container | process | vm`\n\nIn a `sandbox` (and `git`) tool: required, with no default. `container` runs the program in Docker or Podman with the workspace as its only mount; `process` is a child process of the run and is not isolation (`weave audit` LA31). A level the machine cannot give is refused; `container` never falls back.',
+        '**isolation** `: container | process | vm`\n\nIn a `sandbox`, `command` and `git` tool, and (`none | process | container`) in an `mcp` block: required, with no default. `container` runs the program in Docker or Podman with the workspace as its only mount; `process` is a child process of the run and is not isolation (`weave audit` LA31). A level the machine cannot give is refused; `container` never falls back.',
     protect:
         '**protect** `: "tests/**"`\n\nIn a `workspace` tool: paths that stay read only, so an agent cannot edit what judges its work. A sandbox on the workspace mounts them read only.',
     reaches:
         '**reaches** `: <Sandbox>`\n\nIn an `http` or `browser` tool: the sandbox whose served program it calls, on 127.0.0.1 and that one port, only while it runs (`weave audit` LA32).',
     network:
         '**network** `: none | allow | open`\n\nIn a `sandbox` tool: `none` (default) gives the program no network; `allow` reaches the `hosts:` listed through an egress proxy; `open` reaches any host (`weave audit` LA33). `isolation: process` needs `open`.',
+    operation:
+        '**operation** `: "getPetById"`\n\nIn an `openapi` tool: the `operationId` of the one operation this tool calls. Without it the tool exposes the whole API (`weave audit` LA34). `weave connect openapi` writes one tool per operation.',
+    pin:
+        '**pin** `: "sha256-0123456789abcdef"`\n\nIn an `openapi` tool or an `mcp` block: a hash of the operation\'s signature or of the server\'s tool list, written by `weave connect` and `weave mcp list --write`. `weave check` warns when a local description no longer matches (LA35); `weave connect ... --refresh --check` reads the live one.',
+    paginate:
+        '**paginate** `: link | cursor | page`\n\nIn an `http` or `openapi` tool: follow the pages of a read for the agent, up to `max_pages` (default 10) and `max_bytes`. `cursor` needs `cursor_path` and `cursor_param`; `page` needs `page_param`. Refused for a call that changes something.',
+    list_auth:
+        '**list_auth** `: env.NAME`\n\nIn a remote `mcp` block whose `auth:` is `invoker.NAME`: a credential used only to list the server\'s tools when the engine starts, before anyone is running the workflow.',
+    ok_exit:
+        '**ok_exit** `: "0,1"`\n\nIn a `command` tool: exit codes that are not a failure (default: only 0).',
     image:
-        '**image** `: "python:3.12-slim"`\n\nIn a `sandbox` tool with `isolation: container`: the image the program runs in. Pulled only with `pull: true`.',
+        '**image** `: "python:3.12-slim"`\n\nIn a `sandbox`, `command` or `mcp` tool with `isolation: container`: the image the program runs in. Pulled only with `pull: true`.',
     serve_port:
         '**serve_port** `: 8000`\n\nIn a `sandbox` tool: the port a served program listens on; enables the `serve`, `stop` and `status` actions. The program is stopped at its deadline, on `stop`, and after a crash when the next run starts.',
     checkpoint:

@@ -3,6 +3,7 @@ package io.github.llm4j.tools.docs;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.llm4j.agent.tool.ToolKind;
+import io.github.llm4j.tools.CommandKind;
 import io.github.llm4j.tools.ComputeKind;
 import io.github.llm4j.tools.EmailKind;
 import io.github.llm4j.tools.FileKind;
@@ -50,6 +51,7 @@ class DocumentedExamplesTest {
             case "Verify" -> new VerifyKind();
             case "Scan" -> new ScanKind();
             case "Workspace" -> new WorkspaceKind();
+            case "Command" -> new CommandKind();
             default -> throw new AssertionError("no kind " + name);
         };
     }
@@ -92,7 +94,7 @@ class DocumentedExamplesTest {
 
     @Test
     void theJavaExampleOnEachKindPageIsAcceptedByThatKind() throws IOException {
-        for (String page : new String[] {"webhook", "email", "http", "file", "shell", "sql"}) {
+        for (String page : new String[] {"webhook", "email", "http", "file", "shell", "sql", "command"}) {
             String text = Files.readString(DOCS.resolve(page + ".md"));
             Matcher m = CREATE.matcher(text);
             assertThat(m.find()).as(page + ".md has a create(...) example").isTrue();

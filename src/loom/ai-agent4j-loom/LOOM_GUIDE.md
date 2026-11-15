@@ -659,7 +659,8 @@ tool Status { use: http  base_url: "https://status.example.com"  methods: "GET, 
 | `base_url` | Required. The agent can only choose a path below it. |
 | `methods` | Allowed methods: `GET` (default), `POST`, `PUT`, `PATCH`, `DELETE`. Anything else is refused. |
 | `allow_paths` | Path patterns (`*` within a segment, `**` across). Default: everything below `base_url`. |
-| `auth_header` or `auth_query`, with `auth_value` | Exactly one; `auth_value` is a **secret** |
+| `auth_header` or `auth_query`, with `auth_value` | Exactly one; `auth_value` is a **secret** (`env.`, `secret.` or `invoker.NAME`, the credential of whoever runs the workflow) |
+| `paginate`, `max_pages`, `cursor_path`, `cursor_param`, `page_param` | Follow pages of a GET answer for the agent: `paginate: link` (the `Link` header), `cursor` (a field of the JSON answer and the query parameter that takes it) or `page` (a counter). At most `max_pages` (default 10, ceiling 100) and the `max_bytes` cap; reads only |
 | `header.*` | Fixed request headers |
 | `max_bytes` | Response cap, default 64k |
 | `follow_redirects`, `retries`, `idempotency`, `on_unknown`, `timeout`, `hosts`, `allow_http`, `allow_private` | as above |
@@ -692,6 +693,7 @@ method.
 | `server` | One of the description's `servers`, instead of the first |
 | `auth_header` or `auth_query`, with `auth_value` | Exactly one; `auth_value` is a **secret** (`env.`, `secret.` or `invoker.`) |
 | `pin` | A hash of this operation's signature, as `weave connect` and `weave mcp list --write` write it; `weave check` warns when the local description no longer matches (LA35) |
+| `paginate`, `max_pages`, `cursor_path`, `cursor_param`, `page_param` | As for `http`: the tool follows the pages of a reading operation and returns them together, within `max_pages` and `max_bytes`. Refused on an operation that changes something |
 | `max_bytes` | What one answer shows the model, default 64k, at most 4m; a longer answer is cut and says so |
 | `save_dir` | A folder inside the script's that keeps an answer that is long or not text, whole, under a name made from the tool and a hash of the content; the tool returns the path, size, type and the start of it |
 | `save_max_bytes` | The most `save_dir` keeps, default 16m, at most 128m |
@@ -822,7 +824,8 @@ An `mcp` block starts a program and gives an agent the tools it lists. That prog
 | `transport` | `"stdio"` (a program, the default) or `"http"` (a remote server over Streamable HTTP, with `url`) |
 | `cmd` | The program. With `isolation:` it is one program; without, it is split on spaces as before |
 | `args` | A list; each entry is one argument and is never split, whatever it holds |
-| `isolation` | `process` starts the server with only the environment you give it and its error stream captured, redacted and bounded; `none` says you accept running it on the host. With no `isolation:` line the server runs as it always did, with this process's whole environment, and `weave check` warns and `weave audit` reports it (LA31). `container` follows with the sandbox |
+| `isolation` | `process` starts the server with only the environment you give it and its error stream captured, redacted and bounded; `none` says you accept running it on the host. With no `isolation:` line the server runs as it always did, with this process's whole environment, and `weave check` warns and `weave audit` reports it (LA31). `container` runs it in a Docker container (see `image`, `workspace` and `network`): no capabilities, a read-only file system, the workspace the only mount |
+| `image`, `workspace`, `network` | For `isolation: container`: `image` is required (one image name); `workspace` is a folder beside the script that the server sees as `/workspace` (default: the script's folder); `network` is `none` (the default) or `open` (`allow` is not available for a server). A secret named in `env` is handed to the runtime by name and never appears on its command line |
 | `env` | The variables the server is given: `env.NAME` or `secret.NAME` (resolved when it starts), or a literal for a setting. A name that looks like a credential (`TOKEN`, `KEY`, `SECRET`, `PASSWORD`, `AUTH`) must be a reference |
 | `env_inherit` | Names of host variables an isolated server may inherit (for example `PATH`) |
 | `url`, `auth`, `list_auth` | For `transport: "http"`: the server's one address (https, or a local one); `auth` is the bearer token, `env.NAME`, `secret.NAME` or `invoker.NAME` (the credential of whoever runs the workflow, asked for on every request and never put in the address); `list_auth` is a credential used only to list the tools when the engine starts, needed with `auth: invoker.NAME` because nobody is running yet. A remote server has none of `cmd`, `args`, `env` or `isolation` (nothing is started here); the client tries the modern protocol era first and falls back to the `initialize` handshake. A refused token is `credential_rejected`, as for `openapi` |
@@ -937,6 +940,78 @@ workflow Fix(issue) {
 - **Every run is journaled**, so a resumed or rewound run does not run a program again; `stdout` and `stderr` stay unchecked.
 - **`serve`** keeps a program running under a lease (`serve_port:` on the tool); `use: http  reaches: Tests` calls it on
   that one loopback port while it runs, and `workspace restore` waits until it is stopped.
+
+### Typed commands (`command`)
+
+`use: command` is a command line **you** wrote, with typed holes. The agent fills the holes; it never writes the command. Use it
+for a program you want an agent to run in one exact way (resize a picture, convert a file, run a linter) when `sandbox`, which
+lets the agent choose the arguments, gives it more than it needs.
+
+```loom
+tool Photos { use: workspace  root: "photos"  allow: "**"  mode: readwrite }
+tool Resize {
+    use: command
+    isolation: container
+    image: "dpokidov/imagemagick:7"
+    workspace: Photos
+    run: "convert {input} -resize {percent}% {output}"
+    param.input: "path in"
+    param.output: "path out"
+    param.percent: "int 1..400"
+}
+agent Editor { model: "claude-haiku-5-5"  system: "You resize photos."  tools: [Resize]  approve: [Resize] }
+```
+
+- **The template is the author's.** `run` is split into words once, when the script loads. The first word is the program and is
+  fixed. Each `{name}` is filled **inside its own word**, and what fills it is never split again, re-read or interpreted, so a
+  value with a space, a `;`, a `--flag`, `$(...)` or a newline is still one argument. There is no shell. The text of `run` is
+  never passed through the `{variable}` replacement the rest of a script uses, so a workflow variable named like a parameter
+  changes nothing.
+- **Parameter types** (`param.<name>`): `path in` (a file that must exist in the workspace), `path out` (a file to write there),
+  `int 1..400`, `number 0.5..2`, `enum a|b|c`, `string max=40 pattern=[a-z]+`, `bool "--flag"` (the flag is added when the value
+  is true). A path is held inside the workspace: no `..`, no absolute path, no symlink out. A missing, extra or mistyped argument
+  is refused before the program runs, with the rule in the message.
+- **Isolation is required.** `isolation: container` (with `image`) or `process` (which needs `network: open` and is flagged by
+  `weave audit`, LA31); there is no `none`. The workspace is the only mount of a container, there is no network unless you
+  write `network: open` or `network: allow` with `hosts:`, and the limits are those of `sandbox` (`timeout`, `max_output`).
+- **Output and exit codes.** `output: text` (the default), `json` (the output must be JSON) or `lines` (a JSON list of lines).
+  A non-zero exit is a failure unless `ok_exit: "0,1"` lists it.
+- **A command tool always counts as changing something.** It is journaled, so a resumed or rewound run does not run it again,
+  and `approve:` is expected (`weave check` says so).
+
+### Connecting a system (`weave connect`)
+
+`weave connect` brings a system into a script with its effects declared, instead of by hand. It proposes; **you approve**; it
+writes. Nothing is written until the change has been shown and agreed, nothing that fails `weave check` or has a high audit
+finding is ever written, and a credential is only ever written as a reference (`env.NAME`, `secret.NAME`, `invoker.NAME`).
+
+```bash
+weave connect openapi specs/petstore.json --read-only --write main.loom          # one tool per reading operation
+weave connect openapi specs/petstore.json --operations addPet --write main.loom  # one operation that changes things, asked about
+weave connect mcp npx --arg -y --arg @example/files-server --isolation container --image node:22 --write main.loom
+weave connect command Resize --help-file convert.help --image dpokidov/imagemagick:7 --workspace-tool Photos --samples samples.json --write main.loom
+weave connect http Orders --docs orders.md --base-url https://api.example.com --auth invoker.token --write main.loom
+weave connect openapi main.loom --refresh --check      # in CI: exit 1 when a pinned operation changed; never writes
+```
+
+- **`connect openapi`** reads the description (a file, or an https address through the same address rules as a tool), lists the
+  operations and writes **one tool per chosen operation** with `effect:` (a `GET`, `HEAD` or `OPTIONS` reads; anything else
+  changes), `on_unknown:` (`retry` for a read, `skip` otherwise) and a `pin:`. Choose with `--operations a,b`, `--read-only`, or
+  by number when it asks. `--auth env.NAME|secret.NAME|invoker.NAME` adds the credential reference.
+- **`connect mcp`** starts the server under the isolation you name, lists its tools (the annotations are the server's own,
+  untrusted word and only a proposal) and writes the `mcp` block with `isolation:`, `effects:` and `pin:`. `--read-only`
+  refuses to write when a tool is not proposed as reading. `weave mcp list --write` does the same for a block you already have.
+- **`connect command` and `connect http`** have a model draft the tool for a system with no description (`--model` or
+  `LOOM_GENERATE_MODEL`; `--budget` caps the tokens). The model only proposes the template and the parameter types, or the methods
+  and paths. **Your flags fix what matters:** isolation, image, network, workspace, base address and credential reference
+  cannot be changed by the model or by the text it read, which is given to it as untrusted data. The draft must build as a tool,
+  pass `weave check` and the audit, and answer **your own samples** (`--samples`, a JSON list of `{args, expect_contains}`) as you
+  expect; a draft that still fails after `--repairs` repairs is never written, and its findings are printed.
+- **Drift.** `weave check` compares a local description with each `pin:` and warns (LA35); `weave audit --strict` makes it an
+  error. `connect ... --refresh` reads the live description or server again (an MCP server starts under its declared isolation),
+  prints what changed and, with `--check`, exits 1 on any drift. It never rewrites a pin by itself.
+- **Reachability** is `weave doctor --network`: one TLS connection to each host of your integrations, no request and no
+  credential.
 
 ### Checkpoints, Rewind and Fork
 
@@ -2465,7 +2540,8 @@ executor.executeWorkflow("Main", Map.of("question", q), new UserTokens(tokens, u
 - **From a terminal**, `weave run job.loom --invoker-env token=MY_API_TOKEN` supplies `invoker.token` from an environment variable (`weave resume` takes the option too).
   `weave check` lists the credentials a script asks for; `weave audit` reports a tool that acts as the person (`LA17`) and asks you to put `approve:` on it.
 - **`approve:` needs someone to ask.** A web application sets a `HumanInterface` on the executor (`executor.setHumanInterface(...)`) that asks the user in its own screens, or throws `RunSuspended` to pause the run until the user answers.
-- **Only `auth_value` of `openapi`** can be `invoker.NAME` for now. A scheduled or triggered run has no invoker and cannot use such a script.
+- **`auth_value` of `openapi` and `http`, and `auth` of a remote `mcp` block,** can be `invoker.NAME`. Nothing else can (a provider's key, a header value, a `cmd` argument): it is refused when the script loads. A scheduled or triggered run has no invoker and cannot use such a script.
+- **A rejected credential is its own failure.** A 401 or 403 that persists after the one retry is the failure category `credential_rejected` (not `tool_error`), so `on_failure` can branch on `_error_category` (see `use`, above), and `weave test`'s `fail:` injects it with `category: credential_rejected`.
 
 ### Secrets: the secret store
 

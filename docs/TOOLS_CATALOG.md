@@ -4,7 +4,7 @@ Every ready-made tool llm4j ships, what it can do for your agent, and what stops
 
 A model that can only talk is a chatbot. A model that can post to Slack, call an API, edit a codebase, run its tests and open a branch is a colleague. The catch is that **the model, not you, chooses the arguments**. Each tool here is built for that case: the limits are in the code, not in a prompt, and every limit is a test.
 
-Fifteen purpose-built tools in two groups: eleven **light tools** in one module that needs only the core and Jackson, and four **extras** you add only when you want them. Beside them, two **connectors** turn an [OpenAPI spec](#-openapi) or an [MCP server](#-mcp) into tools, and a few [simple tools](#-also-built-into-the-core) come with the core library.
+Sixteen purpose-built tools in two groups: twelve **light tools** in one module that needs only the core and Jackson, and four **extras** you add only when you want them. Beside them, two **connectors** turn an [OpenAPI spec](#-openapi) or an [MCP server](#-mcp) into tools, and a few [simple tools](#-also-built-into-the-core) come with the core library.
 
 ## 🗺️ At a glance
 
@@ -21,12 +21,13 @@ Fifteen purpose-built tools in two groups: eleven **light tools** in one module 
 | 🕵️ | [`scan`](#-scan) | Find secrets and personal data: where, never what | No (changes nothing) |
 | 🛠️ | [`workspace`](#-workspace) | Read, patch, search and snapshot a directory | When it can write |
 | 📦 | [`sandbox`](#-sandbox) | Run allow-listed programs on a workspace, isolated | Yes, or `unattended: true` |
+| 🎛️ | [`command`](#-command) | A command line you wrote, with typed holes the model fills | Yes (it always changes something) |
 | 🔎 | [`search`](#-search) | Web search through a provider you choose *(extra)* | No |
 | 📄 | [`documents`](#-documents) | Text of PDF, DOCX and HTML, with page numbers *(extra)* | No |
 | 🌿 | [`git`](#-git) | Status, diff, commit and an approved push *(extra)* | Yes, for a push |
 | 🧭 | [`browser`](#-browser) | Drive a real Chrome, every request checked *(extra)* | Yes, when a click can order, pay or post |
-| 🔌 | [`openapi`](#-openapi) | Every endpoint of any REST API with an OpenAPI spec, as tools | Your call: declare each operation's effect |
-| 🧩 | [`mcp`](#-mcp) | Every tool of any Model Context Protocol server | Your call: declare each tool's effect |
+| 🔌 | [`openapi`](#-openapi) | One tool per operation of any REST API with an OpenAPI spec | Your call: each tool declares its effect |
+| 🧩 | [`mcp`](#-mcp) | The tools of any Model Context Protocol server, local or remote | Your call: declare each tool's effect |
 
 ## 🧱 What every tool gives you
 
@@ -254,6 +255,21 @@ tool Tests { use: sandbox  workspace: Code  isolation: container  image: "python
 
 📖 [Reference](../src/tools/ai-agent4j-tools/docs/sandbox.md) · [Threat model](security/sandbox.md)
 
+### 🎛️ `command`
+
+**Let a model fill the blanks of a command you wrote.** The command line is yours: `run: "convert {input} -resize {percent}% {output}"`, with a type for each hole (`path in`, `path out`, `int 1..400`, `number`, `enum`, `string`, `bool`). Each value is filled inside one argument and never split or interpreted, so there is nothing to inject into, and a path cannot leave the workspace.
+
+- **Isolation is required:** `container` (with an image) or `process`, which the audit flags. There is no `none`.
+- **Typed output:** `text`, `json` (checked) or `lines`; a non-zero exit is a failure unless `ok_exit` lists it.
+- A command always counts as changing something: it is journaled, runs once on a resume, and expects `approve:`.
+- `weave connect command` drafts the template from a program's `--help` text with a model, then runs it against your own samples before writing anything.
+
+```text
+tool Resize { use: command  isolation: container  image: "dpokidov/imagemagick:7"  workspace: Photos  run: "convert {input} -resize {percent}% {output}"  param.input: "path in"  param.output: "path out"  param.percent: "int 1..400" }
+```
+
+📖 [Reference](../src/tools/ai-agent4j-tools/docs/command.md) · [Securing integrations](security/integrations.md)
+
 ### 🖥️ `shell`
 
 **A handful of safe commands.** Runs named programs, directly, with the arguments the agent gives.
@@ -292,40 +308,36 @@ When there is no purpose-built tool, connect the one that already exists.
 
 ### 🔌 `openapi`
 
-**Give an agent a whole API without writing a line of tool code.** Point it at an OpenAPI 3.x or Swagger 2.0 spec (a URL, a file or a string) and every operation becomes something the agent can call, described to the model from the spec's own summaries.
+**Give an agent exactly the operations of an API that you chose, without writing tool code.** One declared tool is one operation of an OpenAPI 3 description, with its own effect, its own approval and its own audit entry, typed from the description. The model never writes a path or a method.
 
-- **Automatic discovery:** endpoints, parameters and their descriptions are read from the spec. Path and query values are filled in and the request is made for you; large responses are truncated so they can't flood the context.
-- **Authentication:** an API key in a header or the query string, or a bearer token. The agent chooses the path, never the host.
-- **Acts as the person who runs the workflow:** `auth_value: invoker.token`, or from Java a `CredentialSource` asked for on every request, so a refreshed OAuth token is used at once. On a `401` it asks again and repeats the request once. The credential goes only over HTTPS, and is never in an error or a log.
-- **Declare what each operation does:** `effects: { listOrders: reads, createRefund: changes }`, by `operationId`, so `weave audit` knows which calls change something and which agents need `approve:`.
-- Tip: for an API with hundreds of endpoints, give the agent a trimmed spec with only the operations it needs. A smaller menu makes better choices.
+- **Written for you:** `weave connect openapi spec.json --read-only --write main.loom` lists the operations, proposes each effect (a `GET` reads, anything else changes), shows the change and writes the tools with a `pin:` that notices a changed signature.
+- **The same guarded layer as `http`:** address rules (the spec's `servers` entry is not trusted), a timeout, retries that know "never sent" from "may have been delivered", a size cap, optional paging of a read (`paginate:`) and `save_dir:` for an answer too long or not text.
+- **Acts as the person who runs the workflow:** `auth_value: invoker.token`, asked for on every request; a `401` asks again once, then fails as `credential_rejected`. Never stored, refreshed or logged by llm4j.
+- A tool with no `operation:` still exposes the whole API, as before; `weave audit` reports it (LA34) and it ends at the next major version.
 
 ```text
-tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
+tool Pet_get { use: openapi  spec: "specs/petstore.json"  operation: "getPetById"  effect: reads  pin: "sha256-0123456789abcdef" }
+tool Pet_add { use: openapi  spec: "specs/petstore.json"  operation: "addPet"  effect: changes }
 ```
 
-```java
-OpenAPITool tool = OpenAPITool.builder()
-    .name("Petstore").specLocation("specs/petstore.json").apiKeyAuth("api_key", key).build();
-```
-
-📖 [OpenAPI Tool](../src/ai-agent4j/wiki/OpenAPI-Tool.md) · [Loom guide: tools](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#tools-knowledge-and-approvals)
+📖 [Module README](../src/tools/extras/ai-agent4j-tools-openapi/README.md) · [Loom guide: openapi](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#openapi) · [Securing integrations](security/integrations.md) (the core `OpenAPITool` is deprecated: [OpenAPI Tool](../src/ai-agent4j/wiki/OpenAPI-Tool.md))
 
 ### 🧩 `mcp`
 
-**Borrow from a growing ecosystem.** A native Model Context Protocol client turns any MCP server into tools: filesystems, GitHub, SQLite, Slack and more, written in any language.
+**Borrow from a growing ecosystem, without running it with your permissions.** A native Model Context Protocol client turns any MCP server into tools: over stdio (a program), or remote over Streamable HTTP, in both protocol eras.
 
-- Declare the server once, name it on the agent. Connect several servers to the same agent.
-- Tools are discovered from the server, so a new server tool needs no change to your code.
-- Declare an effect per tool name (`effects: { ... }`) so the audit and approvals know what each can do.
-- `weave audit` can't see inside a server, so treat an MCP server like any other code you run: give it only the access it needs.
+- **Say how it is isolated:** `isolation: container` (no capabilities, a read-only file system, the workspace the only mount, no network unless `network: open`), `process` (a scrubbed environment and a captured error stream) or `none`; with no line it runs as it always did, and the audit reports it (LA31).
+- **A server's annotations are untrusted.** They are only a proposal of each tool's effect: `weave connect mcp` shows them, you approve, and the `effects:` and a `pin:` go into the block. `weave connect mcp <script> --refresh --check` notices a changed tool list.
+- **Remote servers** take `url:` and `auth: invoker.NAME` (the caller's token on every request, with `list_auth:` to list the tools at start).
+- A server's tools get `approve:` and the policy checks like any other tool; a result that says `isError` is a failure.
+- Not covered: where a server's package came from (a server started with `npx` downloads and runs one). See [Securing integrations](security/integrations.md).
 
 ```text
-mcp Files { transport: "stdio"  cmd: "npx -y @modelcontextprotocol/server-filesystem ." }
+mcp Files { transport: "stdio"  cmd: "npx"  args: ["-y", "@modelcontextprotocol/server-filesystem", "data"]  isolation: container  image: "node:22"  workspace: "data"  effects: { read_file: reads, write_file: changes } }
 agent Clerk { model: "gemini-2.5-flash"  system: "Use the file tools to answer."  mcp_servers: [Files] }
 ```
 
-📖 [MCP Integration](../src/ai-agent4j/wiki/MCP-Integration.md) · [Tutorial: MCP servers](tutorial/06-tools-and-tasks.md#mcp-servers)
+📖 [MCP Integration](../src/ai-agent4j/wiki/MCP-Integration.md) · [Loom guide: mcp](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#mcp-servers-mcp) · [Tutorial: MCP servers](tutorial/06-tools-and-tasks.md#mcp-servers)
 
 ### 🧰 Your own class
 
@@ -339,7 +351,8 @@ Anything else is a Java class implementing `Tool`, brought in with `use: class` 
 |---|---|
 | Notify a channel | 📣 `webhook` |
 | Email a customer, safely | 📧 `email` (start with `outbox:`) |
-| Talk to a SaaS API | 🌐 `http` for a few calls, 🔌 `openapi` for the whole API |
+| Talk to a SaaS API | 🌐 `http` for a few calls, 🔌 `openapi` for the operations you choose |
+| Let it run one exact command with a few typed inputs | 🎛️ `command` |
 | Use a ready-made integration someone else wrote | 🧩 `mcp` |
 | Research the web | 🔎 `search`, then 🧭 `browser` for pages that need scripts |
 | Read invoices, contracts or reports | 📄 `documents` |

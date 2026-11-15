@@ -120,7 +120,7 @@ The same scenarios built on LangGraph, LangChain and Google ADK raised no warnin
 | **Orchestrate** | [Loom](src/loom/ai-agent4j-loom/) | Journaled, resumable workflows with approvals, schedules, budgets and earned autonomy. |
 | **Verify** | [eval4j](src/eval4j/) | Agent tests in JUnit 5: no-model tests, golden datasets, LLM judges, and a local report. |
 | **Operate** | [Inspect and Fabric](src/loom/loom-inspect/) | Live view of every run: cost, context, incidents, and pause, suspend or stop. Self-hosted. |
-| **Act** | [Tools](src/tools/ai-agent4j-tools/) ([catalog](docs/TOOLS_CATALOG.md)) | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, `compute`, `verify`, `scan`, `workspace` and an isolated `sandbox`, with allow-lists and journals; optional modules add [`search`, `documents`, `git` and `browser`](src/tools/extras/). |
+| **Act** | [Tools](src/tools/ai-agent4j-tools/) ([catalog](docs/TOOLS_CATALOG.md)) | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, `compute`, `verify`, `scan`, `workspace`, an isolated `sandbox` and a typed `command`, with allow-lists and journals; optional modules add [`search`, `documents`, `git`, `browser` and `openapi`](src/tools/extras/); `weave connect` writes the declarations for an OpenAPI description or an MCP server. |
 | **Integrate** | [Spring Boot starter](src/spring/llm4j-spring-boot-starter/) | Clients, agents, tools and the Loom runtime as Spring beans. |
 | **Remember** | [Addons](src/ai-agent4j-addons/) · [Engram](src/engram/engram-core/) (not yet published) | Local embeddings, pgvector and Pinecone; Engram adds long-term memory. |
 
