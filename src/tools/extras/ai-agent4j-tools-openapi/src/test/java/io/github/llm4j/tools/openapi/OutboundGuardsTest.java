@@ -148,7 +148,9 @@ class OutboundGuardsTest {
                                 "Op",
                                 options(
                                         "spec", "api.json", "operation", "getThing",
-                                        "base_url", tls.url(""), "retries", "0"),
+                                        // the address itself, not "localhost": a name with two addresses would try the second after
+                                        // the handshake failed and report "connection refused" in its place
+                                        "base_url", "https://127.0.0.1:" + tls.server.getPort(), "retries", "0"),
                                 dir,
                                 context);
 
