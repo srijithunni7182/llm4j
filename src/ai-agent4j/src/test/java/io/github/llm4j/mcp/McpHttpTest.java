@@ -29,9 +29,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A remote MCP server over Streamable HTTP, both eras (phase 36b; guards G74, G75, G81 to G83): the
- * probe picks the era and falls back, a version mismatch is answered from the server's list, JSON and
- * event-stream replies are read, a token is asked for each time and never put in the URL, and every
- * message either side sends validates against the official schema of its revision.
+ * probe picks the era and falls back, a version mismatch is answered from the server's list, JSON
+ * and event-stream replies are read, a token is asked for each time and never put in the URL, and
+ * every message either side sends validates against the official schema of its revision.
  */
 class McpHttpTest {
 
@@ -70,17 +70,28 @@ class McpHttpTest {
         try {
             String auth = r.getHeader("Authorization");
             if (requiredToken != null && !("Bearer " + requiredToken).equals(auth))
-                return new MockResponse().setResponseCode(401).setHeader("WWW-Authenticate", "Bearer resource_metadata=\"https://auth.example.org/m\"");
+                return new MockResponse()
+                        .setResponseCode(401)
+                        .setHeader(
+                                "WWW-Authenticate",
+                                "Bearer resource_metadata=\"https://auth.example.org/m\"");
             String text = r.getBody().readUtf8();
             JsonNode req = JSON.readTree(text);
-            boolean modernRequest = req.path("params").path("_meta").has("io.modelcontextprotocol/protocolVersion");
+            boolean modernRequest =
+                    req.path("params").path("_meta").has("io.modelcontextprotocol/protocolVersion");
             problems.addAll(check(req, modernRequest));
             String method = req.path("method").asText();
-            if (legacyServer && modernRequest) return new MockResponse().setResponseCode(400).setBody("{\"error\":\"unknown\"}");
+            if (legacyServer && modernRequest)
+                return new MockResponse().setResponseCode(400).setBody("{\"error\":\"unknown\"}");
             if (!req.has("id")) return new MockResponse().setResponseCode(202);
             if (askUnsupportedOnce && modernRequest) {
                 askUnsupportedOnce = false;
-                return new MockResponse().setResponseCode(400).setBody("{\"jsonrpc\":\"2.0\",\"id\":" + req.get("id") + ",\"error\":{\"code\":-32022,\"message\":\"unsupported\",\"data\":{\"requested\":\"x\",\"supported\":[\"2026-07-28\"]}}}");
+                return new MockResponse()
+                        .setResponseCode(400)
+                        .setBody(
+                                "{\"jsonrpc\":\"2.0\",\"id\":"
+                                        + req.get("id")
+                                        + ",\"error\":{\"code\":-32022,\"message\":\"unsupported\",\"data\":{\"requested\":\"x\",\"supported\":[\"2026-07-28\"]}}}");
             }
             Map<String, Object> result = new LinkedHashMap<>();
             switch (method) {
@@ -97,7 +108,16 @@ class McpHttpTest {
                     result.put("serverInfo", Map.of("name", "fake", "version", "1"));
                 }
                 case "tools/list" -> {
-                    result.put("tools", List.of(Map.of("name", "echo", "description", "d", "inputSchema", Map.of("type", "object"))));
+                    result.put(
+                            "tools",
+                            List.of(
+                                    Map.of(
+                                            "name",
+                                            "echo",
+                                            "description",
+                                            "d",
+                                            "inputSchema",
+                                            Map.of("type", "object"))));
                     if (modernRequest) {
                         result.put("resultType", "complete");
                         result.put("cacheScope", "private");
@@ -105,7 +125,18 @@ class McpHttpTest {
                     }
                 }
                 default -> {
-                    result.put("content", List.of(Map.of("type", "text", "text", "echo: " + req.path("params").path("arguments").path("message").asText())));
+                    result.put(
+                            "content",
+                            List.of(
+                                    Map.of(
+                                            "type",
+                                            "text",
+                                            "text",
+                                            "echo: "
+                                                    + req.path("params")
+                                                            .path("arguments")
+                                                            .path("message")
+                                                            .asText())));
                     if (modernRequest) result.put("resultType", "complete");
                 }
             }
@@ -118,7 +149,13 @@ class McpHttpTest {
             MockResponse out = new MockResponse();
             if (method.equals("initialize")) out.setHeader("Mcp-Session-Id", "session-123");
             if (stream && method.equals("tools/call"))
-                return out.setHeader("Content-Type", "text/event-stream").setBody(": keep-alive\n\nevent: message\ndata: " + body.substring(0, body.indexOf(',') + 1) + "\ndata: " + body.substring(body.indexOf(',') + 1) + "\n\n");
+                return out.setHeader("Content-Type", "text/event-stream")
+                        .setBody(
+                                ": keep-alive\n\nevent: message\ndata: "
+                                        + body.substring(0, body.indexOf(',') + 1)
+                                        + "\ndata: "
+                                        + body.substring(body.indexOf(',') + 1)
+                                        + "\n\n");
             return out.setHeader("Content-Type", "application/json").setBody(body);
         } catch (IOException e) {
             return new MockResponse().setResponseCode(500);
@@ -136,18 +173,24 @@ class McpHttpTest {
     private McpHttpPoster poster() {
         OkHttpClient client = new OkHttpClient();
         return (url, headers, body) -> {
-            Request.Builder b = new Request.Builder().url(url).post(RequestBody.create(body, MediaType.get("application/json")));
+            Request.Builder b =
+                    new Request.Builder()
+                            .url(url)
+                            .post(RequestBody.create(body, MediaType.get("application/json")));
             headers.forEach(b::header);
             try (Response r = client.newCall(b.build()).execute()) {
                 Map<String, String> h = new LinkedHashMap<>();
                 r.headers().names().forEach(n -> h.put(n.toLowerCase(), r.header(n)));
-                return new McpHttpPoster.Reply(r.code(), h, r.body() == null ? new byte[0] : r.body().bytes());
+                return new McpHttpPoster.Reply(
+                        r.code(), h, r.body() == null ? new byte[0] : r.body().bytes());
             }
         };
     }
 
     private McpClient client(CredentialSource token) {
-        return new McpClient(new McpHttpTransport(server.url("/mcp").toString(), poster(), token), Duration.ofSeconds(10));
+        return new McpClient(
+                new McpHttpTransport(server.url("/mcp").toString(), poster(), token),
+                Duration.ofSeconds(10));
     }
 
     @Test
@@ -164,13 +207,16 @@ class McpHttpTest {
         assertThat(call.getHeader("MCP-Protocol-Version")).isEqualTo("2026-07-28");
         assertThat(call.getHeader("Mcp-Method")).isEqualTo("tools/call");
         assertThat(call.getHeader("Mcp-Name")).isEqualTo("echo");
-        assertThat(call.getHeader("Accept")).contains("application/json").contains("text/event-stream");
+        assertThat(call.getHeader("Accept"))
+                .contains("application/json")
+                .contains("text/event-stream");
         assertThat(call.getPath()).isEqualTo("/mcp");
         assertThat(seen).noneMatch(r -> r.getRequestUrl().toString().contains("session"));
     }
 
     @Test
-    void aLegacyServerThatRejectsTheModernRequestIsReachedByTheHandshakeWithItsSession() throws Exception {
+    void aLegacyServerThatRejectsTheModernRequestIsReachedByTheHandshakeWithItsSession()
+            throws Exception {
         legacyServer = true;
         McpClient client = client(null);
         client.initialize();
@@ -207,7 +253,9 @@ class McpHttpTest {
 
     @Test
     void theEventsOfAStreamAreItsDataLines() {
-        assertThat(McpHttpTransport.events(": hi\n\nid: 1\ndata: {\"a\":\ndata: 1}\n\ndata: {\"b\":2}\n"))
+        assertThat(
+                        McpHttpTransport.events(
+                                ": hi\n\nid: 1\ndata: {\"a\":\ndata: 1}\n\ndata: {\"b\":2}\n"))
                 .containsExactly("{\"a\":\n1}", "{\"b\":2}");
     }
 
@@ -242,10 +290,14 @@ class McpHttpTest {
         client.listTools();
 
         assertThat(tokens.asked).hasSizeGreaterThanOrEqualTo(2);
-        assertThat(seen).allSatisfy(r -> {
-            assertThat(r.getHeader("Authorization")).isEqualTo("Bearer test-token-777");
-            assertThat(r.getRequestUrl().toString()).doesNotContain("test-token-777");
-        });
+        assertThat(seen)
+                .allSatisfy(
+                        r -> {
+                            assertThat(r.getHeader("Authorization"))
+                                    .isEqualTo("Bearer test-token-777");
+                            assertThat(r.getRequestUrl().toString())
+                                    .doesNotContain("test-token-777");
+                        });
     }
 
     @Test
@@ -269,15 +321,31 @@ class McpHttpTest {
     void connectionsWithDifferentTokensNeverCrossTokens() throws Exception {
         List<String> a = Collections.synchronizedList(new ArrayList<>());
         List<String> b = Collections.synchronizedList(new ArrayList<>());
-        McpClient one = client(() -> { a.add("Bearer test-aaaa-1111"); return "Bearer test-aaaa-1111"; });
-        McpClient two = client(() -> { b.add("Bearer test-bbbb-2222"); return "Bearer test-bbbb-2222"; });
+        McpClient one =
+                client(
+                        () -> {
+                            a.add("Bearer test-aaaa-1111");
+                            return "Bearer test-aaaa-1111";
+                        });
+        McpClient two =
+                client(
+                        () -> {
+                            b.add("Bearer test-bbbb-2222");
+                            return "Bearer test-bbbb-2222";
+                        });
         one.initialize();
         two.initialize();
         one.listTools();
         two.listTools();
 
-        long oneRequests = seen.stream().filter(r -> "Bearer test-aaaa-1111".equals(r.getHeader("Authorization"))).count();
-        long twoRequests = seen.stream().filter(r -> "Bearer test-bbbb-2222".equals(r.getHeader("Authorization"))).count();
+        long oneRequests =
+                seen.stream()
+                        .filter(r -> "Bearer test-aaaa-1111".equals(r.getHeader("Authorization")))
+                        .count();
+        long twoRequests =
+                seen.stream()
+                        .filter(r -> "Bearer test-bbbb-2222".equals(r.getHeader("Authorization")))
+                        .count();
         assertThat(oneRequests).isEqualTo(a.size());
         assertThat(twoRequests).isEqualTo(b.size());
         assertThat(oneRequests + twoRequests).isEqualTo(seen.size());
@@ -293,23 +361,33 @@ class McpHttpTest {
                     @Override
                     public MockResponse dispatch(RecordedRequest r) {
                         String id = r.getBody().readUtf8().replaceAll(".*\"id\":(\\d+).*", "$1");
-                        return new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"resultType\":\"input_required\",\"content\":[]}}");
+                        return new MockResponse()
+                                .setHeader("Content-Type", "application/json")
+                                .setBody(
+                                        "{\"jsonrpc\":\"2.0\",\"id\":"
+                                                + id
+                                                + ",\"result\":{\"resultType\":\"input_required\",\"content\":[]}}");
                     }
                 });
 
-        assertThatThrownBy(() -> client.callTool("echo", Map.of())).hasMessageContaining("input_required").hasMessageContaining("does not support");
+        assertThatThrownBy(() -> client.callTool("echo", Map.of()))
+                .hasMessageContaining("input_required")
+                .hasMessageContaining("does not support");
     }
 
     @Test
     void anHttpErrorThatIsNotAuthIsReportedWithItsStatus() throws Exception {
-        server.setDispatcher(new Dispatcher() {
-            @Override
-            public MockResponse dispatch(RecordedRequest r) {
-                return new MockResponse().setResponseCode(500).setBody("boom");
-            }
-        });
+        server.setDispatcher(
+                new Dispatcher() {
+                    @Override
+                    public MockResponse dispatch(RecordedRequest r) {
+                        return new MockResponse().setResponseCode(500).setBody("boom");
+                    }
+                });
         McpClient client = client(null);
 
-        assertThatThrownBy(client::initialize).isInstanceOf(McpHttpException.class).hasMessageContaining("500");
+        assertThatThrownBy(client::initialize)
+                .isInstanceOf(McpHttpException.class)
+                .hasMessageContaining("500");
     }
 }

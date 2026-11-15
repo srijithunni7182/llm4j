@@ -14,10 +14,11 @@ import java.util.function.Consumer;
 /**
  * A remote MCP server over Streamable HTTP (phase 36b, D6): each message is one POST to a single
  * endpoint, answered by one JSON object or by a response stream whose events are the messages.
- * Request metadata (the protocol version, the method, a tool's name) is mirrored into headers as the
- * specification says. The bearer token, when there is one, is asked for from a {@link CredentialSource}
- * on every request and never kept: a 401 asks again once, and a second refusal, or a 403 for a missing
- * scope, is a {@link McpCredentialRejectedException}. It is never put in the URL.
+ * Request metadata (the protocol version, the method, a tool's name) is mirrored into headers as
+ * the specification says. The bearer token, when there is one, is asked for from a {@link
+ * CredentialSource} on every request and never kept: a 401 asks again once, and a second refusal,
+ * or a 403 for a missing scope, is a {@link McpCredentialRejectedException}. It is never put in the
+ * URL.
  *
  * <p>A transport belongs to one run: a token handed over for one person is never sent on behalf of
  * another, so a host builds one transport per run and never shares it.
@@ -78,7 +79,8 @@ public final class McpHttpTransport implements McpTransport {
                             + "); get a new or wider one and resume. "
                             + challenge(reply));
         if (reply.status() / 100 != 2)
-            throw new McpHttpException(reply.status(), new String(reply.body(), StandardCharsets.UTF_8));
+            throw new McpHttpException(
+                    reply.status(), new String(reply.body(), StandardCharsets.UTF_8));
         String session = reply.header("mcp-session-id");
         if (session != null) sessionId = session;
         if (reply.status() == 202 || reply.body().length == 0) return;
@@ -94,7 +96,8 @@ public final class McpHttpTransport implements McpTransport {
         Map<String, String> h = new LinkedHashMap<>();
         h.put("Content-Type", "application/json");
         h.put("Accept", "application/json, text/event-stream");
-        String version = sent.path("params").path("_meta").path(VERSION_KEY).asText(protocolVersion);
+        String version =
+                sent.path("params").path("_meta").path(VERSION_KEY).asText(protocolVersion);
         if (version != null) h.put("MCP-Protocol-Version", version);
         if (sent.has("method")) {
             String method = sent.get("method").asText();
@@ -116,10 +119,16 @@ public final class McpHttpTransport implements McpTransport {
                 value = token.get();
             } catch (RuntimeException e) {
                 // the host's own words may hold anything: say only what failed
-                throw new McpException("the credential could not be obtained (" + e.getClass().getSimpleName() + ")");
+                throw new McpException(
+                        "the credential could not be obtained ("
+                                + e.getClass().getSimpleName()
+                                + ")");
             }
-            if (value == null || value.isBlank()) throw new McpException("there is no credential for this MCP server");
-            withAuth.put("Authorization", value.regionMatches(true, 0, "Bearer ", 0, 7) ? value : "Bearer " + value);
+            if (value == null || value.isBlank())
+                throw new McpException("there is no credential for this MCP server");
+            withAuth.put(
+                    "Authorization",
+                    value.regionMatches(true, 0, "Bearer ", 0, 7) ? value : "Bearer " + value);
         }
         return poster.post(url, withAuth, body);
     }
@@ -127,7 +136,9 @@ public final class McpHttpTransport implements McpTransport {
     private static boolean refused(McpHttpPoster.Reply reply) {
         if (reply.status() == 401) return true;
         String c = reply.header("www-authenticate");
-        return reply.status() == 403 && c != null && c.toLowerCase(Locale.ROOT).contains("insufficient_scope");
+        return reply.status() == 403
+                && c != null
+                && c.toLowerCase(Locale.ROOT).contains("insufficient_scope");
     }
 
     private String challenge(McpHttpPoster.Reply reply) {
@@ -139,16 +150,23 @@ public final class McpHttpTransport implements McpTransport {
             if (secret != null && secret.length() >= 4) {
                 safe = safe.replace(secret, "***");
                 int space = secret.indexOf(' ');
-                if (space > 0 && secret.length() - space - 1 >= 4) safe = safe.replace(secret.substring(space + 1), "***");
+                if (space > 0 && secret.length() - space - 1 >= 4)
+                    safe = safe.replace(secret.substring(space + 1), "***");
             }
         } catch (RuntimeException ignored) {
             // nothing to scrub with
         }
-        return "The server's challenge: " + (safe.length() > CHALLENGE_CHARS ? safe.substring(0, CHALLENGE_CHARS) + "…" : safe);
+        return "The server's challenge: "
+                + (safe.length() > CHALLENGE_CHARS
+                        ? safe.substring(0, CHALLENGE_CHARS) + "…"
+                        : safe);
     }
 
     private void deliver(McpHttpPoster.Reply reply) throws IOException {
-        String type = reply.header("content-type") == null ? "" : reply.header("content-type").toLowerCase(Locale.ROOT);
+        String type =
+                reply.header("content-type") == null
+                        ? ""
+                        : reply.header("content-type").toLowerCase(Locale.ROOT);
         String text = new String(reply.body(), StandardCharsets.UTF_8);
         if (type.startsWith("text/event-stream")) {
             for (String data : events(text)) accept(data);
@@ -157,7 +175,10 @@ public final class McpHttpTransport implements McpTransport {
         }
     }
 
-    /** The {@code data} of each event of a stream: comments, keep-alives and other fields are skipped. */
+    /**
+     * The {@code data} of each event of a stream: comments, keep-alives and other fields are
+     * skipped.
+     */
     static java.util.List<String> events(String stream) {
         java.util.List<String> out = new java.util.ArrayList<>();
         StringBuilder data = new StringBuilder();

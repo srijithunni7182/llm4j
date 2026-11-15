@@ -5,8 +5,8 @@ import java.util.Map;
 
 /**
  * How a Streamable HTTP transport sends one POST. The core has no address rules of its own, so the
- * host supplies this (Loom's runs every request through {@code NetPolicy} and the shared HTTP layer);
- * a transport never opens a connection itself.
+ * host supplies this (Loom's runs every request through {@code NetPolicy} and the shared HTTP
+ * layer); a transport never opens a connection itself.
  */
 @FunctionalInterface
 public interface McpHttpPoster {
