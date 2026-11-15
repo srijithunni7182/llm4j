@@ -102,4 +102,26 @@ class ContainerSandboxArgumentsTest {
         assertThat(missing.enforces()).containsAll(java.util.EnumSet.allOf(SandboxBackend.Limit.class));
         assertThat(missing.canServe()).isTrue();
     }
+
+    @Test
+    void aServerRunsWithTheSameLimitsKeepsItsInputOpenAndNeverCarriesAValue() {
+        SandboxRequest server =
+                new SandboxRequest("mcp-files", List.of("--root", "/workspace"), workspace, "", List.of(), null, Map.of("API_TOKEN", "test-key-123"), limits(), SandboxNetwork.none(), "llm4j-mcp-files");
+        List<String> command = backend.serverCommand(server);
+
+        assertThat(command.subList(0, 2)).containsExactly("docker", "run");
+        assertThat(command).contains("--interactive", "--read-only", "--rm").doesNotContain("--privileged", "--detach");
+        assertThat(after(command, "--network")).isEqualTo("none");
+        assertThat(after(command, "--cap-drop")).isEqualTo("ALL");
+        assertThat(command).noneMatch(a -> a.contains("test-key-123")).contains("API_TOKEN");
+        assertThat(command.subList(command.indexOf("python:3.12-slim"), command.size())).containsExactly("python:3.12-slim", "mcp-files", "--root", "/workspace");
+    }
+
+    @Test
+    void aServerNetworkIsNoneOrOpenAndNeverTheProxyOne() {
+        SandboxRequest open = new SandboxRequest("p", List.of(), workspace, "", List.of(), null, Map.of(), limits(), new SandboxNetwork(SandboxNetwork.Mode.OPEN, null), "n");
+        assertThat(after(backend.serverCommand(open), "--network")).isEqualTo("bridge");
+        SandboxRequest allow = new SandboxRequest("p", List.of(), workspace, "", List.of(), null, Map.of(), limits(), new SandboxNetwork(SandboxNetwork.Mode.ALLOW, EgressProxy.Hosts.parse("example.org")), "n");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> backend.serverCommand(allow)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("none or open");
+    }
 }

@@ -48,6 +48,17 @@ class SandboxAuditTest {
     }
 
     @Test
+    void la31FiresForACommandAtProcessIsolationNamingItsProgramAndNotForAContainer() {
+        String box = "tool Img { use: command  workspace: Data  isolation: container  image: \"x@sha256:00\"  run: \"convert {in}\"  param.in: \"path in\" }";
+        assertThat(rule("LA31", box)).isEmpty();
+        var found = rule("LA31", "tool Img { use: command  workspace: Data  isolation: process  network: open  run: \"python3 {in}\"  param.in: \"path in\" }");
+        assertThat(found).singleElement().satisfies(f -> {
+            assertThat(f.risk()).contains("Img").contains("python3 can run any command");
+            assertThat(f.severity()).isEqualTo(Severity.MEDIUM);
+        });
+    }
+
+    @Test
     void la32FiresForAnHttpToolThatReachesAServedProgramOnly() {
         assertThat(rule("LA32", CONTAINER + "\ntool Api { use: http  base_url: \"https://api.example.com\" }")).isEmpty();
         var found = rule("LA32", CONTAINER + "\ntool App { use: http  reaches: Py }");

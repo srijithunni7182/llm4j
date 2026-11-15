@@ -163,12 +163,23 @@ class McpBlockRuntimeTest {
     }
 
     @Test
-    void anExplicitLevelOtherThanNoneOrProcessIsRefusedForNow() {
+    void anUnknownLevelIsRefusedAndAContainerNeedsAnImageAndAHonestNetwork() {
         Harness h = new Harness(dir);
+        assertThatThrownBy(() -> h.ready(script("isolation: vm", "")))
+                .isInstanceOf(LoomLoadException.class)
+                .hasMessageContaining("none, process or container");
         assertThatThrownBy(() -> h.ready(script("isolation: container", "")))
                 .isInstanceOf(LoomLoadException.class)
-                .hasMessageContaining("isolation")
-                .hasMessageContaining("none or process");
+                .hasMessageContaining("needs image");
+        assertThatThrownBy(() -> h.ready(script("isolation: container image: \"-v\"", "")))
+                .isInstanceOf(LoomLoadException.class)
+                .hasMessageContaining("one image name");
+        assertThatThrownBy(() -> h.ready(script("isolation: container image: \"x@sha256:00\" network: allow", "")))
+                .isInstanceOf(LoomLoadException.class)
+                .hasMessageContaining("none or open");
+        assertThatThrownBy(() -> h.ready(script("isolation: process image: \"x\"", "")))
+                .isInstanceOf(LoomLoadException.class)
+                .hasMessageContaining("go with isolation: container");
     }
 
     @Test

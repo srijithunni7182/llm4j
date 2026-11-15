@@ -22,7 +22,7 @@ final class SandboxAudit {
 
     static void findings(LoomScript script, List<Finding> findings) {
         for (ToolDef t : script.getTools()) {
-            if (t.getKind().equals("sandbox")) sandbox(t, findings);
+            if (t.getKind().equals("sandbox") || t.getKind().equals("command")) sandbox(t, findings);
             else if (t.getKind().equals("http") && t.getOptions().containsKey("reaches")) reaches(t, findings);
         }
     }
@@ -83,8 +83,15 @@ final class SandboxAudit {
     }
 
     /** The allowed programs, saying when one of them runs any command. */
+    /** The program a {@code command} template starts: its first word. */
+    private static String commandProgram(String run) {
+        if (run == null || run.isBlank()) return null;
+        String first = run.strip().split("\\s+")[0];
+        return first.startsWith("\"") ? first.substring(1) : first;
+    }
+
     private static String programs(ToolDef t) {
-        String allow = option(t, "allow");
+        String allow = t.getKind().equals("command") ? commandProgram(option(t, "run")) : option(t, "allow");
         if (allow == null) return "its programs";
         List<String> any = new ArrayList<>();
         for (String p : allow.split(",")) if (INTERPRETERS.contains(p.strip())) any.add(p.strip());

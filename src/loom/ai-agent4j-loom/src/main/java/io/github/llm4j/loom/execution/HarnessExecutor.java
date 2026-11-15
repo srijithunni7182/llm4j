@@ -2682,6 +2682,7 @@ public class HarnessExecutor implements LoomEngine {
         }
 
         // ── 1. Boot MCP servers ───────────────────────────────────────────────
+        mcpServers.baseDir(baseDir);
         mcpServers.boot(script.getMcpServers(), credentials, name -> new InvokerSource(name, this::invoker));
 
         // ── 1b. Budgets ───────────────────────────────────────────────────────

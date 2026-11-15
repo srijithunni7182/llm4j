@@ -144,6 +144,33 @@ public final class ContainerSandbox implements SandboxBackend {
         return a;
     }
 
+    /**
+     * The full command line that runs a long-lived, stdin-driven program (an MCP server) in this
+     * container, with the same limits as a one-shot run: no capabilities, a read-only file system, the
+     * workspace the only mount, no network unless {@code open}. The program's environment values travel
+     * in the caller's process environment, never on this command line.
+     *
+     * @param request what to run; {@code network} must be {@code none} or {@code open}
+     * @return the runtime and its arguments
+     * @throws IllegalArgumentException for a network that needs the egress proxy
+     */
+    public List<String> serverCommand(SandboxRequest request) {
+        String network =
+                switch (request.network().mode()) {
+                    case NONE -> "none";
+                    case OPEN -> "bridge";
+                    case ALLOW -> throw new IllegalArgumentException("network: allow is not available for a server; use none or open");
+                };
+        List<String> command = new ArrayList<>();
+        command.add(runtime);
+        command.addAll(arguments(
+                        new SandboxRequest(request.program(), request.args(), request.workspace(), request.cwd(), request.protect(), "", request.env(), request.limits(), request.network(), request.name()),
+                        network,
+                        null,
+                        null));
+        return command;
+    }
+
     /** The workspace owner's user and group ids, so files the program writes stay the owner's. */
     static String owner(Path workspace) {
         try {

@@ -46,10 +46,10 @@ class McpChecksTest {
     }
 
     @Test
-    void aLevelOtherThanNoneOrProcessIsAnError() {
-        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: container }", Map.of()), ScriptValidator.Severity.ERROR))
+    void aLevelThatIsNotOneOfThreeIsAnError() {
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: vm }", Map.of()), ScriptValidator.Severity.ERROR))
                 .singleElement()
-                .satisfies(m -> assertThat(m).contains("container").contains("none or process"));
+                .satisfies(m -> assertThat(m).contains("vm").contains("none, process or container"));
     }
 
     @Test

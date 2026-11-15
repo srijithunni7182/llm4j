@@ -73,6 +73,9 @@ public class McpServerDef implements Node {
     private String isolation;
     private java.time.Duration timeout;
     private String reach;
+    private String image;
+    private String network;
+    private String workspace;
     private String pin;
     private String url;
     private ToolDef.OptionValue auth;
@@ -136,6 +139,33 @@ public class McpServerDef implements Node {
 
     public void setReach(String reach) {
         this.reach = reach;
+    }
+
+    /** The container image of {@code isolation: container}, or null. */
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
+    }
+
+    /** {@code none} or {@code open}: the network of a container, or null (none). */
+    public String getNetwork() {
+        return network;
+    }
+
+    public void setNetwork(String network) {
+        this.network = network;
+    }
+
+    /** The directory a container sees as its workspace, relative to the script, or null. */
+    public String getWorkspace() {
+        return workspace;
+    }
+
+    public void setWorkspace(String workspace) {
+        this.workspace = workspace;
     }
 
     /** The address of a remote server ({@code transport: "http"}), or null for a program. */

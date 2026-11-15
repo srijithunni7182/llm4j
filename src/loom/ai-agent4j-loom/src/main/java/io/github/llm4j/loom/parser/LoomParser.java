@@ -2966,7 +2966,7 @@ public class LoomParser {
 
     private static final java.util.Set<String> MCP_OPTIONS =
             java.util.Set.of(
-                    "args", "env", "env_inherit", "isolation", "timeout", "reach", "pin", "url", "auth", "list_auth");
+                    "args", "env", "env_inherit", "isolation", "timeout", "reach", "pin", "url", "auth", "list_auth", "image", "network", "workspace");
 
     /** One of the options of an {@code mcp} block after {@code transport}, {@code cmd} and {@code effects}. */
     private void parseMcpOption(McpServerDef mcp) {
@@ -2992,13 +2992,16 @@ public class LoomParser {
                 stringList(key, mcp::addEnvInherit);
             }
             case "env" -> parseMcpEnv(mcp, key);
-            case "isolation" -> mcp.setIsolation(word("Expect none or process after isolation:").getValue());
+            case "isolation" -> mcp.setIsolation(word("Expect none, process or container after isolation:").getValue());
             case "timeout" -> {
                 Token number = consume(TokenType.NUMBER_LITERAL, "Expect a time after timeout:, e.g. 20s");
                 mcp.setTimeout(duration(number, number.getValue() + unitSuffix(number)));
             }
             case "reach" -> mcp.setReach(word("Expect what the server reaches after reach:").getValue());
             case "url" -> mcp.setUrl(consume(TokenType.STRING_LITERAL, "Expect a quoted address after url:").getValue());
+            case "image" -> mcp.setImage(consume(TokenType.STRING_LITERAL, "Expect a quoted image name after image:").getValue());
+            case "workspace" -> mcp.setWorkspace(consume(TokenType.STRING_LITERAL, "Expect a quoted directory after workspace:").getValue());
+            case "network" -> mcp.setNetwork(word("Expect none or open after network:").getValue());
             case "auth" -> mcp.setAuth(optionValue());
             case "list_auth" -> mcp.setListAuth(optionValue());
             default -> mcp.setPin(consume(TokenType.STRING_LITERAL, "Expect a quoted pin after pin:").getValue());

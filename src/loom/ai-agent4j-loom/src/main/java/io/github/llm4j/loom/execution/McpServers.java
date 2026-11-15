@@ -45,6 +45,12 @@ final class McpServers implements AutoCloseable {
 
     private final Map<String, Booted> servers = new LinkedHashMap<>();
     private Function<String, io.github.llm4j.secret.CredentialSource> invoker = name -> null;
+    private java.nio.file.Path baseDir = java.nio.file.Path.of("").toAbsolutePath();
+
+    /** The directory a container's {@code workspace:} is relative to: the script's. */
+    void baseDir(java.nio.file.Path baseDir) {
+        this.baseDir = baseDir;
+    }
 
     /**
      * Starts every declared server and lists its tools.
@@ -97,7 +103,7 @@ final class McpServers implements AutoCloseable {
         if (def.isRemote()) return startRemote(def, credentials);
         Map<String, String> env = McpChecks.environmentOf(def, credentials);
         StdioMcpTransport[] latest = new StdioMcpTransport[1];
-        Supplier<io.github.llm4j.mcp.McpTransport> factory = transportFactory(def, env, latest);
+        Supplier<io.github.llm4j.mcp.McpTransport> factory = transportFactory(baseDir, def, env, latest);
         Duration timeout = def.getTimeout() == null ? McpClient.DEFAULT_TIMEOUT : def.getTimeout();
         McpClient client = McpClient.restarting(factory, MAX_RESTARTS, timeout);
         try {
@@ -157,11 +163,13 @@ final class McpServers implements AutoCloseable {
 
     /** What starts the program: the legacy way, or with a scrubbed environment. */
     private static Supplier<io.github.llm4j.mcp.McpTransport> transportFactory(
+            java.nio.file.Path baseDir,
             McpServerDef def, Map<String, String> env, StdioMcpTransport[] latest) {
         List<String> command = new ArrayList<>();
         if (def.getIsolation() == null) command.addAll(List.of(def.getCmd().split("\\s+")));
         else command.add(def.getCmd().strip());
         command.addAll(def.getArgs());
+        if ("container".equals(def.getIsolation())) return containerFactory(baseDir, def, env, command, latest);
         if (def.getIsolation() == null)
             return () -> latest[0] = new StdioMcpTransport(command, env.isEmpty() ? null : env);
         List<String> secrets = new ArrayList<>();
@@ -176,6 +184,39 @@ final class McpServers implements AutoCloseable {
                                 env,
                                 Set.copyOf(def.getEnvInherit()),
                                 text -> mask(text, secrets));
+    }
+
+    /** Environment a container runtime itself needs to reach its daemon; none of it enters the container. */
+    private static final Set<String> RUNTIME_ENV = Set.of("PATH", "HOME", "DOCKER_HOST", "DOCKER_CONFIG", "XDG_RUNTIME_DIR");
+
+    /**
+     * The server runs inside the container the sandbox builds (no capabilities, read-only file
+     * system, the workspace the only mount, no network unless {@code network: open}); a secret is
+     * named for the runtime, which reads its value from this process's environment.
+     */
+    private static Supplier<io.github.llm4j.mcp.McpTransport> containerFactory(
+            java.nio.file.Path baseDir,
+            McpServerDef def, Map<String, String> env, List<String> command, StdioMcpTransport[] latest) {
+        java.nio.file.Path workspace = baseDir.resolve(def.getWorkspace() == null ? "." : def.getWorkspace()).normalize();
+        if (!workspace.startsWith(baseDir.normalize()))
+            throw new IllegalArgumentException("workspace: " + def.getWorkspace() + " is outside the script's directory");
+        var network =
+                new io.github.llm4j.tools.SandboxRequest.SandboxNetwork(
+                        "open".equals(def.getNetwork())
+                                ? io.github.llm4j.tools.SandboxRequest.SandboxNetwork.Mode.OPEN
+                                : io.github.llm4j.tools.SandboxRequest.SandboxNetwork.Mode.NONE,
+                        null);
+        var limits = new io.github.llm4j.tools.SandboxRequest.SandboxLimits(Duration.ofHours(1), 1, null, null, null);
+        var request =
+                new io.github.llm4j.tools.SandboxRequest(
+                        command.get(0), command.subList(1, command.size()), workspace, "", List.of(), "", env, limits, network, "llm4j-mcp-" + def.getName());
+        List<String> docker =
+                new io.github.llm4j.tools.ContainerSandbox("docker", def.getImage(), false).serverCommand(request);
+        List<String> secrets = new ArrayList<>();
+        env.forEach((name, value) -> {
+            if (value != null && value.length() >= MIN_SECRET_CHARS) secrets.add(value);
+        });
+        return () -> latest[0] = StdioMcpTransport.scrubbed(docker, env, RUNTIME_ENV, text -> mask(text, secrets));
     }
 
     private static String mask(String text, List<String> secrets) {

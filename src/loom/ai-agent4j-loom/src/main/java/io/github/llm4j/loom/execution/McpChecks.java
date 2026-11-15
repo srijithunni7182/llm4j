@@ -12,8 +12,8 @@ import java.util.regex.Pattern;
  */
 final class McpChecks {
 
-    /** The levels an MCP server can run at today; {@code container} comes with the sandbox. */
-    static final java.util.Set<String> LEVELS = java.util.Set.of("none", "process");
+    /** The levels an MCP server can run at. */
+    static final java.util.Set<String> LEVELS = java.util.Set.of("none", "process", "container");
 
     private static final Pattern VARIABLE = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final Pattern CREDENTIAL_NAME =
@@ -60,7 +60,9 @@ final class McpChecks {
                     construct,
                     "isolation: "
                             + level
-                            + " is not available for an mcp server yet; use none or process");
+                            + " is not an isolation level; use none, process or container");
+        } else if (level.equals("container")) {
+            checkContainer(c, m, construct);
         } else if (m.getCmd().strip().matches(".*\\s.*")) {
             c.error(
                     m.getLine(),
@@ -68,7 +70,20 @@ final class McpChecks {
                     "with isolation: cmd is one program; put its arguments in args: [\"..\"], each one"
                             + " argument");
         }
+        if (!"container".equals(level) && (m.getImage() != null || m.getNetwork() != null || m.getWorkspace() != null))
+            c.error(m.getLine(), construct, "image:, network: and workspace: go with isolation: container");
         m.getEnvValues().forEach((name, value) -> checkVariable(c, m, name, value));
+    }
+
+    private static void checkContainer(ScriptValidator.Checker c, McpServerDef m, String construct) {
+        if (m.getImage() == null || m.getImage().isBlank())
+            c.error(m.getLine(), construct, "isolation: container needs image: \"<image>\" (a pinned name, such as one ending in a digest)");
+        else if (m.getImage().startsWith("-") || m.getImage().matches(".*\\s.*"))
+            c.error(m.getLine(), construct, "image: is one image name, not a flag or a command line");
+        if (m.getNetwork() != null && !java.util.Set.of("none", "open").contains(m.getNetwork()))
+            c.error(m.getLine(), construct, "network: " + m.getNetwork() + " is not available for a server; use none or open");
+        if (java.util.Set.of("reads", "writes").contains(String.valueOf(m.getReach())) && m.getWorkspace() == null)
+            c.warn(m.getLine(), construct, "reach: " + m.getReach() + " in a container sees only the workspace: add workspace: \"<dir>\"");
     }
 
     /** A remote server is reached at an address, with a token that is never written in the script. */

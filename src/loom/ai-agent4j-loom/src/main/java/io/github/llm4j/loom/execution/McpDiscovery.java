@@ -57,7 +57,13 @@ public final class McpDiscovery {
      * @throws LoomLoadException when the server cannot start or cannot list its tools
      */
     public static Result discover(McpServerDef def, Function<String, String> credentials) {
+        return discover(def, credentials, java.nio.file.Path.of("").toAbsolutePath());
+    }
+
+    /** As above, with the directory a container's {@code workspace:} is relative to (the script's). */
+    public static Result discover(McpServerDef def, Function<String, String> credentials, java.nio.file.Path baseDir) {
         McpServers servers = new McpServers();
+        servers.baseDir(baseDir);
         try {
             servers.boot(List.of(def), credentials);
             List<Map<String, Object>> listed = servers.listed(def.getName());
