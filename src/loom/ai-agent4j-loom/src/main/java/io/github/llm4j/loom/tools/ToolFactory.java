@@ -148,7 +148,6 @@ public final class ToolFactory {
                         Set.of(),
                         Set.of("api_key"),
                         (n, o, dir) -> new WebSearchTool(o.get("api_key"), o.get("cx"))));
-        register.accept(new OpenApiKind());
         register.accept(
                 simple(
                         "calculator",
@@ -205,6 +204,7 @@ public final class ToolFactory {
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.ScanKind()));
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.WorkspaceKind()));
         register.accept(new GenericKindAdapter(new io.github.llm4j.tools.SandboxKind()));
+        register.accept(new GenericKindAdapter(new io.github.llm4j.tools.CommandKind()));
         register.accept(new GraphKind());
         register.accept(
                 simple(
@@ -240,7 +240,8 @@ public final class ToolFactory {
                     "search", "ai-agent4j-tools-search",
                     "documents", "ai-agent4j-tools-documents",
                     "git", "ai-agent4j-tools-git",
-                    "browser", "ai-agent4j-tools-browser");
+                    "browser", "ai-agent4j-tools-browser",
+                    "openapi", "ai-agent4j-tools-openapi");
 
     private static final ToolProfile SEARCH_RESULTS =
             ToolProfile.of(true, false, false, false, "web search results");
@@ -383,13 +384,23 @@ public final class ToolFactory {
         return java.util.Collections.unmodifiableMap(sources);
     }
 
-    /** The kinds that came from jars or folders on the class path, with where each came from. */
+    /**
+     * The kinds weave brings in a module of its own and loads with {@code ServiceLoader} like any
+     * jar's (phase 36): they are part of weave, so they are not reported as kinds from jars.
+     */
+    static final Set<String> BUNDLED = Set.of("openapi");
+
+    /**
+     * The kinds that came from jars or folders on the class path, with where each came from. The
+     * kinds weave bundles ({@link #BUNDLED}) are not among them.
+     */
     public Map<String, String> jarKinds() {
         Map<String, String> out = new java.util.TreeMap<>();
         sources.forEach(
                 (name, source) -> {
-                    if (!source.equals(BUILT_IN) && !source.startsWith("the host ("))
-                        out.put(name, source);
+                    if (!source.equals(BUILT_IN)
+                            && !source.startsWith("the host (")
+                            && !BUNDLED.contains(name)) out.put(name, source);
                 });
         return out;
     }
@@ -722,6 +733,23 @@ public final class ToolFactory {
                                 lateBound.put(key, invoker.apply(value.value()));
                         });
         lateBound.keySet().forEach(options::remove);
+        // the effects of a tool that holds several operations, for a kind that takes them
+        if (kind.optional().contains("effects")
+                && (!def.getOperationEffects().isEmpty() || def.getEffect().isPresent())) {
+            List<String> pairs = new java.util.ArrayList<>();
+            // the tool's own effect: is what an operation not listed falls back to
+            def.getEffect()
+                    .ifPresent(
+                            e -> pairs.add("*=" + e.name().toLowerCase(java.util.Locale.ROOT)));
+            def.getOperationEffects()
+                    .forEach(
+                            (operation, effect) ->
+                                    pairs.add(
+                                            operation
+                                                    + "="
+                                                    + effect.name().toLowerCase(java.util.Locale.ROOT)));
+            options.put("effects", String.join(",", pairs));
+        }
         String description = options.remove(DESCRIPTION);
         options.remove(REPLAY);
         options.remove(REACH);

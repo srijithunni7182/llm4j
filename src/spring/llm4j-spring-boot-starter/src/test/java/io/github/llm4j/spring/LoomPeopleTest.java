@@ -59,7 +59,7 @@ class LoomPeopleTest {
             Files.writeString(
                     dir.resolve("support.loom"),
                     """
-                    tool Refunds { use: openapi  spec: "refunds.json"  auth_header: "Authorization"  auth_value: invoker.token }
+                    tool Refunds { use: openapi  spec: "refunds.json"  allow_http: true  allow_private: true  auth_header: "Authorization"  auth_value: invoker.token }
                     agent Scout { model: "m"  system: "You are Scout."  tools: [Refunds] }
                     workflow Main() { delegate "refunds?" to Scout -> x }
                     """);

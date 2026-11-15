@@ -34,6 +34,7 @@ The kit's own runner is still a stub, so the Java runtime runs each scenario in 
 | [Extraction](#extraction-steps-extract) | `extract` | `extract_fields` | `ExtractCtkConformanceTest` |
 | [Bounded fan-out](#bounded-fan-out-for-each--max-n) | `for each … max N` | `for_each_max` | `ForEachMaxCtkConformanceTest` |
 | [Tool kinds](#tools-that-compute-check-edit-and-run-phase-35) | `compute`, `verify`, `scan`, `workspace`, `sandbox` | `tool_compute`, `tool_verify`, `tool_scan`, `tool_workspace`, `tool_sandbox` | `ToolKindsCtkConformanceTest` |
+| [Integrations](#integrations-phase-36) | `command`, a rejected credential, declarations of `openapi`, `http`, `command` and `mcp` | `integration_command`, `integration_credential_rejected`, `integration_declarations` | `IntegrationCtkConformanceTest` |
 | [Remote agents](#remote-agents-a2a) | `delegate … to Remote`, `ask Channel` | `a2a_call` | `A2ACtkConformanceTest` |
 | [Exposed workflow](#remote-agents-a2a) | `expose` | `a2a_expose` | `A2AExposeCtkConformanceTest` |
 | [Providers](#provider-declarations) | `provider` | `provider_declarations` | `ProviderDeclarationsCtkTest` |
@@ -127,6 +128,14 @@ Anything that varies from run to run (model text, timing) is kept out of the tra
 | `sandbox` | A program run by name with its input, at the isolation it reports |
 
 The sandbox scenario uses `isolation: process`, so the kit runs without a container runtime. Java test: `ToolKindsCtkConformanceTest`.
+
+### Integrations (phase 36)
+
+Three scenarios, run with the real kinds and no network:
+
+- **`integration_command`**: a typed `command` fills `{text}` inside one argument. The input holds a space, a `;`, a `$( )` and a `--flag`, and the program prints exactly what it was given: nothing re-reads a value, and nothing is a shell. It uses `isolation: process` (with `network: open`) so no container runtime is needed; a runtime may run it at a stronger level.
+- **`integration_credential_rejected`**: a tool whose result is `Error: credential_rejected: ...` fails the `use` step with the category `credential_rejected`, and `on_failure` tells it apart through `_error_category` (a failed `use` emits no `use` event, so the trace has the notes only).
+- **`integration_declarations`**: every shape of an integration a runtime must accept loads and passes the checks, with no request made, no server started and no file read: one `openapi` tool per operation (with `effect:`, `on_unknown:`, `pin:` and `paginate:`), an `http` tool with `auth_value: invoker.NAME`, a `command`, an `mcp` block in a container with `effects:` and a `pin:`, and a remote `mcp` block.
 
 ### Remote agents (A2A)
 

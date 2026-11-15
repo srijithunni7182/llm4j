@@ -73,6 +73,8 @@ public abstract class GenericTool implements Effectful {
             outcome = Outcome.ok(run(safeArgs, idempotencyKey));
         } catch (UnknownOutcomeException e) {
             outcome = Outcome.unknown(e.getMessage());
+        } catch (CredentialRejected e) {
+            outcome = Outcome.credentialRejected(e.getMessage());
         } catch (ToolRefusal e) {
             outcome = Outcome.failed(e.getMessage());
         } catch (Exception e) {

@@ -161,6 +161,24 @@ class ServeEngineTest {
         assertThat(r.path("result").toString()).contains("Nobody");
     }
 
+    @Test
+    void theNewIntegrationFindingsReachTheEditorThroughCheck() throws Exception {
+        // phase 36, R9: a changed pin (LA35) and a command with no isolation are findings of weave
+        // check, so the editor shows them with no change of its own
+        Files.copy(
+                Path.of("../../tools/extras/ai-agent4j-tools-openapi/src/test/resources/fixtures/petstore3/openapi.json"),
+                dir.resolve("petstore.json"));
+        Files.writeString(
+                main,
+                "tool Pet { use: openapi  spec: \"petstore.json\"  operation: \"getPetById\"  effect: reads  pin: \"sha256-0000000000000000\" }\n"
+                        + "tool Img { use: command  run: \"convert {in}\"  param.in: \"path in\"  workspace: Pet }\n"
+                        + "workflow Main() { note \"x\" }\n");
+
+        String result = client.request("loom/check", file(main)).path("result").path("result").toString();
+
+        assertThat(result).contains("LA35").contains("isolation");
+    }
+
     // ---- unsaved text
 
     @Test

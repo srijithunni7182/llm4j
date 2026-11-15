@@ -33,42 +33,55 @@ class McpHintsTest {
     }
 
     @Test
-    void readOnlyHintMeansReadsButStaysAnAssumptionAndSaysWhoseWordItIs() {
+    void aReadOnlyAnnotationIsOnlyTheServersWordSoTheEffectIsStillAssumedToChange() {
         var r = McpEffects.resolve(server(), "t", listed(Map.of("readOnlyHint", true)));
-        assertThat(r.effect()).isEqualTo(TaskEffect.READS);
+        assertThat(r.effect()).isEqualTo(TaskEffect.CHANGES);
         assertThat(r.source()).isEqualTo(EffectSource.ASSUMED);
-        assertThat(r.reason()).contains("read-only").contains("effects:");
+        assertThat(r.reason())
+                .contains("server's word")
+                .contains("weave mcp list --write")
+                .contains("effects:");
     }
 
     @Test
-    void destructiveHintWinsOverReadOnlyHint() {
-        var r =
-                McpEffects.resolve(
-                        server(),
-                        "t",
-                        listed(Map.of("readOnlyHint", true, "destructiveHint", true)));
-        assertThat(r.effect()).isEqualTo(TaskEffect.CHANGES);
-    }
-
-    @Test
-    void noReadOnlyHintMeansChanges() {
-        assertThat(
-                        McpEffects.resolve(server(), "t", listed(Map.of("idempotentHint", true)))
-                                .effect())
-                .isEqualTo(TaskEffect.CHANGES);
-    }
-
-    @Test
-    void noAnnotationsMeansChanges() {
-        var r = McpEffects.resolve(server(), "t", listed(null));
-        assertThat(r.effect()).isEqualTo(TaskEffect.CHANGES);
-        assertThat(r.reason()).contains("no annotations");
-    }
-
-    @Test
-    void aServerThatCouldNotBeAskedMeansChangesAndTheReasonSaysTheHintsWereNotRead() {
+    void aServerThatCouldNotBeAskedMeansChanges() {
         var r = McpEffects.resolve(server(), "t", null);
         assertThat(r.effect()).isEqualTo(TaskEffect.CHANGES);
-        assertThat(r.reason()).contains("could not be read");
+        assertThat(r.reason()).contains("no effects: entry");
+    }
+
+    @Test
+    void proposesReadsOnlyForAToolAnnotatedReadOnly() {
+        var p = McpEffects.propose(listed(Map.of("readOnlyHint", true)));
+        assertThat(p.effect()).isEqualTo(TaskEffect.READS);
+        assertThat(p.onUnknown()).isNull();
+        assertThat(p.why()).contains("server");
+    }
+
+    @Test
+    void aToolAnnotatedBothReadOnlyAndDestructiveGetsTheCautiousProposal() {
+        var p = McpEffects.propose(listed(Map.of("readOnlyHint", true, "destructiveHint", true)));
+        assertThat(p.effect()).isEqualTo(TaskEffect.CHANGES);
+    }
+
+    @Test
+    void noAnnotationsProposesChangesAndSkipOnUnknown() {
+        var p = McpEffects.propose(listed(null));
+        assertThat(p.effect()).isEqualTo(TaskEffect.CHANGES);
+        assertThat(p.onUnknown()).isEqualTo("skip");
+        assertThat(p.why()).contains("no annotations");
+    }
+
+    @Test
+    void anIdempotentHintProposesRetryOnUnknown() {
+        var p = McpEffects.propose(listed(Map.of("idempotentHint", true)));
+        assertThat(p.effect()).isEqualTo(TaskEffect.CHANGES);
+        assertThat(p.onUnknown()).isEqualTo("retry");
+    }
+
+    @Test
+    void anUnsetDestructiveHintMeansDestructiveAsTheSpecificationDefaults() {
+        var p = McpEffects.propose(listed(Map.of("title", "x")));
+        assertThat(p.effect()).isEqualTo(TaskEffect.CHANGES);
     }
 }

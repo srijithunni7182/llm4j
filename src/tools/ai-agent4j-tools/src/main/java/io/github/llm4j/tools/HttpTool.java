@@ -32,7 +32,8 @@ final class HttpTool extends GenericTool {
             Map<String, String> headers,
             long maxBytes,
             NetOptions net,
-            String reaches) {
+            String reaches,
+            Pagination pagination) {
 
         /** A served program is reached on loopback, over plain http: the port comes per call. */
         static final HttpUrl SERVED = HttpUrl.get("http://127.0.0.1/");
@@ -90,7 +91,8 @@ final class HttpTool extends GenericTool {
                     o.headers(),
                     o.size("max_bytes", 64 * 1024, 4L * 1024 * 1024),
                     net,
-                    reaches);
+                    reaches,
+                    Pagination.parse(o));
         }
     }
 
@@ -98,6 +100,7 @@ final class HttpTool extends GenericTool {
     private final HttpSupport http;
     private final Leases leases;
     private final EffectContext context;
+    private final io.github.llm4j.secret.CredentialSource asked;
 
     /** {@code leases} is null unless the tool reaches a served program. */
     HttpTool(
@@ -107,7 +110,20 @@ final class HttpTool extends GenericTool {
             Leases leases,
             Redactor redactor,
             EffectContext context) {
+        this(name, config, http, leases, redactor, context, null);
+    }
+
+    /** {@code asked} is the credential of whoever runs the workflow, asked for on every request; or null. */
+    HttpTool(
+            String name,
+            Config config,
+            HttpSupport http,
+            Leases leases,
+            Redactor redactor,
+            EffectContext context,
+            io.github.llm4j.secret.CredentialSource asked) {
         super(name, "http", description(config), redactor, context);
+        this.asked = asked;
         this.config = config;
         this.http = http;
         this.leases = leases;
@@ -177,23 +193,89 @@ final class HttpTool extends GenericTool {
         if (!config.paths().matches(path))
             throw new ToolRefusal("path " + path + " is not one this tool may call");
 
-        HttpUrl url = buildUrl(base(args), path, args.get("query"));
-        Request.Builder request = new Request.Builder().url(url);
-        config.headers().forEach(request::header);
-        if (config.authHeader() != null) request.header(config.authHeader(), config.authValue());
         boolean effect = !method.equals("GET");
-        if (effect && config.net().idempotency() && idempotencyKey != null)
-            request.header("Idempotency-Key", idempotencyKey);
-        request.method(method, bodyFor(method, args.get("body")));
-
         HttpSupport.Retry retry =
                 !effect || config.net().idempotency()
                         ? HttpSupport.Retry.ALL
                         : HttpSupport.Retry.NONE;
-        HttpSupport.Reply reply = http.send(request.build(), retry);
+        HttpUrl base = base(args);
+        String secret = asked == null ? null : fetch(base);
+        HttpSupport.Reply reply = send(base, method, path, args, idempotencyKey, effect, secret, retry);
+        if (asked != null && reply.status() == 401) {
+            // the token may have expired since the host handed it over: ask for a fresh one, once
+            asked.rejected();
+            secret = fetch(base);
+            reply = send(base, method, path, args, idempotencyKey, effect, secret, retry);
+        }
+        if (asked != null && refused(reply))
+            throw new io.github.llm4j.tools.CredentialRejected(
+                    "the server refused the credential for "
+                            + getName()
+                            + " (HTTP "
+                            + reply.status()
+                            + "); get a new or wider one and resume. "
+                            + challenge(reply, secret));
         String result = render(reply);
+        if (secret != null) result = new Redactor(java.util.List.of(secret, tokenOf(secret))).scrub(result);
         if (effect && !reply.success()) throw new ToolRefusal(result);
         return result;
+    }
+
+    private HttpSupport.Reply send(
+            HttpUrl base,
+            String method,
+            String path,
+            Map<String, Object> args,
+            String idempotencyKey,
+            boolean effect,
+            String secret,
+            HttpSupport.Retry retry) {
+        HttpUrl url = buildUrl(base, path, args.get("query"));
+        Request.Builder request = new Request.Builder().url(url);
+        config.headers().forEach(request::header);
+        if (config.authHeader() != null)
+            request.header(config.authHeader(), secret != null ? secret : config.authValue());
+        if (effect && config.net().idempotency() && idempotencyKey != null)
+            request.header("Idempotency-Key", idempotencyKey);
+        request.method(method, bodyFor(method, args.get("body")));
+        config.pagination().requireRead(method);
+        return config.pagination().collect(http, request.build(), retry);
+    }
+
+    /** Asks the host for the credential; only over https, or to this machine. */
+    private String fetch(HttpUrl base) {
+        String host = base.host();
+        boolean local = host.equals("localhost") || host.equals("127.0.0.1") || host.equals("[::1]");
+        if (!base.isHttps() && !local)
+            throw new ToolRefusal("a credential of the person running this workflow is only sent over https");
+        String value;
+        try {
+            value = asked.get();
+        } catch (io.github.llm4j.secret.SecretException e) {
+            throw new ToolRefusal("credential unavailable: " + e.getMessage());
+        } catch (RuntimeException e) {
+            throw new ToolRefusal("the credential could not be obtained (" + e.getClass().getSimpleName() + ")");
+        }
+        if (value == null || value.isBlank()) throw new ToolRefusal("there is no credential for this tool");
+        return value;
+    }
+
+    private static boolean refused(HttpSupport.Reply reply) {
+        if (reply.status() == 401) return true;
+        String c = reply.headers().get("WWW-Authenticate");
+        return reply.status() == 403 && c != null && c.toLowerCase(Locale.ROOT).contains("insufficient_scope");
+    }
+
+    private static String tokenOf(String secret) {
+        int space = secret.indexOf(' ');
+        return space > 0 ? secret.substring(space + 1) : secret;
+    }
+
+    private static String challenge(HttpSupport.Reply reply, String secret) {
+        String c = reply.headers().get("WWW-Authenticate");
+        if (c == null) return "The server sent no WWW-Authenticate challenge.";
+        return "The server's challenge: "
+                + Limits.excerpt(new Redactor(java.util.List.of(secret, tokenOf(secret))).scrub(c), 500);
     }
 
     /**

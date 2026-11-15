@@ -44,6 +44,7 @@
     <!-- The libraries published to Maven Central. Everything else (engram, the example applications) is built only with -Pextended. src/release/bundle-cleanup must stay LAST: see docs/PUBLISHING.md. -->
     <modules>
         <module>src/a2a-testkit</module>
+        <module>src/mcp-testkit</module>
         <module>src/ai-agent4j</module>
         <module>src/ai-agent4j-addons</module>
         <module>src/tools</module>

@@ -29,10 +29,15 @@ final class ScriptedTools {
             boolean repeatLast,
             Recorder recorder) {
         String kind = declared == null || declared.getKind() == null ? "" : declared.getKind();
-        // a kind whose calls are journaled acts on the world: its calls are recorded as effects
-        boolean acts =
-                !kind.isEmpty()
-                        && io.github.llm4j.loom.security.Capabilities.profile(declared).journaled();
+        // a tool whose calls are journaled and that changes something acts on the world: its calls
+        // are recorded as effects. The profile says so (phase 36, D11), not a list of kind names, so
+        // an openapi operation that only reads is not an effect and a command is.
+        boolean acts = false;
+        if (!kind.isEmpty()) {
+            var profile = io.github.llm4j.loom.security.Capabilities.profile(declared);
+            acts = profile.journaled() && profile.effect() == io.github.llm4j.agent.task.TaskEffect.CHANGES;
+        }
+        final boolean actsOnTheWorld = acts;
         String target = declared == null ? "" : target(declared);
         return new Tool() {
             @Override
@@ -51,13 +56,13 @@ final class ScriptedTools {
                 recorder.toolCalled(name);
                 var fail = failures.failsOn(name, call);
                 if (fail.isPresent()) throw Failures.tool(fail.get(), name, call);
-                if (acts) recorder.effect(new Effect(name, kind, target, digest(args)));
+                if (actsOnTheWorld) recorder.effect(new Effect(name, kind, target, digest(args)));
                 return result(call, args);
             }
 
             private String result(int call, Map<String, Object> args) {
                 if (script == null) {
-                    if (acts) return "ok";
+                    if (actsOnTheWorld) return "ok";
                     return unscripted(call, "has no scripted result");
                 }
                 if (script.isTextual()) return script.asText();

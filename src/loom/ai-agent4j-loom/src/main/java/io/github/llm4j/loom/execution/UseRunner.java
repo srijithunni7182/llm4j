@@ -19,6 +19,9 @@ import java.util.Map;
  */
 final class UseRunner {
 
+    /** What a tool's text starts with when the system it called refused the credential it was given. */
+    static final String REJECTED = "Error: credential_rejected:";
+
     private final HarnessExecutor executor;
 
     UseRunner(HarnessExecutor executor) {
@@ -132,7 +135,13 @@ final class UseRunner {
                 stepId + "#use",
                 () -> {
                     try {
-                        return tool.execute(args);
+                        String result = tool.execute(args);
+                        // a credential the system refused is a failure the step can route (retry,
+                        // on_failure with _error_category), not a result
+                        if (result != null && result.startsWith(REJECTED))
+                            throw new io.github.llm4j.agent.ToolException(
+                                    io.github.llm4j.telemetry.ErrorCategory.CREDENTIAL_REJECTED, result);
+                        return result;
                     } catch (RuntimeException e) {
                         throw e;
                     } catch (Exception e) {

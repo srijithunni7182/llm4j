@@ -91,4 +91,20 @@ final class GenericKindAdapter implements ToolKind {
             throws Exception {
         return kind.create(name, options, baseDir, context);
     }
+
+    @Override
+    public Set<String> lateBound() {
+        return kind.lateBound();
+    }
+
+    @Override
+    public Tool create(
+            String name,
+            Map<String, String> options,
+            Map<String, io.github.llm4j.secret.CredentialSource> lateBound,
+            Path baseDir,
+            EffectContext context)
+            throws Exception {
+        return kind.create(name, options, lateBound, baseDir, context);
+    }
 }

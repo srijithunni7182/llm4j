@@ -32,7 +32,8 @@ public final class Failures {
                     "invalid_output",
                     "tool_error",
                     "refused",
-                    "quota");
+                    "quota",
+                    "credential_rejected");
 
     private record Rule(Set<Integer> calls, Integer times, boolean always, String category) {
         boolean fails(int call) {
@@ -77,6 +78,8 @@ public final class Failures {
             case "rate_limit", "quota" -> new RateLimitException(what);
             case "timeout" -> new LLMException(what, new java.net.SocketTimeoutException(what));
             case "refused" -> new ContentBlockedException("scripted", what);
+            case "credential_rejected" ->
+                    new io.github.llm4j.exception.AuthenticationException(what);
             default -> new ServiceUnavailableException("scripted", what);
         };
     }
@@ -91,6 +94,7 @@ public final class Failures {
                     case "rate_limit", "quota" -> ErrorCategory.RATE_LIMITED;
                     case "refused" -> ErrorCategory.PERMISSION_DENIED;
                     case "server_error" -> ErrorCategory.SERVER_ERROR;
+                    case "credential_rejected" -> ErrorCategory.CREDENTIAL_REJECTED;
                     default -> ErrorCategory.OTHER;
                 };
         return new ToolException(c, what);

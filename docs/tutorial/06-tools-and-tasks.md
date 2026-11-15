@@ -236,38 +236,69 @@ It is read-only in two layers: the connection is opened read-only, and each stat
 
 ### An API from its spec: `openapi`
 
-If an API has an OpenAPI spec, point at it and every operation becomes a tool:
+If an API has an OpenAPI spec, each operation you want becomes one tool, and each says what it does to the world:
 
 ```loom-parse
-tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
+tool Pet_get { use: openapi  spec: "specs/petstore.json"  operation: "getPetById"  effect: reads }
+tool Pet_add { use: openapi  spec: "specs/petstore.json"  operation: "addPet"  effect: changes }
 
 agent Clerk {
     model: "gemini-2.5-flash"
     system: "Look up pets for the customer."
-    tools: [Petstore]
+    tools: [Pet_get, Pet_add]
+    approve: [Pet_add]
 }
 ```
+
+A `GET` and a `POST` do different things, so they are two tools, with their own effect, their own approval and their own line in the audit. The agent gets only the operations you declared, with the arguments the spec gives them (a missing or mistyped one is refused before any request), and never writes a path or a method. You do not have to write these by hand: `weave connect openapi specs/petstore.json --read-only --write main.loom` lists the operations, proposes each effect, shows you the change and writes the tools with a `pin:` that notices when the API changes.
 
 An `openapi` tool can also act **as the person who runs the workflow**, with `auth_value: invoker.token`. The application supplies the token for each run, and you put `approve:` on the agents that use it. See "Running as the person who runs the workflow" in the [reference](../../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#running-as-the-person-who-runs-the-workflow).
 
 ### MCP servers
 
-Any [Model Context Protocol](https://modelcontextprotocol.io) server can be a source of tools. Declare the server, then name it on the agent:
+Any [Model Context Protocol](https://modelcontextprotocol.io) server can be a source of tools. A server is a program, so say how it is isolated and what each tool does, then name it on the agent:
 
 ```loom-parse
 mcp Files {
     transport: "stdio"
-    cmd: "npx -y @modelcontextprotocol/server-filesystem ."
+    cmd: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "data"]
+    isolation: container
+    image: "node:22"
+    workspace: "data"
+    effects: { read_file: reads, write_file: changes }
 }
 
 agent Clerk {
     model: "gemini-2.5-flash"
     system: "Use the file tools to answer."
     mcp_servers: [Files]
+    approve: [write_file]
 }
 ```
 
-From Java the same thing is `McpClient` with `StdioMcpTransport` ([MCP integration](../../src/ai-agent4j/wiki/MCP-Integration.md)). `weave audit` includes what MCP tools can reach, but it cannot see inside a server, so treat an MCP server like any other code you run.
+A server's own labels for its tools are untrusted, so llm4j never takes them as the effect: `weave connect mcp` shows what they suggest, you approve, and the `effects:` and a `pin:` go into the block. A remote server takes `transport: "http"` and a `url:`, with the caller's token as `auth: invoker.token`. From Java the same thing is `McpClient` with `StdioMcpTransport` or `McpHttpTransport` ([MCP integration](../../src/ai-agent4j/wiki/MCP-Integration.md)). `weave audit` cannot see inside a server, so treat an MCP server like any other code you run, and read [Securing integrations](../../docs/security/integrations.md).
+
+### One command, with typed holes: `command`
+
+When an agent should be able to do exactly one thing, give it a command you wrote and let it fill only the blanks:
+
+```loom-parse
+tool Photos { use: workspace  root: "photos"  allow: "**"  mode: readwrite }
+tool Resize {
+    use: command
+    isolation: container
+    image: "dpokidov/imagemagick:7"
+    workspace: Photos
+    run: "convert {input} -resize {percent}% {output}"
+    param.input: "path in"
+    param.output: "path out"
+    param.percent: "int 1..400"
+}
+agent Editor { model: "gemini-2.5-flash"  system: "You resize photos."  tools: [Resize]  approve: [Resize] }
+```
+
+Each `{name}` is filled inside one argument and nothing reads it again, so a value that holds a space, a `;` or `$(...)` is still just one argument; a path cannot leave the workspace and a number cannot leave its range. For a program with no description, `weave connect command` has a model draft the template from its `--help` text, then runs it on **your** samples before writing anything.
 
 ### Your own tool, from Java
 

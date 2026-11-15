@@ -41,4 +41,20 @@ class StdioMcpTransportTest {
 
         transport.close();
     }
+
+    @Test
+    void aSecretThatCrossesTheCutOfAnOverlongLineIsNeverStoredInPieces() {
+        String secret = "test-secret-" + "k".repeat(40);
+        for (int at = 16_300; at < 16_900; at += 7) {
+            StringBuilder pending =
+                    new StringBuilder("a".repeat(at) + secret + "b".repeat(16_900 - at));
+            String stored =
+                    StdioMcpTransport.flushOverlong(pending, text -> text.replace(secret, "***"));
+            String all = stored + pending;
+            assertThat(all)
+                    .as("secret at " + at)
+                    .doesNotContain("test-secret-")
+                    .doesNotContain("kkkk");
+        }
+    }
 }

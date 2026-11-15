@@ -18,6 +18,7 @@
 ../starters/18-supervise-workflows	107bc17d0922ebe9
 ../starters/19-report-writer	3990b75557c4ef97
 ../starters/20-data-analyst	58ab979216e69eee
+../starters/21-connect-a-system	dce7d05ac73966c9
 src/main/resources/templates/approval	b8d23ecdcceb84ff
 src/main/resources/templates/classifier	22a50de2df0d0d25
 src/main/resources/templates/empty	b28d7ee7373146e8

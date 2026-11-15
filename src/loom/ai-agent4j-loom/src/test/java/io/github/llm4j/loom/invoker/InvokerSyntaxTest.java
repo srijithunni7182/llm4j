@@ -109,12 +109,8 @@ class InvokerSyntaxTest {
                                                 "tool T { use: openapi  spec: invoker.s  auth_header: \"H\"  auth_value: \"x\" }")
                                         .initialize())
                 .hasMessageContaining("spec can't come from invoker.s for use: openapi");
-        assertThatThrownBy(
-                        () ->
-                                executor(
-                                                "tool T { use: http  base_url: \"https://a.example\"  auth_header: \"H\"  auth_value: invoker.token }")
-                                        .initialize())
-                .hasMessageContaining("auth_value can't come from invoker.token for use: http");
+        // phase 36b: an http tool takes the caller's credential, as an openapi tool does
+        executor("tool T { use: http  base_url: \"https://a.example\"  auth_header: \"H\"  auth_value: invoker.token }").initialize();
     }
 
     @Test
@@ -217,6 +213,13 @@ class InvokerSyntaxTest {
                         "tools/ToolFactory.java",
                                 4L, // defaults of kinds; after the invoker check; after the invoker
                         // check; resolve() (invoker handled first)
+                        "execution/McpChecks.java",
+                                3L, // an mcp block's env: checkVariable refuses invoker. before it looks
+                        // anything up; environmentOf runs only on a block that passed that check;
+                        // checkRemote looks up auth:/list_auth: only when the value is not invoker.
+                        "execution/McpServers.java",
+                                1L, // fixed(): called for a remote server's auth only after fromInvoker() was
+                        // asked (the listing credential is never an invoker one)
                         "execution/HarnessExecutor.java",
                                 3L); // credentialValue (invoker handled first); option() (providers
         // are refused invoker at load); lookupReference (builds only secret. and env. values, so an

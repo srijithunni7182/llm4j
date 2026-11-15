@@ -1,0 +1,12 @@
+{
+  "what": "The real --help output of GNU wc, for the model-assisted weave connect command benchmark (phase 36, D17).",
+  "service": "wc (GNU coreutils) 9.4, run on Ubuntu 24.04 in the build session",
+  "licence": "the output is the program's own help text (GPL-3.0+ program); a short quotation of a program's help text for testing",
+  "recorded": "2026-11-15",
+  "scrubbed": "nothing was changed; no credential or personal data is in the file (FixtureProvenanceTest-style scan in BenchmarkFixturesTest)",
+  "files": {
+    "help.txt": "wc --help, exit 0",
+    "answer.json": "NOT a recording of a real model: the answer a scripted model gives in the default build. The real model runs are the owner's (E4)",
+    "samples.json": "written by hand: the person's own samples for the draft"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "scriptName": "integration_command.loom",
+  "workflowName": "main",
+  "steps": [
+    { "kind": "use", "tool": "Say" },
+    { "kind": "note", "text": "two words; $(id) --flag" }
+  ]
+}

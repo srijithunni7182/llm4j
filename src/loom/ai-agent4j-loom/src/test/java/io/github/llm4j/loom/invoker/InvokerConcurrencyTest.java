@@ -29,7 +29,7 @@ class InvokerConcurrencyTest {
 
     private static final String SCRIPT =
             """
-            tool Refunds { use: openapi  spec: "refunds.json"  auth_header: "Authorization"  auth_value: invoker.token }
+            tool Refunds { use: openapi  spec: "refunds.json"  allow_http: true  allow_private: true  auth_header: "Authorization"  auth_value: invoker.token }
             agent Scout { model: "m"  system: "You are Scout."  tools: [Refunds] }
             agent Scout2 { model: "m"  system: "You are Scout2."  tools: [Refunds] }
             workflow Main(who) {

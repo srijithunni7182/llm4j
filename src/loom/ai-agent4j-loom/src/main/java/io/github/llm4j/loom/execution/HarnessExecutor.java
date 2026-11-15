@@ -14,9 +14,6 @@ import io.github.llm4j.loom.ast.*;
 import io.github.llm4j.loom.memory.MemoryEngine;
 import io.github.llm4j.loom.memory.TranscriptAccumulationEngine;
 import io.github.llm4j.loom.runtime.*;
-import io.github.llm4j.mcp.McpClient;
-import io.github.llm4j.mcp.McpToolAdapter;
-import io.github.llm4j.mcp.StdioMcpTransport;
 import io.github.llm4j.privacy.PIIDetector;
 import io.github.llm4j.privacy.RegexPIIDetector;
 import io.github.llm4j.routing.CostAwareRoutingStrategy;
@@ -41,7 +38,7 @@ public class HarnessExecutor implements LoomEngine {
     private final ToolRegistry toolRegistry;
     private final LLMClientFactory llmClientFactory;
     private final Map<String, ReActAgent> activeAgents = new HashMap<>();
-    private final Map<String, McpClient> mcpClients = new HashMap<>();
+    private final McpServers mcpServers = new McpServers();
     private final Map<String, RAGAgent> ragAgents = new HashMap<>();
     private final Map<String, SemanticMemoryService> memoryServices = new HashMap<>();
     private final Map<String, AgentScheduler> schedulers = new HashMap<>();
@@ -2685,33 +2682,8 @@ public class HarnessExecutor implements LoomEngine {
         }
 
         // ── 1. Boot MCP servers ───────────────────────────────────────────────
-        for (McpServerDef mcpDef : script.getMcpServers()) {
-            if (mcpDef.getCmd() == null || mcpDef.getCmd().isBlank()) {
-                log.warning("MCP server '" + mcpDef.getName() + "' has no cmd — skipping.");
-                continue;
-            }
-            try {
-                List<String> cmdParts = Arrays.asList(mcpDef.getCmd().split("\\s+"));
-                StdioMcpTransport transport =
-                        new StdioMcpTransport(
-                                cmdParts, mcpDef.getEnv().isEmpty() ? null : mcpDef.getEnv());
-                McpClient client = new McpClient(transport);
-                client.initialize();
-                mcpClients.put(mcpDef.getName(), client);
-                log.info("MCP server initialised: " + mcpDef.getName());
-            } catch (Exception e) {
-                throw new LoomLoadException(
-                        List.of(
-                                new ScriptValidator.Problem(
-                                        mcpDef.getLine(),
-                                        "mcp " + mcpDef.getName(),
-                                        "failed to start `"
-                                                + mcpDef.getCmd()
-                                                + "`: "
-                                                + e.getMessage(),
-                                        ScriptValidator.Severity.ERROR)));
-            }
-        }
+        mcpServers.baseDir(baseDir);
+        mcpServers.boot(script.getMcpServers(), credentials, name -> new InvokerSource(name, this::invoker));
 
         // ── 1b. Budgets ───────────────────────────────────────────────────────
         budgets.setUp();
@@ -2871,7 +2843,11 @@ public class HarnessExecutor implements LoomEngine {
                 if (!changing.isEmpty() || !agentDef.getMcpServers().isEmpty())
                     agentBuilder.addToolHook(
                             new PolicyToolHook(
-                                    this, agentDef, changing, !agentDef.getMcpServers().isEmpty()));
+                                    this,
+                                    agentDef,
+                                    changing,
+                                    !agentDef.getMcpServers().isEmpty(),
+                                    mcpServers.notChanging(agentDef.getMcpServers())));
                 agentBuilder.addToolHook(forbidden.hook());
             }
             if (agentDef.isApproveAll() || !agentDef.getApprove().isEmpty()) {
@@ -2915,10 +2891,12 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.addListener(Supervision.adapter());
             if (tracing()) agentBuilder.addListener(tracing.traceAdapter(agentDef.getName()));
 
-            // MCP-sourced tools
+            // MCP-sourced tools: wrapped like any other tool, so approval and evidence reach them
+            boolean decides =
+                    script.getDecisions().stream()
+                            .anyMatch(d -> agentDef.getName().equals(d.getAgent()));
             for (String serverName : agentDef.getMcpServers()) {
-                McpClient mcpClient = mcpClients.get(serverName);
-                if (mcpClient == null) {
+                if (!mcpServers.has(serverName)) {
                     log.warning(
                             "MCP server '"
                                     + serverName
@@ -2927,24 +2905,37 @@ public class HarnessExecutor implements LoomEngine {
                                     + "'");
                     continue;
                 }
-                try {
-                    for (Map<String, Object> toolMeta : mcpClient.listTools()) {
-                        Tool adapter = new McpToolAdapter(mcpClient, toolMeta);
-                        agentBuilder.addTool(adapter);
-                        log.info(
-                                "Bound MCP tool '"
-                                        + toolMeta.get("name")
-                                        + "' to agent '"
-                                        + agentDef.getName()
-                                        + "'");
-                    }
-                } catch (Exception e) {
-                    log.severe(
-                            "Failed to list tools from MCP server '"
-                                    + serverName
-                                    + "': "
-                                    + e.getMessage());
+                for (Tool adapter : mcpServers.toolsOf(serverName)) {
+                    Tool tool = adapter;
+                    if (decides) tool = new EvidenceTool(tool, this);
+                    if (agentDef.isApproveAll() || agentDef.getApprove().contains(adapter.getName()))
+                        tool = new io.github.llm4j.loom.tools.ApprovalTool(tool);
+                    agentBuilder.addTool(tool);
+                    log.info(
+                            "Bound MCP tool '"
+                                    + adapter.getName()
+                                    + "' to agent '"
+                                    + agentDef.getName()
+                                    + "'");
                 }
+            }
+
+            for (String name : agentDef.getApprove()) {
+                boolean known =
+                        agentDef.getTools().contains(name)
+                                || agentDef.getMcpServers().stream()
+                                        .anyMatch(sv -> mcpServers.toolNames(sv).contains(name));
+                if (!known)
+                    throw new LoomLoadException(
+                            List.of(
+                                    new ScriptValidator.Problem(
+                                            agentDef.getLine(),
+                                            "agent " + agentDef.getName(),
+                                            "approve: "
+                                                    + name
+                                                    + " is neither one of its tools nor a tool its MCP"
+                                                    + " servers list",
+                                            ScriptValidator.Severity.ERROR)));
             }
 
             customizeAgent(agentDef, agentBuilder);
@@ -3034,6 +3025,7 @@ public class HarnessExecutor implements LoomEngine {
     public void shutdown() {
         log.info("Shutting down HarnessExecutor...");
         schedulers.values().forEach(AgentScheduler::shutdown);
+        mcpServers.close();
     }
 
     @Override
@@ -4038,12 +4030,22 @@ public class HarnessExecutor implements LoomEngine {
         Map<String, Object> outer = locals.get();
         Map<String, Object> names = new HashMap<>(outer);
         names.put("_error", message);
+        names.put("_error_category", categoryOf(message));
         locals.set(names);
         try {
             runBlock(onFailure, "f");
         } finally {
             locals.set(outer);
         }
+    }
+
+    /**
+     * What {@code _error_category} holds inside an {@code on_failure} block: {@code credential_rejected}
+     * when the failure is a credential refused by the system it was given to (so the script can ask
+     * for a new one), else {@code other}.
+     */
+    static String categoryOf(String message) {
+        return message != null && message.contains("credential_rejected") ? "credential_rejected" : "other";
     }
 
     String resolveVariableName(String name) {

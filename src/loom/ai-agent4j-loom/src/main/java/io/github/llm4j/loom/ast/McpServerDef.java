@@ -67,6 +67,151 @@ public class McpServerDef implements Node {
         return Collections.unmodifiableMap(env);
     }
 
+    private final java.util.List<String> args = new java.util.ArrayList<>();
+    private final Map<String, ToolDef.OptionValue> envValues = new LinkedHashMap<>();
+    private final java.util.List<String> envInherit = new java.util.ArrayList<>();
+    private String isolation;
+    private java.time.Duration timeout;
+    private String reach;
+    private String image;
+    private String network;
+    private String workspace;
+    private String pin;
+    private String url;
+    private ToolDef.OptionValue auth;
+    private ToolDef.OptionValue listAuth;
+
+    /** The program's arguments, each one argument and never split ({@code args: [..]}). */
+    public java.util.List<String> getArgs() {
+        return java.util.Collections.unmodifiableList(args);
+    }
+
+    public void addArg(String arg) {
+        args.add(arg);
+    }
+
+    /**
+     * The variables the server is given ({@code env: { NAME: env.X }}): a literal, or a reference
+     * to the environment or the secret store, resolved when the server starts.
+     */
+    public Map<String, ToolDef.OptionValue> getEnvValues() {
+        return Collections.unmodifiableMap(envValues);
+    }
+
+    public void putEnvValue(String name, ToolDef.OptionValue value) {
+        envValues.put(name, value);
+    }
+
+    /** Names of host variables an isolated server may inherit ({@code env_inherit: [..]}). */
+    public java.util.List<String> getEnvInherit() {
+        return java.util.Collections.unmodifiableList(envInherit);
+    }
+
+    public void addEnvInherit(String name) {
+        envInherit.add(name);
+    }
+
+    /**
+     * {@code none} or {@code process}, or null when the block has no {@code isolation:} line (the
+     * legacy state: the server runs with this process's whole environment).
+     */
+    public String getIsolation() {
+        return isolation;
+    }
+
+    public void setIsolation(String isolation) {
+        this.isolation = isolation;
+    }
+
+    /** How long one request to the server waits, or null for the default. */
+    public java.time.Duration getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(java.time.Duration timeout) {
+        this.timeout = timeout;
+    }
+
+    /** What the developer says the server reaches ({@code none}, {@code reads}, ...), or null. */
+    public String getReach() {
+        return reach;
+    }
+
+    public void setReach(String reach) {
+        this.reach = reach;
+    }
+
+    /** The container image of {@code isolation: container}, or null. */
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
+    }
+
+    /** {@code none} or {@code open}: the network of a container, or null (none). */
+    public String getNetwork() {
+        return network;
+    }
+
+    public void setNetwork(String network) {
+        this.network = network;
+    }
+
+    /** The directory a container sees as its workspace, relative to the script, or null. */
+    public String getWorkspace() {
+        return workspace;
+    }
+
+    public void setWorkspace(String workspace) {
+        this.workspace = workspace;
+    }
+
+    /** The address of a remote server ({@code transport: "http"}), or null for a program. */
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    /** What the bearer token of a remote server comes from, asked for on every request, or null. */
+    public ToolDef.OptionValue getAuth() {
+        return auth;
+    }
+
+    public void setAuth(ToolDef.OptionValue auth) {
+        this.auth = auth;
+    }
+
+    /**
+     * The credential used only to list a remote server's tools when the engine starts, when {@code
+     * auth:} is the credential of whoever runs the workflow (nobody is running yet).
+     */
+    public ToolDef.OptionValue getListAuth() {
+        return listAuth;
+    }
+
+    public void setListAuth(ToolDef.OptionValue listAuth) {
+        this.listAuth = listAuth;
+    }
+
+    /** Whether this is a remote server reached over Streamable HTTP. */
+    public boolean isRemote() {
+        return "http".equals(transport);
+    }
+
+    /** The hash of the server's tool list this block was written against, or null. */
+    public String getPin() {
+        return pin;
+    }
+
+    public void setPin(String pin) {
+        this.pin = pin;
+    }
+
     public void setTransport(String transport) {
         this.transport = transport;
     }

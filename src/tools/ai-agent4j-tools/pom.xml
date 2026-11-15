@@ -45,6 +45,13 @@
             <version>5.3.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- a test certificate authority, so a test server speaks real TLS and verification stays on -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp-tls</artifactId>
+            <version>5.3.2</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -214,6 +221,45 @@
                                 <param>io.github.llm4j.tools.workspace.*Test</param>
                                 <param>io.github.llm4j.tools.sandbox.*Test</param>
                                 <param>io.github.llm4j.tools.ContainerSandboxArgumentsTest</param>
+                            </targetTests>
+                            <!-- the Docker tests need a daemon and are not part of the score -->
+                            <excludedGroups><param>integration</param></excludedGroups>
+                            <mutationThreshold>85</mutationThreshold>
+                            <threads>4</threads>
+                            <timeoutFactor>3</timeoutFactor>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- Mutation testing of the typed command and the pagination of http and openapi (phase 36, D15):
+            mvn -Pmutation-integrations org.pitest:pitest-maven:mutationCoverage -pl src/tools/ai-agent4j-tools -->
+        <profile>
+            <id>mutation-integrations</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.tools.CommandTemplate*</param>
+                                <param>io.github.llm4j.tools.CommandKind*</param>
+                                <param>io.github.llm4j.tools.Pagination*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.tools.command.*Test</param>
+                                <param>io.github.llm4j.tools.foundation.PaginationTest</param>
                             </targetTests>
                             <!-- the Docker tests need a daemon and are not part of the score -->
                             <excludedGroups><param>integration</param></excludedGroups>

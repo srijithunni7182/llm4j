@@ -95,7 +95,7 @@ class InvokerDocsTest {
     void theEditorsHoverTextSaysWhereInvokerCanBeUsed() throws Exception {
         String hover = read(ROOT.resolve("src/loom/vscode-loom/src/lsp/server.ts"));
 
-        assertThat(hover).contains("`auth_value` of `openapi` can also be `invoker.NAME`");
+        assertThat(hover).contains("`auth_value` of `openapi` and `http` (and `auth` of a remote `mcp` block) can also be `invoker.NAME`");
     }
 
     @Test

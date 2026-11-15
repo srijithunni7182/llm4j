@@ -18,7 +18,7 @@ module: `weave eval` reads the YAML itself.
 ## Build it in this order
 
 1. **Personas and agents**, copied from chapter 1 (the tested prompts and temperatures, unchanged).
-2. **Tools** declared once; secrets only from `env.NAME` (a literal credential is a load error).
+2. **Tools** declared once; secrets only from `env.NAME` (a literal credential is a load error). **A system that already exists** (an API with an OpenAPI description, an MCP server, a command-line program, an API with only a documentation page) is brought in with `weave connect openapi | mcp | command | http ... --write <script>`, not written by hand: it proposes each operation's effect, shows you the change, and writes one tool per operation with `effect:` and a `pin:` only after you approve. Check the effects it proposed (a model, or a server's own labels, may have got one wrong), then run `weave audit`. See [Connecting a system](https://github.com/srijithunni7182/llm4j/blob/main/wiki/Connecting-a-System.md).
 3. **A run budget** at the top. Start with a ceiling you can afford, then tighten it from measured cost.
 4. **Tasks for the exact parts.** Anything chapter 1 marked as a task (rules, calculations, payments, audit writes) is Java registered as a `Task` and run with `run`, not delegated to a model (see below).
 5. **The workflow**: parallel rounds, a branch for the case that should end early, typed hand-offs, a final consensus.

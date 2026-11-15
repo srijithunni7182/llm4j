@@ -420,17 +420,46 @@
   "tool-workspace": {
     "prefix": "tool-workspace",
     "body": [
-      "tool ${1:Code} { use: workspace  root: \"${2:.}\"  allow: \"${3:**}\"  mode: readwrite  protect: \"${4:tests/**}\" }"
+      "tool ${1:Code} { use: workspace  root: \"${2:work}\"  allow: \"${3:**}\"  mode: readwrite  protect: \"${4:tests/**}\" }"
     ],
     "description": "A directory an agent edits with exact patches, searches, snapshots and restores; protect keeps what judges the work read only."
   },
   "tool-sandbox": {
     "prefix": "tool-sandbox",
     "body": [
-      "tool ${1:Code} { use: workspace  root: \"${2:.}\"  allow: \"**\"  mode: readwrite }",
+      "tool ${1:Code} { use: workspace  root: \"${2:work}\"  allow: \"**\"  mode: readwrite }",
       "tool ${3:Tests} { use: sandbox  workspace: ${1:Code}  isolation: container  image: \"${4:python:3.12-slim}\"  allow: \"${5:python3}\"  network: none }"
     ],
     "description": "Run allow-listed programs on a workspace in a container with no network. Isolation has no default; a missing runtime stops the run, nothing falls back."
+  },
+  "tool-openapi": {
+    "prefix": "tool-openapi",
+    "body": [
+      "tool ${1:Pet_get} { use: openapi  spec: \"${2:specs/petstore.json}\"  operation: \"${3:getPetById}\"  effect: ${4|reads,changes|} }"
+    ],
+    "description": "One operation of an OpenAPI description as one tool, with its own effect. `weave connect openapi` writes these and a pin for you."
+  },
+  "tool-command": {
+    "prefix": "tool-command",
+    "body": [
+      "tool ${1:Photos} { use: workspace  root: \"${2:photos}\"  allow: \"**\"  mode: readwrite }",
+      "tool ${3:Resize} { use: command  isolation: container  image: \"${4:dpokidov/imagemagick:7}\"  workspace: ${1:Photos}  run: \"${5:convert {input} -resize {percent}% {output}}\"  param.input: \"path in\"  param.output: \"path out\"  param.percent: \"int 1..400\" }"
+    ],
+    "description": "A command line you wrote with typed holes the model fills: one argument per value, no shell, isolation required."
+  },
+  "mcp-server": {
+    "prefix": "mcp-server",
+    "body": [
+      "mcp ${1:Files} {",
+      "    transport: \"stdio\"",
+      "    cmd: \"${2:npx}\"",
+      "    args: [\"-y\", \"${3:@modelcontextprotocol/server-filesystem}\", \"${4:data}\"]",
+      "    isolation: container",
+      "    image: \"${5:node:22}\"",
+      "    effects: { ${6:read_file}: reads }",
+      "}"
+    ],
+    "description": "An MCP server run in a container, with the effect of each tool declared. `weave connect mcp` proposes the effects from what the server lists and writes a pin."
   },
   "tool-check": {
     "prefix": "tool-check",

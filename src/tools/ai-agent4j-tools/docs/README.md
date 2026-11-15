@@ -19,6 +19,7 @@ are in the [module README](../README.md); this folder is the reference.
 | [`compute`](compute.md) | Exact arithmetic, dates, a value out of JSON, statistics over CSV |
 | [`verify`](verify.md) | A test report or a schema check, as counts a workflow can rely on |
 | [`scan`](scan.md) | Find secrets and personal data, and say where, never what |
+| [`command`](command.md) | One command line you wrote, with typed holes the model fills: one argument per value, isolation required |
 | [Writing a tool](writing-a-tool.md) | A twenty-minute walkthrough: build, test, audit and ship a tool, with two worked examples |
 | [Safety model](safety.md) | What each tool defends against, and what it does not |
 

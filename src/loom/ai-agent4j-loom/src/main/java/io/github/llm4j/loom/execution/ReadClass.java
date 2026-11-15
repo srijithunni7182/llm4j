@@ -49,6 +49,9 @@ final class ReadClass {
     static boolean isRead(Tool tool, Map<String, Object> args) {
         Tool t = tool;
         for (int i = 0; i < 8; i++) {
+            // a tool of an MCP server is a read only when the developer declared it one
+            if (t instanceof McpServers.ServerTool mcp)
+                return mcp.effect() != io.github.llm4j.agent.task.TaskEffect.CHANGES;
             if (t instanceof EffectTool e)
                 return !e.effectful().isEffect(args == null ? Map.of() : args);
             if (t instanceof Effectful f) return !f.isEffect(args == null ? Map.of() : args);

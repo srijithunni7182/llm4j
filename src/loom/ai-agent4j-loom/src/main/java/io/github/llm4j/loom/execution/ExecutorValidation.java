@@ -934,7 +934,9 @@ final class ExecutorValidation {
         for (AgentDef a : host.script().getAgents()) {
             String who = "agent " + a.getName();
             for (String name : a.getApprove()) {
-                if (!a.getTools().contains(name)) {
+                // a tool of an MCP server is known only once the server has listed it, so a name
+                // that is none of the agent's tools is checked when the servers start
+                if (!a.getTools().contains(name) && a.getMcpServers().isEmpty()) {
                     c.error(
                             a.getLine(),
                             who,

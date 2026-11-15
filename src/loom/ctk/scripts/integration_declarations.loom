@@ -1,0 +1,36 @@
+// Integration declarations: every shape of an integration a runtime must accept. A runtime checks the options of each and
+// reaches nothing: no request is made, no server is started, no file is read.
+
+tool Pet_get { use: openapi  spec: "specs/petstore.json"  operation: "getPetById"  effect: reads  on_unknown: retry  pin: "sha256-0123456789abcdef"  paginate: link  max_pages: 3 }
+tool Pet_add { use: openapi  spec: "specs/petstore.json"  operation: "addPet"  effect: changes  auth_header: "Authorization"  auth_value: invoker.token }
+tool Orders  { use: http  base_url: "https://api.example.com"  methods: "GET"  allow_paths: "/orders/*"  auth_header: "Authorization"  auth_value: invoker.token  paginate: cursor  cursor_path: "meta.next"  cursor_param: "cursor" }
+tool Data    { use: workspace  root: "work"  allow: "**"  mode: readwrite }
+tool Resize {
+    use: command
+    isolation: container
+    image: "dpokidov/imagemagick:7"
+    workspace: Data
+    run: "convert {input} -resize {percent}% {output}"
+    param.input: "path in"
+    param.output: "path out"
+    param.percent: "int 1..400"
+}
+
+mcp Files {
+    transport: "stdio"
+    cmd: "npx"
+    args: ["-y", "@example/files-server", "data"]
+    isolation: container
+    image: "node:22"
+    network: none
+    effects: { read_file: reads, write_file: changes }
+    pin: "sha256-0123456789abcdef"
+}
+mcp Remote { transport: "http"  url: "https://mcp.example.com/mcp"  auth: invoker.token  list_auth: env.LIST_TOKEN }
+
+agent Clerk { model: "claude-haiku-5-5"  system: "Use the tools."  tools: [Pet_get, Pet_add, Orders, Resize]  mcp_servers: [Files, Remote]  approve: [Pet_add, Resize, write_file] }
+
+workflow main() {
+    delegate "Say hello." to Clerk -> out
+    note "{out}"
+}

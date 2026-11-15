@@ -64,7 +64,14 @@ public enum ErrorCategory {
     /** The action needs approval and no way to ask was set up. */
     APPROVAL_UNAVAILABLE,
     /** None of the above, or not known. */
-    OTHER;
+    OTHER,
+    /**
+     * A credential the caller handed to a tool was refused by the system it was meant for (a 401
+     * after one retry with a fresh value, or a 403 for a missing scope), so the caller can obtain a
+     * new one and resume. Distinct from {@link #AUTHENTICATION}, which a model provider's key also
+     * produces.
+     */
+    CREDENTIAL_REJECTED;
 
     private static final int MAX_CHAIN = 5;
 

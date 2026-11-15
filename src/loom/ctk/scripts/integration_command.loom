@@ -1,0 +1,13 @@
+// Canonical CTK test: integration_command
+// A typed command: the author's template, one argument per value. The value holds a space, a ;, a $( ) and a --flag; each is
+// still part of ONE argument, so the program prints exactly what it was given. It uses isolation: process (which needs
+// network: open) so the kit runs without a container runtime; a runtime may run it at a stronger level.
+// mocks/integration_command.json holds the input.
+
+tool Data { use: workspace  root: "ctk-work"  allow: "**" }
+tool Say  { use: command  isolation: process  network: open  workspace: Data  run: "printf %s {text}"  param.text: "string max=80" }
+
+workflow main(text) {
+    use Say(text = text) -> said
+    note "{said}"
+}

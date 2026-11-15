@@ -470,6 +470,30 @@ makes `weave check` fail and names the jar.
    `DocumentedExamplesTest` can check (its options must pass the kind's own `check`).
 3. A row for it in the [Tools catalog](../../../../docs/TOOLS_CATALOG.md) and a line in the current release notes.
 
+## More of the contract
+
+The methods below have defaults, so a first tool needs none of them. Reach for one when your tool needs it; each is used by a
+tool in this repository you can read.
+
+| Method | When you need it | A tool that does |
+|---|---|---|
+| `lateBound()` and `create(name, options, lateBound, baseDir, context)` | A credential that belongs to **whoever runs the workflow** (a script writes `invoker.NAME`). List the option; the host hands you a `CredentialSource` for it instead of a value. Ask it for the value on **every request**, never keep it, call `rejected()` when the server refuses it and retry once | [`http`](http.md), `openapi` |
+| `references()` | An option that names **another tool** of the script (`workspace: Data`). The host checks the tool exists and is of that kind, and passes its options on as `workspace.<name>` | [`sandbox`](sandbox.md), [`command`](command.md) |
+| `buildsAtRunStart()` | Building the tool asks the machine for something (a container runtime, a spec file) or cleans up after a crashed run: the host builds it before the first step, so a missing runtime or description stops the run, not a step | `sandbox`, `command`, `openapi` |
+| `agentProblem(options, tool, agent, approved)` | A rule about how an agent may hold the tool: a program runner must be approved | `shell`, `command` |
+| `uncheckedResult(options)` | Fields of your result that may hold **text a model wrote** (a test name, a page, a program's output): the host keeps them marked as unchecked, so they cannot leave the workflow as if a person wrote them | `verify`, `sandbox` |
+| `resolvedPerCall()` | A prefix whose values stay references and are looked up on each call (`env.NAME: secret.REF`) | `sandbox` |
+
+For a tool that calls a web API, build it on `HttpSupport` with a `NetPolicy` (address rules, a timeout, a size cap and retries
+that tell "never sent" from "may have been delivered"), and use `Pagination` for a read that comes in pages; do not open a
+connection yourself. A tool that takes a **command line from its author and values from a model** should do what `command` does:
+split the template once, fill each value inside one argument, and never hand a value to a shell.
+
+**How a test sees your tool's effect.** In a `weave test` case a tool never runs for real. It records its calls as effects when
+its profile says it is journaled **and** `profile.effect()` is `CHANGES`; a tool whose profile says `READS` or `NONE` records
+nothing. So a kind that can both read and change, as `openapi` can, declares which in its profile (from the `effect:` option),
+and a test asserts effects only for the ones that change.
+
 ## 8. Run the checks
 
 Work from the small loop to the whole one:

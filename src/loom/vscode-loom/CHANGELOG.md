@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.0
+
+- **Integrations (phase 36).** Hover on `use:` lists `command`, and hover explains `operation`, `pin`, `paginate`, `list_auth` and `ok_exit`, and says that `isolation` and `image` also apply to `command` and `mcp` and that `auth` can be `invoker.NAME` in a remote `mcp` block. Three snippets (`tool-openapi`, `tool-command`, `mcp-server`) pass `weave check`. The new `check` findings (a pin that no longer matches, a `command` with no isolation) reach the editor through `loom/check` with no change of the extension. Needs the engine's phase 36.
+
 ## 1.8.0
 
 - **Getting Started walkthrough.** *Loom: Open Walkthrough* (it also opens once, the first time the extension runs) takes you through setting up your coding agent, starting a workflow in agent chat, a zero-key demo and a tour of the commands.

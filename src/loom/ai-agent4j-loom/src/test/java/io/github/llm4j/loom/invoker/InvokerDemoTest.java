@@ -205,7 +205,7 @@ class InvokerDemoTest {
 
     private static final String SCRIPT =
             """
-            tool Refunds { use: openapi  spec: "refunds.json"  auth_header: "Authorization"  auth_value: invoker.token }
+            tool Refunds { use: openapi  spec: "refunds.json"  allow_http: true  allow_private: true  auth_header: "Authorization"  auth_value: invoker.token }
             agent Support { model: "m"  system: "You are Support."  tools: [Refunds] }
             workflow Main(who) { delegate "look up refunds for {who}" to Support -> answer }
             """;

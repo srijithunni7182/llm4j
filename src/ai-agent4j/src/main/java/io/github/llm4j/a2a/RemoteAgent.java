@@ -4,9 +4,9 @@ import io.github.llm4j.secret.SecretRef;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -19,7 +19,9 @@ import java.util.Set;
  */
 public final class RemoteAgent {
 
-    /** How far before the recorded send time a search for it starts, to allow for clock differences. */
+    /**
+     * How far before the recorded send time a search for it starts, to allow for clock differences.
+     */
     static final java.time.Duration CLOCK_MARGIN = java.time.Duration.ofMinutes(5);
 
     /** How many history messages are asked for per task when searching. */
@@ -183,11 +185,11 @@ public final class RemoteAgent {
     }
 
     /**
-     * Looks for the task an earlier send created, after a crash that left it unknown whether the send
-     * arrived. It lists recent tasks, with history, since a short margin before {@code sentAt} (clocks
-     * differ), and matches the message id in their history. A server may return less history than
-     * asked for and cut the message off, or refuse to list: neither is a match, and the caller must
-     * then treat the outcome as unknown and send nothing.
+     * Looks for the task an earlier send created, after a crash that left it unknown whether the
+     * send arrived. It lists recent tasks, with history, since a short margin before {@code sentAt}
+     * (clocks differ), and matches the message id in their history. A server may return less
+     * history than asked for and cut the message off, or refuse to list: neither is a match, and
+     * the caller must then treat the outcome as unknown and send nothing.
      *
      * @param messageId the id of the message that was sent
      * @param sentAt when it was recorded as sent
@@ -198,7 +200,8 @@ public final class RemoteAgent {
         Objects.requireNonNull(messageId, "the message id");
         Objects.requireNonNull(sentAt, "sentAt");
         List<RemoteTask> recent =
-                transport.recentTasks(prepare(), credential, sentAt.minus(CLOCK_MARGIN), SEARCH_HISTORY);
+                transport.recentTasks(
+                        prepare(), credential, sentAt.minus(CLOCK_MARGIN), SEARCH_HISTORY);
         return recent.stream()
                 .filter(t -> t.history().stream().anyMatch(m -> m.messageId().equals(messageId)))
                 .findFirst();

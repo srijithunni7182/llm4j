@@ -4,6 +4,7 @@ import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.EffectContext;
 import io.github.llm4j.agent.tool.Effectful;
 import io.github.llm4j.agent.tool.ToolKind;
+import io.github.llm4j.secret.CredentialSource;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,25 @@ public abstract class GenericKind implements ToolKind {
 
     protected abstract Tool build(String name, Options options, Path baseDir, EffectContext context)
             throws Exception;
+
+    /**
+     * Builds the tool with a credential source for each option given as {@code invoker.NAME}. A
+     * kind that lists such options in {@link #lateBound()} overrides this; the default refuses
+     * them.
+     */
+    protected Tool build(
+            String name,
+            Options options,
+            Map<String, CredentialSource> lateBound,
+            Path baseDir,
+            EffectContext context)
+            throws Exception {
+        if (!lateBound.isEmpty()) {
+            throw new IllegalStateException(
+                    "use: " + name() + " does not take " + lateBound.keySet() + " from the invoker");
+        }
+        return build(name, options, baseDir, context);
+    }
 
     /** What is wrong with the options, or null. Touches neither the network nor the files. */
     @Override
@@ -49,7 +69,19 @@ public abstract class GenericKind implements ToolKind {
     public final Tool create(
             String name, Map<String, String> options, Path baseDir, EffectContext context)
             throws Exception {
-        Tool tool = build(name, new Options(options), baseDir, context);
+        return create(name, options, Map.of(), baseDir, context);
+    }
+
+    /** As above, with a source for each option given as {@code invoker.NAME}. */
+    @Override
+    public final Tool create(
+            String name,
+            Map<String, String> options,
+            Map<String, CredentialSource> lateBound,
+            Path baseDir,
+            EffectContext context)
+            throws Exception {
+        Tool tool = build(name, new Options(options), lateBound, baseDir, context);
         // A tool that has side effects is journaled here, so exactly-once holds wherever the tool
         // is used.
         return tool instanceof Effectful effectful ? new EffectTool(effectful, context) : tool;

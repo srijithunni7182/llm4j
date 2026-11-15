@@ -65,6 +65,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- The openapi tool kind (phase 36): found with ServiceLoader, so use: openapi works out of the box. Brings swagger-parser. -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-tools-openapi</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- The JDBC driver of the sql tool. Optional, so the library does not push it onto anyone; the runnable weave jar (the cli classifier) includes it. -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -136,6 +143,14 @@
             <groupId>com.icegreen</groupId>
             <artifactId>greenmail</artifactId>
             <version>2.1.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- A real MCP server over stdio and the official-schema validator, for the MCP tests (not published) -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>llm4j-mcp-testkit</artifactId>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -284,7 +299,6 @@
                                         <include>io.github.llm4j.loom.execution.ThreadScope*</include>
                                         <include>io.github.llm4j.loom.execution.InvokerSource</include>
                                         <include>io.github.llm4j.loom.execution.InvokerRefs</include>
-                                        <include>io.github.llm4j.loom.tools.OpenApiKind</include>
                                         <include>io.github.llm4j.loom.cli.InvokerOptions*</include>
                                     </includes>
                                     <limits>
@@ -900,7 +914,6 @@
                                 <param>io.github.llm4j.loom.execution.ThreadScope*</param>
                                 <param>io.github.llm4j.loom.execution.InvokerSource</param>
                                 <param>io.github.llm4j.loom.execution.InvokerRefs</param>
-                                <param>io.github.llm4j.loom.tools.OpenApiKind</param>
                                 <param>io.github.llm4j.loom.cli.InvokerOptions*</param>
                                 <param>io.github.llm4j.loom.tools.ToolFactory*</param>
                                 <param>io.github.llm4j.loom.ast.ToolDef*</param>
@@ -918,7 +931,6 @@
                                 <param>io.github.llm4j.loom.execution.InvokerSourceTest</param>
                                 <param>io.github.llm4j.loom.execution.ConcurrentTopLevelRunsTest</param>
                                 <param>io.github.llm4j.loom.execution.CredentialValueTest</param>
-                                <param>io.github.llm4j.loom.tools.OpenApiKindTest</param>
                                 <param>io.github.llm4j.loom.tools.ToolFactoryInvokerTest</param>
                                 <param>io.github.llm4j.loom.cli.InvokerCliTest</param>
                                 <param>io.github.llm4j.loom.cli.WeaveEnvTest</param>
@@ -936,5 +948,59 @@
                 </plugins>
             </build>
         </profile>
-    </profiles>
+            <!-- Mutation testing of what decides things in the MCP and integration code (phase 36, D15):
+             mvn -Pmutation-integrations org.pitest:pitest-maven:mutationCoverage -->
+        <profile>
+            <id>mutation-integrations</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.loom.security.McpEffects</param>
+                                <param>io.github.llm4j.loom.execution.McpChecks</param>
+                                <param>io.github.llm4j.loom.execution.PinChecks</param>
+                                <param>io.github.llm4j.loom.security.IntegrationAudit</param>
+                                <param>io.github.llm4j.loom.cli.McpScriptEditor</param>
+                                <param>io.github.llm4j.loom.cli.ConnectEdit</param>
+                                <param>io.github.llm4j.loom.cli.ConnectCommand*</param>
+                                <param>io.github.llm4j.loom.cli.ConnectDraft*</param>
+                                <param>io.github.llm4j.loom.doctor.IntegrationHosts</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.loom.effects.McpHintsTest</param>
+                                <param>io.github.llm4j.loom.depth.McpBlockRuntimeTest</param>
+                                <param>io.github.llm4j.loom.execution.PinChecksTest</param>
+                                <param>io.github.llm4j.loom.security.IntegrationAuditTest</param>
+                                <param>io.github.llm4j.loom.cli.McpScriptEditorTest</param>
+                                <param>io.github.llm4j.loom.execution.McpChecksTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectCommandTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectDraftTest</param>
+                                <param>io.github.llm4j.loom.cli.DoctorIntegrationsTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectBranchesTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectDraftBranchesTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectOutputTest</param>
+                                <param>io.github.llm4j.loom.depth.McpRemoteRuntimeTest</param>
+                            </targetTests>
+                            <threads>2</threads>
+                            <timeoutFactor>4</timeoutFactor>
+                            <mutationThreshold>85</mutationThreshold>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+</profiles>
 </project>

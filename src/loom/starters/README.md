@@ -1,6 +1,6 @@
 # Loom starter set
 
-Twenty small, complete workflows, each one a step up from the one before. Every one **loads** (`weave check`), has **tests that need no key and cost nothing** (`weave test`), and carries a picture of itself drawn by `weave graph`. Copy a folder, change the prompts, and you have a project.
+Twenty-one small, complete workflows, each one a step up from the one before. Every one **loads** (`weave check`), has **tests that need no key and cost nothing** (`weave test`), and carries a picture of itself drawn by `weave graph`. Copy a folder, change the prompts, and you have a project.
 
 New to Loom? Read the [tutorial](../../../docs/tutorial/README.md) alongside these: each starter links to the chapter that explains it.
 
@@ -40,6 +40,7 @@ The models are named `gemini-2.5-flash` in all of them. Change the `model:` line
 | 18 | [supervise-workflows](18-supervise-workflows/) | Start three researchers at once and watch them | `start`, handles, `supervise` on a handle, `wait all`, judged assertions, a `need_help` signal |
 | 19 | [report-writer](19-report-writer/) | Writes a report, checks it against a schema, restores and retries | `workspace` snapshot and restore, `verify`, `side effects: repeat` |
 | 20 | [data-analyst](20-data-analyst/) | Runs a model's script on a CSV in a container and checks its answer | `sandbox` with no network, `compute`, `verify`, `scan` |
+| 21 | [connect-a-system](21-connect-a-system/) | An API operation and a typed command that `weave connect` and a template provide | `openapi` with `operation:` and `pin:`, `command`, `fail:` with `credential_rejected` |
 
 ## What keeps these honest
 

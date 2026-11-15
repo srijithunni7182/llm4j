@@ -19,6 +19,7 @@ cannot see or move.
 | [Auditing a script: `weave audit`](docs/security/weave-audit.md) | The static security review: what it finds (14 rules), the report, and how to gate CI on it |
 | [The OWASP Top 10 for LLM Applications, and the gaps](docs/security/owasp-llm-top-10.md) | Each of the ten risks: what llm4j does, what you do, and what is not covered yet |
 | [The tools' safety model](src/tools/ai-agent4j-tools/docs/safety.md) | What a hostile call to `webhook`, `email`, `http`, `file`, `shell` or `sql` tries, and what stops it; the sandbox has [its own threat model](docs/security/sandbox.md) |
+| [Securing integrations](docs/security/integrations.md) | An OpenAPI description, an MCP server (local, in a container, or remote), a typed `command`, and `weave connect`: what every outbound call passes, why credentials are the caller's, why a server's annotations are untrusted, and what is not covered (the supply chain of an MCP package) |
 
 ## The threat model
 

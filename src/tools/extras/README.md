@@ -12,6 +12,7 @@ only when they want its tool, and pays nothing otherwise. Why the split exists i
 | [`ai-agent4j-tools-documents`](ai-agent4j-tools-documents/) | `documents`: the text of PDF, DOCX and HTML files, with pages and paragraphs | Apache PDFBox (and a `-weave` jar with it inside) |
 | [`ai-agent4j-tools-git`](ai-agent4j-tools-git/) | `git`: status, diff, log, branch, commit and an approved push, through the sandbox | none |
 | [`ai-agent4j-tools-browser`](ai-agent4j-tools-browser/) | `browser`: open, read, click, fill and screenshot pages in an installed Chrome, every request checked | none (a Chrome you install) |
+| [`ai-agent4j-tools-openapi`](ai-agent4j-tools-openapi/) | `openapi`: one operation of an OpenAPI 3 description as one tool, through the guarded HTTP layer; `weave` bundles it | swagger-parser (Apache 2.0) |
 
 ## What an extras module is
 

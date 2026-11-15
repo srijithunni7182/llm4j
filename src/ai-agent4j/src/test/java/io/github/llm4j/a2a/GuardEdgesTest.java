@@ -91,7 +91,12 @@ class GuardEdgesTest {
     void aRunnerThatStartsATaskInAnotherScopeIsRefused() {
         var handler = new A2AHandler(scope -> new LyingRunner("start"));
 
-        assertThatThrownBy(() -> result(handler.handle(ALICE, new A2ARequest.Send(msg("m"), true, null, null))))
+        assertThatThrownBy(
+                        () ->
+                                result(
+                                        handler.handle(
+                                                ALICE,
+                                                new A2ARequest.Send(msg("m"), true, null, null))))
                 .hasRootCauseInstanceOf(A2AException.class)
                 .hasMessageContaining("another scope");
     }
@@ -101,7 +106,12 @@ class GuardEdgesTest {
         var runner = new LyingRunner("settled");
         var handler = new A2AHandler(scope -> runner);
 
-        assertThatThrownBy(() -> result(handler.handle(ALICE, new A2ARequest.Send(msg("m"), false, null, null))))
+        assertThatThrownBy(
+                        () ->
+                                result(
+                                        handler.handle(
+                                                ALICE,
+                                                new A2ARequest.Send(msg("m"), false, null, null))))
                 .hasMessageContaining("another scope");
     }
 
@@ -123,7 +133,13 @@ class GuardEdgesTest {
         runner.put("bob", "t-b", "c", TaskState.WORKING);
         var handler = new A2AHandler(scope -> runner);
 
-        var page = (A2AResponse.TaskPage) result(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, null, null, null, null, false)));
+        var page =
+                (A2AResponse.TaskPage)
+                        result(
+                                handler.handle(
+                                        ALICE,
+                                        new A2ARequest.ListTasks(
+                                                null, null, null, null, null, null, false)));
 
         assertThat(page.tasks()).extracting(RemoteTask::id).containsExactly("t-a");
         assertThat(page.totalSize()).isEqualTo(1);
@@ -134,9 +150,22 @@ class GuardEdgesTest {
         var handler = new A2AHandler(scope -> new FakeTaskRunner());
 
         for (int ok : new int[] {1, A2AHandler.MAX_PAGE_SIZE})
-            assertThat(result(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, ok, null, null, null, false)))).isInstanceOf(A2AResponse.TaskPage.class);
+            assertThat(
+                            result(
+                                    handler.handle(
+                                            ALICE,
+                                            new A2ARequest.ListTasks(
+                                                    null, null, ok, null, null, null, false))))
+                    .isInstanceOf(A2AResponse.TaskPage.class);
         for (int bad : new int[] {0, A2AHandler.MAX_PAGE_SIZE + 1})
-            assertThatThrownBy(() -> result(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, bad, null, null, null, false))))
+            assertThatThrownBy(
+                            () ->
+                                    result(
+                                            handler.handle(
+                                                    ALICE,
+                                                    new A2ARequest.ListTasks(
+                                                            null, null, bad, null, null, null,
+                                                            false))))
                     .hasRootCauseInstanceOf(A2AException.InvalidParams.class);
     }
 
@@ -146,9 +175,22 @@ class GuardEdgesTest {
         runner.put("alice", "t-1", "c", TaskState.WORKING);
         var handler = new A2AHandler(scope -> runner);
 
-        var first = (A2AResponse.TaskPage) result(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, null, "0", null, null, false)));
+        var first =
+                (A2AResponse.TaskPage)
+                        result(
+                                handler.handle(
+                                        ALICE,
+                                        new A2ARequest.ListTasks(
+                                                null, null, null, "0", null, null, false)));
         assertThat(first.tasks()).hasSize(1);
-        assertThatThrownBy(() -> result(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, null, "-1", null, null, false))))
+        assertThatThrownBy(
+                        () ->
+                                result(
+                                        handler.handle(
+                                                ALICE,
+                                                new A2ARequest.ListTasks(
+                                                        null, null, null, "-1", null, null,
+                                                        false))))
                 .hasRootCauseInstanceOf(A2AException.InvalidParams.class);
     }
 
@@ -157,13 +199,37 @@ class GuardEdgesTest {
     @Test
     void aReplyExactlyAtTheLimitIsAcceptedAndOneByteOverIsNot() {
         var guard = new ExchangeGuard(3, Duration.ofSeconds(5), 4, ExchangeGuard.Waiter.direct());
-        var context = new ChannelContext("r", "s", "w", ChannelContext.Direction.INBOUND_QUESTION, "Supplier", null, 3, null);
+        var context =
+                new ChannelContext(
+                        "r",
+                        "s",
+                        "w",
+                        ChannelContext.Direction.INBOUND_QUESTION,
+                        "Supplier",
+                        null,
+                        3,
+                        null);
         var question = new ChannelMessage.Question("q", null, null, 1, null);
 
-        assertThat(guard.exchange((c, m) -> new ChannelResponse.Reply("abcd", null), context, question, reply -> Optional.empty()))
+        assertThat(
+                        guard.exchange(
+                                (c, m) -> new ChannelResponse.Reply("abcd", null),
+                                context,
+                                question,
+                                reply -> Optional.empty()))
                 .isEqualTo(new ChannelResponse.Reply("abcd", null));
-        assertThatThrownBy(() -> new ExchangeGuard(3, Duration.ofSeconds(5), 4, ExchangeGuard.Waiter.direct())
-                        .exchange((c, m) -> new ChannelResponse.Reply("abcde", null), context, question, reply -> Optional.empty()))
+        assertThatThrownBy(
+                        () ->
+                                new ExchangeGuard(
+                                                3,
+                                                Duration.ofSeconds(5),
+                                                4,
+                                                ExchangeGuard.Waiter.direct())
+                                        .exchange(
+                                                (c, m) -> new ChannelResponse.Reply("abcde", null),
+                                                context,
+                                                question,
+                                                reply -> Optional.empty()))
                 .isInstanceOf(A2AException.ChannelFailure.class);
     }
 
@@ -171,7 +237,10 @@ class GuardEdgesTest {
     void aReplyLimitOfOneByteIsAllowedAndZeroIsNot() {
         new ExchangeGuard(1, Duration.ofSeconds(1), 1, ExchangeGuard.Waiter.direct());
 
-        assertThatThrownBy(() -> new ExchangeGuard(1, Duration.ofSeconds(1), 0, ExchangeGuard.Waiter.direct()))
+        assertThatThrownBy(
+                        () ->
+                                new ExchangeGuard(
+                                        1, Duration.ofSeconds(1), 0, ExchangeGuard.Waiter.direct()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -181,9 +250,13 @@ class GuardEdgesTest {
 
     @Test
     void aFileThatClaimsAnotherKindThanItsBytesIsRefusedWhateverTheClaim() throws Exception {
-        for (String claim : new String[] {"audio/mpeg", "video/mp4", "application/pdf", "image/jpeg"}) {
-            var sink = new ReceivedFileSink(root, "run-" + claim.replace('/', '-'), MediaPolicy.defaults(), 4);
-            // the bytes are a PDF (for the claims of image, audio and video) or a PNG (for the claim of a PDF)
+        for (String claim :
+                new String[] {"audio/mpeg", "video/mp4", "application/pdf", "image/jpeg"}) {
+            var sink =
+                    new ReceivedFileSink(
+                            root, "run-" + claim.replace('/', '-'), MediaPolicy.defaults(), 4);
+            // the bytes are a PDF (for the claims of image, audio and video) or a PNG (for the
+            // claim of a PDF)
             byte[] bytes = claim.equals("application/pdf") ? TinyMedia.png() : TinyMedia.pdf();
             try (var out = sink.open("f", claim)) {
                 out.write(bytes);
@@ -198,38 +271,74 @@ class GuardEdgesTest {
 
     @Test
     void requireHttpsReturnsTheHostItAccepted() {
-        assertThat(EndpointGuard.requireHttps("https://supplier.example.com/card.json", "the card")).isEqualTo("supplier.example.com");
+        assertThat(EndpointGuard.requireHttps("https://supplier.example.com/card.json", "the card"))
+                .isEqualTo("supplier.example.com");
     }
 
     // ---- the file-type check on a reply, and where the accepted types come from
 
-    private static final AgentCardView.Endpoint ENDPOINT = new AgentCardView.Endpoint("https://supplier.example.com/rpc", "JSONRPC", "1.0", null);
+    private static final AgentCardView.Endpoint ENDPOINT =
+            new AgentCardView.Endpoint("https://supplier.example.com/rpc", "JSONRPC", "1.0", null);
     private static final AgentChannel NO_CHANNEL = (c, m) -> new ChannelResponse.Refuse("not used");
 
     private static RemoteAgent agent(FakeTransport transport) {
-        return RemoteAgent.builder("https://supplier.example.com/.well-known/agent-card.json", transport, NO_CHANNEL).build();
+        return RemoteAgent.builder(
+                        "https://supplier.example.com/.well-known/agent-card.json",
+                        transport,
+                        NO_CHANNEL)
+                .build();
     }
 
     @Test
     void aReplyWithAFileTheCardDoesNotAcceptIsRefusedAndNothingIsSent() {
-        var card = AgentCardView.builder("Supplier", "sells").endpoints(List.of(ENDPOINT)).defaultInputMediaTypes(List.of("text/plain", "image/*")).build();
-        var transport = new FakeTransport().card(card).getReplies(RemoteTask.of("t-1", "c-1", TaskState.INPUT_REQUIRED));
-        var pdf = A2AMessage.user("m", List.of(Part.FileOffered.inline(new byte[] {1}, "a", "application/pdf")));
+        var card =
+                AgentCardView.builder("Supplier", "sells")
+                        .endpoints(List.of(ENDPOINT))
+                        .defaultInputMediaTypes(List.of("text/plain", "image/*"))
+                        .build();
+        var transport =
+                new FakeTransport()
+                        .card(card)
+                        .getReplies(RemoteTask.of("t-1", "c-1", TaskState.INPUT_REQUIRED));
+        var pdf =
+                A2AMessage.user(
+                        "m",
+                        List.of(Part.FileOffered.inline(new byte[] {1}, "a", "application/pdf")));
 
-        assertThatThrownBy(() -> agent(transport).reply("t-1", pdf)).isInstanceOf(A2AException.Refused.class).hasMessageContaining("application/pdf");
+        assertThatThrownBy(() -> agent(transport).reply("t-1", pdf))
+                .isInstanceOf(A2AException.Refused.class)
+                .hasMessageContaining("application/pdf");
         assertThat(transport.operationNames()).doesNotContain("send");
     }
 
     @Test
     void whenTheCardStatesNoDefaultTypesTheSkillsTypesDecide() {
-        var skill = new AgentCardView.Skill("quote", "Quote", "Prices a part", List.of(), List.of(), List.of("image/png"), List.of());
-        var card = AgentCardView.builder("Supplier", "sells").endpoints(List.of(ENDPOINT)).skills(List.of(skill)).build();
+        var skill =
+                new AgentCardView.Skill(
+                        "quote",
+                        "Quote",
+                        "Prices a part",
+                        List.of(),
+                        List.of(),
+                        List.of("image/png"),
+                        List.of());
+        var card =
+                AgentCardView.builder("Supplier", "sells")
+                        .endpoints(List.of(ENDPOINT))
+                        .skills(List.of(skill))
+                        .build();
         var working = new SendResult.TaskResult(RemoteTask.of("t-1", "c-1", TaskState.WORKING));
         var transport = new FakeTransport().card(card).sendReplies(working);
-        var pdf = A2AMessage.user("m", List.of(Part.FileOffered.inline(new byte[] {1}, "a", "application/pdf")));
-        var png = A2AMessage.user("m2", List.of(Part.FileOffered.inline(new byte[] {1}, "a", "image/png")));
+        var pdf =
+                A2AMessage.user(
+                        "m",
+                        List.of(Part.FileOffered.inline(new byte[] {1}, "a", "application/pdf")));
+        var png =
+                A2AMessage.user(
+                        "m2", List.of(Part.FileOffered.inline(new byte[] {1}, "a", "image/png")));
 
-        assertThatThrownBy(() -> agent(transport).send(pdf)).isInstanceOf(A2AException.Refused.class);
+        assertThatThrownBy(() -> agent(transport).send(pdf))
+                .isInstanceOf(A2AException.Refused.class);
         agent(transport).send(png);
         assertThat(transport.operationNames()).contains("send");
     }
@@ -243,7 +352,19 @@ class GuardEdgesTest {
         runner.put("alice", "t-new", "c", TaskState.WORKING); // updated at second 2
         var handler = new A2AHandler(scope -> runner);
 
-        var page = (A2AResponse.TaskPage) result(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, null, null, null, Instant.ofEpochSecond(2), false)));
+        var page =
+                (A2AResponse.TaskPage)
+                        result(
+                                handler.handle(
+                                        ALICE,
+                                        new A2ARequest.ListTasks(
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                Instant.ofEpochSecond(2),
+                                                false)));
 
         assertThat(page.tasks()).extracting(RemoteTask::id).containsExactly("t-new");
     }
@@ -254,7 +375,11 @@ class GuardEdgesTest {
         var next = RemoteTask.of("t-1", "c-1", TaskState.WORKING);
         var card = AgentCardView.builder("Supplier", "sells").endpoints(List.of(ENDPOINT)).build();
         var message = A2AMessage.agent("a-1", List.of(new Part.Text("noted")));
-        var transport = new FakeTransport().card(card).getReplies(waiting, next).sendReplies(new SendResult.MessageResult(message));
+        var transport =
+                new FakeTransport()
+                        .card(card)
+                        .getReplies(waiting, next)
+                        .sendReplies(new SendResult.MessageResult(message));
 
         var result = agent(transport).reply("t-1", msg("m-9"));
 
@@ -263,12 +388,32 @@ class GuardEdgesTest {
 
     @Test
     void anInterruptedChannelCallFailsTheExchangeAndKeepsTheInterruptFlag() {
-        var guard = new ExchangeGuard(3, Duration.ofSeconds(5), 100, (call, timeout) -> {
-            throw new InterruptedException("stop");
-        });
-        var context = new ChannelContext("r", "s", "w", ChannelContext.Direction.INBOUND_QUESTION, "Supplier", null, 3, null);
+        var guard =
+                new ExchangeGuard(
+                        3,
+                        Duration.ofSeconds(5),
+                        100,
+                        (call, timeout) -> {
+                            throw new InterruptedException("stop");
+                        });
+        var context =
+                new ChannelContext(
+                        "r",
+                        "s",
+                        "w",
+                        ChannelContext.Direction.INBOUND_QUESTION,
+                        "Supplier",
+                        null,
+                        3,
+                        null);
         try {
-            assertThatThrownBy(() -> guard.exchange((c, m) -> new ChannelResponse.Reply("x", null), context, new ChannelMessage.Question("q", null, null, 1, null), reply -> Optional.empty()))
+            assertThatThrownBy(
+                            () ->
+                                    guard.exchange(
+                                            (c, m) -> new ChannelResponse.Reply("x", null),
+                                            context,
+                                            new ChannelMessage.Question("q", null, null, 1, null),
+                                            reply -> Optional.empty()))
                     .isInstanceOf(A2AException.ChannelFailure.class)
                     .hasMessageContaining("interrupted");
             assertThat(Thread.currentThread().isInterrupted()).as("the flag is kept").isTrue();
