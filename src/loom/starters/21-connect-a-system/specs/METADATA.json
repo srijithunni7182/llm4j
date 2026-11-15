@@ -4,7 +4,7 @@
   "licence": "Apache-2.0 (the specification's own info.license)",
   "recorded": "2026-11-14",
   "specVersion": "openapi 3.0.4, info.version 1.0.27",
-  "scrubbed": "the request id the service put in its 500 answer was replaced by <scrubbed>; nothing else was changed. No credential or personal data is in these files (the scan kind runs over them).",
+  "scrubbed": "two email addresses in the description (the project's public contact address and an example user's) were replaced by plain words, because an address-shaped string is flagged by the scan tool; the request id the service put in its 500 answer was replaced by <scrubbed>; nothing else was changed. No credential or personal data is in these files (the scan kind runs over them: FixtureProvenanceTest).",
   "files": {
     "openapi.json": "GET /openapi.json, 200 application/json",
     "pet-1-not-found.txt": "GET /pet/1, 404 application/xml, body 'Pet not found'",

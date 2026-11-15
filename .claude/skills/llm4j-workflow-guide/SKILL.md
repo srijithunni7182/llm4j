@@ -48,6 +48,10 @@ the evidence stages and says so?"), and do not ask again. The fast lane skips **
 
 1. Choose the shape with the `llm4j-workflow-patterns` skill (or `weave init <template>` when one is the closest fit).
 2. For a description with no script yet, use `weave generate` (below): read `PLAN.md` to the person, let them change it, then build.
+2a. A system that already exists (an API with an OpenAPI description, an MCP server, a command-line program, an API known only from its documentation) is
+    brought in with `weave connect openapi | mcp | command | http ... --write main.loom`, not written by hand. It proposes each effect and a pin, shows the
+    change, and writes only what the person approves; read the proposed effects to the person (a model or a server may have got one wrong). A credential
+    is only a reference (`env.NAME`, `secret.NAME`, `invoker.NAME`).
 3. `weave check`, then `weave explain`, read back to the person.
 4. `weave test` runs scripted tests that cost nothing (`weave generate` writes them), then `weave audit --fail-on medium`.
 5. One capped real run, with the person reading the output (convention 4). Ask first: it spends.

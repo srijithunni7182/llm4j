@@ -31,7 +31,7 @@ this skill's `references/` folder and in the tools:
    Move up only when the task needs it, and say why.
 2. **Let models read and propose; let code decide and act.** (External and internal agents, by audience: an agent whose words reach a person gets tone and task, never the rules; policies are checked at the edge by an evaluator that fails closed, not written into prompts. In Loom: `policy`, `evaluator`, `check ... against`, and the runtime refuses unchecked model text at the exits.) A step that must happen every time, must be exact, or moves money is a
    deterministic step the model cannot call, skip or talk its way past. An agent may hold a tool that sends, writes or deletes only
-   behind an approval a person gives (or a code check), and only with the least reach that does the job.
+   behind an approval a person gives (or a code check), and only with the least reach that does the job. **A system you connect is a program or a service you do not control:** run an MCP server with `isolation: container` (not none), take its tools' effects from a person (`weave connect mcp` proposes, the person approves; a server's own labels are untrusted), pin its tool list, and give a command a model fills as typed holes (`use: command`), never as free text.
 3. **Done is checked, not declared.** Every exit has a criterion. Where it can be counted or compared, code checks it. The agent that
    did the work is never the only one who grades it.
 4. **The agent cannot edit its own yardstick.** The objective, the evaluator, the tests, the budget and the autonomy level are locked

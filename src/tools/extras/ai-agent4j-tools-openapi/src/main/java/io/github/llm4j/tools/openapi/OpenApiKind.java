@@ -97,6 +97,12 @@ public final class OpenApiKind extends GenericKind {
         return Set.of("auth_value");
     }
 
+    /** An API's answer can hold what a model sent it (an echo) or text anyone wrote: all of it is unchecked. */
+    @Override
+    public Set<String> uncheckedResult(Map<String, String> options) {
+        return Set.of(WHOLE_RESULT);
+    }
+
     /** The tool is built when the run starts, so a missing operation or spec is a load error. */
     @Override
     public boolean buildsAtRunStart() {

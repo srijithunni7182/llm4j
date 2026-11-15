@@ -66,6 +66,12 @@ public final class CommandKind extends GenericKind {
         return Map.of("workspace", "workspace");
     }
 
+    /** A program's output can hold what a model sent it (an echo) or what it read: all of it is unchecked text. */
+    @Override
+    public java.util.Set<String> uncheckedResult(Map<String, String> options) {
+        return java.util.Set.of(WHOLE_RESULT);
+    }
+
     @Override
     public boolean buildsAtRunStart() {
         return true;

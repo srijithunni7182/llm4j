@@ -85,4 +85,4 @@ To call the real service, run the workflow with `weave run main.loom --input pet
 
 ## Where the files came from
 
-`specs/petstore.json` is the description the Swagger Petstore serves (Apache-2.0), and `specs/METADATA.json` says when it was recorded and what was changed (nothing). Re-record it by hand before a release, never in CI.
+`specs/petstore.json` is the description the Swagger Petstore serves (Apache-2.0), and `specs/METADATA.json` says when it was recorded and what was changed (two example email addresses, as the fixture says). Re-record it by hand before a release, never in CI.

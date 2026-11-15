@@ -743,6 +743,72 @@ workflow Main(question) {
 Stages that matter: 7 (audit: LA31 if it runs at `process`, LA33 for any network), 8 (tests with scripted tool results), 9 (Docker on the
 machine it will run on: a missing runtime stops the run before its first step).
 
+## 15. Connect a system that already exists
+
+**Use it when:** The workflow has to read from or act in something that is already there: an API with a published description, an MCP
+server, a command-line program, an API known only from its documentation. Nothing should be written by hand that a tool can read.
+
+**Decide with the person:**
+
+- Which operations the workflow needs, and which of them change something (a `GET` reads; the rest change). Choose few: an agent gets only
+  the operations declared, each with its own effect, approval and audit entry.
+- Whose credential it is: the deployment's (`env.NAME`, `secret.NAME`) or the person who runs the workflow (`invoker.NAME`). Never a value in
+  the script.
+- How a program is isolated: `isolation: container` with an image for an MCP server or a command; `process` is not isolation and the audit says so.
+- What the model may fill in: for a command, only typed holes (`path in`, `int 1..400`, `enum`); never free text that becomes a command line.
+
+Bring each system in with `weave connect openapi`, `weave connect mcp`, `weave connect command` or `weave connect http` (each with `--write main.loom`): it proposes each effect, shows the change, and
+writes only what is approved, with a `pin:` that notices drift (`--refresh --check` in CI). The skeleton shows what it writes.
+
+<!-- starter:21-connect-a-system -->
+```loom
+// 21-connect-a-system: tools that `weave connect` wrote, used by a workflow with no model at all. Pet_getPetById is one operation of
+// the Swagger Petstore's description, declared as a read, with a pin that notices a changed signature; Resize is a command line the
+// author wrote, whose three holes the workflow fills. The command runs in a container that sees only the photos folder, and a value
+// is always one argument.
+
+budget { tokens: 10000  calls: 5 }
+
+// weave connect openapi specs/petstore.json --operations getPetById --prefix Pet --write main.loom
+tool Pet_getPetById {
+    use: openapi
+    spec: "specs/petstore.json"
+    operation: "getPetById"
+    effect: reads
+    on_unknown: retry
+    pin: "sha256-1d928873cc62b27e"
+}
+
+tool Photos { use: workspace  root: "photos"  allow: "*.png, *.txt"  mode: readwrite }
+tool Resize {
+    use: command
+    isolation: container
+    image: "dpokidov/imagemagick:7"
+    workspace: Photos
+    run: "convert {input} -resize {percent}% {output}"
+    param.input: "path in"
+    param.output: "path out"
+    param.percent: "int 1..400"
+}
+
+workflow Main(petId, picture) {
+    use Pet_getPetById(petId = petId) -> found
+    use Resize(input = picture, output = "small.png", percent = 50) -> resized
+    note "{found}"
+    return resized
+}
+```
+
+**What to keep and what to watch:**
+
+- A proposed effect is a proposal: a server's own labels and a model's reading are untrusted. The person approves what is written.
+- A tool a person did not describe is assumed to change things; declare `effect:` only after reading what the operation does.
+- Test it without the system: `weave capture` turns a real run into a case with what each tool answered, masked; `fail:` with
+  `category: credential_rejected` tests the handler for a token the server refused.
+
+Stages that matter: 6 (the tools and their effects), 7 (audit: LA31 for a program without a container, LA34 for a whole API, LA35 for a changed pin),
+8 (tests with scripted tool results), 9 (`weave doctor --network` on the machine it will run on).
+
 ## Shapes that are not a pattern of their own
 
 - **Remembers each person:** an agent with a `memory` block and a `persona`; ask what may be remembered, for how long, and who may erase it.
