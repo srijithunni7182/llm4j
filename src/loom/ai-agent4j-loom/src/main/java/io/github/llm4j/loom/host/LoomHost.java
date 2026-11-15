@@ -74,6 +74,7 @@ public final class LoomHost implements AutoCloseable {
     private final Executor runner;
     private final Set<String> active = ConcurrentHashMap.newKeySet();
     private final Map<String, HarnessExecutor> live = new ConcurrentHashMap<>();
+    private final Map<String, List<Runnable>> questionsToTell = new ConcurrentHashMap<>();
     private TriggerRunner triggerRunner;
     private volatile boolean closing;
     private final java.util.concurrent.atomic.AtomicInteger shutdowns =
@@ -289,9 +290,54 @@ public final class LoomHost implements AutoCloseable {
         } catch (Throwable t) {
             return failed(runId, record, previous, t);
         } finally {
+            Map<String, Object> variables = variablesOf(ex);
             if (ex != null) closeExecutor(ex);
             live.remove(runId);
             release(runId);
+            tellEnded(runId, variables);
+            tellListeners(runId);
+        }
+    }
+
+    /** The workflow's values as they stand, for a listener: a copy nobody can change. */
+    private static Map<String, Object> variablesOf(HarnessExecutor ex) {
+        if (ex == null || ex.getContext() == null) return Map.of();
+        return Collections.unmodifiableMap(new LinkedHashMap<>(ex.getContext().getAll()));
+    }
+
+    /** Tells the run listeners how {@code runId} ended, from the record that was just saved. */
+    private void tellEnded(String runId, Map<String, Object> variables) {
+        if (o.runListeners.isEmpty()) return;
+        RunRecord record = registry.find(runId).orElse(null);
+        if (record == null) return;
+        for (RunListener listener : o.runListeners) {
+            try {
+                listener.ended(record, variables);
+            } catch (RuntimeException e) {
+                log.log(java.util.logging.Level.WARNING, e, () -> "a run listener failed for run " + runId);
+            }
+        }
+    }
+
+    /** Keeps what a run's question listeners are to be told until the run has been put down. */
+    private void toTell(String runId, Runnable tell) {
+        questionsToTell.computeIfAbsent(runId, id -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(tell);
+    }
+
+    /**
+     * Tells the listeners of the questions {@code runId} asked. Called once the run's record is
+     * saved and the run released, so a listener that answers at once finds a suspended run. A
+     * listener that throws is logged and the others are still told: the run has already ended.
+     */
+    private void tellListeners(String runId) {
+        List<Runnable> waiting = questionsToTell.remove(runId);
+        if (waiting == null) return;
+        for (Runnable tell : waiting) {
+            try {
+                tell.run();
+            } catch (RuntimeException e) {
+                log.log(java.util.logging.Level.WARNING, e, () -> "a question listener failed for run " + runId);
+            }
         }
     }
 
@@ -435,9 +481,12 @@ public final class LoomHost implements AutoCloseable {
                 }
             }
         } finally {
+            Map<String, Object> variables = variablesOf(ex);
             closeExecutor(ex);
             live.remove(runId);
             release(runId);
+            tellEnded(runId, variables);
+            tellListeners(runId);
         }
     }
 
@@ -732,7 +781,9 @@ public final class LoomHost implements AutoCloseable {
                 ex.setTriggerStore(persistence.triggers());
                 ex.setChildRuns(childRuns());
                 if (human == null)
-                    human = new HostHumanInterface(runId, answers, o.listeners, clock);
+                    human =
+                            new HostHumanInterface(
+                                    runId, answers, o.listeners, clock, tell -> toTell(runId, tell));
             } else {
                 ex.setTriggerStore(
                         new InMemoryTriggerStore()); // a task given to an agent: the script's
@@ -743,7 +794,8 @@ public final class LoomHost implements AutoCloseable {
                                     "(no run)",
                                     answers,
                                     o.listeners,
-                                    clock); // so a script that asks a person passes validation; a
+                                    clock,
+                                    Runnable::run); // so a script that asks a person passes validation; a
                 // task has no run to wait in
             }
             if (!script.getDecisions().isEmpty() || !script.getLadders().isEmpty())
@@ -891,6 +943,7 @@ public final class LoomHost implements AutoCloseable {
         private io.github.llm4j.audit.AuditLogger auditLogger;
         private HumanInterface humanInterface;
         private final List<QuestionListener> listeners = new ArrayList<>();
+        private final List<RunListener> runListeners = new ArrayList<>();
         private ObserveProvider.Session observe;
         private Consumer<HarnessExecutor> customizer;
         private Executor runner;
@@ -1027,6 +1080,16 @@ public final class LoomHost implements AutoCloseable {
 
         public Builder questionListener(QuestionListener listener) {
             this.listeners.add(listener);
+            return this;
+        }
+
+        /**
+         * Tells {@code listener} how each run ended, with the values it ended with: the way an
+         * application learns the result of a run it started in the background or that was
+         * resumed. Several may be added; one that throws is logged and the others are still told.
+         */
+        public Builder runListener(RunListener listener) {
+            this.runListeners.add(java.util.Objects.requireNonNull(listener, "listener"));
             return this;
         }
 

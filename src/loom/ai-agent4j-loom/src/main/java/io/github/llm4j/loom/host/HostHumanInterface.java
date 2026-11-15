@@ -4,11 +4,14 @@ import io.github.llm4j.loom.runtime.HumanInterface;
 import io.github.llm4j.loom.runtime.RunSuspended;
 import java.time.Clock;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
- * A person who answers later. The first time a step asks, the question is recorded and the
- * listeners told, and the run suspends, holding no thread. When the run is resumed it asks again
- * and either gets the answer given meanwhile or suspends again.
+ * A person who answers later. The first time a step asks, the question is recorded and the run
+ * suspends, holding no thread. The listeners are told through {@code later}, which the host runs
+ * once the run is recorded as suspended: a listener may answer at once, and an answer is only
+ * taken for a run that is suspended. When the run is resumed it asks again and either gets the
+ * answer given meanwhile or suspends again.
  */
 final class HostHumanInterface implements HumanInterface {
 
@@ -16,13 +19,19 @@ final class HostHumanInterface implements HumanInterface {
     private final AnswerBook book;
     private final List<QuestionListener> listeners;
     private final Clock clock;
+    private final Consumer<Runnable> later;
 
     HostHumanInterface(
-            String runId, AnswerBook book, List<QuestionListener> listeners, Clock clock) {
+            String runId,
+            AnswerBook book,
+            List<QuestionListener> listeners,
+            Clock clock,
+            Consumer<Runnable> later) {
         this.runId = runId;
         this.book = book;
         this.listeners = listeners;
         this.clock = clock;
+        this.later = later;
     }
 
     @Override
@@ -42,7 +51,11 @@ final class HostHumanInterface implements HumanInterface {
         if (existing != null && existing.answered()) return existing.answer();
         if (existing == null) {
             book.ask(runId, stepId, message, hints.choices(), clock.instant());
-            for (QuestionListener l : listeners) l.asked(runId, stepId, message, hints.choices());
+            List<String> choices = hints.choices();
+            later.accept(
+                    () -> {
+                        for (QuestionListener l : listeners) l.asked(runId, stepId, message, choices);
+                    });
         }
         throw new RunSuspended(stepId, message);
     }

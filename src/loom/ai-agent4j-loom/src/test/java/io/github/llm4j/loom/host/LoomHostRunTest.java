@@ -405,4 +405,75 @@ class LoomHostRunTest {
                 .hasMessageContaining("decision D")
                 .hasMessageContaining("needs a store");
     }
+
+    /**
+     * A listener is how an application learns of a question, so the answer it gives from there has
+     * to be taken: the host used to tell the listener while the run was still recorded as running,
+     * and refused an answer that came at once.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
+    void anAnswerGivenFromTheListenerIsTakenForABlockingRun(String kind) {
+        List<AnswerResult> taken = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        HostEnv env = new HostEnv(kind, dir);
+        env.open(APPROVE, b -> b.questionListener((run, step, prompt, choices) -> taken.add(env.host.answer(run, step, "yes", "asha"))));
+
+        RunOutcome.Suspended s = suspended(env.host.run(RunRequest.of("Main", Map.of()).withRunId("r-now")));
+
+        assertThat(taken).singleElement().extracting(AnswerResult::recorded).isEqualTo(true);
+        HostEnv.await(() -> env.host.run(s.runId()).orElseThrow().status() == RunRecord.Status.COMPLETED, "the answered run to finish");
+        assertThat(env.effects.get()).isEqualTo(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
+    void anAnswerGivenFromTheListenerIsTakenForABackgroundRun(String kind) {
+        List<AnswerResult> taken = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        HostEnv env = new HostEnv(kind, dir);
+        env.open(APPROVE, b -> b.questionListener((run, step, prompt, choices) -> taken.add(env.host.answer(run, step, "yes", "asha"))));
+
+        env.host.start(RunRequest.of("Main", Map.of()).withRunId("r-bg"));
+
+        HostEnv.await(() -> env.host.run("r-bg").map(RunRecord::status).filter(RunRecord.Status.COMPLETED::equals).isPresent(), "the answered run to finish");
+        assertThat(taken).singleElement().extracting(AnswerResult::recorded).isEqualTo(true);
+        assertThat(env.effects.get()).isEqualTo(1);
+    }
+
+    /**
+     * A run started in the background, or carried on by an answer, hands nothing back to the
+     * caller, so an application is told how each run ended, with the values it ended with.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
+    void anApplicationIsToldHowEveryRunEndedWithItsValues(String kind) {
+        List<String> ended = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        HostEnv env = new HostEnv(kind, dir);
+        env.open(APPROVE, b -> b.runListener((record, variables) -> ended.add(record.runId() + " " + record.status() + " " + variables.get("sent"))));
+
+        env.host.start(RunRequest.of("Main", Map.of()).withRunId("r-told"));
+        HostEnv.await(() -> ended.size() == 1, "the suspended run to be reported");
+        RunRecord waiting = env.host.run("r-told").orElseThrow();
+        env.host.answer("r-told", waiting.stepId(), "yes", "asha");
+        HostEnv.await(() -> ended.size() == 2, "the finished run to be reported");
+
+        assertThat(ended.get(0)).isEqualTo("r-told SUSPENDED null");
+        assertThat(ended.get(1)).startsWith("r-told COMPLETED {").contains("notified yes");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
+    void aFailedRunIsReportedTooAndAListenerThatThrowsDoesNotBreakTheRun(String kind) {
+        List<RunRecord.Status> ended = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        HostEnv env = new HostEnv(kind, dir);
+        env.open(THREE_STEPS, b -> b.runListener((record, variables) -> { throw new IllegalStateException("listener bug"); })
+                .runListener((record, variables) -> ended.add(record.status())));
+        env.models.failAgent = "Drafter";
+
+        assertThatThrownBy(() -> env.host.run(RunRequest.of("Main", Map.of()).withRunId("r-bad"))).isInstanceOf(LoomRunFailedException.class);
+        env.models.failAgent = null;
+        RunOutcome fine = env.host.run(RunRequest.of("Main", Map.of()).withRunId("r-fine"));
+
+        assertThat(fine).isInstanceOf(RunOutcome.Completed.class);
+        assertThat(ended).containsExactly(RunRecord.Status.FAILED, RunRecord.Status.COMPLETED);
+    }
 }
