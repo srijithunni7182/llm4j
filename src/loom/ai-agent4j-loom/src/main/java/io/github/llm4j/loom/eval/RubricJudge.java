@@ -16,9 +16,13 @@ public interface RubricJudge {
     /** The verdict on {@code subject} against {@code criteria}, for the scenario it came from. */
     JudgeVerdict judge(String criteria, String subject, EvalScenario scenario);
 
+    /** The section the judge's instructions name as the thing to grade. */
+    String OUTPUT_SECTION = "ACTUAL OUTPUT";
+
     /**
-     * A judge that asks a model; what it is shown besides the answer is the scenario's input and
-     * context.
+     * A judge that asks a model. It is shown the scenario's input and context, and then the answer
+     * under {@link #OUTPUT_SECTION}, last, as data it must not follow. An answer that is missing is
+     * shown as an empty output, so the judge grades "nothing was said" and not the question.
      */
     static RubricJudge model(LLMClient client, String identifier) {
         JudgeCalls calls = JudgeCalls.using(client).judgeIdentifier(identifier);
@@ -27,6 +31,7 @@ public interface RubricJudge {
             if (scenario.input() != null) sections.put("Input", scenario.input());
             if (scenario.context() != null && !scenario.context().isEmpty())
                 sections.put("Context", String.join("\n", scenario.context()));
+            sections.put(OUTPUT_SECTION, subject == null ? "" : subject);
             return calls.rate("rubric", criteria, subject, sections);
         };
     }
