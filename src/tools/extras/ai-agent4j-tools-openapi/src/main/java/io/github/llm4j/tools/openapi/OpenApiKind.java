@@ -298,6 +298,22 @@ public final class OpenApiKind extends GenericKind {
         return url;
     }
 
+    /**
+     * Reads a description the way a tool does, through the guarded layer (HTTPS only, no private or
+     * metadata address): for {@code weave connect}, which reads the description once to write the tools.
+     *
+     * @param location an https address, or a path relative to {@code baseDir}
+     * @param baseDir where a relative path starts
+     * @return the description
+     * @throws IllegalArgumentException when it cannot be read or is refused
+     */
+    public static ApiDescription read(String location, java.nio.file.Path baseDir) {
+        OpenApiKind guard = new OpenApiKind();
+        NetOptions net = new NetOptions(java.time.Duration.ofSeconds(15), 2, false, io.github.llm4j.agent.tool.EffectPolicy.parse("retry"), new NetPolicy.Rules(false, false, Set.of(), false));
+        HttpUrl url = location.matches("(?i)https?://.*") ? HttpUrl.parse(location) : null;
+        return SpecLoader.load(location, baseDir, guard.fetcher(net, url == null ? null : url.host(), EffectContext.noop()));
+    }
+
     /** Fetches a remote description or reference through the guarded layer, or refuses. */
     private SpecLoader.Fetcher fetcher(NetOptions net, String specHost, EffectContext context) {
         return url -> {

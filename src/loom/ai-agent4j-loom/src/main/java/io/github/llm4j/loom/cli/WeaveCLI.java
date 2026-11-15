@@ -1803,6 +1803,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new SecretCommands())
                 .addSubcommand(new ToolsCommand())
                 .addSubcommand(new McpCommand())
+                .addSubcommand(new ConnectCommand())
                 .addSubcommand(new FabricCommand())
                 .addSubcommand(new PreflightCommand());
     }
