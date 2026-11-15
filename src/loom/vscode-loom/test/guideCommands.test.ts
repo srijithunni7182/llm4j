@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { GUIDE_PAGES, GuideHost, installSkill, openGuide } from '../src/guide/guideCommands';
+import { GUIDE_PAGES, GuideHost, installSkill, openGuide, openTutorial, TutorialHost } from '../src/guide/guideCommands';
 import { WeaveGraphRunner } from '../src/graph/runner';
 
 interface Fake {
@@ -170,4 +170,33 @@ test('the welcome view and the manifest offer it', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8'));
     assert.ok(manifest.contributes.commands.some((c: { command: string; title: string }) => c.command === 'loom.installSkill' && /coding agent/i.test(c.title)));
     assert.ok(manifest.contributes.viewsWelcome[0].contents.includes('(command:loom.installSkill)'));
+});
+
+function tutorialHost(over: Partial<TutorialHost> = {}): { host: TutorialHost; calls: string[][]; opened: string[]; reports: Array<[string, string]> } {
+    const r = { calls: [] as string[][], opened: [] as string[], reports: [] as Array<[string, string]> };
+    const host: TutorialHost = {
+        weave: async (args) => (r.calls.push(args), 'Wrote it'),
+        tutorialFile: () => '/store/loom-tutorial.html',
+        openInBrowser: async (f) => (r.opened.push(f), true),
+        report: (m, l) => void r.reports.push([m, l]),
+        ...over,
+    };
+    return { host, ...r };
+}
+
+test('Open Tutorial writes the page with weave guide tutorial and opens that file in the browser', async () => {
+    const t = tutorialHost();
+    assert.equal(await openTutorial(t.host), true);
+    assert.deepEqual(t.calls, [['guide', 'tutorial', '--out', '/store/loom-tutorial.html', '--force']]);
+    assert.deepEqual(t.opened, ['/store/loom-tutorial.html']);
+});
+
+test('Open Tutorial opens nothing when weave fails, and says where the file is when the browser will not open', async () => {
+    const failing = tutorialHost({ weave: async () => Promise.reject(new Error('java is not installed')) });
+    assert.equal(await openTutorial(failing.host), false);
+    assert.deepEqual(failing.opened, []);
+    assert.match(failing.reports[0][0], /java is not installed/);
+    const nobrowser = tutorialHost({ openInBrowser: async () => false });
+    assert.equal(await openTutorial(nobrowser.host), false);
+    assert.match(nobrowser.reports[0][0], /\/store\/loom-tutorial\.html/);
 });

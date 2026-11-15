@@ -1,8 +1,10 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { AGENTS, GuideHost, installSkill, openGuide } from '../guide/guideCommands';
+import { AGENTS, GuideHost, installSkill, openGuide, openTutorial } from '../guide/guideCommands';
 import { GraphExitError } from '../graph/errors';
 import { WeaveGraphRunner } from '../graph/runner';
+import { handOffToAgent, syncAgentFiles } from '../guide/agentSkills';
+import { vscodeHandoffHost } from './onboardingCommands';
 import { readGraphSettings } from '../views/GraphPanel';
 
 /** "Loom: Open Guide" and : both just run `weave guide` from the bundled jar. */
@@ -41,6 +43,10 @@ export function registerGuideCommands(context: vscode.ExtensionContext): void {
             return items?.map((i) => i.id);
         },
         confirm: async (message, action) => (await vscode.window.showWarningMessage(message, { modal: true }, action)) === action,
+        async afterSetUp(folder) {
+            const installed = await syncAgentFiles(folder, (args) => host.weave(args));
+            await handOffToAgent(vscodeHandoffHost(), installed);
+        },
         report(message, level) {
             const show = level === 'error' ? vscode.window.showErrorMessage : level === 'warning' ? vscode.window.showWarningMessage : vscode.window.showInformationMessage;
             void show(message);
@@ -49,5 +55,13 @@ export function registerGuideCommands(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('loom.openGuide', () => openGuide(host)),
         vscode.commands.registerCommand('loom.installSkill', () => installSkill(host)),
+        vscode.commands.registerCommand('loom.openTutorial', () =>
+            openTutorial({
+                weave: host.weave,
+                tutorialFile: () => path.join(context.globalStorageUri.fsPath, 'loom-tutorial.html'),
+                openInBrowser: async (file) => Promise.resolve(vscode.env.openExternal(vscode.Uri.file(file))),
+                report: host.report,
+            }),
+        ),
     );
 }

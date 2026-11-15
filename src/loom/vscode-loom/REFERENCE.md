@@ -65,8 +65,10 @@ Open the Command Palette and type **Loom**. The commands below run the same `wea
 
 | Step | Command | What it does | Costs |
 |---|---|---|---|
+| Agent | **Loom: Set Up My Coding Agent**, **Loom: Start a Workflow in Agent Chat** | Gives Claude Code, Copilot, Cursor or Codex the four Loom skills, then opens the chat with a starter prompt typed in | nothing |
 | Try | **Loom: Try a Demo**, **Loom: Open an Example Project** | A bundled workflow on demo models, explained step by step; or its project written into your folder | nothing |
 | Check | **Loom: Check My Setup** | Java, keys, the run store, with the one fix for each problem | nothing |
+| Start | **Loom: New Workflow from Starter...** | A grouped list of twenty starters (approvals, classifier routing, parallel fan-out, budgeted agents and more); the one you pick is copied into your folder and opened. Its tests need no key | nothing |
 | Describe | **Loom: Generate Workflow...** | A sentence in, a plan to read, then a project that passed five gates | a few cents |
 | Change | **Loom: Change Workflow...** | A change as a diff with the review and cost difference; nothing is written until you accept | a few cents |
 | See | **Loom: Show Workflow Graph** | The live graph (Outline, Focus, Flow) | nothing |
@@ -79,7 +81,7 @@ Open the Command Palette and type **Loom**. The commands below run the same `wea
 | Ship | **Loom: Write Deployment Files...** | Docker, Compose or Kubernetes files, read from the script; nothing is built or started | nothing |
 | Next | **Loom: What Should I Do Next?** | The next step for this project, in order | nothing |
 | Look up | **Loom: Show All Commands (weave man)**, **Loom: Open Guide** | Every `weave` command, grouped by what you are doing; the written guide | nothing |
-| Agent | **Loom: Set Up My Coding Agent** | Teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom | nothing |
+| Guide | **Loom: Open Walkthrough**, **Loom: Open Tutorial** | The four-step Getting Started walkthrough: set up your agent, start a workflow in chat, run a zero-key demo, tour the commands | nothing |
 
 Turning a bad run into a test (`weave capture`), trying a change on past runs (`weave regress`) and the CI verdict (`weave gate`) are terminal commands; see the [command reference](../../../docs/COMMAND_REFERENCE.md).
 
@@ -180,6 +182,10 @@ Type a keyword in a `.loom` file and press Tab to get the whole statement with i
 **Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the sixteen chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.
 
 **Loom: Set Up My Coding Agent** asks which coding agents you use in this project and writes what each one reads, in the folder you have open: for Claude Code the skills and the guide under `.claude/skills`; for Codex, Copilot's agent mode, Gemini, Cursor and others a block in `AGENTS.md`; or `.github/copilot-instructions.md` or `.cursor/rules/loom.mdc`. The text tells the agent to look commands up with `weave man` instead of guessing, gives it the loop (describe, check, review, test, evaluate, watch, ship) and the rules (no keys in files, ask before anything that spends money). What you wrote in the same file stays: Loom's text sits between two marker lines. It asks before it replaces an older copy. When you open a folder with a `.loom` file and no set-up, the extension offers it once (a notification; *Not now* and *Don't ask again* are remembered, and nothing is written until you choose).
+
+After the files are written, the command also copies the four skills (`llm4j-harness-design`, `llm4j-workflow-guide`, `llm4j-eval-design`, `llm4j-loom-deployer`) into `.agents/skills`, `.claude/skills` and `.github/skills`, so any VS Code agent finds them, and keeps a Loom section in `AGENTS.md` between `<!-- loom:skills:begin -->` and `<!-- loom:skills:end -->` (running it again rewrites only that block). The `AGENTS.md` section tells the agent to run `weave check` and `weave review` on what it writes and to report what is still open; the skills themselves are the ones that ship with `weave`, unchanged. Then it copies `Use the llm4j-harness-design skill to design and build a Loom workflow for: ` to the clipboard, opens the chat input with that text filled in but not sent (an editor without the `workbench.action.chat.open` command only gets the clipboard), and shows a notification naming the folders, with **Open Agent Chat** and **Copy Starter Prompt** buttons.
+
+**Loom: Start a Workflow in Agent Chat** does the last part alone. **Loom: New Workflow from Starter...** copies the starter's folder (`main.loom`, its tests and README, any `.loot`) into the open folder and opens `main.loom`; it never overwrites a folder that already exists. **Loom: Open Walkthrough** opens the Getting Started walkthrough (set up the agent, start in chat, demo, command tour). **Loom: Open Tutorial** runs `weave guide tutorial` into the extension's storage folder (replacing the last copy) and opens the page in your browser; it works offline. The walkthrough shows the Loom logo and links to the tutorial.
 
 ## Review
 
