@@ -28,6 +28,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave audit`](#weave-audit) — Reviews a script's security without running it: what each agent can reach, where untrusted content, private data and a way out meet in one agent, unapproved effects, budgets and outside dependencies.
 - [`weave rules`](#weave-rules) — Works with review rules and rule packs, offline: list, facts, check, test, new, add, diff, docs, explain.
 - [`weave mcp`](#weave-mcp) — Looks at the MCP servers a script declares.
+- [`weave connect`](#weave-connect) — Brings a system into a script: one tool per chosen operation, with the effect proposed and approved and a pin to notice drift.
 
 ### Test and evaluate
 
@@ -92,10 +93,6 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave serve`](#weave-serve) — Serves check, graph and review to an editor over standard input and output (JSON-RPC with Content-Length framing).
 - [`weave dap`](#weave-dap) — Speaks the Debug Adapter Protocol on standard input and output, so an editor can debug a workflow.
-
-### Other
-
-- [`weave connect`](#weave-connect) — Brings a system into a script: one tool per chosen operation, with the effect proposed and approved and a pin to notice drift.
 
 ## Pages
 

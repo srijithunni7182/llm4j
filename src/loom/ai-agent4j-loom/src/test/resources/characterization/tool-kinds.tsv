@@ -370,6 +370,9 @@ src/loom/ctk/scripts/extract_fields.loom	8596d6a17245293e	166633e0735872e6	e3b0c
 src/loom/ctk/scripts/failing_test.loom	385ad9486370ed31	be27d6df9746a4e2	9d2bffa9fa8e3bae
 src/loom/ctk/scripts/for_each_max.loom	e1a9ff116f4fc11b	8e696344c7999d5d	d89d48ccd00d3d4e
 src/loom/ctk/scripts/grounding_declarations.loom	d14deaafaf9fceed	0c8a1245d07355b1	e3b0c44298fc1c14
+src/loom/ctk/scripts/integration_command.loom	2336c100978f9e82	eb0e2954a131a513	e3b0c44298fc1c14
+src/loom/ctk/scripts/integration_credential_rejected.loom	34bd1b4e0a8b8518	605fa3eb5560d7a1	e3b0c44298fc1c14
+src/loom/ctk/scripts/integration_declarations.loom	80e1158ae89756dc	6a907c601819efe5	e3b0c44298fc1c14
 src/loom/ctk/scripts/intervention_budget_partial.loom	7ca0385711925cec	e31f2a31e87d3880	b4b93dd74013ece8
 src/loom/ctk/scripts/intervention_cancel_back.loom	dc9c85c0bb2aad77	b452510ee7e6dde6	98c09d2a3e9d9604
 src/loom/ctk/scripts/intervention_cancelled_is_not_success.loom	a1e335c073503293	2d0a1c48ce2f1c71	dcc0035d812544a7
@@ -425,6 +428,7 @@ src/loom/starters/17-compliance-boundary/main.loom	bc304d51a9475584	37355c7c3709
 src/loom/starters/18-supervise-workflows/main.loom	c11b5f0d965fd07b	07bb6d9b298ed3ff	e3b0c44298fc1c14
 src/loom/starters/19-report-writer/main.loom	3cf459249d4b5b4c	cee6f38e36cb75ab	e3b0c44298fc1c14
 src/loom/starters/20-data-analyst/main.loom	a3be4e26059737b9	24c577c91ea92fc7	e3b0c44298fc1c14
+src/loom/starters/21-connect-a-system/main.loom	995cffc008f75100	1c732cfaed7e6478	e3b0c44298fc1c14
 src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom	15955b70fdeb9775	81963b5d7384730a	e3b0c44298fc1c14
 src/loom/vscode-loom/test/fixtures/review/scripts/many.loom	d32cc9e2ed1be2b2	5bac57fda9848033	461499cb79e2f0df
 src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom	5020c9d95d68b256	4c78f9a7966ec3ba	e3b0c44298fc1c14
