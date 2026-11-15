@@ -504,7 +504,8 @@ class IntentClassifyExecutionTest {
                 .doesNotContain(MESSAGE)
                 .doesNotContain("never arrived")
                 .doesNotContain("threatening");
-        assertThat(r.events.stream().map(Object::toString).toList())
+        // the text and the data of each event, not its toString: that holds a timestamp, whose digits can contain "8812"
+        assertThat(r.events.stream().map(ev -> ev.text() + " " + ev.data()).toList())
                 .noneMatch(s -> s.contains("8812"));
     }
 
