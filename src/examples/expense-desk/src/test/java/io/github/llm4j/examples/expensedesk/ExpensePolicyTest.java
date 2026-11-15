@@ -15,12 +15,12 @@ class ExpensePolicyTest {
     @ParameterizedTest
     @CsvSource({
         "42.50, USD, travel, approved",
-        "100, USD, other, approved",
-        "100.01, USD, other, needs_approval",
+        "75, USD, other, approved",
+        "75.01, USD, other, needs_approval",
         "1200, EUR, equipment, needs_approval",
         "75, USD, meals, approved",
-        "90, EUR, travel, approved",
-        "91, EUR, travel, needs_approval",
+        "68, EUR, travel, approved",
+        "69, EUR, travel, needs_approval",
     })
     void decidesByTheAmountInDollars(double amount, String currency, String category, String outcome) {
         assertThat(policy.decide(amount, currency, category).outcome()).isEqualTo(outcome);
@@ -43,6 +43,16 @@ class ExpensePolicyTest {
 
         assertThat(verdict.outcome()).isEqualTo("rejected");
         assertThat(verdict.reason()).contains(reason);
+    }
+
+    @Test
+    void neverPaysWithoutAPersonWhatSomeCategoryWouldRefuse() {
+        // The category is read by a model, so the automatic limit must hold under every category.
+        for (String category : ExpensePolicy.categories()) {
+            assertThat(ExpensePolicy.AUTOMATIC_LIMIT_USD).isLessThanOrEqualTo(ExpensePolicy.limitOf(category));
+            double justOver = ExpensePolicy.AUTOMATIC_LIMIT_USD.doubleValue() + 0.01;
+            assertThat(policy.decide(justOver, "USD", category).outcome()).isNotEqualTo("approved");
+        }
     }
 
     @Test

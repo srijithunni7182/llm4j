@@ -1,2 +1,4 @@
 var/
 target/
+.loom/
+eval/last-run-fingerprints.json

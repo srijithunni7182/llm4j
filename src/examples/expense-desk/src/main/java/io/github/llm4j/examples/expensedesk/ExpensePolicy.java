@@ -22,8 +22,13 @@ public final class ExpensePolicy implements Task {
     /** The name the script uses: {@code run ExpensePolicy(...)}. */
     public static final String NAME = "ExpensePolicy";
 
-    /** Claims up to this many US dollars are paid without asking anyone. */
-    public static final BigDecimal AUTOMATIC_LIMIT_USD = new BigDecimal("100");
+    /**
+     * Claims up to this many US dollars are paid without asking anyone. It is never above the
+     * smallest category limit: a model reads the category, so a claim that no person sees must be
+     * one that every category would allow. A real evaluation showed a claim's text can talk the
+     * model into another category; this bound is what makes that harmless.
+     */
+    public static final BigDecimal AUTOMATIC_LIMIT_USD = new BigDecimal("75");
 
     private static final Map<String, BigDecimal> USD_PER_UNIT =
             Map.of(
@@ -84,6 +89,16 @@ public final class ExpensePolicy implements Task {
         }
         String outcome = usd.compareTo(AUTOMATIC_LIMIT_USD) <= 0 ? "approved" : "needs_approval";
         return TaskResult.outcome(outcome).with("usd", usd.doubleValue());
+    }
+
+    /** The most a claim of {@code category} may be, in US dollars, or null when there is no rule for it. */
+    static BigDecimal limitOf(String category) {
+        return CATEGORY_LIMIT_USD.get(category);
+    }
+
+    /** The categories the rules name. */
+    static java.util.Set<String> categories() {
+        return CATEGORY_LIMIT_USD.keySet();
     }
 
     /** The limits, for a page that shows the rules beside the claims. */

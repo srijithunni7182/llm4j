@@ -23,8 +23,8 @@ class OfflineModelsTest {
 
     @Test
     void writesTheNoteFromTheOutcomeItIsTold() {
-        assertThat(OfflineModels.note("The claim of Asha was paid with reference PAY-0007.")).contains("PAY-0007");
-        assertThat(OfflineModels.note("The claim of Sam was refused by policy: over the limit")).contains("over the limit");
-        assertThat(OfflineModels.note("The claim of Ravi was declined by the approver.")).contains("not approved");
+        assertThat(OfflineModels.note("<facts>\noutcome: paid\nemployee: Asha\nreference: PAY-0007\n</facts>")).contains("PAY-0007");
+        assertThat(OfflineModels.note("<facts>\noutcome: refused by policy\nemployee: Sam\nreason: over the limit\n</facts>")).contains("over the limit");
+        assertThat(OfflineModels.note("<facts>\noutcome: declined by the approver\nemployee: Ravi\n</facts>")).contains("not approved");
     }
 }
