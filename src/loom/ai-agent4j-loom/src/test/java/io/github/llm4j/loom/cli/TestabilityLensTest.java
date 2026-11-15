@@ -158,6 +158,30 @@ class TestabilityLensTest {
     }
 
     @Test
+    void lt07KnowsExtractorsAndTheTasksATestCounts() throws Exception {
+        tests(
+                "main.test.yaml",
+                """
+                cases:
+                  - name: a
+                    models: { Invoice: { vendor: "Acme" } }
+                    tasks: { Pay: "ok" }
+                    expect: { calls: { Invoice: 1, Pay: 1 } }
+                """);
+        JsonNode r =
+                reviewOf(
+                        """
+                        extractor Invoice { model: "m"  fields { vendor: string } }
+                        workflow Main(q) {
+                          extract Invoice from q -> i
+                          run Pay(vendor = i.vendor) -> paid
+                          return paid
+                        }
+                        """);
+        assertThat(rules(r)).doesNotContain("LT07");
+    }
+
+    @Test
     void lt07FindsANameTheScriptNoLongerHasAndSuggestsTheNearestOne() throws Exception {
         tests(
                 "main.test.yaml",

@@ -165,6 +165,9 @@ public final class TestabilityRules implements FindingSource {
         Set<String> agents = new LinkedHashSet<>();
         input.script().getAgents().forEach(a -> agents.add(a.getName()));
         input.script().getIntentClassifiers().forEach(c -> agents.add(c.getName()));
+        // a test scripts an extractor and an evaluator under models: too, by their names
+        input.script().getExtractors().forEach(x -> agents.add(x.getName()));
+        input.script().getEvaluators().forEach(e -> agents.add(e.getName()));
         Set<String> tools = new LinkedHashSet<>();
         input.script().getTools().forEach(t -> tools.add(t.getName()));
         input.script().getAgents().forEach(a -> tools.addAll(a.getTools()));
@@ -175,8 +178,12 @@ public final class TestabilityRules implements FindingSource {
                     st -> {
                         if (st instanceof RunStmt r) tasks.add(r.getTaskName());
                     });
+        // expect.calls counts tools and tasks beside agents, so a name there may be any of them
+        Set<String> callable = new LinkedHashSet<>(agents);
+        callable.addAll(tools);
+        callable.addAll(tasks);
         for (TestSuite.TestFile f : suite.files()) {
-            report(f, "agent or classifier", f.agentNames(), agents, sink);
+            report(f, "agent or classifier", f.agentNames(), callable, sink);
             report(f, "tool", f.toolNames(), tools, sink);
             report(f, "task", f.taskNames(), tasks, sink);
         }
