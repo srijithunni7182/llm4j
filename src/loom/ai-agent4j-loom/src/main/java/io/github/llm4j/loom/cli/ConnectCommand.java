@@ -204,7 +204,7 @@ final class ConnectCommand implements Callable<Integer> {
             return picked;
         }
 
-        private static String oneLine(String text) {
+        static String oneLine(String text) {
             String flat = text.replaceAll("\\s+", " ").strip();
             return flat.length() <= 100 ? flat : flat.substring(0, 100) + "...";
         }
@@ -444,7 +444,7 @@ final class ConnectCommand implements Callable<Integer> {
             };
         }
 
-        private static String block(Mcp c, McpDiscovery.Result found, Map<String, TaskEffect> proposed, boolean remote) {
+        static String block(Mcp c, McpDiscovery.Result found, Map<String, TaskEffect> proposed, boolean remote) {
             StringBuilder b = new StringBuilder();
             b.append("mcp ").append(c.name).append(" {\n");
             if (remote) {
@@ -482,7 +482,7 @@ final class ConnectCommand implements Callable<Integer> {
             return e.problems().stream().map(ScriptValidator.Problem::message).reduce((a, b) -> a + "; " + b).orElse(e.getMessage());
         }
 
-        private static java.util.function.Function<String, String> credentials(WeaveEnv env) {
+        static java.util.function.Function<String, String> credentials(WeaveEnv env) {
             return key -> {
                 var store = env.secrets();
                 if (key.startsWith("secret:")) {

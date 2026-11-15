@@ -1,0 +1,11 @@
+{
+  "what": "A short documentation excerpt for the model-assisted weave connect http benchmark (phase 36, D17).",
+  "service": "none: written by hand in the style of a REST API's documentation page",
+  "licence": "written for this repository (Apache-2.0)",
+  "recorded": "2026-11-15",
+  "scrubbed": "not a recording, so nothing was removed. The real documentation-page run is the owner's (E4)",
+  "files": {
+    "docs.md": "hand-written excerpt: GET /orders and GET /orders/{id}",
+    "answer.json": "NOT a recording of a real model: the answer a scripted model gives in the default build"
+  }
+}

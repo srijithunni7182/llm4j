@@ -102,4 +102,28 @@ class McpChecksTest {
 
         assertThat(McpChecks.environmentOf(def, key -> key.equals("K") ? "resolved" : null)).containsEntry("MODE", "read").containsEntry("A_KEY", "resolved");
     }
+
+    @Test
+    void aContainerNeedsOneImageAndAnHonestNetworkAndOnlyAContainerTakesThem() {
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: container }", Map.of()), ScriptValidator.Severity.ERROR)).anyMatch(m -> m.contains("needs image"));
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: container image: \"a b\" }", Map.of()), ScriptValidator.Severity.ERROR)).anyMatch(m -> m.contains("one image name"));
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: container image: \"x@sha256:00\" network: allow }", Map.of()), ScriptValidator.Severity.ERROR)).anyMatch(m -> m.contains("none or open"));
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: container image: \"x@sha256:00\" reach: reads }", Map.of()), ScriptValidator.Severity.WARNING)).anyMatch(m -> m.contains("workspace"));
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: container image: \"x@sha256:00\" reach: none }", Map.of()), ScriptValidator.Severity.WARNING)).noneMatch(m -> m.contains("workspace"));
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: process network: open }", Map.of()), ScriptValidator.Severity.ERROR)).anyMatch(m -> m.contains("go with isolation: container"));
+    }
+
+    @Test
+    void aRemoteServerChecksItsAddressItsTokenAndItsListingCredential() {
+        var error = ScriptValidator.Severity.ERROR;
+        assertThat(messages(check("mcp R { transport: \"http\" }", Map.of()), error)).anyMatch(m -> m.contains("needs url"));
+        assertThat(messages(check("mcp R { transport: \"http\" url: \"https://user:pw@mcp.example.com/mcp\" }", Map.of()), error)).anyMatch(m -> m.contains("user name or password"));
+        assertThat(messages(check("mcp R { transport: \"http\" url: \"https://mcp.example.com/mcp\" auth: env.NOPE }", Map.of()), error)).anyMatch(m -> m.contains("is not set"));
+        assertThat(messages(check("mcp R { transport: \"http\" url: \"https://mcp.example.com/mcp\" auth: env.T }", Map.of("T", "x")), error)).isEmpty();
+        assertThat(messages(check("mcp R { transport: \"http\" url: \"https://mcp.example.com/mcp\" auth: invoker.t }", Map.of()), error)).anyMatch(m -> m.contains("list_auth"));
+        assertThat(messages(check("mcp R { transport: \"http\" url: \"https://mcp.example.com/mcp\" auth: invoker.t list_auth: invoker.t }", Map.of()), error)).anyMatch(m -> m.contains("env.NAME or secret.NAME"));
+        assertThat(messages(check("mcp R { transport: \"http\" url: \"https://mcp.example.com/mcp\" auth: invoker.t list_auth: env.L }", Map.of("L", "x")), error)).isEmpty();
+        assertThat(messages(check("mcp R { transport: \"http\" url: \"https://mcp.example.com/mcp\" cmd: \"x\" }", Map.of()), error)).anyMatch(m -> m.contains("for a program"));
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: process url: \"https://x.example\" }", Map.of()), error)).anyMatch(m -> m.contains("for a remote server"));
+    }
 }

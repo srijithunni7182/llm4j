@@ -972,6 +972,10 @@
                                 <param>io.github.llm4j.loom.execution.PinChecks</param>
                                 <param>io.github.llm4j.loom.security.IntegrationAudit</param>
                                 <param>io.github.llm4j.loom.cli.McpScriptEditor</param>
+                                <param>io.github.llm4j.loom.cli.ConnectEdit</param>
+                                <param>io.github.llm4j.loom.cli.ConnectCommand*</param>
+                                <param>io.github.llm4j.loom.cli.ConnectDraft*</param>
+                                <param>io.github.llm4j.loom.doctor.IntegrationHosts</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.loom.effects.McpHintsTest</param>
@@ -980,6 +984,13 @@
                                 <param>io.github.llm4j.loom.security.IntegrationAuditTest</param>
                                 <param>io.github.llm4j.loom.cli.McpScriptEditorTest</param>
                                 <param>io.github.llm4j.loom.execution.McpChecksTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectCommandTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectDraftTest</param>
+                                <param>io.github.llm4j.loom.cli.DoctorIntegrationsTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectBranchesTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectDraftBranchesTest</param>
+                                <param>io.github.llm4j.loom.cli.ConnectOutputTest</param>
+                                <param>io.github.llm4j.loom.depth.McpRemoteRuntimeTest</param>
                             </targetTests>
                             <threads>2</threads>
                             <timeoutFactor>4</timeoutFactor>

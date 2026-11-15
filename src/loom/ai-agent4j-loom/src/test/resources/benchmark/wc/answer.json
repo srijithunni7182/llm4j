@@ -1,0 +1,1 @@
+{"run": "wc {mode} {file}", "params": {"mode": "enum -l|-w|-c", "file": "path in"}, "output": "text", "effect": "reads", "why": "counts lines, words or bytes of one file"}

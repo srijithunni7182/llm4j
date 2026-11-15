@@ -1,0 +1,1 @@
+{"methods": ["GET"], "allow_paths": ["/orders", "/orders/*"], "effect": "reads", "why": "the page documents two reads"}

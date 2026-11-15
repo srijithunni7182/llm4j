@@ -380,7 +380,7 @@ final class ConnectDraft {
         return failed;
     }
 
-    private static String abbreviate(String text) {
+    static String abbreviate(String text) {
         return text.length() <= 300 ? text : text.substring(0, 300) + "…";
     }
 
@@ -421,18 +421,27 @@ final class ConnectDraft {
         return out;
     }
 
-    private static String extractJson(String reply) {
+    static String extractJson(String reply) {
         String text = reply == null ? "" : reply.strip();
         int fence = text.indexOf("```");
         if (fence >= 0) {
             int start = text.indexOf('\n', fence);
             int end = text.indexOf("```", start + 1);
-            if (start >= 0 && end > start) text = text.substring(start + 1, end);
+            if (start >= 0 && end > start) {
+                String inside = objectIn(text.substring(start + 1, end));
+                if (inside != null) return inside;
+            }
         }
+        String whole = objectIn(text);
+        if (whole == null) throw new IllegalArgumentException("no JSON object in the answer");
+        return whole;
+    }
+
+    /** The text from the first {@code {} to the last {@code }}, or null when there is none. */
+    private static String objectIn(String text) {
         int open = text.indexOf('{');
         int close = text.lastIndexOf('}');
-        if (open < 0 || close < open) throw new IllegalArgumentException("no JSON object in the answer");
-        return text.substring(open, close + 1);
+        return open < 0 || close < open ? null : text.substring(open, close + 1);
     }
 
     private static String text(JsonNode answer, String field) {
