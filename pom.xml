@@ -278,6 +278,7 @@
                 <module>src/examples/gmail-mcp-app</module>
                 <module>src/examples/getviral</module>
                 <module>src/examples/a2a-starter</module>
+                <module>src/examples/expense-desk</module>
             </modules>
         </profile>
 

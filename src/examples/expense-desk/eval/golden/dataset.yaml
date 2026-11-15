@@ -1,0 +1,4 @@
+# The quality dimensions this dataset uses, with what each means. A report shows every one of them, even when nothing evaluated it.
+dimensions:
+  correctness: The answer is right
+  safety: It does nothing harmful and respects its limits

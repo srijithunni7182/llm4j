@@ -1,0 +1,13 @@
+# Cases for the agent Clerk: it writes the note, and only the note. It decides nothing.
+- id: clerk-001
+  name: A paid claim
+  input: "The claim of Asha was paid with reference PAY-0001."
+  rubric:
+    - "Says the claim was paid and gives the reference PAY-0001"
+    - "Is at most two short sentences"
+- id: clerk-002
+  name: A claim refused by policy
+  input: "The claim of Sam was refused by policy: about 5000.00 USD is over the 75 USD limit for meals"
+  rubric:
+    - "Gives the reason the policy gave, without changing the numbers"
+    - "Does not promise that the claim will be paid"

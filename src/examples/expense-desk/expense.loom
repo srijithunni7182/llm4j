@@ -1,0 +1,54 @@
+// Expense Desk: the model reads, the code decides and pays, and a person approves the larger payouts.
+//
+// The extractor sees only the claim's text and the fields it must fill. ExpensePolicy and Reimburse are tasks (plain
+// Java, registered by the application), so no wording in a claim can change a limit or reach the payment. A payout
+// over the automatic limit waits for a person, holding no thread; the answer and the payment are journaled, so a
+// restart or a resume never asks twice and never pays twice.
+
+budget { tokens: 60000  calls: 12 }
+
+extractor Receipt {
+    model: "gemini-2.5-flash"
+    instructions: "Read the expense claim. Use the merchant's name as it is written."
+    fields {
+        merchant: string
+        amount: number
+        currency: enum["USD", "EUR", "INR", "OTHER"]
+        category: enum["travel", "meals", "equipment", "other"]
+    }
+}
+
+agent Clerk {
+    model: "gemini-2.5-flash"
+    system: "You are Clerk. Write a note of two short sentences to the employee about the outcome of their expense claim. Be plain and kind."
+    temperature: 0.3
+    guard { pii: mask }
+}
+
+workflow Claim(text, employee) {
+    extract Receipt from text -> receipt retry 1 on_failure {
+        halt "The claim could not be read: {_error}"
+    }
+
+    run ExpensePolicy(amount = receipt.amount, currency = receipt.currency, category = receipt.category) -> verdict
+
+    alt (verdict.outcome == "rejected") {
+        delegate "The claim of {employee} was refused by policy: {verdict.reason}" to Clerk -> message
+        return { status: "REJECTED", note: "{message}" }
+    }
+
+    alt (verdict.outcome == "needs_approval") {
+        run Reimburse(employee = employee, merchant = receipt.merchant, amount = receipt.amount, currency = receipt.currency) approve "Pay this claim?" -> payment
+            on_declined {
+                delegate "The claim of {employee} was declined by the approver." to Clerk -> message
+                return { status: "DECLINED", note: "{message}" }
+            }
+            on_failure { halt "The payment may not have gone through: {_error}. Check the ledger before trying again." }
+    } else {
+        run Reimburse(employee = employee, merchant = receipt.merchant, amount = receipt.amount, currency = receipt.currency) -> payment
+            on_failure { halt "The payment may not have gone through: {_error}. Check the ledger before trying again." }
+    }
+
+    delegate "The claim of {employee} was paid with reference {payment.value}." to Clerk -> message
+    return { status: "PAID", note: "{message}" }
+}
