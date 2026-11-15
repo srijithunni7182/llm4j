@@ -65,6 +65,20 @@ class EvalEmitTestTest {
     }
 
     @Test
+    void inAMavenProjectTheScriptIsNamedFromTheProjectRootSoTheClassWorksOnAnyMachine() throws Exception {
+        Files.writeString(dir.resolve("pom.xml"), "<project/>");
+        Path script = Files.createDirectories(dir.resolve("src/main/resources")).resolve("main.loom");
+        Files.writeString(script, "agent Helper { model: \"m\" system: \"You help.\" }\nworkflow Main(t) { delegate \"{t}\" to Helper -> r }\n");
+        Path target = dir.resolve("src/test/java/acme/RealEvaluationTest.java");
+
+        assertThat(emit(script, target)).isZero();
+
+        assertThat(Files.readString(target))
+                .contains("SCRIPT = \"src/main/resources/main.loom\"")
+                .doesNotContain(dir.toString());
+    }
+
+    @Test
     void aQuoteInTheScriptPathIsEscapedSoTheSourceStillCompiles() throws Exception {
         Path target = dir.resolve("gen/QuotedTest.java");
 

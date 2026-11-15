@@ -313,11 +313,23 @@ final class EvalCommand implements Callable<Integer> {
     }
 
     /** Writes the JUnit class of {@code --emit-test}. */
+    /**
+     * The script as a generated test names it. A Maven build runs tests from the project's folder,
+     * so in a project the path is relative to it and the class works on any machine; elsewhere
+     * nothing says where the test will run from, and the full path is kept.
+     */
+    private static Path scriptAsTheTestWillFindIt(Path script) {
+        Path whole = script.toAbsolutePath().normalize();
+        Path root = io.github.llm4j.loom.init.ProjectLayout.root(whole);
+        if (!java.nio.file.Files.isRegularFile(root.resolve("pom.xml"))) return whole;
+        return Path.of(root.relativize(whole).toString().replace('\\', '/'));
+    }
+
     private static int emitTest(EvalCommand c, WeaveEnv env) {
         Path target = c.emitTest.toPath();
         String source;
         try {
-            source = io.github.llm4j.loom.eval.EmittedTest.source(target, c.script.toPath().toAbsolutePath());
+            source = io.github.llm4j.loom.eval.EmittedTest.source(target, scriptAsTheTestWillFindIt(c.script.toPath()));
         } catch (IllegalArgumentException e) {
             env.err().println("Error: --emit-test: " + e.getMessage() + ". Nothing was written.");
             return 2;
