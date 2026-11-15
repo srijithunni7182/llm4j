@@ -2,7 +2,7 @@
   "name": "vscode-llm4j-loom",
   "displayName": "Loom for llm4j: AI agent workflows",
   "description": "Build, review, test and run multi-agent AI workflows: generate from a sentence, see the graph, review for cost and security. Loom language support (.loom, .loot).",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "publisher": "srijithunni7182",
   "homepage": "https://github.com/srijithunni7182/llm4j/tree/main/src/loom",
   "bugs": {
@@ -14,8 +14,10 @@
   },
   "categories": [
     "Programming Languages",
-    "Snippets",
+    "AI",
+    "Testing",
     "Visualization",
+    "Snippets",
     "Other"
   ],
   "keywords": [
@@ -134,6 +136,10 @@
         "title": "Loom: Open Guide"
       },
       {
+        "command": "loom.openTutorial",
+        "title": "Loom: Open Tutorial"
+      },
+      {
         "command": "loom.installSkill",
         "title": "Loom: Set Up My Coding Agent"
       },
@@ -213,6 +219,18 @@
       {
         "command": "loom.commands",
         "title": "Loom: Show All Commands (weave man)"
+      },
+      {
+        "command": "loom.openWalkthrough",
+        "title": "Loom: Open Walkthrough"
+      },
+      {
+        "command": "loom.startWorkflowInChat",
+        "title": "Loom: Start a Workflow in Agent Chat"
+      },
+      {
+        "command": "loom.newFromStarter",
+        "title": "Loom: New Workflow from Starter..."
       }
     ],
     "breakpoints": [
@@ -581,10 +599,66 @@
         "when": "!loom.hasLoom",
         "contents": "No Loom workflow here yet.\n[Try a demo](command:loom.try)\nWatch a real workflow run on demo models: no key, no account.\n[Generate a workflow](command:loom.generate)\nDescribe what you want; needs a model key.\n[Open an example](command:loom.openExample)\nWrite a small project into this folder to edit.\n[Check my setup](command:loom.doctor)\nJava, keys and the run store, with the one fix for each problem.\n[Set up my coding agent](command:loom.installSkill)\nTeach Claude Code, Copilot, Cursor or any agent that reads AGENTS.md how to build with Loom."
       }
+    ],
+    "walkthroughs": [
+      {
+        "id": "loom.gettingStarted",
+        "title": "Get started with Loom",
+        "description": "Let your coding agent build AI workflows with Loom, then run, review and ship them.",
+        "steps": [
+          {
+            "id": "loom.step.agent",
+            "title": "Set up your coding agent",
+            "description": "Install Loom's skills for Claude Code, Copilot, Cursor or Codex.\n[Set Up Coding Agent](command:loom.installSkill)",
+            "media": {
+              "markdown": "media/walkthrough/01-set-up-agent.md"
+            },
+            "completionEvents": [
+              "onCommand:loom.installSkill"
+            ]
+          },
+          {
+            "id": "loom.step.chat",
+            "title": "Kick off your first workflow in agent chat",
+            "description": "Four gated skills take an idea to a running workflow.\n[Start Workflow in Agent Chat](command:loom.startWorkflowInChat)",
+            "media": {
+              "markdown": "media/walkthrough/02-first-workflow.md"
+            },
+            "completionEvents": [
+              "onCommand:loom.startWorkflowInChat"
+            ]
+          },
+          {
+            "id": "loom.step.demo",
+            "title": "Run a zero-key demo workflow",
+            "description": "Watch a multi-agent workflow run with mocked models: no key, no cost.\n[Try a Demo](command:loom.try)\n[Open Loom Tutorial](command:loom.openTutorial)",
+            "media": {
+              "markdown": "media/walkthrough/03-zero-key-demo.md"
+            },
+            "completionEvents": [
+              "onCommand:loom.try",
+              "onCommand:loom.newFromStarter",
+              "onCommand:loom.openTutorial"
+            ]
+          },
+          {
+            "id": "loom.step.tour",
+            "title": "Explore everything Loom can do",
+            "description": "Graph, review, tests, debugger, live runs and deployment files.\n[Show All Commands](command:loom.commands)",
+            "media": {
+              "markdown": "media/walkthrough/04-command-palette-tour.md"
+            },
+            "completionEvents": [
+              "onStepSelected"
+            ]
+          }
+        ]
+      }
     ]
   },
   "files": [
     "out/**/*",
+    "starters/**/*",
     "media/**/*",
     "bin/**/*",
     "syntaxes/**/*",
