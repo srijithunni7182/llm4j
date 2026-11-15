@@ -130,10 +130,9 @@ final class DoctorCommand implements Callable<Integer> {
                     }
                 }
                 try {
-                    plan =
-                            DeployPlan.derive(
-                                    new LoomLoader().load(script.toString()),
-                                    script.getFileName().toString());
+                    var loaded = new LoomLoader().load(script.toString());
+                    plan = DeployPlan.derive(loaded, script.getFileName().toString());
+                    plan = withIntegrationHosts(plan, loaded);
                     for (String m : plan.unknownModels()) if (!unknown.contains(m)) unknown.add(m);
                 } catch (Exception e) {
                     // a script that does not load is reported by the project check
@@ -277,6 +276,21 @@ final class DoctorCommand implements Callable<Integer> {
      * Two Loom jars with one version number but different builds are the cause of "it behaves
      * differently here"; looks at local files only, and says nothing when they agree.
      */
+    /** The plan with the hosts of the script's integrations added to what the network check tries. */
+    private static DeployPlan withIntegrationHosts(DeployPlan plan, io.github.llm4j.loom.ast.LoomScript script) {
+        java.util.TreeSet<String> hosts = new java.util.TreeSet<>(plan.egressHosts());
+        hosts.addAll(io.github.llm4j.loom.doctor.IntegrationHosts.of(script));
+        return new DeployPlan(
+                plan.script(),
+                plan.envNames(),
+                List.copyOf(hosts),
+                plan.localModels(),
+                plan.schedules(),
+                plan.asksAPerson(),
+                plan.workflows(),
+                plan.unknownModels());
+    }
+
     private static java.util.Optional<Doctor.Check> jarsCheck(
             java.util.function.Function<String, String> vars) {
         io.github.llm4j.BuildIdentity running = io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class);

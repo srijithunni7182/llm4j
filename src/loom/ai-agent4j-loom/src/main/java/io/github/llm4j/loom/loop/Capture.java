@@ -258,12 +258,14 @@ public final class Capture {
             Map<String, List<Object>> models,
             List<String> humans,
             Map<String, List<Object>> tasks,
+            Map<String, List<Object>> tools,
             Map<String, ObjectNode> failures) {}
 
     private static Collected collect(
             LoomScript script, ObserveReplay.Result replay, RunRecord run) {
         Map<String, List<Object>> models = new LinkedHashMap<>();
         Map<String, List<Object>> tasks = new LinkedHashMap<>();
+        Map<String, List<Object>> tools = new LinkedHashMap<>();
         List<String> humans = new ArrayList<>();
         Map<String, List<Integer>> failedCalls = new LinkedHashMap<>();
         Map<String, Integer> calls = new LinkedHashMap<>();
@@ -327,6 +329,9 @@ public final class Capture {
                 humans.add(String.valueOf(e.value()));
             } else if (st instanceof RunStmt r && !e.kind().equals("failed")) {
                 tasks.computeIfAbsent(r.getTaskName(), a -> new ArrayList<>()).add(e.value());
+            } else if (st instanceof io.github.llm4j.loom.ast.UseStmt u && e.kind().equals("use")) {
+                // phase 36e (D11): what a tool answered is what the case's tool answers
+                tools.computeIfAbsent(u.getTool(), a -> new ArrayList<>()).add(e.value());
             }
         }
         Map<String, ObjectNode> failures = new LinkedHashMap<>();
@@ -338,7 +343,7 @@ public final class Capture {
                     f.put("category", "server_error");
                     failures.put(agent, f);
                 });
-        return new Collected(models, humans, tasks, failures);
+        return new Collected(models, humans, tasks, tools, failures);
     }
 
     /**
@@ -380,6 +385,10 @@ public final class Capture {
                             else if (m == null || options.maskKeep().contains(k)) input.put(k, v);
                             else input.put(k, m.mask(v));
                         });
+        if (!c.tools().isEmpty()) {
+            ObjectNode tools = body.putObject("tools");
+            c.tools().forEach((t, list) -> tools.set(t, scripted(list, m)));
+        }
         if (!c.models().isEmpty() || !c.humans().isEmpty() || !c.tasks().isEmpty()) {
             ObjectNode models = body.putObject("models");
             c.models()
