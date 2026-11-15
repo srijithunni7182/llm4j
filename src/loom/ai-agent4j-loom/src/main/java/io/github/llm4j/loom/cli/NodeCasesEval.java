@@ -216,13 +216,29 @@ final class NodeCasesEval {
             String input, String output, long in, long out, long calls) {
         return new ScenarioResult(
                 node, kind, node.toLowerCase() + ".yaml", id, c.path("name").asText(null), status, checks, null, null,
-                input, output, List.of(), List.of(), List.of(new AgentFacts(node, calls, in, out, null, 0, 0)));
+                input, output, tags(c.path("tags")), texts(c.path("dimensions")), List.of(new AgentFacts(node, calls, in, out, null, 0, 0)));
+    }
+
+    /** A case's tags, written as a list ({@code [kind:refund]}) or a mapping ({@code {kind: refund}}), as for an agent's case. */
+    private static List<String> tags(JsonNode node) {
+        if (!node.isObject()) return texts(node);
+        List<String> out = new ArrayList<>();
+        node.fields().forEachRemaining(e -> out.add(e.getKey() + ":" + e.getValue().asText()));
+        return List.copyOf(out);
+    }
+
+    /** One text or a list of them; anything else is nothing. */
+    private static List<String> texts(JsonNode node) {
+        List<String> out = new ArrayList<>();
+        if (node.isArray()) node.forEach(n -> out.add(n.asText()));
+        else if (node.isTextual()) out.add(node.asText());
+        return List.copyOf(out);
     }
 
     private static ScenarioResult error(String node, String kind, String id, JsonNode c, String input, RuntimeException e) {
         return new ScenarioResult(
                 node, kind, node.toLowerCase() + ".yaml", id, c.path("name").asText(null), Status.FAIL,
-                List.of(), null, e.getMessage(), input, null, List.of(), List.of(), List.of());
+                List.of(), null, e.getMessage(), input, null, tags(c.path("tags")), texts(c.path("dimensions")), List.of());
     }
 
     private static String percent(double share) {
