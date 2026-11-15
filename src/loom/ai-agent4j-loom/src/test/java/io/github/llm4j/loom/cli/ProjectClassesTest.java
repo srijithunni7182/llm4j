@@ -78,6 +78,10 @@ class ProjectClassesTest {
     private String output = "";
 
     private int check(Path script, String... extra) {
+        return weave(List.of("check", script.toString(), "--no-env", "--no-env-file"), extra);
+    }
+
+    private int weave(List<String> command, String... extra) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         CommandLine cli = WeaveCLI.commandLine();
         cli.setOut(new java.io.PrintWriter(out, true));
@@ -86,9 +90,7 @@ class ProjectClassesTest {
         PrintStream oldErr = System.err;
         System.setErr(new PrintStream(out, true));
         try {
-            List<String> args =
-                    new java.util.ArrayList<>(
-                            List.of("check", script.toString(), "--no-env", "--no-env-file"));
+            List<String> args = new java.util.ArrayList<>(command);
             args.addAll(List.of(extra));
             return cli.execute(args.toArray(String[]::new));
         } finally {
@@ -126,5 +128,29 @@ class ProjectClassesTest {
         Thread.currentThread().setContextClassLoader(before);
         assertThat(check(script, "--classes", dir.resolve("nothing-here").toString())).isEqualTo(2);
         assertThat(output).contains("does not exist").contains("mvn compile");
+    }
+
+    /** Preflight probes agents, so its script has one beside the task. */
+    private Path withAnAgent(Path script) throws Exception {
+        return Files.writeString(
+                script,
+                "agent Helper { model: \"m\" system: \"You help.\" }\n"
+                        + "workflow Main(text) {\n    delegate \"{text}\" to Helper -> said\n    run SaveIt(content = said) -> saved\n    note \"{saved.value}\"\n}\n");
+    }
+
+    @Test
+    void preflightFindsABuiltProjectsTasksLikeTheOtherCommands() throws Exception {
+        Path script = withAnAgent(project(true));
+
+        assertThat(weave(List.of("preflight", script.toString(), "--mock"))).as(output).isZero();
+        assertThat(output).doesNotContain("unknown task");
+    }
+
+    @Test
+    void preflightOnAnUnbuiltProjectSaysWhatToDoAndPrintsNoStackTrace() throws Exception {
+        Path script = withAnAgent(project(false));
+
+        assertThat(weave(List.of("preflight", script.toString(), "--mock"))).isEqualTo(2);
+        assertThat(output).contains("unknown task").contains("mvn compile").doesNotContain("\tat ");
     }
 }

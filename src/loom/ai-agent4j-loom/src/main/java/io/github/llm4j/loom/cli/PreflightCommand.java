@@ -71,9 +71,14 @@ final class PreflightCommand implements Callable<Integer> {
     @Option(names = "--format", paramLabel = "text|json", description = "The report as text (default) or JSON.", defaultValue = "text")
     String format;
 
+    @picocli.CommandLine.Mixin ClassesOptions classesOptions = new ClassesOptions();
+
     @Override
     public Integer call() {
-        return preflight(this, WeaveEnv.system());
+        WeaveEnv env = WeaveEnv.system();
+        // as check, test and eval do: a task the project wrote in Java is found in target/classes
+        if (!classesOptions.apply(script.toPath(), env)) return 2;
+        return preflight(this, env);
     }
 
     static int preflight(PreflightCommand c, WeaveEnv env) {
@@ -166,10 +171,17 @@ final class PreflightCommand implements Callable<Integer> {
                         throw new IllegalStateException(ex.getMessage(), ex);
                     }
                 };
-        PreflightRunner.Report report =
-                PreflightRunner.run(
-                        parsed, executors, models, probeFor, tokenCap, costCap, prices,
-                        ContextWindows.defaults(), env.clock(), BuildIdentity.ofClass(WeaveCLI.class).describe());
+        PreflightRunner.Report report;
+        try {
+            report =
+                    PreflightRunner.run(
+                            parsed, executors, models, probeFor, tokenCap, costCap, prices,
+                            ContextWindows.defaults(), env.clock(), BuildIdentity.ofClass(WeaveCLI.class).describe());
+        } catch (io.github.llm4j.loom.execution.LoomLoadException e) {
+            // the script cannot run as it stands (an unknown task, a missing prompt): say so, as weave check does
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        }
         String json = withScriptHash(report.toJson(), scriptFile, c.mock);
         try {
             Path record = ProjectLayout.root(scriptFile).resolve(".loom").resolve("preflight.json");
