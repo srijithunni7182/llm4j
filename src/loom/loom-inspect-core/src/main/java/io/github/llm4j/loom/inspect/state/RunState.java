@@ -773,6 +773,28 @@ public final class RunState {
                 r.timeNanos());
     }
 
+    /**
+     * Adds an extractor's model call to the run's totals. An agent's calls reach the totals when
+     * its step ends; an extract step is no agent's step, so its call would be in the models table
+     * and missing from the tokens, the calls and the cost of the run.
+     */
+    private void extractCounted(SpanRec s, String model) {
+        long in = number(s.attr(Semconv.GEN_AI_USAGE_INPUT_TOKENS));
+        long out = number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS));
+        tokens += in + out;
+        calls++;
+        if (!prices.isEmpty()) {
+            BigDecimal priced = prices.cost(model, in, out);
+            if (priced != null) cost = cost.add(priced);
+        }
+        spend.add(
+                new Object[] {
+                    startedNanos > 0 ? Math.max(0, (s.endNanos() - startedNanos) / 1_000_000L) : 0L,
+                    tokens,
+                    cost.toPlainString()
+                });
+    }
+
     private void modelEnded(SpanRec s) {
         String model = s.text(Semconv.GEN_AI_RESPONSE_MODEL);
         if (model == null) model = s.text(Semconv.GEN_AI_REQUEST_MODEL);
@@ -781,6 +803,7 @@ public final class RunState {
         m.calls++;
         m.prompt += number(s.attr(Semconv.GEN_AI_USAGE_INPUT_TOKENS));
         m.completion += number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS));
+        if (Semconv.OP_EXTRACT.equals(s.text(Semconv.GEN_AI_OPERATION_NAME))) extractCounted(s, model);
         long attempts =
                 s.attr(Semconv.LOOM_MODEL_ATTEMPTS) == null
                         ? 1

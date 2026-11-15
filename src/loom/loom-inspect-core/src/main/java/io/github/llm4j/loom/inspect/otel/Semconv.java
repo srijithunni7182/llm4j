@@ -111,6 +111,9 @@ public final class Semconv {
 
     // ---- Model calls, tool outcomes, context and compaction (Phase 4) ----
     public static final String OP_CHAT = "chat";
+
+    /** A model call made by an {@code extract} step: it belongs to no agent's step. */
+    public static final String OP_EXTRACT = "extract";
     public static final String GEN_AI_RESPONSE_MODEL = "gen_ai.response.model";
     public static final String GEN_AI_RESPONSE_FINISH_REASONS = "gen_ai.response.finish_reasons";
     public static final String LOOM_MODEL_ATTEMPTS = "loom.model.attempts";

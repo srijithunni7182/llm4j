@@ -753,7 +753,7 @@ public final class TraceMapper {
                 data.get("duration_ms") == null ? 0 : Math.max(0, number(data.get("duration_ms")));
         int n = modelCounts.merge(name + "@" + e.step(), 1, Integer::sum);
         Map<String, Object> a = new LinkedHashMap<>();
-        a.put(Semconv.GEN_AI_OPERATION_NAME, "extract");
+        a.put(Semconv.GEN_AI_OPERATION_NAME, Semconv.OP_EXTRACT);
         a.put(Semconv.GEN_AI_AGENT_NAME, name);
         a.put(Semconv.GEN_AI_REQUEST_MODEL, model);
         a.put(Semconv.GEN_AI_RESPONSE_MODEL, model);
