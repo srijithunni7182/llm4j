@@ -33,7 +33,7 @@ public final class OfflineModels implements LLMClientFactory {
             Pattern.compile("(\\d[\\d,]*(?:\\.\\d+)?)\\s*(USD|EUR|INR|GBP|JPY|dollars|euros|rupees)", Pattern.CASE_INSENSITIVE);
     private static final Pattern MERCHANT =
             Pattern.compile("\\b(?:at|from|with|on)\\s+((?:[A-Z][\\w&'.-]*)(?:\\s+[A-Z][\\w&'.-]*){0,3})");
-    private static final Pattern REFUSED = Pattern.compile("reason: (.+)");
+    private static final Pattern REFUSED = Pattern.compile("reason: (.+?)\\s*</facts>");
     private static final Pattern PAID = Pattern.compile("reference: (PAY-\\d+)");
 
     private static final Map<String, List<String>> CATEGORY_WORDS =

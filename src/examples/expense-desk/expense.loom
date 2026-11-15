@@ -33,14 +33,14 @@ workflow Claim(text, employee) {
     run ExpensePolicy(amount = receipt.amount, currency = receipt.currency, category = receipt.category) -> verdict
 
     alt (verdict.outcome == "rejected") {
-        delegate "<facts>\noutcome: refused by policy\nemployee: {employee}\nreason: {verdict.reason}\n</facts>" to Clerk -> message
+        delegate "<facts> outcome: refused by policy | employee: {employee} | reason: {verdict.reason} </facts>" to Clerk -> message
         return { status: "REJECTED", note: "{message}" }
     }
 
     alt (verdict.outcome == "needs_approval") {
         run Reimburse(employee = employee, merchant = receipt.merchant, amount = receipt.amount, currency = receipt.currency) approve "Pay this claim?" -> payment
             on_declined {
-                delegate "<facts>\noutcome: declined by the approver\nemployee: {employee}\n</facts>" to Clerk -> message
+                delegate "<facts> outcome: declined by the approver | employee: {employee} </facts>" to Clerk -> message
                 return { status: "DECLINED", note: "{message}" }
             }
             on_failure { halt "The payment may not have gone through: {_error}. Check the ledger before trying again." }
@@ -49,6 +49,6 @@ workflow Claim(text, employee) {
             on_failure { halt "The payment may not have gone through: {_error}. Check the ledger before trying again." }
     }
 
-    delegate "<facts>\noutcome: paid\nemployee: {employee}\nreference: {payment.value}\n</facts>" to Clerk -> message
+    delegate "<facts> outcome: paid | employee: {employee} | reference: {payment.value} </facts>" to Clerk -> message
     return { status: "PAID", note: "{message}" }
 }

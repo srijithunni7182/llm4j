@@ -28,6 +28,7 @@ scripts/g5/refund.loom	6a2ce88560e22346	12bceae02dfced8c	e3b0c44298fc1c14
 scripts/g5/report.loom	1b88baf8e994ee07	5b1a71344525db9e	b63a0e1760a9d931
 scripts/g7/flow.loom	5cf937ed123b9c44	625dc8d1dde65c5e	d89bf516c5b057af
 src/examples/a2a-starter/src/main/resources/supplier.loom	4c454a84fbb1fd70	0ec5377ed01c8c03	5a536d4aee92d12a
+src/examples/expense-desk/expense.loom	400b07fd373832d9	389fc21add304109	e3b0c44298fc1c14
 src/examples/getviral/src/main/resources/getviral/getviral.loom	37b6fd711c8ca140	b239b113b3154f2e	9d06fc2270e5af43
 src/examples/grounded-research/research.loom	21aa724ceb45a20b	1085473e52d2166d	e3b0c44298fc1c14
 src/examples/hexamind-hub/eval/hexamind.loom	04258a1b013b6fda	ae7f12a2b44114c3	e3b0c44298fc1c14

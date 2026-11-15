@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.UnaryOperator;
 
 /**
  * The expense desk: takes claims, runs the {@code Claim} workflow for each on a {@link LoomHost},
@@ -61,7 +62,23 @@ public final class Desk implements AutoCloseable {
      * @param clock the time claims and steps are stamped with
      */
     public Desk(Path script, Path dataDir, LLMClientFactory models, Clock clock) {
+        this(script, dataDir, models, clock, UnaryOperator.identity());
+    }
+
+    /**
+     * Opens a desk whose host is set up further by the caller, for what only a deployment knows:
+     * a secret store, an observer that reports each run.
+     *
+     * @param hostSetup applied to the host's builder after the desk's own settings
+     */
+    public Desk(
+            Path script,
+            Path dataDir,
+            LLMClientFactory models,
+            Clock clock,
+            UnaryOperator<LoomHost.Builder> hostSetup) {
         Objects.requireNonNull(script, "script");
+        Objects.requireNonNull(hostSetup, "hostSetup");
         Objects.requireNonNull(dataDir, "dataDir");
         Objects.requireNonNull(models, "models");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -79,15 +96,15 @@ public final class Desk implements AutoCloseable {
                         GraphJson.write(new GraphService().graph(script)),
                         SecurityAudit.audit(loaded, script.getFileName().toString(), Map.of()).json());
         this.book = new ClaimBook(dataDir.resolve("claims.json"));
-        this.host =
+        LoomHost.Builder builder =
                 LoomHost.builder(loaded, new ToolRegistry(), models)
                         .persistence(Persistence.file(dataDir))
                         .scriptFile(script)
                         .clock(clock)
                         .taskRegistry(new TaskRegistry().register(new ExpensePolicy()).register(new Reimburse(ledger)))
                         .questionListener(this::asked)
-                        .customizer(executor -> executor.addTraceListener(event -> happened(executor, event)))
-                        .build();
+                        .customizer(executor -> executor.addTraceListener(event -> happened(executor, event)));
+        this.host = hostSetup.apply(builder).build();
         host.validate();
     }
 
