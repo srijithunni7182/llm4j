@@ -693,7 +693,7 @@ method.
 | `server` | One of the description's `servers`, instead of the first |
 | `auth_header` or `auth_query`, with `auth_value` | Exactly one; `auth_value` is a **secret** (`env.`, `secret.` or `invoker.`) |
 | `pin` | A hash of this operation's signature, as `weave connect` and `weave mcp list --write` write it; `weave check` warns when the local description no longer matches (LA35) |
-| `paginate`, `max_pages`, `cursor_path`, `cursor_param`, `page_param` | As for `http`: the tool follows the pages of a reading operation and returns them together, within `max_pages` and `max_bytes`. Refused on an operation that changes something |
+| `paginate`, `max_pages`, `cursor_path`, `cursor_param`, `page_param` | As for `http`: the tool follows the pages of a reading operation (a `Link` header that names another host is never followed) and returns them together, within `max_pages` and `max_bytes`. Refused on an operation that changes something |
 | `max_bytes` | What one answer shows the model, default 64k, at most 4m; a longer answer is cut and says so |
 | `save_dir` | A folder inside the script's that keeps an answer that is long or not text, whole, under a name made from the tool and a hash of the content; the tool returns the path, size, type and the start of it |
 | `save_max_bytes` | The most `save_dir` keeps, default 16m, at most 128m |
@@ -829,10 +829,10 @@ An `mcp` block starts a program and gives an agent the tools it lists. That prog
 | `env` | The variables the server is given: `env.NAME` or `secret.NAME` (resolved when it starts), or a literal for a setting. A name that looks like a credential (`TOKEN`, `KEY`, `SECRET`, `PASSWORD`, `AUTH`) must be a reference |
 | `env_inherit` | Names of host variables an isolated server may inherit (for example `PATH`) |
 | `url`, `auth`, `list_auth` | For `transport: "http"`: the server's one address (https, or a local one); `auth` is the bearer token, `env.NAME`, `secret.NAME` or `invoker.NAME` (the credential of whoever runs the workflow, asked for on every request and never put in the address); `list_auth` is a credential used only to list the tools when the engine starts, needed with `auth: invoker.NAME` because nobody is running yet. A remote server has none of `cmd`, `args`, `env` or `isolation` (nothing is started here); the client tries the modern protocol era first and falls back to the `initialize` handshake. A refused token is `credential_rejected`, as for `openapi` |
-| `timeout` | How long one request waits, default 30s |
+| `timeout` | How long one request waits, default 30s; between 1s and 10m |
 | `effects` | What each tool does: `none`, `reads` or `changes`, by tool name. A tool you do not list is assumed to change things |
 | `reach` | What the server can do (`none`, `reads`, `fetches`, `writes`, `sends`), so the audit need not assume the worst |
-| `pin` | A hash of the server's tool list (names, input schemas, annotations), written by `weave mcp list --write` |
+| `pin` | A hash of the server's tool list (names, input schemas, annotations), written by `weave mcp list --write`. When it is set and the server's list no longer matches, the server **does not start** and the message says so; `weave mcp list` still shows the drift |
 
 The servers start when the run starts, so one that cannot list its tools is a load error; a server that crashes is started again
 a few times and then reported, and a call that was in flight is never repeated. A call whose result says `isError` is a failure,
@@ -968,8 +968,8 @@ agent Editor { model: "claude-haiku-5-5"  system: "You resize photos."  tools: [
   never passed through the `{variable}` replacement the rest of a script uses, so a workflow variable named like a parameter
   changes nothing.
 - **Parameter types** (`param.<name>`): `path in` (a file that must exist in the workspace), `path out` (a file to write there),
-  `int 1..400`, `number 0.5..2`, `enum a|b|c`, `string max=40 pattern=[a-z]+`, `bool "--flag"` (the flag is added when the value
-  is true). A path is held inside the workspace: no `..`, no absolute path, no symlink out. A missing, extra or mistyped argument
+  `int 1..400`, `number 0.5..2`, `enum a|b|c`, `string max=40 pattern=[a-z]+` (a value that starts with `-` is refused, because a program would read it as an option; add `allow_dash` to allow it), `bool "--flag"` (the flag is added when the value
+  is true). A path is held inside the workspace: no `..`, no absolute path, no symlink out, and one that starts with `-` is passed as `./-x`. A missing, extra or mistyped argument
   is refused before the program runs, with the rule in the message.
 - **Isolation is required.** `isolation: container` (with `image`) or `process` (which needs `network: open` and is flagged by
   `weave audit`, LA31); there is no `none`. The workspace is the only mount of a container, there is no network unless you

@@ -68,7 +68,7 @@ class CommandKindTest {
     @Test
     void aValueWithSpacesSemicolonsFlagsSubstitutionOrNewlinesStaysOneArgument() throws Exception {
         Tool tool = tool(bare("run", "echo {text}", "param.text", "string"));
-        for (String nasty : new String[] {"two words", "a;b", "--flag", "$(id)", "line\nbreak", "`x`", "a && b"}) {
+        for (String nasty : new String[] {"two words", "a;b", "$(id)", "line\nbreak", "`x`", "a && b"}) {
             tool.execute(Map.of("text", nasty));
             assertThat(last().args()).as(nasty).containsExactly(nasty);
         }

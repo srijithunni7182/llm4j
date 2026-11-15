@@ -119,10 +119,11 @@ class PaginationTest {
     }
 
     @Test
-    void aLinkToAnotherHostGoesThroughThePolicyAndIsRefused() throws Exception {
+    void aLinkToAMetadataAddressIsNotFollowed() throws Exception {
         server.enqueue(json("[1]").setHeader("Link", "<http://169.254.169.254/next>; rel=\"next\""));
 
-        assertThatThrownBy(() -> of("paginate", "link").collect(http(1 << 20), first("/p"), HttpSupport.Retry.ALL)).isInstanceOf(ToolRefusal.class);
+        assertThat(of("paginate", "link").collect(http(1 << 20), first("/p"), HttpSupport.Retry.ALL).bodyText()).isEqualTo("[1]");
+        assertThat(server.getRequestCount()).isEqualTo(1);
     }
 
     @Test
@@ -147,5 +148,24 @@ class PaginationTest {
         assertThatThrownBy(() -> of("paginate", "link").requireRead("POST")).hasMessageContaining("only for reads");
         of("paginate", "link").requireRead("GET");
         of().requireRead("POST");
+    }
+
+    @Test
+    void aNextLinkToAnotherHostIsNeverFollowedBecauseTheRequestCarriesTheCredential() throws Exception {
+        server.enqueue(json("[1]").setHeader("Link", "<https://attacker.example/steal>; rel=\"next\""));
+
+        HttpSupport.Reply all = of("paginate", "link").collect(http(1 << 20), first("/p1"), HttpSupport.Retry.ALL);
+
+        assertThat(all.bodyText()).isEqualTo("[1]");
+        assertThat(server.getRequestCount()).as("no second request, to anyone").isEqualTo(1);
+    }
+
+    @Test
+    void aNextLinkWithAnotherPortOrSchemeIsNotFollowedEither() throws Exception {
+        server.enqueue(json("[1]").setHeader("Link", "<http://" + server.getHostName() + ":" + (server.getPort() + 1) + "/p2>; rel=\"next\""));
+
+        of("paginate", "link").collect(http(1 << 20), first("/p1"), HttpSupport.Retry.ALL);
+
+        assertThat(server.getRequestCount()).isEqualTo(1);
     }
 }

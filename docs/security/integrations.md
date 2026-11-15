@@ -56,7 +56,7 @@ Secrets for a server go in `env:` as `env.NAME` or `secret.NAME`; a value that l
 
 ## Pins
 
-`pin:` on an `openapi` tool holds a short hash of that operation's signature: the method, the path, each parameter (name, location, whether it is required, its schema) and the request body. `weave check` compares it with a local description and warns when it differs (LA35); `weave check --strict` and `weave audit --strict` turn the warning into an error. A pin on an `mcp` block covers the server's tool list (names, input schemas, annotations). The pin ignores descriptions, examples, the order of keys and every operation nobody uses, so rewording documentation raises no alarm. A pin proves the signature is the one you reviewed; it says nothing about what the server does with it.
+`pin:` on an `openapi` tool holds a short hash of that operation's signature: the method, the path, each parameter (name, location, whether it is required, its schema) and the request body. `weave check` compares it with a local description and warns when it differs (LA35); `weave check --strict` and `weave audit --strict` turn the warning into an error. A pin on an `mcp` block covers the server's tool list (names, input schemas, annotations), and **a run refuses to start the server when the list no longer matches**: the pin is the mitigation for a package that changed after you reviewed it. A parameter named `title` or `description` counts: only annotation keywords are ignored, not the names under `properties`. The pin ignores descriptions, examples, the order of keys and every operation nobody uses, so rewording documentation raises no alarm. A pin proves the signature is the one you reviewed; it says nothing about what the server does with it.
 
 ## What this page does not cover
 

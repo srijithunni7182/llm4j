@@ -64,6 +64,7 @@ public final class McpDiscovery {
     public static Result discover(McpServerDef def, Function<String, String> credentials, java.nio.file.Path baseDir) {
         McpServers servers = new McpServers();
         servers.baseDir(baseDir);
+        servers.enforcePins(false); // a listing shows the drift; it must not be stopped by it
         try {
             servers.boot(List.of(def), credentials);
             List<Map<String, Object>> listed = servers.listed(def.getName());

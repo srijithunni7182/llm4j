@@ -150,6 +150,8 @@ public final class Pagination {
                 if (header == null) return null;
                 Matcher m = NEXT.matcher(header);
                 while (m.find()) if (m.group(2).trim().equals("next")) url = sent.url().resolve(m.group(1));
+                // a server names the next page, so it cannot name another host: the request carries the credential
+                if (url != null && !sameOrigin(sent.url(), url)) return null;
             }
             case "cursor" -> {
                 String cursor = cursorOf(reply);
@@ -159,6 +161,10 @@ public final class Pagination {
             default -> url = sent.url().newBuilder().setQueryParameter(pageParam, String.valueOf(nextPage)).build();
         }
         return url == null ? null : sent.newBuilder().url(url).build();
+    }
+
+    private static boolean sameOrigin(HttpUrl a, HttpUrl b) {
+        return a.scheme().equals(b.scheme()) && a.host().equalsIgnoreCase(b.host()) && a.port() == b.port();
     }
 
     private String cursorOf(HttpSupport.Reply reply) {

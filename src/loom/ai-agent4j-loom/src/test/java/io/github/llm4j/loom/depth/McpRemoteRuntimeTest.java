@@ -120,4 +120,18 @@ class McpRemoteRuntimeTest {
         assertThatThrownBy(() -> h.ready("mcp R { cmd: \"srv\" isolation: none url: \"https://a.example\" }\nagent A { model: \"m\" system: \"s\" mcp_servers: [R] }\nworkflow Main() { delegate \"x\" to A -> r }"))
                 .hasMessageContaining("are for a remote server");
     }
+
+    @Test
+    void aRemoteServerWithNoAuthIsReachedWithNoCredentialAtAll() throws Exception {
+        List<String> tokens = Collections.synchronizedList(new ArrayList<>());
+        try (MockWebServer s = server(tokens)) {
+            Harness h = new Harness(dir);
+            HarnessExecutor e = h.executor(script(s, ""), null);
+
+            e.initialize();
+
+            assertThat(tokens).isNotEmpty().allMatch("null"::equals);
+            e.shutdown();
+        }
+    }
 }

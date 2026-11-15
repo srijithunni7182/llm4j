@@ -176,4 +176,31 @@ class CommandKindContractTest {
     void theTemplateReadsBackAsLowerCaseText() throws Exception {
         assertThat(kind.check(options("run", "Tool {x}"), dir)).isNull();
     }
+
+    @Test
+    void aValueThatStartsWithADashIsRefusedUnlessTheAuthorAllowsIt() throws Exception {
+        Tool plain = tool("tool {x}", "string");
+        assertThat(plain.execute(Map.of("x", "--output=../../x"))).startsWith("Error:").contains("must not start with -");
+        assertThat(plain.execute(Map.of("x", "ok-dash"))).doesNotStartWith("Error:");
+        Tool opted = tool("tool {x}", "string allow_dash");
+        assertThat(opted.execute(Map.of("x", "-v"))).doesNotStartWith("Error:");
+    }
+
+    @Test
+    void aPathThatStartsWithADashIsWrittenSoNoProgramReadsItAsAnOption() throws Exception {
+        Tool t = tool("tool {x}", "path in");
+        Files.writeString(dir.resolve("work/-rf"), "x");
+        t.execute(Map.of("x", "-rf"));
+        assertThat(sandbox.requests.get(sandbox.requests.size() - 1).args()).containsExactly("./-rf");
+        Tool out = tool("tool {x}", "path out");
+        out.execute(Map.of("x", "-new"));
+        assertThat(sandbox.requests.get(sandbox.requests.size() - 1).args()).containsExactly("./-new");
+    }
+
+    @Test
+    void notANumberIsOutOfEveryRange() throws Exception {
+        Tool t = tool("tool {x}", "number 0.5..2");
+        assertThat(t.execute(Map.of("x", Double.NaN))).startsWith("Error:");
+        assertThat(t.execute(Map.of("x", "NaN"))).startsWith("Error:");
+    }
 }

@@ -471,7 +471,7 @@ final class ConnectCommand implements Callable<Integer> {
         }
 
         private static String spell(String tool) {
-            return tool.matches("[A-Za-z_][A-Za-z0-9_]*") ? tool : "\"" + escape(tool) + "\"";
+            return McpScriptEditor.spell(tool);
         }
 
         private static String escape(String text) {

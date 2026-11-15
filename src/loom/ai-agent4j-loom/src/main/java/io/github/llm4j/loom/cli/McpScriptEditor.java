@@ -16,9 +16,9 @@ import java.util.regex.Pattern;
  */
 final class McpScriptEditor {
 
-    private static final Pattern EFFECTS = Pattern.compile("\\beffects\\s*:\\s*\\{([^}]*)}");
+    private static final Pattern EFFECTS = Pattern.compile("\\beffects\\s*:\\s*\\{((?:\"(?:[^\"\\\\]|\\\\.)*\"|[^}\"])*)}");
     private static final Pattern PIN = Pattern.compile("\\bpin\\s*:\\s*\"[^\"]*\"");
-    private static final Pattern ENTRY = Pattern.compile("([A-Za-z0-9_.\\-\"]+)\\s*:\\s*(none|reads|changes)");
+    private static final Pattern ENTRY = Pattern.compile("(\"(?:[^\"\\\\]|\\\\.)*\"|[A-Za-z0-9_.\\-]+)\\s*:\\s*(none|reads|changes)");
 
     private McpScriptEditor() {}
 
@@ -48,7 +48,7 @@ final class McpScriptEditor {
             Matcher entry = ENTRY.matcher(old.group(1));
             while (entry.find())
                 merged.put(
-                        entry.group(1).replace("\"", ""),
+                        unquote(entry.group(1)),
                         TaskEffect.valueOf(entry.group(2).toUpperCase(Locale.ROOT)));
         }
         proposed.forEach(merged::putIfAbsent);
@@ -80,8 +80,18 @@ final class McpScriptEditor {
     }
 
     /** A tool name as the script writes it: bare when it is a word, quoted when it has other characters. */
-    private static String spell(String tool) {
-        return tool.matches("[A-Za-z_][A-Za-z0-9_]*") ? tool : "\"" + tool.replace("\"", "\\\"") + "\"";
+    static String spell(String tool) {
+        if (tool.matches("[A-Za-z_][A-Za-z0-9_]*")) return tool;
+        // a tool name comes from the server and is untrusted: a control character cannot be written into a script
+        if (tool.chars().anyMatch(c -> c < 0x20 || c == 0x7f))
+            throw new IllegalArgumentException("a tool name with a control character cannot be written into a script: " + tool.replaceAll("\\p{Cntrl}", "?"));
+        return "\"" + tool.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
+    /** The name inside a quoted entry, with its escapes undone; a bare word as it is. */
+    private static String unquote(String written) {
+        if (!written.startsWith("\"")) return written;
+        return written.substring(1, written.length() - 1).replaceAll("\\\\(.)", "$1");
     }
 
     /** Whether the text at {@code at} is inside a line comment. */

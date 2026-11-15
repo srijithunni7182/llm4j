@@ -76,12 +76,19 @@ public final class SpecPin {
 
     /** The node with descriptive keys removed and every object's keys in sorted order. */
     static JsonNode canonical(JsonNode node) {
+        return canonical(node, false);
+    }
+
+    /** Keywords whose object holds schemas by name: a name there is a parameter, not an annotation, so it is never skipped. */
+    private static final java.util.Set<String> NAME_MAPS = java.util.Set.of("properties", "patternProperties", "$defs", "definitions", "dependentSchemas");
+
+    static JsonNode canonical(JsonNode node, boolean nameMap) {
         if (node == null || node.isNull()) return JSON.nullNode();
         if (node.isObject()) {
             TreeMap<String, JsonNode> sorted = new TreeMap<>();
             for (Iterator<String> names = node.fieldNames(); names.hasNext(); ) {
                 String name = names.next();
-                if (!DESCRIPTIVE.contains(name)) sorted.put(name, canonical(node.get(name)));
+                if (nameMap || !DESCRIPTIVE.contains(name)) sorted.put(name, canonical(node.get(name), !nameMap && NAME_MAPS.contains(name)));
             }
             ObjectNode out = JSON.createObjectNode();
             sorted.forEach(out::set);
@@ -89,7 +96,7 @@ public final class SpecPin {
         }
         if (node.isArray()) {
             ArrayNode out = JSON.createArrayNode();
-            node.forEach(item -> out.add(canonical(item)));
+            node.forEach(item -> out.add(canonical(item, false)));
             return out;
         }
         return node;

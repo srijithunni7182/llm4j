@@ -215,4 +215,25 @@ class McpBlockRuntimeTest {
                                         .contains("isolation:"));
         e.shutdown();
     }
+
+    @Test
+    void aToolListThatIsNotTheOnePinnedStopsTheStartAndNamesTheWayOut() {
+        Harness h = new Harness(dir);
+
+        assertThatThrownBy(() -> h.ready(script("isolation: process pin: \"sha256-0000000000000000\"", "")))
+                .isInstanceOf(LoomLoadException.class)
+                .hasMessageContaining("not the ones pinned")
+                .hasMessageContaining("weave mcp list");
+    }
+
+    @Test
+    void aWorkspaceThatIsALinkOutOfTheScriptsFolderIsRefusedForAContainer() throws Exception {
+        Path outside = Files.createTempDirectory("outside");
+        Files.createSymbolicLink(dir.resolve("data"), outside);
+        Harness h = new Harness(dir);
+
+        assertThatThrownBy(() -> h.ready(script("isolation: container image: \"x@sha256:00\" workspace: \"data\"", "")))
+                .isInstanceOf(LoomLoadException.class)
+                .hasMessageContaining("outside the script's directory");
+    }
 }

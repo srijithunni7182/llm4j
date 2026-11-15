@@ -159,15 +159,27 @@ public class StdioMcpTransport implements McpTransport {
                 // a line that never ends is flushed in pieces, keeping an overlap so a secret
                 // straddling the cut is still seen whole by the redactor
                 if (pending.length() > LINE_LIMIT) {
-                    int cut = pending.length() - OVERLAP;
-                    keep(pending.substring(0, cut));
-                    pending.delete(0, cut);
+                    keep(flushOverlong(pending, redactor));
                 }
             }
         } catch (IOException e) {
             logger.debug("MCP server error stream closed: {}", e.getClass().getSimpleName());
         }
         if (pending.length() > 0) keep(pending.toString());
+    }
+
+    /**
+     * Takes the stored part out of a line that never ends. The whole pending text is redacted
+     * first, so a secret that crosses the cut is replaced as one piece; only redacted text before
+     * the cut is returned, and the last {@code OVERLAP} characters stay in {@code pending} for a
+     * secret still being read.
+     */
+    static String flushOverlong(StringBuilder pending, UnaryOperator<String> redactor) {
+        String redacted = redactor.apply(pending.toString());
+        int cut = Math.max(0, redacted.length() - OVERLAP);
+        pending.setLength(0);
+        pending.append(redacted, cut, redacted.length());
+        return redacted.substring(0, cut);
     }
 
     private void keep(String text) {

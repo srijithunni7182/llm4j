@@ -117,4 +117,24 @@ class McpPinTest {
 
         assertThat(after).isEqualTo(before);
     }
+
+    @Test
+    void aParameterNamedLikeADescriptiveKeywordStillFlipsThePin() {
+        var one = List.of(tool("t", "d", Map.of("title", Map.of("type", "string")), null));
+        var two =
+                List.of(
+                        tool(
+                                "t",
+                                "d",
+                                Map.of(
+                                        "title",
+                                        Map.of("type", "string"),
+                                        "description",
+                                        Map.of("type", "string")),
+                                null));
+        var retyped = List.of(tool("t", "d", Map.of("title", Map.of("type", "integer")), null));
+
+        assertThat(McpPin.of(two)).isNotEqualTo(McpPin.of(one));
+        assertThat(McpPin.of(retyped)).isNotEqualTo(McpPin.of(one));
+    }
 }

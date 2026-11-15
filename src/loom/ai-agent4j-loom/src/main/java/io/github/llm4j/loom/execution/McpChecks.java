@@ -20,6 +20,9 @@ final class McpChecks {
             Pattern.compile(
                     ".*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH).*", Pattern.CASE_INSENSITIVE);
 
+    static final java.time.Duration MIN_TIMEOUT = java.time.Duration.ofSeconds(1);
+    static final java.time.Duration MAX_TIMEOUT = java.time.Duration.ofMinutes(10);
+
     private McpChecks() {}
 
     static void run(ScriptValidator.Checker c) {
@@ -28,6 +31,8 @@ final class McpChecks {
 
     private static void check(ScriptValidator.Checker c, McpServerDef m) {
         String construct = "mcp " + m.getName();
+        if (m.getTimeout() != null && (m.getTimeout().compareTo(MIN_TIMEOUT) < 0 || m.getTimeout().compareTo(MAX_TIMEOUT) > 0))
+            c.error(m.getLine(), construct, "timeout: must be between " + MIN_TIMEOUT.toSeconds() + "s and " + MAX_TIMEOUT.toMinutes() + "m, so a request neither fails at once nor waits for ever");
         if (m.isRemote()) {
             checkRemote(c, m);
             return;

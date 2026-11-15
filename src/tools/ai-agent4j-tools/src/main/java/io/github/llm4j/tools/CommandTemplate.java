@@ -37,13 +37,13 @@ final class CommandTemplate {
         public String render(String name, Object value, Path workspace) {
             Path p = jail(name, value, workspace);
             if (!Files.exists(p)) throw new ToolRefusal(name + ": " + value + " does not exist");
-            return workspace.toAbsolutePath().normalize().relativize(p).toString();
+            return notAnOption(workspace.toAbsolutePath().normalize().relativize(p).toString());
         }
     }
 
     record PathOut() implements Param {
         public String render(String name, Object value, Path workspace) {
-            return workspace.toAbsolutePath().normalize().relativize(jail(name, value, workspace)).toString();
+            return notAnOption(workspace.toAbsolutePath().normalize().relativize(jail(name, value, workspace)).toString());
         }
 
         @Override
@@ -72,7 +72,7 @@ final class CommandTemplate {
             } catch (NumberFormatException e) {
                 throw new ToolRefusal(name + " must be a number");
             }
-            if (v < min || v > max) throw new ToolRefusal(name + " must be in " + trim(min) + ".." + trim(max));
+            if (Double.isNaN(v) || v < min || v > max) throw new ToolRefusal(name + " must be in " + trim(min) + ".." + trim(max));
             return trim(v);
         }
     }
@@ -85,11 +85,12 @@ final class CommandTemplate {
         }
     }
 
-    record Text(Pattern pattern, int max) implements Param {
+    record Text(Pattern pattern, int max, boolean allowDash) implements Param {
         public String render(String name, Object value, Path workspace) {
             if (value instanceof Map<?, ?> || value instanceof List<?>) throw new ToolRefusal(name + " must be text");
             String t = String.valueOf(value);
             if (t.length() > max) throw new ToolRefusal(name + " must be at most " + max + " characters");
+            if (!allowDash && t.startsWith("-")) throw new ToolRefusal(name + " must not start with - (the program would read it as an option); the author can allow it with allow_dash");
             if (pattern != null && !pattern.matcher(t).matches()) throw new ToolRefusal(name + " does not match the pattern " + pattern.pattern());
             return t;
         }
@@ -235,7 +236,7 @@ final class CommandTemplate {
                 case "string" -> {
                     Matcher p = Pattern.compile("pattern=(\\S+)").matcher(rest);
                     Matcher mx = Pattern.compile("max=(\\d+)").matcher(rest);
-                    return new Text(p.find() ? Pattern.compile(p.group(1)) : null, mx.find() ? Integer.parseInt(mx.group(1)) : DEFAULT_TEXT_MAX);
+                    return new Text(p.find() ? Pattern.compile(p.group(1)) : null, mx.find() ? Integer.parseInt(mx.group(1)) : DEFAULT_TEXT_MAX, rest.contains("allow_dash"));
                 }
                 case "bool" -> {
                     List<String> text = split(rest);
@@ -255,6 +256,11 @@ final class CommandTemplate {
         String[] r = text.split("\\.\\.", 2);
         if (r.length != 2) throw new IllegalArgumentException(text);
         return r;
+    }
+
+    /** A path that starts with a dash is written {@code ./-x}, so a program does not read it as an option. */
+    private static String notAnOption(String path) {
+        return path.startsWith("-") ? "./" + path : path;
     }
 
     private static String trim(double v) {

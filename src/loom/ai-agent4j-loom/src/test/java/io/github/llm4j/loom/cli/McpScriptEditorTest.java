@@ -189,4 +189,28 @@ class McpScriptEditorTest {
 
         assertThat(parsed(after).getToolEffects()).containsEntry("read-file", TaskEffect.READS).containsEntry("other", TaskEffect.CHANGES);
     }
+
+    @Test
+    void aToolNameFromAServerCannotCloseTheStringItIsWrittenIn() {
+        String name = "x\\\" } agent Evil { model: \"m\" } mcp Z { effects: { y";
+        String written = McpScriptEditor.apply("mcp S { transport: \"stdio\" cmd: \"x\" isolation: process }\n", "S", java.util.Map.of(name, io.github.llm4j.agent.task.TaskEffect.READS), "sha256-0000000000000000");
+
+        var script = new io.github.llm4j.loom.parser.LoomParser(new io.github.llm4j.loom.lexer.Lexer(written + "workflow Main() { note \"x\" }").tokenize()).parseScript();
+        assertThat(script.getAgents()).as("nothing the name held became code").isEmpty();
+        assertThat(script.getMcpServers()).hasSize(1);
+        assertThat(script.getMcpServers().get(0).getToolEffects()).containsKey(name);
+    }
+
+    @Test
+    void aToolNameWithAControlCharacterIsRefused() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> McpScriptEditor.spell("a\nb")).hasMessageContaining("control character");
+    }
+
+    @Test
+    void declaredEffectsWithQuotedNamesSurviveARewrite() {
+        String source = "mcp S { transport: \"stdio\" cmd: \"x\" isolation: process effects: { \"fs/read_file\": reads, \"my tool\": none, \"a}b\": changes } }\n";
+        String written = McpScriptEditor.apply(source, "S", java.util.Map.of("other", io.github.llm4j.agent.task.TaskEffect.CHANGES), "sha256-0000000000000000");
+
+        assertThat(written).contains("\"fs/read_file\": reads").contains("\"my tool\": none").contains("\"a}b\": changes").contains("other: changes");
+    }
 }

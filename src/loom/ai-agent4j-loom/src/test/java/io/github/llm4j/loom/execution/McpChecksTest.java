@@ -126,4 +126,13 @@ class McpChecksTest {
         assertThat(messages(check("mcp R { transport: \"http\" url: \"https://mcp.example.com/mcp\" cmd: \"x\" }", Map.of()), error)).anyMatch(m -> m.contains("for a program"));
         assertThat(messages(check("mcp F { cmd: \"srv\" isolation: process url: \"https://x.example\" }", Map.of()), error)).anyMatch(m -> m.contains("for a remote server"));
     }
+
+    @Test
+    void aTimeoutBelowASecondOrAboveTenMinutesIsAnError() {
+        var error = ScriptValidator.Severity.ERROR;
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: process timeout: 0s }", Map.of()), error)).anyMatch(m -> m.contains("timeout:"));
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: process timeout: 11m }", Map.of()), error)).anyMatch(m -> m.contains("timeout:"));
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: process timeout: 1s }", Map.of()), error)).isEmpty();
+        assertThat(messages(check("mcp F { cmd: \"srv\" isolation: process timeout: 10m }", Map.of()), error)).isEmpty();
+    }
 }

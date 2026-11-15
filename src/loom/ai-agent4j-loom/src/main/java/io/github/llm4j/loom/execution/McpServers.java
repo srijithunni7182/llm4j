@@ -44,6 +44,21 @@ final class McpServers implements AutoCloseable {
             List<Map<String, Object>> tools) {}
 
     private final Map<String, Booted> servers = new LinkedHashMap<>();
+    private boolean enforcePins = true;
+
+    /** Whether a block's {@code pin:} that no longer matches stops the start (the default); a listing turns it off to show the drift. */
+    void enforcePins(boolean enforce) {
+        this.enforcePins = enforce;
+    }
+
+    private void checkPin(McpServerDef def, List<Map<String, Object>> tools) {
+        if (!enforcePins || def.getPin() == null) return;
+        String now = io.github.llm4j.mcp.McpPin.of(tools);
+        if (!def.getPin().equals(now))
+            throw new IllegalStateException(
+                    "the tools of this server are not the ones pinned (pin: " + def.getPin() + ", now " + now
+                            + "): a tool was added, removed or changed since you reviewed it. Run weave mcp list to see the tools, and weave mcp list --write to pin the new list once you accept it");
+    }
     private Function<String, io.github.llm4j.secret.CredentialSource> invoker = name -> null;
     private java.nio.file.Path baseDir = java.nio.file.Path.of("").toAbsolutePath();
 
@@ -108,7 +123,9 @@ final class McpServers implements AutoCloseable {
         McpClient client = McpClient.restarting(factory, MAX_RESTARTS, timeout);
         try {
             client.initialize();
-            return new Booted(def, client, latest, client.listTools());
+            List<Map<String, Object>> listed = client.listTools();
+            checkPin(def, listed);
+            return new Booted(def, client, latest, listed);
         } catch (Exception e) {
             client.close();
             throw e;
@@ -142,10 +159,13 @@ final class McpServers implements AutoCloseable {
                     }
                 };
         HttpMcpPoster poster = new HttpMcpPoster(def.getUrl(), timeout, io.github.llm4j.agent.tool.EffectContext.noop());
-        McpClient client = new McpClient(new io.github.llm4j.mcp.McpHttpTransport(def.getUrl(), poster, token), timeout);
+        // a server with no auth: and no list_auth: is reached with no credential at all, not with a source that has none
+        boolean noCredential = def.getAuth() == null && def.getListAuth() == null;
+        McpClient client = new McpClient(new io.github.llm4j.mcp.McpHttpTransport(def.getUrl(), poster, noCredential ? null : token), timeout);
         try {
             client.initialize();
             List<Map<String, Object>> tools = client.listTools();
+            checkPin(def, tools);
             listing.set(false);
             return new Booted(def, client, new StdioMcpTransport[1], tools);
         } catch (Exception e) {
@@ -157,8 +177,8 @@ final class McpServers implements AutoCloseable {
     private static io.github.llm4j.secret.CredentialSource fixed(
             io.github.llm4j.loom.ast.ToolDef.OptionValue v, Function<String, String> credentials) {
         if (v == null) return null;
-        String value = v.isReference() ? credentials.apply(v.lookupKey()) : v.value();
-        return () -> value;
+        // looked up on every request, so a value the person has since rotated is the one sent after a rejection
+        return () -> v.isReference() ? credentials.apply(v.lookupKey()) : v.value();
     }
 
     /** What starts the program: the legacy way, or with a scrubbed environment. */
@@ -198,8 +218,13 @@ final class McpServers implements AutoCloseable {
             java.nio.file.Path baseDir,
             McpServerDef def, Map<String, String> env, List<String> command, StdioMcpTransport[] latest) {
         java.nio.file.Path workspace = baseDir.resolve(def.getWorkspace() == null ? "." : def.getWorkspace()).normalize();
-        if (!workspace.startsWith(baseDir.normalize()))
-            throw new IllegalArgumentException("workspace: " + def.getWorkspace() + " is outside the script's directory");
+        try {
+            // the real paths: a folder that is a link to somewhere else would mount that somewhere into the container
+            if (!workspace.toRealPath().startsWith(baseDir.toRealPath()))
+                throw new IllegalArgumentException("workspace: " + def.getWorkspace() + " is outside the script's directory");
+        } catch (java.io.IOException e) {
+            throw new IllegalArgumentException("workspace: " + def.getWorkspace() + " cannot be resolved: " + e.getMessage(), e);
+        }
         var network =
                 new io.github.llm4j.tools.SandboxRequest.SandboxNetwork(
                         "open".equals(def.getNetwork())
@@ -260,17 +285,21 @@ final class McpServers implements AutoCloseable {
      * ({@code effects:}); every other tool is assumed to change things.
      */
     Set<String> notChanging(List<String> serverNames) {
-        Set<String> out = new java.util.LinkedHashSet<>();
+        // a tool name two servers share is not changing only when every one of them says so: one server's
+        // declared read must not vouch for another server's undeclared tool of the same name
+        Set<String> notChanging = new java.util.LinkedHashSet<>();
+        Set<String> changing = new java.util.LinkedHashSet<>();
         for (String name : serverNames) {
             Booted booted = servers.get(name);
             if (booted == null) continue;
             for (Map<String, Object> listed : booted.tools()) {
                 String tool = String.valueOf(listed.get("name"));
-                if (McpEffects.resolve(booted.def(), tool, listed).effect() != TaskEffect.CHANGES)
-                    out.add(tool);
+                if (McpEffects.resolve(booted.def(), tool, listed).effect() != TaskEffect.CHANGES) notChanging.add(tool);
+                else changing.add(tool);
             }
         }
-        return out;
+        notChanging.removeAll(changing);
+        return notChanging;
     }
 
     @Override
