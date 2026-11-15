@@ -1,0 +1,4 @@
+- id: connect-001
+  name: The picture is resized whatever the pet lookup says
+  inputs: { petId: "1", picture: "cat.png" }
+  expected_output_contains: "done"

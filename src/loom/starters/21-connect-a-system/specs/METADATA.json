@@ -1,0 +1,15 @@
+{
+  "what": "The Swagger Petstore (OpenAPI 3.0) description and real answers recorded from the service, for the openapi tool's tests (phase 36, D15 rules 3 and 4).",
+  "service": "https://petstore3.swagger.io/api/v3",
+  "licence": "Apache-2.0 (the specification's own info.license)",
+  "recorded": "2026-11-14",
+  "specVersion": "openapi 3.0.4, info.version 1.0.27",
+  "scrubbed": "the request id the service put in its 500 answer was replaced by <scrubbed>; nothing else was changed. No credential or personal data is in these files (the scan kind runs over them).",
+  "files": {
+    "openapi.json": "GET /openapi.json, 200 application/json",
+    "pet-1-not-found.txt": "GET /pet/1, 404 application/xml, body 'Pet not found'",
+    "inventory-500.json": "GET /store/inventory, 500 application/json (the service's own error shape on the day)",
+    "find-by-status-sold.json": "GET /pet/findByStatus?status=sold, 200 application/json, an empty list"
+  },
+  "rerecord": "scripts/rerecord-fixtures.sh in this module (by hand, before a release; never in CI)"
+}

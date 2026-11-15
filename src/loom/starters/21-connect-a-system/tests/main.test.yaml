@@ -1,0 +1,24 @@
+script: ../main.loom
+workflow: Main
+cases:
+  # The answer in the first case is the one the real Swagger Petstore gave for GET /pet/1 on the day it was recorded
+  # (specs/METADATA.json): a 404 with the body "Pet not found". The command's answer is written by hand.
+  - name: a pet that is not there is reported and the picture is still resized
+    input: { petId: "1", picture: "cat.png" }
+    tools:
+      Pet_getPetById: "HTTP 404\nContent-Type: application/xml\n\nPet not found"
+      Resize: "done"
+    expect:
+      result: "done"
+      calls: { Pet_getPetById: 1, Resize: 1 }
+      effects:
+        - { tool: Resize, kind: command }
+  - name: a rejected credential stops the run and is a failure of its own kind
+    input: { petId: "1", picture: "cat.png" }
+    tools:
+      Resize: "done"
+    fail:
+      Pet_getPetById: { always: true, category: credential_rejected }
+    expect:
+      final: failed
+      calls: { Resize: 0 }

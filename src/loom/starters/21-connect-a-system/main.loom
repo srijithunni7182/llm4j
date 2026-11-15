@@ -1,0 +1,35 @@
+// 21-connect-a-system: tools that `weave connect` wrote, used by a workflow with no model at all. Pet_getPetById is one operation of
+// the Swagger Petstore's description, declared as a read, with a pin that notices a changed signature; Resize is a command line the
+// author wrote, whose three holes the workflow fills. The command runs in a container that sees only the photos folder, and a value
+// is always one argument.
+
+budget { tokens: 10000  calls: 5 }
+
+// weave connect openapi specs/petstore.json --operations getPetById --prefix Pet --write main.loom
+tool Pet_getPetById {
+    use: openapi
+    spec: "specs/petstore.json"
+    operation: "getPetById"
+    effect: reads
+    on_unknown: retry
+    pin: "sha256-1d928873cc62b27e"
+}
+
+tool Photos { use: workspace  root: "photos"  allow: "*.png, *.txt"  mode: readwrite }
+tool Resize {
+    use: command
+    isolation: container
+    image: "dpokidov/imagemagick:7"
+    workspace: Photos
+    run: "convert {input} -resize {percent}% {output}"
+    param.input: "path in"
+    param.output: "path out"
+    param.percent: "int 1..400"
+}
+
+workflow Main(petId, picture) {
+    use Pet_getPetById(petId = petId) -> found
+    use Resize(input = picture, output = "small.png", percent = 50) -> resized
+    note "{found}"
+    return resized
+}
