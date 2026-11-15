@@ -15,6 +15,10 @@ echo "== refreshing generated files"
 bash "$root/scripts/sync-graph-render.sh" >/dev/null
 bash "$root/scripts/make-logo-assets.sh" >/dev/null
 
+echo "== bundling the starters"
+rm -rf "$ext/starters"
+cp -r "$root/src/loom/starters" "$ext/starters"
+
 echo "== compiling and packaging the extension"
 cd "$ext"
 npm ci --no-audit --no-fund >/dev/null

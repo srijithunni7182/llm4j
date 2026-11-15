@@ -12,6 +12,7 @@ import { showGraphCommand } from './commands/showGraph';
 import { createPromptFileCommand } from './commands/createPromptFile';
 import { registerCheckDiagnostics } from './commands/checkDiagnostics';
 import { registerGuideCommands } from './commands/guideCommands';
+import { registerOnboardingCommands } from './commands/onboardingCommands';
 import { registerWelcome } from './welcome/register';
 import { registerAgentOffer } from './guide/registerOffer';
 import { registerTools } from './tools/register';
@@ -125,6 +126,7 @@ export function activate(context: vscode.ExtensionContext): void {
     registerGenerate(context);
     registerGuideCommands(context);
     registerWelcome(context);
+    registerOnboardingCommands(context);
     registerProgressCommands(context);
     registerAgentOffer(context);
     registerTools(context);

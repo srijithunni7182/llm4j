@@ -9,8 +9,11 @@
 ## Get started
 
 1. Install the extension. It carries its own engine and needs only **Java 17** or newer.
-2. Open the Command Palette and run **Loom: Try a Demo**. It runs a bundled workflow on demo models, so it needs no key and costs nothing.
-3. Run **Loom: Generate Workflow...** to turn a sentence into a checked project, or open any `.loom` file.
+2. Run **Loom: Set Up My Coding Agent**. Your coding agent (Claude Code, GitHub Copilot, Cursor or Codex) gets Loom's four skills and can design, build, test and deploy workflows for you. The chat then opens with a starter prompt typed in.
+3. Run **Loom: Try a Demo**. It runs a bundled workflow on demo models, so it needs no key and costs nothing.
+4. Run **Loom: Generate Workflow...** to turn a sentence into a checked project, or **Loom: New Workflow from Starter...** to copy one of twenty ready workflows, or open any `.loom` file.
+
+The same path is a guided **Walkthrough**: run **Loom: Open Walkthrough**. It opens by itself the first time the extension runs.
 
 ## What it does
 

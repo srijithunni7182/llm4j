@@ -27,6 +27,8 @@ export interface GuideHost {
     pickAgents(): Promise<string[] | undefined>;
     confirm(message: string, action: string): Promise<boolean>;
     report(message: string, level: 'info' | 'warning' | 'error'): void;
+    /** Runs after the set-up succeeded: mirrors the skills for every agent harness and hands the person a starter prompt. Optional. */
+    afterSetUp?(folder: string): Promise<void>;
 }
 
 /** "Loom: Open Guide": the page the person picks, printed by the jar they already have, with no repository and no network. */
@@ -70,7 +72,7 @@ export async function installSkill(host: GuideHost): Promise<boolean> {
     const forArgs = agents.length === 1 && agents[0] === 'claude' ? [] : ['--for', agents.join(',')];
     try {
         host.report(await host.weave(['guide', '--install-skill', folder, ...forArgs]), 'info');
-        return true;
+        return await finish(host, folder);
     } catch (first) {
         if (!/already in/.test((first as Error).message)) {
             host.report(`Loom: could not set up the agent: ${(first as Error).message}`, 'error');
@@ -81,10 +83,20 @@ export async function installSkill(host: GuideHost): Promise<boolean> {
         }
         try {
             host.report(await host.weave(['guide', '--install-skill', folder, ...forArgs, '--force']), 'info');
-            return true;
+            return await finish(host, folder);
         } catch (second) {
             host.report(`Loom: could not set up the agent: ${(second as Error).message}`, 'error');
             return false;
         }
     }
+}
+
+/** The extra step after a successful install; its own failure is reported, and the install still counts as done. */
+async function finish(host: GuideHost, folder: string): Promise<boolean> {
+    try {
+        await host.afterSetUp?.(folder);
+    } catch (e) {
+        host.report(`Loom: the instructions are installed, but sharing the skills with other agents failed: ${(e as Error).message}`, 'warning');
+    }
+    return true;
 }

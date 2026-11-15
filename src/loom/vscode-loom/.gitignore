@@ -19,3 +19,4 @@ bin/
 # Lock files (keep package-lock.json for reproducible builds)
 # package-lock.json is intentionally NOT ignored
 out-test/
+/starters/
