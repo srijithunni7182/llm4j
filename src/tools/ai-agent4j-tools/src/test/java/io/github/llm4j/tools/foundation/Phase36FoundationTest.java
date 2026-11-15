@@ -132,8 +132,11 @@ class Phase36FoundationTest {
         HeldCertificate leaf = new HeldCertificate.Builder().commonName("localhost").addSubjectAlternativeName("localhost").signedBy(authority).build();
         HandshakeCertificates serverSide = new HandshakeCertificates.Builder().heldCertificate(leaf).build();
         HandshakeCertificates clientSide = new HandshakeCertificates.Builder().addTrustedCertificate(authority.certificate()).build();
-        NetPolicy policy = new NetPolicy(new NetPolicy.Rules(false, false, Set.of(), false), NetPolicy.Resolver.SYSTEM, "localhost");
         try (MockWebServer server = new MockWebServer()) {
+            // answer with the one address the server is bound to: where localhost has two (IPv4 and IPv6), the client would
+            // otherwise try the second after the TLS failure and report "connection refused" in its place
+            java.net.InetAddress bound = java.net.InetAddress.getByName(server.getHostName());
+            NetPolicy policy = new NetPolicy(new NetPolicy.Rules(false, false, Set.of(), false), host -> java.util.List.of(bound), "localhost");
             server.useHttps(serverSide.sslSocketFactory(), false);
             server.enqueue(new MockResponse().setBody("hello"));
             server.enqueue(new MockResponse().setBody("hello"));
