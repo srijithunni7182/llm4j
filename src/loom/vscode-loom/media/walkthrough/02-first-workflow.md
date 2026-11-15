@@ -7,7 +7,7 @@ The skills work as a pipeline, and the agent does not move on until a gate is pa
 3. `llm4j-eval-design`: decides how you will know the agents are good, and writes the tests.
 4. `llm4j-loom-deployer`: runs the workflow where you can watch it, under a budget.
 
-After every `.loom` or `.loot` edit the agent runs `weave check` and `weave audit` and fixes what they report.
+The skills have the agent run `weave check` and `weave review` on what it writes, and tell you what is still open.
 
 [Start Workflow in Agent Chat](command:loom.startWorkflowInChat)
 

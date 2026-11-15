@@ -24,8 +24,8 @@ export function agentsSection(): string {
         '',
         ...PIPELINE_SKILLS.map((s, i) => `${i + 1}. \`${s}\` (in ${SKILL_ROOTS.map((r) => `\`${r}/${s}/SKILL.md\``).join(', ')})`),
         '',
-        'Start with `llm4j-harness-design`. After you create or edit any `.loom` or `.loot` file, run `weave check` and `weave audit` (or read the',
-        'workspace diagnostics) and resolve every cost, PII guard, budget or OWASP finding before you say you are done.',
+        'Start with `llm4j-harness-design`. After you create or edit a `.loom` file, run `weave check` and `weave review` (the skills explain how to',
+        'read and fix its findings), and tell the person what is still open before you say you are done.',
         SECTION_END,
     ].join('\n');
 }

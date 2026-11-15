@@ -9,7 +9,6 @@ import {
 } from '../src/guide/agentSkills';
 import { GuideHost, installSkill } from '../src/guide/guideCommands';
 
-const repoSkills = path.join(__dirname, '..', '..', '..', '..', '..', '.claude', 'skills');
 const tmp = (): string => fs.mkdtempSync(path.join(os.tmpdir(), 'loom-sync-'));
 
 /** What the jar writes: the four skills under .claude/skills of the given folder. */
@@ -94,20 +93,9 @@ test('upsertSection leaves an unclosed marker alone by appending, and keeps the 
     assert.ok(upsertSection(unclosed, agentsSection()).startsWith(unclosed));
 });
 
-test('the section tells the agent to run weave check and weave audit', () => {
+test('the section tells the agent to run weave check and weave review', () => {
     assert.match(agentsSection(), /weave check/);
-    assert.match(agentsSection(), /weave audit/);
-});
-
-test('the four shipped skills each tell the agent to check its own work with weave check and weave audit', () => {
-    for (const s of PIPELINE_SKILLS) {
-        const text = fs.readFileSync(path.join(repoSkills, s, 'SKILL.md'), 'utf8');
-        const section = text.slice(text.indexOf('## Check your own work after every .loom or .loot edit'));
-        assert.ok(section.length < text.length, `${s} has the section`);
-        for (const needle of ['weave check', 'weave audit', 'OWASP', 'PII', 'budget']) {
-            assert.ok(section.slice(0, 900).includes(needle), `${s}: ${needle}`);
-        }
-    }
+    assert.match(agentsSection(), /weave review/);
 });
 
 function handoffHost(opts: { chat: boolean; choice?: string }): HandoffHost & { clip: string[]; chats: string[]; messages: string[]; buttons: string[][] } {

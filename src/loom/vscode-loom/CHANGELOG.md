@@ -3,7 +3,7 @@
 ## 1.8.0
 
 - **Getting Started walkthrough.** *Loom: Open Walkthrough* (it also opens once, the first time the extension runs) takes you through setting up your coding agent, starting a workflow in agent chat, a zero-key demo and a tour of the commands.
-- **Set Up My Coding Agent reaches every agent harness.** The four pipeline skills are also written to `.agents/skills` and `.github/skills`, and `AGENTS.md` gets a delimited Loom section (your own text is never touched; running it again changes nothing). When it finishes the starter prompt is on the clipboard, the chat opens with it typed in, and a notification offers *Open Agent Chat* and *Copy Starter Prompt*. The four skills now tell the agent to run `weave check` and `weave audit` after every `.loom` or `.loot` edit.
+- **Set Up My Coding Agent reaches every agent harness.** The four pipeline skills are also written to `.agents/skills` and `.github/skills`, and `AGENTS.md` gets a delimited Loom section, which tells the agent to run `weave check` and `weave review` (your own text is never touched; running it again changes nothing). When it finishes the starter prompt is on the clipboard, the chat opens with it typed in, and a notification offers *Open Agent Chat* and *Copy Starter Prompt*.
 - **New commands:** *Loom: Start a Workflow in Agent Chat* and *Loom: New Workflow from Starter...* (twenty starters in a grouped pick; no key needed). Categories now include AI, Testing and Visualization. Existing command IDs and keybindings are unchanged.
 
 ## 1.7.0

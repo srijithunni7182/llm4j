@@ -41,16 +41,6 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 
 Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
 
-## Check your own work after every .loom or .loot edit
-
-Whenever you create or change a `.loom` or `.loot` file, close the loop yourself before you tell the person you are done:
-
-1. Run `weave check <script>` (or read the editor's Problems panel, which shows the same diagnostics) and fix every error.
-2. Run `weave audit <script> --fail-on medium`. Resolve each finding about cost, PII guards, budgets and the OWASP Top 10 for LLM Applications by changing the script, or explain it to the person and let them accept it in writing. Never accept one for them.
-3. Run `weave test <script>` when a `.loot` file exists, then repeat steps 1 and 2 after any fix.
-
-Say in one sentence what the three commands reported. Do not finish with an open error or a high finding.
-
 ## The fast lane: when the person wants something working today
 
 The full path is slower than most people want for a first version. Offer the choice once, in one sentence ("the full path, or a fast lane that skips
