@@ -12,7 +12,6 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -292,10 +291,4 @@ final class GuideMcpServer {
         return r;
     }
 
-    /** The tool names of one kind. */
-    static List<String> names(Kind kind) {
-        List<String> out = new ArrayList<>();
-        for (Tool t : TOOLS) if (t.kind() == kind) out.add(t.name());
-        return out;
-    }
 }

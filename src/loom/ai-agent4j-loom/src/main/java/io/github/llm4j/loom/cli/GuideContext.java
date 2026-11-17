@@ -48,19 +48,11 @@ final class GuideContext {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("script", ProjectLayout.shown(script));
         m.put("projectRoot", ProjectLayout.root(script).toString());
-        LoomScript loaded;
-        try {
-            loaded = new LoomLoader().load(script.toString());
-        } catch (Exception e) {
-            loaded = null;
-        }
-        WeaveEnv withKeys = new EnvFileOptions().apply(env, script);
-        ProjectAdvisor.CheckResult check =
-                withKeys == null || loaded == null
-                        ? new ProjectAdvisor.CheckResult(loaded != null, List.of("the script could not be read"), List.of(), Set.of())
-                        : NextCommand.check(script, withKeys);
-        AuditReport audit = loaded == null ? null : SecurityAudit.audit(loaded, script.getFileName().toString());
-        JourneyStages.Journey journey = JourneyStages.journey(script, loaded, check, audit);
+        Inputs in = Inputs.of(script, env);
+        LoomScript loaded = in.loaded();
+        ProjectAdvisor.CheckResult check = in.check();
+        AuditReport audit = in.audit();
+        JourneyStages.Journey journey = in.journey(script);
 
         m.put("journey", journey.stages().stream().map(st -> NextCommand.stageJson(st, journey)).toList());
         m.put("primary", JourneyStages.primary(journey.stages()).map(JourneyStages.Stage::id).orElse(null));
@@ -81,19 +73,30 @@ final class GuideContext {
 
     /** The state of one stage, computed the same way as the summary's journey. */
     static String stageState(Path script, WeaveEnv env, String stageId) {
-        LoomScript loaded;
-        try {
-            loaded = new LoomLoader().load(script.toString());
-        } catch (Exception e) {
-            loaded = null;
+        return state(Inputs.of(script, env).journey(script), stageId);
+    }
+
+    /** What both the summary and a single stage are computed from: the script, its free check and its audit. */
+    private record Inputs(LoomScript loaded, ProjectAdvisor.CheckResult check, AuditReport audit) {
+        static Inputs of(Path script, WeaveEnv env) {
+            LoomScript loaded;
+            try {
+                loaded = new LoomLoader().load(script.toString());
+            } catch (Exception e) {
+                // a script that does not load is a state of the journey (the script stage fails), not an error here
+                loaded = null;
+            }
+            WeaveEnv withKeys = loaded == null ? null : new EnvFileOptions().apply(env, script);
+            ProjectAdvisor.CheckResult check =
+                    withKeys == null
+                            ? new ProjectAdvisor.CheckResult(loaded != null, List.of("the script could not be read"), List.of(), Set.of())
+                            : NextCommand.check(script, withKeys);
+            return new Inputs(loaded, check, loaded == null ? null : SecurityAudit.audit(loaded, script.getFileName().toString()));
         }
-        WeaveEnv withKeys = new EnvFileOptions().apply(env, script);
-        ProjectAdvisor.CheckResult check =
-                withKeys == null || loaded == null
-                        ? new ProjectAdvisor.CheckResult(loaded != null, List.of("the script could not be read"), List.of(), Set.of())
-                        : NextCommand.check(script, withKeys);
-        AuditReport audit = loaded == null ? null : SecurityAudit.audit(loaded, script.getFileName().toString());
-        return state(JourneyStages.journey(script, loaded, check, audit), stageId);
+
+        JourneyStages.Journey journey(Path script) {
+            return JourneyStages.journey(script, loaded, check, audit);
+        }
     }
 
     private static List<Object> agents(LoomScript s) {
