@@ -139,4 +139,34 @@ class DeskTest {
             Thread.onSpinWait();
         }
     }
+
+    /**
+     * When the answer lets the run finish before decide() returns (here the host runs it on the
+     * calling thread), the outcome stands: it is not reset to "reading" afterwards.
+     */
+    @Test
+    void aRunThatFinishesBeforeTheDecisionReturnsKeepsItsOutcome() {
+        desk.close();
+        desk = new Desk(SCRIPT, dir, new OfflineModels(), Clock.systemUTC(), b -> b.runner(Runnable::run));
+        Claim waiting = settled(desk.submit("Ravi", "Hotel at Grand Plaza, $640"));
+
+        desk.decide(waiting.id(), true, "Meera");
+
+        Claim now = desk.claims().stream().filter(c -> c.id().equals(waiting.id())).findFirst().orElseThrow();
+        assertThat(now.status()).isEqualTo(Claim.Status.PAID);
+    }
+
+    @Test
+    void aStatusTheDeskDoesNotKnowFailsTheClaimAndSaysWhich() throws Exception {
+        desk.close();
+        java.nio.file.Path odd =
+                java.nio.file.Files.writeString(
+                        dir.resolve("odd.loom"), "workflow Claim(text, employee) {\n    return { status: \"paid\", note: \"done\" }\n}\n");
+        desk = new Desk(odd, dir.resolve("odd"), new OfflineModels(), Clock.systemUTC());
+
+        Claim claim = await(desk.submit("Sam", "Taxi, $10").id(), c -> c.status() != Claim.Status.READING);
+
+        assertThat(claim.status()).isEqualTo(Claim.Status.FAILED);
+        assertThat(claim.reason()).contains("\"paid\"");
+    }
 }

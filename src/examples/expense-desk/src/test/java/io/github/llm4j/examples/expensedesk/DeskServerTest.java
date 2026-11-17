@@ -107,4 +107,32 @@ class DeskServerTest {
     private URI uri(String path) {
         return URI.create("http://127.0.0.1:" + server.port() + path);
     }
+
+    /** A page on another site that has pointed its own name at 127.0.0.1 (DNS rebinding) is refused. */
+    @Test
+    void aRequestForAnotherNameOrFromAnotherSiteIsRefused() throws Exception {
+        java.net.Socket socket = new java.net.Socket("127.0.0.1", server.port());
+        try (socket) {
+            socket.getOutputStream().write(("GET /api/state HTTP/1.1\r\nHost: evil.example:" + server.port() + "\r\nConnection: close\r\n\r\n").getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+            String reply = new String(socket.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.US_ASCII);
+            assertThat(reply).startsWith("HTTP/1.1 403");
+        }
+
+        HttpRequest fromElsewhere = HttpRequest.newBuilder(uri("/api/claims"))
+                .header("Content-Type", "application/json")
+                .header("Origin", "http://evil.example")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"employee\":\"Asha\",\"text\":\"Taxi, $10\"}"))
+                .build();
+        assertThat(http.send(fromElsewhere, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(403);
+        assertThat(desk.claims()).isEmpty();
+    }
+
+    @Test
+    void theDesksOwnPageIsServedForLocalhostAndItsOwnOrigin() throws Exception {
+        HttpRequest own = HttpRequest.newBuilder(URI.create("http://localhost:" + server.port() + "/api/state"))
+                .header("Origin", "http://localhost:" + server.port())
+                .build();
+
+        assertThat(http.send(own, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(200);
+    }
 }

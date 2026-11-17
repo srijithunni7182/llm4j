@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -29,7 +30,9 @@ import java.util.regex.Pattern;
  * </ul>
  *
  * <p>A request body is read into an explicit type and is bounded; a write must be JSON, which a
- * form on another site cannot send.
+ * form on another site cannot send. A request whose {@code Host} is not this computer's loopback
+ * name and port, or whose {@code Origin} is another site, is refused: a page elsewhere cannot reach
+ * the desk by pointing its own name at 127.0.0.1 (DNS rebinding).
  */
 public final class DeskServer implements AutoCloseable {
 
@@ -108,6 +111,7 @@ public final class DeskServer implements AutoCloseable {
     }
 
     private void route(HttpExchange exchange) throws IOException {
+        requireThisComputer(exchange);
         String path = exchange.getRequestURI().getPath();
         boolean get = exchange.getRequestMethod().equals("GET");
         boolean post = exchange.getRequestMethod().equals("POST");
@@ -129,6 +133,19 @@ public final class DeskServer implements AutoCloseable {
             send(exchange, 202, JSON_TYPE, json(Map.of("recorded", true)));
         } else {
             throw new Refused(get || post ? 404 : 405, "there is nothing at " + exchange.getRequestMethod() + " " + path);
+        }
+    }
+
+    /** Refuses a request addressed to another name, or sent from a page of another origin. */
+    private void requireThisComputer(HttpExchange exchange) {
+        Set<String> allowed = Set.of("localhost:" + port(), "127.0.0.1:" + port(), "[::1]:" + port());
+        String host = exchange.getRequestHeaders().getFirst("Host");
+        if (host == null || !allowed.contains(host.toLowerCase(java.util.Locale.ROOT))) {
+            throw new Refused(403, "the desk answers only to localhost:" + port());
+        }
+        String origin = exchange.getRequestHeaders().getFirst("Origin");
+        if (origin != null && !allowed.contains(origin.toLowerCase(java.util.Locale.ROOT).replaceFirst("^http://", ""))) {
+            throw new Refused(403, "the desk takes requests only from its own page");
         }
     }
 

@@ -133,13 +133,18 @@ public final class Desk implements AutoCloseable {
         if (!claim.question().open()) {
             throw new IllegalStateException("claim " + id + " is not waiting for a decision");
         }
-        AnswerResult result = host.answer(id, claim.question().stepId(), approve ? "yes" : "no", approver);
-        if (!result.recorded()) throw new IllegalStateException(result.message());
+        // the claim is moved on before the answer is given: the run may resume and end at once, and
+        // what it ended with must not be overwritten by this step
         book.update(
                 id,
                 c -> c.withQuestion(Claim.Question.NONE)
                         .withStatus(Claim.Status.READING)
                         .withStep(step("person", approver + (approve ? " approved the payment" : " declined the payment"))));
+        AnswerResult result = host.answer(id, claim.question().stepId(), approve ? "yes" : "no", approver);
+        if (!result.recorded()) {
+            book.update(id, c -> claim); // nothing was taken, so the claim is as it was
+            throw new IllegalStateException(result.message());
+        }
     }
 
     /** Every claim, newest first. */
@@ -189,9 +194,7 @@ public final class Desk implements AutoCloseable {
                 Map<String, Object> result = map(variables.get("result"));
                 book.update(
                         record.runId(),
-                        c -> seen(c, variables)
-                                .withStatus(Claim.Status.valueOf(String.valueOf(result.get("status"))))
-                                .withNote(String.valueOf(result.getOrDefault("note", ""))));
+                        c -> finished(seen(c, variables), result));
             }
             case FAILED -> book.update(
                     record.runId(),
@@ -199,6 +202,18 @@ public final class Desk implements AutoCloseable {
                             .withReason(c.reason().isEmpty() ? "The run failed; its journal says why." : c.reason()));
             default -> book.update(record.runId(), c -> seen(c, variables)); // suspended or stopped: keep what it knows so far
         }
+    }
+
+    /**
+     * A claim whose run returned: the status it returned, or FAILED with the reason when the script
+     * returned a status the desk does not know (so the claim never stays "reading").
+     */
+    private static Claim finished(Claim claim, Map<String, Object> result) {
+        String status = String.valueOf(result.get("status"));
+        for (Claim.Status known : Claim.Status.values())
+            if (known.name().equals(status)) return claim.withStatus(known).withNote(String.valueOf(result.getOrDefault("note", "")));
+        return claim.withStatus(Claim.Status.FAILED)
+                .withReason("The workflow returned the status \"" + status + "\", which the desk does not know.");
     }
 
     /** Copies what the run knows so far (the fields read, the refusal, the payment) onto the claim. */
