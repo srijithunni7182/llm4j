@@ -27,7 +27,7 @@ The default build needs no model and no key. `make test-live` is never run unask
 
 | # | What | Why | When |
 |---|---|---|---|
-| G1 | The VS Code chat participant and language model tool APIs: the minimum version to raise `engines.vscode` to, how a participant gets a model, the behaviour with no model | D11, R16 | 37c, first |
+| G1 | The VS Code chat participant and language model tool APIs: the minimum version to raise `engines.vscode` to, how a participant gets a model, the behaviour with no model (read; see notes) | D11, R16 | 37c, first |
 | G2 | Whether a chat participant, or Copilot's agent mode, can use an MCP server registered by an extension | D10 option B | 37c |
 | G3 | The Claude Code plugin format: an agent with a tool allow-list, MCP server configuration, how a plugin is installed from a VS Code extension | R17 | 37d, first |
 | G4 | Whether the Claude Code VS Code extension can open a new session with a named agent, from a command or a link | D8, R17 | 37d, first |
@@ -38,7 +38,14 @@ The default build needs no model and no key. `make test-live` is never run unask
 
 ### Notes from the reads (written by the build; each says when it was read)
 
-None yet.
+- **G1 (2026-11-17).** VS Code's chat guide: "Chat participants are deprecated and are not supported in the Copilot harness. The Chat Participant API remains available for Local harness compatibility." The Local harness is due for removal in February 2027. No page states a minimum version; `@types/vscode` shows `lm.registerMcpServerDefinitionProvider` first in **1.101** (absent in 1.100). Language model selection returns an empty list when no model is available, and Copilot models need the user's consent. **Consequence:** D8 and D10 changed (no participant; an agent and one MCP server), D11's minimum is 1.101.
+- **G2 (2026-11-17).** Extensions contribute `mcpServerDefinitionProviders` and call `lm.registerMcpServerDefinitionProvider`. Copilot custom agents live in `.github/agents/<name>.agent.md` (user level `~/.copilot/agents`), with `name`, `description`, `tools`, `model` and more in the front matter; MCP tools are named `<server>/*`. No page says that tools left out of `tools` are unavailable, or that an extension can contribute a custom agent, so the extension writes the file into the workspace and M1 checks the allow-list by hand.
+- **G3 (2026-11-17).** A Claude Code plugin is a folder with an optional `.claude-plugin/plugin.json` and `agents/`, `skills/`, `.mcp.json`. Plugin agents take `tools` (allow-list) and `disallowedTools`, and ignore `hooks`, `mcpServers` and `permissionMode`; MCP tools are named `mcp__<server>__<tool>` (wildcards allowed); `${CLAUDE_PLUGIN_ROOT}` is expanded in a stdio server's command, arguments and environment.
+- **G4 (2026-11-17).** `claude --agent <name>` (or `"agent"` in settings) starts a session as an agent. The VS Code extension opens with a pre-filled prompt (`vscode://anthropic.claude-code/open?prompt=...`) but has no way to name an agent. **Consequence:** "Open the Guide" runs `claude --agent llm4j-guide` in an editor terminal.
+- **G5 (2026-11-17).** Anthropic: third parties may not offer Claude.ai login in their own applications or collect or relay Claude.ai credentials; users may sign in to the unmodified Claude Code with their own subscription. GitHub's additional-products terms say nothing about extensions and Copilot; section J of GitHub's terms was not read. **Consequence:** with D10 changed, our code calls no model and handles no sign-in, so the Guide is an agent definition and tools run by each assistant as its own user. Section J is still to be read before release.
+- **G6 (2026-11-17).** The extension reaches `weave serve` over a framed JSON protocol (`engine/protocol.ts`, `loom/next` among its methods). `weave guide-mcp` does not reuse it: it is a separate stdio MCP server run by the assistant, which reads the project itself.
+- **G7 (2026-11-17).** The review has no single "autonomous" classification (the audit speaks of autonomy only for decision ladders). The `design-harness` stage computes its own small reading of the script: schedules, `supervise`, loops, and tools with `changes` effects and no approval.
+- **G8 (2026-11-17).** `weave eval` writes its bundle under `target/eval4j` (Maven project) or `eval-runs`, and the eval4j report renders it to `report/index.html` there; the extension has no command that opens it today (`loom.eval` types `weave eval` into a terminal).
 
 ## 1. Acceptance criteria
 
@@ -53,7 +60,7 @@ None yet.
 | A7 | Notices follow the rules, the rate limit and the setting; the status bar count is right | R10, D9 | E1 |
 | A8 | Each show tool opens the right thing; `show_file` stays in the root; `open_secret_form` returns no value; no run starts without the developer's confirmation | R12 | E1, E3 |
 | A9 | Each host registers read, show and steering tools only; the Claude agent allows nothing else | principle 41, R17 | E1 (each guard broken once) |
-| A10 | Both bindings match the one tool contract | D10 | E1 |
+| A10 | One MCP server serves both hosts; both agent files carry the same persona text and allow only the Guide's tools and reading | D8, D10 | E1 |
 | A11 | The bridge refuses without the token, listens on loopback only, and fails clearly when the extension is not running | DESIGN §5 | E1 |
 | A12 | An instruction for the builder is sent only by the developer's click; a mismatched checkpoint is flagged | R13, R14 | E1, E3 |
 | A13 | The scenario dataset passes against recorded answers, including the planted-instruction, key and overclaim families | principles 43 to 51, D18 | E2 |
@@ -99,7 +106,7 @@ None yet.
 ## 5. Exit checklist
 
 - [x] Every decision taken (D1 to D19, 2026-11-17)
-- [ ] G1 to G8 read and noted in §0
+- [x] G1 to G8 read and noted in §0 (GitHub terms section J still to read before release)
 - [ ] A1 to A16 met; A17 run, with its findings recorded
 - [ ] The gates of §2 green; what did not run is stated
 - [ ] The documentation of §4 updated in the same change

@@ -13,10 +13,10 @@ Status: **final: all nineteen decisions taken by the owner** (D1 to D7 in the di
 | D5 | The thorough path is the default | **taken** (shortcuts on insistence; say what is missed) |
 | D6 | Show off the stack | **taken** (warranted; the honesty rules of principle 46 are proposed with it) |
 | D7 | Which model runs the Guide | **taken** (the developer's existing Copilot or Claude subscription; no new bill) |
-| D8 | Two hosts, and the Claude host as its own session | **taken** (as recommended) |
+| D8 | Two hosts, and the Claude host as its own session | **taken, then changed** (an `llm4j-guide` agent on both hosts; no chat participant) |
 | D9 | How the Guide speaks up: notices | **taken** (notices and a status bar count) |
-| D10 | One tool contract, and how each host reaches it | **taken** (one contract, two bindings) |
-| D11 | The editor's minimum version | **taken** (raise the minimum for the whole extension) |
+| D10 | One tool contract, and how each host reaches it | **taken, then changed** (one MCP server for both hosts) |
+| D11 | The editor's minimum version | **taken** (raise the minimum for the whole extension, to 1.101) |
 | D12 | The size of the project summary | **taken** (as recommended) |
 | D13 | A `design-harness` stage | **taken** (always shown) |
 | D14 | Where the learner record lives | **taken** (as recommended) |
@@ -78,6 +78,8 @@ Status: **final: all nineteen decisions taken by the owner** (D1 to D7 in the di
 
 **Decision (owner): A.** Copilot gets the `@loom` chat participant; on Claude Code the Guide is its own session next to the builder's. Mixing hosts is allowed.
 
+**Changed by the owner (2026-11-17), after the reads.** VS Code deprecated chat participants (not supported in the Copilot harness; the Local harness is removed in February 2027) and recommends an agent plugin with skills and an MCP server. Copilot has custom agents with a tool allow-list. So **both hosts run an `llm4j-guide` agent definition**: a Copilot custom agent (`.github/agents/llm4j-guide.agent.md`, written by the extension on request) and a Claude Code plugin agent, run as its own session with `claude --agent llm4j-guide`. There is no `@loom` participant.
+
 ## D9. How the Guide speaks up: notices
 
 **Why.** Both hosts are turn-based: neither can speak until the developer sends a message. A Guide that only answers questions will miss the moments that matter.
@@ -104,6 +106,8 @@ Status: **final: all nineteen decisions taken by the owner** (D1 to D7 in the di
 
 **Decision (owner): A.** One contract with two bindings: language model tools for Copilot, the `weave guide-mcp` bridge for Claude Code. Moving to B later is allowed if G2 shows it works.
 
+**Changed by the owner (2026-11-17): B.** Copilot's custom agents use MCP servers, so there is **one MCP server, `weave guide-mcp`, for both hosts**. It serves everything about the project itself and forwards the show and steering actions to the extension over a loopback channel with a token (DESIGN §5). Our code never calls a model API, which also keeps it clear of both providers' terms (G5).
+
 ## D11. The editor's minimum version
 
 **Why.** The extension needs `vscode ^1.85.0` today. The chat participant and language model tool APIs need a newer editor (from memory, not read: chat participants around 1.90, language model tools around 1.95; item G1).
@@ -113,7 +117,7 @@ Status: **final: all nineteen decisions taken by the owner** (D1 to D7 in the di
 
 **Recommendation: B**, if the manifest and the bundling allow a feature that is present only when the API is. Otherwise A, with the new minimum written in the CHANGELOG.
 
-**Decision (owner): A.** Raise `engines.vscode` for the whole extension to the version the chat participant and language model tool APIs need (the exact number is found in G1). It is written in the CHANGELOG, the extension README and `docs/VERSION_MATRIX.md`, and the code needs no checks for missing APIs.
+**Decision (owner): A.** Raise `engines.vscode` for the whole extension to the version the Guide's editor APIs need. G1 found it: **1.101**, the first version whose API has `lm.registerMcpServerDefinitionProvider` (checked in `@types/vscode` 1.100 and 1.101). It is written in the CHANGELOG, the extension README and `docs/VERSION_MATRIX.md`, and the code needs no checks for missing APIs.
 
 ## D12. The size of the project summary
 
@@ -135,7 +139,7 @@ Status: **final: all nineteen decisions taken by the owner** (D1 to D7 in the di
 
 ## D14. Where the learner record lives
 
-**Recommendation:** what the developer knows goes in the editor's global state, because it travels with the person. What was discussed in this project goes in `.loom/guide/learner.json`, which is git-ignored. It is shown on request, can be reset, and is never sent anywhere except as part of the Guide's own context.
+**Recommendation:** what the developer knows goes in the person's home folder (`~/.loom/guide/learner.json`; the editor's global state before D10 changed, since the MCP server now keeps it), because it travels with the person. What was discussed in this project goes in `.loom/guide/learner.json`, which is git-ignored. It is shown on request, can be reset, and is never sent anywhere except as part of the Guide's own context.
 
 **Decision (owner): as recommended.**
 
@@ -151,12 +155,11 @@ Status: **final: all nineteen decisions taken by the owner** (D1 to D7 in the di
 
 **Proposal:**
 - The feature is **the Guide** (in the editor: "Loom Guide").
-- The Copilot participant is `@loom`.
-- The Claude agent is `llm4j-guide`.
+- The agent is `llm4j-guide` on both hosts (the Copilot participant `@loom` went with D8's change).
 - The new commands are `weave guide-context`, `weave guide-facts` and `weave guide-mcp`, which keeps `weave guide <topic>` as it is.
 - The editor commands are `loom.guide.open` and `loom.guide.notices`.
 
-**Decision (owner): the proposal.** `weave guide-context`, `weave guide-facts` and `weave guide-mcp`; the Guide, `@loom`, `llm4j-guide`, `loom.guide.open` and `loom.guide.notices`. `weave guide <topic>` is unchanged.
+**Decision (owner): the proposal.** `weave guide-context`, `weave guide-facts` and `weave guide-mcp`; the Guide, `llm4j-guide`, `loom.guide.open` and `loom.guide.notices`. `weave guide <topic>` is unchanged.
 
 ## D17. The workflow's first runs cost nothing
 

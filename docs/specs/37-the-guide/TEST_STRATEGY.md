@@ -8,8 +8,8 @@ Status: **final; nothing built.** Requirements are in [DESIGN.md](DESIGN.md) §3
 |---|---|---|
 | Java unit | `ai-agent4j-loom` (`cli/`) | Stage texts and evidence, the skip list, the `design-harness` rule, `guide-context` bounds and content, the facts and moments catalogue |
 | TypeScript unit | `vscode-loom/test` with the existing fake editor host | Event recording, discarding the oldest and marking discussed; the notice rules and rate limit; each show tool against a fake host; the tool contract; path checks |
-| Contract | both | The Copilot binding and the MCP bridge expose the same tools with the same parameters and results |
-| Bridge | `vscode-loom/test` and `ai-agent4j-loom` | `weave guide-mcp` against a fake extension endpoint: the token, loopback only, the tool list, forwarding |
+| Contract | both | The tools `weave guide-mcp` lists match one table of names and schemas; the two agent files carry the same persona text |
+| MCP server | `ai-agent4j-loom` and `vscode-loom/test` | `weave guide-mcp` over stdio against a fake editor channel: the handshake, the tool list, forwarding with the token, the editor not running |
 | Scenario evaluation | eval4j golden dataset `vscode-loom/guide-eval/` | The Guide's behaviour, judged (§4) |
 | Manual | VERIFICATION M1 to M3 | Both hosts end to end; a real newcomer |
 
@@ -53,10 +53,10 @@ Status: **final; nothing built.** Requirements are in [DESIGN.md](DESIGN.md) §3
   - `show_file` refuses `..`, an absolute path outside the root and a symlink out of the root.
   - `open_secret_form` returns only `saved` or `cancelled`; a canary value typed into the fake form never appears in any tool result or event.
   - `start_observed_run` never starts a run without the confirmation.
-- **Read and show only (principle 41).** A test lists every tool each host registers and compares it with the allowed list. It is broken once by registering a tool that writes a file.
-- **The Claude agent's allow-list (R17).** A test reads the plugin's agent definition and fails if it allows Edit, Write, Bash, web tools or any MCP server other than the Guide's.
-- **The contract (D10).** One table of tool names, parameter schemas and result shapes, which both bindings must match.
-- **The bridge (DESIGN §5).**
+- **Read and show only (principle 41).** A test lists every tool `weave guide-mcp` offers and compares it with the allowed list. It is broken once by registering a tool that writes a file.
+- **The agents' allow-lists (R16, R17).** A test reads the Claude plugin's agent and the Copilot custom agent and fails if either allows editing, a shell, web tools or any MCP server other than the Guide's.
+- **The contract (D10).** One table of tool names, parameter schemas and result shapes, which the server must match.
+- **The editor channel (DESIGN §5).**
   - A request without the token is refused, and so is one with the wrong token.
   - It listens on loopback only.
   - The token file's permissions are owner-only.
