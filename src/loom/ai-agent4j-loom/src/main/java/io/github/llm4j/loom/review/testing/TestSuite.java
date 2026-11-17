@@ -24,7 +24,14 @@ public final class TestSuite {
 
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
-    /** One test file. */
+    /**
+     * One test file.
+     *
+     * @param agentNames the names a test scripts a model reply for ({@code models:}): agents,
+     *     classifiers, extractors and evaluators
+     * @param callNames the names a test makes fail or counts ({@code fail:}, {@code expect.calls},
+     *     {@code expect.attempts}): any of those, or a tool or a task
+     */
     public record TestFile(
             String path,
             Set<String> scripted,
@@ -32,7 +39,21 @@ public final class TestSuite {
             boolean suppliesHumans,
             Set<String> agentNames,
             Set<String> toolNames,
-            Set<String> taskNames) {}
+            Set<String> taskNames,
+            Set<String> callNames) {
+
+        /** A file read before failures and counts were told apart: they are treated as model names. */
+        public TestFile(
+                String path,
+                Set<String> scripted,
+                boolean injectsFailures,
+                boolean suppliesHumans,
+                Set<String> agentNames,
+                Set<String> toolNames,
+                Set<String> taskNames) {
+            this(path, scripted, injectsFailures, suppliesHumans, agentNames, toolNames, taskNames, Set.of());
+        }
+    }
 
     private final List<TestFile> files;
     private final List<String> unreadable;
@@ -86,6 +107,7 @@ public final class TestSuite {
         Set<String> agents = new LinkedHashSet<>();
         Set<String> tools = new LinkedHashSet<>();
         Set<String> tasks = new LinkedHashSet<>();
+        Set<String> calls = new LinkedHashSet<>();
         boolean fail = false;
         boolean humans = false;
         List<JsonNode> scopes = new ArrayList<>();
@@ -95,17 +117,17 @@ public final class TestSuite {
         for (JsonNode c : scopes) {
             keys(c.get("models"), scripted);
             keys(c.get("models"), agents);
-            keys(c.get("fail"), agents);
+            keys(c.get("fail"), calls);
             keys(c.get("tools"), tools);
             keys(c.get("tasks"), tasks);
             if (c.has("expect")) {
-                keys(c.get("expect").get("calls"), agents);
-                keys(c.get("expect").get("attempts"), agents);
+                keys(c.get("expect").get("calls"), calls);
+                keys(c.get("expect").get("attempts"), calls);
             }
             fail |= c.hasNonNull("fail") && c.get("fail").size() > 0;
             humans |= c.hasNonNull("humans") && c.get("humans").size() > 0;
         }
-        return new TestFile(path, scripted, fail, humans, agents, tools, tasks);
+        return new TestFile(path, scripted, fail, humans, agents, tools, tasks, calls);
     }
 
     private static void keys(JsonNode map, Set<String> into) {

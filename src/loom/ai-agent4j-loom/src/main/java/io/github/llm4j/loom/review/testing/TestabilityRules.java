@@ -178,12 +178,14 @@ public final class TestabilityRules implements FindingSource {
                     st -> {
                         if (st instanceof RunStmt r) tasks.add(r.getTaskName());
                     });
-        // expect.calls counts tools and tasks beside agents, so a name there may be any of them
+        // fail: and expect.calls name tools and tasks beside the nodes that call a model; models:
+        // scripts a model's reply, so a name there must be one of those nodes
         Set<String> callable = new LinkedHashSet<>(agents);
         callable.addAll(tools);
         callable.addAll(tasks);
         for (TestSuite.TestFile f : suite.files()) {
-            report(f, "agent or classifier", f.agentNames(), callable, sink);
+            report(f, "agent or classifier", f.agentNames(), agents, sink);
+            report(f, "agent, tool or task", f.callNames(), callable, sink);
             report(f, "tool", f.toolNames(), tools, sink);
             report(f, "task", f.taskNames(), tasks, sink);
         }

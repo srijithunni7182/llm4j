@@ -182,6 +182,31 @@ class TestabilityLensTest {
     }
 
     @Test
+    void lt07StillReportsAModelReplyScriptedForATask() throws Exception {
+        tests(
+                "main.test.yaml",
+                """
+                cases:
+                  - name: a
+                    models: { Invoice: { vendor: "Acme" }, Pay: "paid" }
+                """);
+        JsonNode r =
+                reviewOf(
+                        """
+                        extractor Invoice { model: "m"  fields { vendor: string } }
+                        workflow Main(q) {
+                          extract Invoice from q -> i
+                          run Pay(vendor = i.vendor) -> paid
+                          return paid
+                        }
+                        """);
+        List<String> titles = new ArrayList<>();
+        for (JsonNode f : r.get("findings"))
+            if (f.get("rule").asText().equals("LT07")) titles.add(f.get("title").asText());
+        assertThat(titles).singleElement().asString().contains("Pay");
+    }
+
+    @Test
     void lt07FindsANameTheScriptNoLongerHasAndSuggestsTheNearestOne() throws Exception {
         tests(
                 "main.test.yaml",
