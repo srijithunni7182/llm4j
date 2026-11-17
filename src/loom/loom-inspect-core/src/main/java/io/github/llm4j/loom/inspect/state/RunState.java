@@ -134,9 +134,12 @@ public final class RunState {
     private long calls;
     private BigDecimal cost = BigDecimal.ZERO;
 
+    /** The most points the spend series keeps before it is thinned to every other one. */
+    static final int SPEND_POINTS = 600;
+
     /**
-     * Cumulative spend after each finished agent step: [millis since start, tokens, cost]. Thinned
-     * past 600 points.
+     * Cumulative spend after each finished agent step and each extract call: [millis since start,
+     * tokens, cost]. Thinned past {@value #SPEND_POINTS} points.
      */
     private final List<Object[]> spend = new ArrayList<>();
 
@@ -648,13 +651,22 @@ public final class RunState {
         tokens += t;
         calls += c;
         cost = cost.add(usd);
+        spendPoint(s.endNanos());
+    }
+
+    /**
+     * Adds a point to the spend series at {@code endNanos}, with the totals as they stand, and
+     * thins the series to every other point once it passes {@value #SPEND_POINTS} (keeping the
+     * first and the last), so it stays bounded however long the run.
+     */
+    private void spendPoint(long endNanos) {
         spend.add(
                 new Object[] {
-                    startedNanos > 0 ? Math.max(0, (s.endNanos() - startedNanos) / 1_000_000L) : 0L,
+                    startedNanos > 0 ? Math.max(0, (endNanos - startedNanos) / 1_000_000L) : 0L,
                     tokens,
                     cost.toPlainString()
                 });
-        if (spend.size() > 600) {
+        if (spend.size() > SPEND_POINTS) {
             for (int i = spend.size() - 2; i >= 1; i -= 2) spend.remove(i);
         }
     }
@@ -787,12 +799,7 @@ public final class RunState {
             BigDecimal priced = prices.cost(model, in, out);
             if (priced != null) cost = cost.add(priced);
         }
-        spend.add(
-                new Object[] {
-                    startedNanos > 0 ? Math.max(0, (s.endNanos() - startedNanos) / 1_000_000L) : 0L,
-                    tokens,
-                    cost.toPlainString()
-                });
+        spendPoint(s.endNanos());
     }
 
     private void modelEnded(SpanRec s) {

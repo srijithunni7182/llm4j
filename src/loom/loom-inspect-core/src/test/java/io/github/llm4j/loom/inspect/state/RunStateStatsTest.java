@@ -504,4 +504,18 @@ class RunStateStatsTest {
         assertThat(totals.get("tokens")).isEqualTo(120L);
         assertThat(totals.get("calls")).isEqualTo(1L);
     }
+
+    /** A daemon that extracts on every item must not grow the spend series without bound. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void theSpendSeriesStaysBoundedHoweverManyExtractCallsARunMakes() {
+        for (int i = 0; i < 3 * RunState.SPEND_POINTS; i++)
+            chat(1 + i * 0.001, "Invoice", 1, Semconv.GEN_AI_OPERATION_NAME, Semconv.OP_EXTRACT);
+
+        List<?> series = (List<?>) state.view().get("spend");
+        Map<String, Object> totals = (Map<String, Object>) state.view().get("totals");
+
+        assertThat(series.size()).isLessThanOrEqualTo(RunState.SPEND_POINTS);
+        assertThat(totals.get("calls")).isEqualTo(3L * RunState.SPEND_POINTS);
+    }
 }
