@@ -13,7 +13,7 @@ probes/extractor-isolation/loom/main.loom	9e6e2292ccbf6b58	648a61248c4000bf	b233
 probes/handoff-check/loom/fixed.loom	dafa37eb2658b991	750ea1e2c16c79a4	af6cb9e98c4331fe
 probes/handoff-check/loom/main.loom	49cf826860e313be	9e18142caa3c4db6	7782356f9b8fa237
 probes/large-schema-with-tools/loom/main.loom	659a2d518095be83	03f1e5cb15c48126	e3b0c44298fc1c14
-probes/long-loop-progress/loom/main.loom	c28d8a45a5b823d7	cea6d86f13dc05f6	e3b0c44298fc1c14
+probes/long-loop-progress/loom/main.loom	c28d8a45a5b823d7	fd78ae670f390321	e3b0c44298fc1c14
 probes/retry-tests/loom/main.loom	bc7fa1f6da1791fc	097f8b03c87c3d2e	e3b0c44298fc1c14
 probes/route-allowlist/loom/main.loom	f1729666c3b4ab06	7df9a23a1ac323ae	e3b0c44298fc1c14
 probes/route-allowlist/loom/unbounded.loom	125ca5af65d88542	7ebde6e4d5484268	5fc12f4dbfef8966
@@ -28,7 +28,7 @@ scripts/g5/refund.loom	6a2ce88560e22346	12bceae02dfced8c	e3b0c44298fc1c14
 scripts/g5/report.loom	1b88baf8e994ee07	5b1a71344525db9e	b63a0e1760a9d931
 scripts/g7/flow.loom	5cf937ed123b9c44	625dc8d1dde65c5e	d89bf516c5b057af
 src/examples/a2a-starter/src/main/resources/supplier.loom	4c454a84fbb1fd70	0ec5377ed01c8c03	5a536d4aee92d12a
-src/examples/expense-desk/expense.loom	400b07fd373832d9	389fc21add304109	e3b0c44298fc1c14
+src/examples/expense-desk/expense.loom	400b07fd373832d9	9af64a8635c56fb4	e3b0c44298fc1c14
 src/examples/getviral/src/main/resources/getviral/getviral.loom	37b6fd711c8ca140	b239b113b3154f2e	9d06fc2270e5af43
 src/examples/grounded-research/research.loom	21aa724ceb45a20b	1085473e52d2166d	e3b0c44298fc1c14
 src/examples/hexamind-hub/eval/hexamind.loom	04258a1b013b6fda	ae7f12a2b44114c3	e3b0c44298fc1c14
@@ -415,8 +415,8 @@ src/loom/starters/03-review-loop/main.loom	8ef02b12fa73056d	4940d04399849dee	e3b
 src/loom/starters/04-router/main.loom	ed7c0469d5374aa7	0132a63a7d0eba9b	e3b0c44298fc1c14
 src/loom/starters/05-parallel-research/main.loom	59edaced97c3a478	fc359f88f81d00ca	e3b0c44298fc1c14
 src/loom/starters/06-plan-and-fan-out/main.loom	710bfa4b58d1b0e4	930f75cf2b4d9a79	e3b0c44298fc1c14
-src/loom/starters/07-approval/main.loom	92abf8c12e3e14e5	07a70c20b0fcc0b8	e3b0c44298fc1c14
-src/loom/starters/08-extract-and-validate/main.loom	995cffc008f75100	5b7d1308ccab4b1e	e3b0c44298fc1c14
+src/loom/starters/07-approval/main.loom	92abf8c12e3e14e5	373ed3afaf16426d	e3b0c44298fc1c14
+src/loom/starters/08-extract-and-validate/main.loom	995cffc008f75100	286a0b94146d3744	e3b0c44298fc1c14
 src/loom/starters/09-handbook-qa/main.loom	45ffa9999eb9b0de	4860fed8164605e6	e3b0c44298fc1c14
 src/loom/starters/10-memory-assistant/main.loom	f009908ad2dcfe3d	2ebfa6f4e94bdc68	e3b0c44298fc1c14
 src/loom/starters/11-daily-digest/main.loom	35578beab7270168	3041883ed2dd2b2a	e3b0c44298fc1c14
@@ -424,12 +424,12 @@ src/loom/starters/12-wait-for-a-person/main.loom	57c78eb00975a5dd	edf5de3b7f70b1
 src/loom/starters/13-rewind-and-retry/main.loom	1f2d28cf7087b12b	14746bb5b9cdc940	e3b0c44298fc1c14
 src/loom/starters/14-supervised-agent/main.loom	52256aa5124e11ab	5428c02704754ff2	e3b0c44298fc1c14
 src/loom/starters/15-earned-autonomy/main.loom	e39a5dcc9c255611	405e9be184f72fd9	e3b0c44298fc1c14
-src/loom/starters/16-step-by-step-agent/main.loom	adff3ab887ce5dec	19224144bfc665e3	e3b0c44298fc1c14
-src/loom/starters/17-compliance-boundary/main.loom	bc304d51a9475584	37355c7c3709307e	e3b0c44298fc1c14
+src/loom/starters/16-step-by-step-agent/main.loom	adff3ab887ce5dec	570eac4139309aa5	e3b0c44298fc1c14
+src/loom/starters/17-compliance-boundary/main.loom	bc304d51a9475584	987c20dea380fe00	e3b0c44298fc1c14
 src/loom/starters/18-supervise-workflows/main.loom	c11b5f0d965fd07b	07bb6d9b298ed3ff	e3b0c44298fc1c14
 src/loom/starters/19-report-writer/main.loom	3cf459249d4b5b4c	cee6f38e36cb75ab	e3b0c44298fc1c14
 src/loom/starters/20-data-analyst/main.loom	a3be4e26059737b9	24c577c91ea92fc7	e3b0c44298fc1c14
-src/loom/starters/21-connect-a-system/main.loom	995cffc008f75100	1c732cfaed7e6478	e3b0c44298fc1c14
+src/loom/starters/21-connect-a-system/main.loom	995cffc008f75100	eeefa56f7bfd6a6d	e3b0c44298fc1c14
 src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom	15955b70fdeb9775	81963b5d7384730a	e3b0c44298fc1c14
 src/loom/vscode-loom/test/fixtures/review/scripts/many.loom	d32cc9e2ed1be2b2	5bac57fda9848033	461499cb79e2f0df
 src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom	5020c9d95d68b256	4c78f9a7966ec3ba	e3b0c44298fc1c14
