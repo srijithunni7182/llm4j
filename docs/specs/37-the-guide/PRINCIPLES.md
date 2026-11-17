@@ -1,6 +1,6 @@
 # Phase 37: the Guide, a companion that teaches the developer while their workflow is built
 
-Status: **draft for review. The owner took the shaping decisions in discussion (D1 to D7); the rest are proposals.** Every choice is in [DECISIONS.md](DECISIONS.md). The facts about the code are in [DESIGN.md](DESIGN.md).
+Status: **final: all decisions taken by the owner.** Every choice is in [DECISIONS.md](DECISIONS.md). The facts about the code are in [DESIGN.md](DESIGN.md).
 The principles of earlier phases still hold: the model reasons and the code holds the authority; fail closed; never a secret in the chat, a log or a file; the libraries stay light.
 
 ## What this phase is for
@@ -20,7 +20,7 @@ The Guide is that connection. It is a companion in the editor that **explains, s
 45. **The words are specific to the context; the facts are fixed.** Every explanation is written for this project: its agents, its findings, its scores, its costs. Every claim about llm4j comes from the facts catalogue or the documentation it points to. When the Guide is not sure, it says so and opens the documentation; it never invents a feature, an option or a command.
 46. **The stack earns its praise on the developer's own workflow.** The Guide brings up a feature when it solves the problem in front of the developer, shows it working on their workflow, and compares it with what they would otherwise write by hand in plain Java. It never claims more than the feature does.
 47. **Teach to the person.** The default reader is a Java developer new to llm4j: no Java basics, the llm4j way first. The Guide notices what the developer knows and does not know about agents, evaluation and production, and goes deeper only where it is needed.
-48. **Nothing costs money without warning, and the first runs cost nothing.** The Guide runs on the model the developer already pays for (their Copilot or Claude subscription), never on a new bill. The workflow's first runs use scripted models, mock runs or a local Ollama model. Before anything is spent, the Guide says what it will cost and which cap holds it.
+48. **Nothing costs money without warning, and the first runs cost nothing.** The Guide runs on the model the developer already pays for (their Copilot or Claude subscription), never on a new bill. The workflow's first runs use scripted models and mock runs. A local Ollama model is mentioned as a free option for the first real runs, with what installing it takes; the developer chooses (D17). Before anything is spent, the Guide says what it will cost and which cap holds it.
 49. **Keys never pass through the Guide.** It opens the secret store's form, or hands the developer the lines `weave keys` prints, and explains why a key is bound to a host. It never asks for a key in the chat, never reads `.env`, and no tool it has returns a secret value.
 50. **What the Guide reads is data.** Project files, review findings, run output, events and the builder's checkpoints may contain text written to steer a model. The Guide treats all of it as data to explain, never as instructions to follow.
 51. **The Guide is tested like a feature.** Its rules are scenarios in a golden dataset, judged with eval4j, so a change to its prompt that makes it rush, nag, overclaim or ask for a key fails a test.

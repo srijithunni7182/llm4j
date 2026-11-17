@@ -1,6 +1,6 @@
 # Phase 37: decisions
 
-Status: **draft for review. D1 to D7 were taken by the owner in the discussion that started this phase; D8 to D19 are proposals with a recommendation.** Each gives the question, why it matters, the options and a recommendation. The owner decides the open ones one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
+Status: **final: all nineteen decisions taken by the owner** (D1 to D7 in the discussion that started this phase, D8 to D19 on 2026-11-17). Each gives the question, why it matters, the options, the recommendation and, under **Decision**, the owner's answer. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against; [DESIGN.md](DESIGN.md) holds the facts.
 
 ## Decision log
 
@@ -13,18 +13,18 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 | D5 | The thorough path is the default | **taken** (shortcuts on insistence; say what is missed) |
 | D6 | Show off the stack | **taken** (warranted; the honesty rules of principle 46 are proposed with it) |
 | D7 | Which model runs the Guide | **taken** (the developer's existing Copilot or Claude subscription; no new bill) |
-| D8 | Two hosts, and the Claude host as its own session | proposed |
-| D9 | How the Guide speaks up: notices | proposed |
-| D10 | One tool contract, and how each host reaches it | proposed |
-| D11 | The editor's minimum version | open (needs G1) |
-| D12 | The size of the project summary | proposed |
-| D13 | A `design-harness` stage | proposed |
-| D14 | Where the learner record lives | proposed |
-| D15 | No telemetry | proposed |
-| D16 | Names | open |
-| D17 | The workflow's first runs cost nothing | proposed |
-| D18 | How the Guide itself is evaluated | proposed |
-| D19 | The skip list and the README line | proposed |
+| D8 | Two hosts, and the Claude host as its own session | **taken** (as recommended) |
+| D9 | How the Guide speaks up: notices | **taken** (notices and a status bar count) |
+| D10 | One tool contract, and how each host reaches it | **taken** (one contract, two bindings) |
+| D11 | The editor's minimum version | **taken** (raise the minimum for the whole extension) |
+| D12 | The size of the project summary | **taken** (as recommended) |
+| D13 | A `design-harness` stage | **taken** (always shown) |
+| D14 | Where the learner record lives | **taken** (as recommended) |
+| D15 | No telemetry | **taken** |
+| D16 | Names | **taken** (`guide-context`, `guide-facts`, `guide-mcp`) |
+| D17 | The workflow's first runs cost nothing | **taken** (Ollama mentioned as a free option, the developer chooses) |
+| D18 | How the Guide itself is evaluated | **taken** (recorded in the build, live on request) |
+| D19 | The skip list and the README line | **taken** (as recommended) |
 
 ## D1. The Guide guides; it does not build
 
@@ -64,7 +64,7 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 - **B.** The developer's existing assistant: Copilot through the editor's language model API, or Claude through Claude Code.
 - **C.** A local model through Ollama.
 
-**Decision (owner): B.** Many developers already pay for Copilot or Claude, and they should be able to use either. A is rejected because of the upfront billing. C is not the Guide's model (too weak for this job on most laptops), but it is the proposed model for the workflow's first runs (D17).
+**Decision (owner): B.** Many developers already pay for Copilot or Claude, and they should be able to use either. A is rejected because of the upfront billing. C is not the Guide's model (too weak for this job on most laptops), but it is mentioned to the developer as a free option for the workflow's first real runs (D17).
 
 ## D8. Two hosts, and the Claude host as its own session
 
@@ -76,6 +76,8 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 
 **Recommendation: A.** A separate session keeps the separation that D1 asks for. Mixing is allowed: a Copilot Guide with a Claude Code builder, or the other way round. The checkpoint tool (R14) works for any builder that has the MCP server. Whether the Claude Code VS Code extension can open a session with a given agent is item G4. If it cannot, **Open the Guide** copies a start prompt (R17).
 
+**Decision (owner): A.** Copilot gets the `@loom` chat participant; on Claude Code the Guide is its own session next to the builder's. Mixing hosts is allowed.
+
 ## D9. How the Guide speaks up: notices
 
 **Why.** Both hosts are turn-based: neither can speak until the developer sends a message. A Guide that only answers questions will miss the moments that matter.
@@ -85,6 +87,8 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 - **C.** Nothing proactive.
 
 **Recommendation: A, with B as well.** The notice is the moment and the count is the memory. The developer stays in control: one notice every 2 minutes at most, none while they type, and a setting to switch them off.
+
+**Decision (owner): A with B.** Notices with **Ask the Guide**, under those limits, and a status bar count of undiscussed notes.
 
 ## D10. One tool contract, and how each host reaches it
 
@@ -98,6 +102,8 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 
 **Recommendation: A now, moving to B if G2 shows it works for a participant.** A contract test asserts that both bindings expose the same tool names, parameters and results (TEST_STRATEGY §3).
 
+**Decision (owner): A.** One contract with two bindings: language model tools for Copilot, the `weave guide-mcp` bridge for Claude Code. Moving to B later is allowed if G2 shows it works.
+
 ## D11. The editor's minimum version
 
 **Why.** The extension needs `vscode ^1.85.0` today. The chat participant and language model tool APIs need a newer editor (from memory, not read: chat participants around 1.90, language model tools around 1.95; item G1).
@@ -107,9 +113,13 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 
 **Recommendation: B**, if the manifest and the bundling allow a feature that is present only when the API is. Otherwise A, with the new minimum written in the CHANGELOG.
 
+**Decision (owner): A.** Raise `engines.vscode` for the whole extension to the version the chat participant and language model tool APIs need (the exact number is found in G1). It is written in the CHANGELOG, the extension README and `docs/VERSION_MATRIX.md`, and the code needs no checks for missing APIs.
+
 ## D12. The size of the project summary
 
 **Recommendation:** at most 4,000 words. Findings beyond the top ten are counted, not listed, and runs beyond the last three are counted. The Guide asks a specific tool for more. This keeps each turn small on the developer's quota (DESIGN §8 risk 5).
+
+**Decision (owner): as recommended.**
 
 ## D13. A `design-harness` stage
 
@@ -121,13 +131,19 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 
 **Recommendation: A.** A one-shot extraction pipeline does not need a harness document, and a loop that runs overnight does.
 
+**Decision (owner): B, always shown.** Every workflow gets a `design-harness` stage, done when `HARNESS.md` exists. For a simple workflow the harness design is short, and the Guide says so; a developer who does not want it skips it like any other stage (R3), and the skip says what is lost.
+
 ## D14. Where the learner record lives
 
 **Recommendation:** what the developer knows goes in the editor's global state, because it travels with the person. What was discussed in this project goes in `.loom/guide/learner.json`, which is git-ignored. It is shown on request, can be reset, and is never sent anywhere except as part of the Guide's own context.
 
+**Decision (owner): as recommended.**
+
 ## D15. No telemetry
 
 **Recommendation:** none. Nothing about how the Guide is used leaves the machine except the host model calls the developer's own assistant makes. Usability is learned from sessions with real developers (M3), not from data collection.
+
+**Decision (owner): no telemetry.**
 
 ## D16. Names
 
@@ -140,7 +156,7 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 - The new commands are `weave guide-context`, `weave guide-facts` and `weave guide-mcp`, which keeps `weave guide <topic>` as it is.
 - The editor commands are `loom.guide.open` and `loom.guide.notices`.
 
-**Open:** whether `guide-context` and `guide-facts` should be options of `weave next` instead (`weave next --context`, `--facts`).
+**Decision (owner): the proposal.** `weave guide-context`, `weave guide-facts` and `weave guide-mcp`; the Guide, `@loom`, `llm4j-guide`, `loom.guide.open` and `loom.guide.notices`. `weave guide <topic>` is unchanged.
 
 ## D17. The workflow's first runs cost nothing
 
@@ -148,6 +164,8 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 - Until the `preflight` stage, the Guide uses scripted models (`weave test`), mock runs and `weave try`.
 - For the first runs that need a real model, it offers a local Ollama model when one is installed, and says what that proves and what it does not: quality differs from the hosted model.
 - The hosted model's key is set at the preflight stage, with a budget and a cap set before it (principle 48).
+
+**Decision (owner): free by default; Ollama is the developer's choice.** Ollama means installing it and pulling a model, which is work the developer may not want. So the Guide does not steer them to it. When the first real run comes, it says that a local Ollama model is a free option, what installing it takes, and what such a run proves and does not prove, and then the developer chooses between Ollama and a hosted model under a cap. Until then, scripted models, mock runs and `weave try` keep everything free.
 
 ## D18. How the Guide itself is evaluated
 
@@ -157,6 +175,10 @@ Status: **draft for review. D1 to D7 were taken by the owner in the discussion t
 
 This also makes the Guide a showcase of eval4j on itself, which D6 likes.
 
+**Decision (owner): as recommended.** Recorded answers in the default build; re-recording against a real model only when the owner asks. No live run in CI.
+
 ## D19. The skip list and the README line
 
 **Recommendation:** add `.loom/skipped.json` with one entry per stage (R3). Keep reading the README line `Evaluation: skipped` as a skip of stages 2, 3 and 9, so existing projects and the skills' instructions keep working. `weave next --skip` also writes the README line when the stages skipped are exactly those three.
+
+**Decision (owner): as recommended.**

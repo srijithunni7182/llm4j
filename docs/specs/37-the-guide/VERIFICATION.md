@@ -1,6 +1,6 @@
 # Phase 37 verification plan: the Guide
 
-Status: **draft for review; nothing built.** Section 0 lists what was read and what is still to read. Section 1 lists what must be proved. Companions: [DESIGN.md](DESIGN.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [DECISIONS.md](DECISIONS.md), [PRINCIPLES.md](PRINCIPLES.md).
+Status: **final (all decisions taken); nothing built.** Section 0 lists what was read and what is still to read. Section 1 lists what must be proved. Companions: [DESIGN.md](DESIGN.md), [TEST_STRATEGY.md](TEST_STRATEGY.md), [DECISIONS.md](DECISIONS.md), [PRINCIPLES.md](PRINCIPLES.md).
 
 **Evidence levels:**
 - E0: read in the source or the documents.
@@ -27,13 +27,13 @@ The default build needs no model and no key. `make test-live` is never run unask
 
 | # | What | Why | When |
 |---|---|---|---|
-| G1 | The VS Code chat participant and language model tool APIs: minimum version, how a participant gets a model, the behaviour with no model, and whether a feature can be absent on an older editor while the rest of the extension works | D11, R16 | 37c, first |
+| G1 | The VS Code chat participant and language model tool APIs: the minimum version to raise `engines.vscode` to, how a participant gets a model, the behaviour with no model | D11, R16 | 37c, first |
 | G2 | Whether a chat participant, or Copilot's agent mode, can use an MCP server registered by an extension | D10 option B | 37c |
 | G3 | The Claude Code plugin format: an agent with a tool allow-list, MCP server configuration, how a plugin is installed from a VS Code extension | R17 | 37d, first |
 | G4 | Whether the Claude Code VS Code extension can open a new session with a named agent, from a command or a link | D8, R17 | 37d, first |
 | G5 | **The terms of GitHub Copilot and of Claude subscriptions for an extension that uses them through their own extensions,** and anything they forbid (for example automated use, or use outside the editor) | D7; a Guide that broke the terms would be withdrawn | before 37c |
 | G6 | How the engine (`weave serve`) is reached from the extension today, and whether `weave guide-mcp` can reuse its protocol for the Java parts | D10 | 37b |
-| G7 | How the review classes a workflow as autonomous (a loop, schedule, `supervise`, daemon, effects with no approval), so that R4 reuses it rather than defining its own | R4, D13 | 37a |
+| G7 | How the review classes a workflow as autonomous (a loop, schedule, `supervise`, daemon, effects with no approval), so that the `design-harness` stage's text can say whether this workflow needs a short or a full harness design | R4, D13 | 37a |
 | G8 | Where the eval4j report is written and how the extension opens it today | R12 | 37b |
 
 ### Notes from the reads (written by the build; each says when it was read)
@@ -46,11 +46,11 @@ None yet.
 |---|---|---|---|
 | A1 | `weave next --format json` gives `why`, `see`, `decision`, `missing` and the evidence for every stage | R1, R2 | E1 |
 | A2 | A skip is recorded with its reason and `missing`, shown in the Outline, read back before going live, and removable | R3, D19 | E1, E3 |
-| A3 | `design-harness` appears for autonomous workflows only | R4 | E1 |
+| A3 | `design-harness` appears for every workflow and can be skipped | R4, D13 | E1 |
 | A4 | `guide-context` stays within its bound and holds no secret, prompt text or model output (canaries) | R5, D12 | E1 |
 | A5 | Every fact has a command that exists, a link that resolves and a "does not do"; every moment names a fact that exists | R6, R7 | E1 (`make docs-check`) |
 | A6 | Events carry identifiers only, are bounded and are marked discussed | R8, R9 | E1 |
-| A7 | Notices follow the rules, the rate limit and the setting | R10, D9 | E1 |
+| A7 | Notices follow the rules, the rate limit and the setting; the status bar count is right | R10, D9 | E1 |
 | A8 | Each show tool opens the right thing; `show_file` stays in the root; `open_secret_form` returns no value; no run starts without the developer's confirmation | R12 | E1, E3 |
 | A9 | Each host registers read, show and steering tools only; the Claude agent allows nothing else | principle 41, R17 | E1 (each guard broken once) |
 | A10 | Both bindings match the one tool contract | D10 | E1 |
@@ -89,7 +89,7 @@ None yet.
 
 ## 4. Documentation owed when built
 
-- The extension: `README.md`, `REFERENCE.md`, `CHANGELOG.md` and the walkthrough.
+- The extension: `README.md`, `REFERENCE.md`, `CHANGELOG.md` (with the new minimum VS Code version) and the walkthrough; `docs/VERSION_MATRIX.md`.
 - `wiki/` (a Guide page, linked from `Home.md`), `llms.txt`, and the command reference for the new `weave` commands (`make regen`).
 - The skills and their packages.
 - `docs/RELEASE_NOTES_<version>.md`.
@@ -98,7 +98,7 @@ None yet.
 
 ## 5. Exit checklist
 
-- [ ] Every open decision taken (D8 to D19)
+- [x] Every decision taken (D1 to D19, 2026-11-17)
 - [ ] G1 to G8 read and noted in §0
 - [ ] A1 to A16 met; A17 run, with its findings recorded
 - [ ] The gates of §2 green; what did not run is stated

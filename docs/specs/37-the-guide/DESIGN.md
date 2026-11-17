@@ -1,6 +1,6 @@
 # Phase 37: design
 
-Status: **draft for review; nothing built.** Facts marked (read) come from the source on `main` when this was written; facts marked (not read) must be read before the work that depends on them starts (VERIFICATION §0). Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md). Tests: [TEST_STRATEGY.md](TEST_STRATEGY.md). Proof: [VERIFICATION.md](VERIFICATION.md).
+Status: **final (all decisions taken by the owner); nothing built.** Facts marked (read) come from the source on `main` when this was written; facts marked (not read) must be read before the work that depends on them starts (VERIFICATION §0). Principles: [PRINCIPLES.md](PRINCIPLES.md). Choices: [DECISIONS.md](DECISIONS.md). Tests: [TEST_STRATEGY.md](TEST_STRATEGY.md). Proof: [VERIFICATION.md](VERIFICATION.md).
 
 ## 1. What exists today (read)
 
@@ -81,7 +81,7 @@ These are VERIFICATION §0 items G1 to G6.
   - The README line `Evaluation: skipped` keeps working and maps to stages 2, 3 and 9.
   - A skipped stage stays skipped in the journey and shows in the Outline as an open item.
   - `weave run` and `weave deploy` already print "No evaluation" and keep doing so.
-- **R4** A new optional stage, **`design-harness`** (D13): done when `HARNESS.md` exists. It is shown only for a workflow the review classes as autonomous: a loop, a schedule, a `supervise`, a daemon, or effects with no approval.
+- **R4** A new stage, **`design-harness`** (D13), shown for every workflow: done when `HARNESS.md` exists, and skippable like any other (R3). Its `why` text says that a simple workflow needs only a short harness design, and that a loop, a schedule, a `supervise`, a daemon or an effect with no approval needs a full one.
 - **R5** `weave guide-context <file> --format json` gives the Guide a **compact project summary**:
   - the journey;
   - the agents and tools, with their effects;
@@ -104,6 +104,7 @@ These are VERIFICATION §0 items G1 to G6.
   - It is a non-modal message, "The Guide has a note on the new `send_email` tool", with **Ask the Guide** and **Not now**.
   - **Ask the Guide** starts a Guide turn about that event.
   - There is at most one notice every 2 minutes, none while the developer is typing in the Guide's chat, and they can be switched off with a setting (`loom.guide.notices`).
+  - A status bar item shows the number of undiscussed notes; clicking it opens the Guide on them (D9).
 
 **The tools (one contract, D10).**
 - **R11** **Read tools:**
@@ -188,9 +189,9 @@ The developer saves `main.loom` after the builder added a `send_email` tool.
 
 | Sub-phase | What | Gate |
 |---|---|---|
-| 37a | **The spine.** R1 to R7 in `weave`: stage texts and evidence, the skip list, the `design-harness` stage, `guide-context`, the facts and moments catalogue with their tests | `make test-fast` on Loom; owner reads the stage texts and the facts |
+| 37a | **The spine.** R1 to R7 in `weave`: stage texts and evidence, the skip list, the `design-harness` stage (always shown), `guide-context`, the facts and moments catalogue with their tests | `make test-fast` on Loom; owner reads the stage texts and the facts |
 | 37b | **Events and show tools.** R8 to R12 in the extension; the tool contract as a TypeScript interface with one implementation; the notice rules | Extension tests green |
-| 37c | **The Copilot host.** R16, R18, R19 for Copilot; the persona prompt; the scenario dataset run against recorded model answers | Owner walks the journey once with Copilot (M1) |
+| 37c | **The Copilot host.** The editor minimum raised (D11); R16, R18, R19 for Copilot; the persona prompt; the scenario dataset run against recorded model answers | Owner walks the journey once with Copilot (M1) |
 | 37d | **The Claude host.** R17: the plugin, the agent, the bridge; R13 and R14 over the bridge | Owner walks the journey once with Claude Code (M2) |
 | 37e | **The builder.** R20, R21: the skills' shared section, checkpoints, the fast lane as a request only; the skills packaged again (`make skill-package`) | `make docs-check` |
 | 37f | **Docs and the first-time experience.** The walkthrough updated so the Guide is the first step; the extension README, REFERENCE and CHANGELOG; `wiki` and `llms.txt`; the release notes | `make docs-check`; a usability session with a Java developer new to llm4j (M3) |
@@ -209,5 +210,5 @@ The developer saves `main.loom` after the builder added a `send_email` tool.
 1. **The host APIs move.** The chat participant, language model tool, MCP and Claude Code plugin surfaces change often. The core is host-neutral, so a change costs one host's adapter, not the Guide. Items G1 to G6 are read again at the start of 37c and 37d.
 2. **The Guide may be ignored if it talks too much.** Notices are rate-limited and can be switched off. The Guide is judged on staying short (TEST_STRATEGY §4), and the usability session (M3) is the real test.
 3. **Generated explanations can be wrong.** Principle 45 and the facts catalogue reduce this; they do not remove it. The scenario dataset pins the known traps. A wrong statement found in use becomes a scenario.
-4. **Raising the editor's minimum version** (G1) drops users on old editors. The rest of the extension keeps working without the Guide (D11).
+4. **Raising the editor's minimum version** (D11) drops users on editors older than the one the chat APIs need. The new minimum is stated in the CHANGELOG, the README and `docs/VERSION_MATRIX.md`.
 5. **Subscription limits.** The Guide uses the developer's quota. The summary is bounded and the Guide reads events since the last turn only, so a long session does not grow its context without limit.
