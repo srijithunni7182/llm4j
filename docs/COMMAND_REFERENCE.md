@@ -1890,6 +1890,7 @@ weave eval [OPTIONS] <script>
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--dataset=<dir>` — The folder of dataset files (default: eval/golden beside the script).
+- `--effects=<real|simulate>` — What a real run does with the tasks that change things (a payment, a send): real (default) runs them, and every question to a person is answered yes; simulate describes them instead, as --mock does, so nothing is paid or sent. The run says which tasks these are before it starts.
 - `--emit-test=<file>` — Write the opt-in JUnit class for this project (for a project that wants the Java API): a hermetic test that runs the wiring on a mock model, and a real evaluation that runs only with -Deval.real=true, under a cap (-Deval.maxCost with -Deval.prices, else a token cap). The package is taken from the folder under src/test/java. An existing file is never overwritten. Runs nothing else.
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
 - `--format=<md|html>` — With --requirements: markdown (default) or html, a page to share.
@@ -2739,11 +2740,13 @@ weave preflight [OPTIONS] <script>
 
 **Options**
 
+- `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--format=<text|json>` — The report as text (default) or JSON.
 - `--input=<text>` — The probe input (default: the agent's first dataset case, else a greeting).
 - `--max-cost=<amount>` — Stop when the probes have cost this much (needs --prices). Default 0.05.
 - `--max-tokens=<n>` — Stop when the probes have used this many tokens (default 20000 when there are no prices).
 - `--mock` — Run the same checks on models that cost nothing.
+- `--no-auto-classes` — Do not put the project's target/classes on the class path when --classes is not given.
 - `--prices=<file>` — Price table: lines of 'model = input / output' per million tokens.
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `-y, --yes` — Do not ask before sending the probes.

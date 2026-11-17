@@ -186,6 +186,7 @@ New and additive. It runs workflows from an application and resumes them from a 
 | `LoomHost` (with its `Builder`) | Runs and resumes workflows |
 | `RunRequest`, `RunOutcome` (`Completed`, `Suspended`, `Stopped`), `RunRecord`, `AnswerResult` | Request and result types |
 | `QuestionListener`, `LoomRunFailedException` | Questions to a person; failure |
+| `RunListener` (`LoomHost.Builder.runListener`) | How each run ended, with its values (added in 6.2.0) |
 | `Persistence`, `DurabilityGuard` | Where runs are kept |
 
 - `Persistence.file(dir)` uses the folder layout `weave` uses.
