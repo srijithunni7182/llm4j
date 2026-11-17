@@ -144,6 +144,6 @@ Built in one session: 37a (`5c3f3a58`), the MCP server (`8a410654`, `30e4cbe7`),
 
 - `make docs-check`: passes.
 - `make test-fast` on `ai-agent4j-loom`: passes (5,804 tests, all coverage checks met). The first run failed the gate on the Guide's own classes; `GuideEdgesTest` closed it, with no limit lowered.
-- The extension's suite: 845 of 846 files' tests pass when run without `engine.integration.test`, and that file passes alone (4 of 4, 9 s). Run together with the other files it hung twice; it is not fixed here and is left for CI to show.
+- The extension's suite: all 846 tests pass when run without `engine.integration.test` (one walkthrough test needed its step index moved after the Guide's step), and that file passes alone (4 of 4, 9 s). Run together with the other files it hung twice; it is not fixed here and is left for CI to show.
 - `make test-oracle`: passes.
 - `make format-check` was not run (it covers the core and addons, which this phase did not touch). The other `slow` tests and `make test-full` are left to CI.
