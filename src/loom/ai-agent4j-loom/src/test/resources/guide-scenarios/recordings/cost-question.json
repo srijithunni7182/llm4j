@@ -1,0 +1,60 @@
+{
+  "fingerprint" : "82e7e8e39b7b05e131df1cd229bdd4e88f5ccd8db5c44131af8913e15d0c0fd9",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-17T16:42:54.497963096Z",
+  "promptTokens" : 29473,
+  "completionTokens" : 1114,
+  "answer" : "Not so far, and a cap limits how expensive it can get.\n\n- **Spent so far:** nothing. Scripted tests, `weave check`, the audit and mock evaluations are free. They need no key and make no network calls.\n- **The cap:** your script has a budget of 200,000 tokens and 30 calls. The real evaluation command also carries `--max-tokens 200000`. A run should stop at those limits, not keep spending.\n- **What drives cost:** you have three agents (Researcher, Writer, Editor), all on `gemini-2.5-flash`, and the workflow loops. Each pass through the loop adds calls, so the loop bound matters most. That is what the harness design stage is for.\n- **First real runs:** a local Ollama model costs nothing per call. You'd install Ollama and pull a model, and `weave doctor` can check the setup. Its answers differ in quality from Gemini's, so it won't replace the real evaluation. The alternative is Gemini under the cap.\n\nI can't give a dollar figure yet. Preflight and the first real run will give measured token counts, and I'll state the estimate before anything paid starts. Nothing runs without your click.\n\nWould you rather do the first real runs on Ollama or on Gemini under the cap?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01DATkZSn82RY3xeBH5VZ2je",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01LNjshjJZ2rb5AjJj9ZJWhR",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01NYqXtn8jTWcmwfqMgw28ew",
+      "name" : "eval_summary",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01K1JfWeVWLMBgDhj1S66K4N",
+      "name" : "facts",
+      "arguments" : {
+        "id" : "local-models"
+      }
+    }, {
+      "id" : "toolu_01AEHCzaiXZMefw8BAzWYUrU",
+      "name" : "learner",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01GN9WbNVfNaxQTBUSNNR6NA",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "budgets-and-caps",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "Not so far, and a cap limits how expensive it can get.\n\n- **Spent so far:** nothing. Scripted tests, `weave check`, the audit and mock evaluations are free. They need no key and make no network calls.\n- **The cap:** your script has a budget of 200,000 tokens and 30 calls. The real evaluation command also carries `--max-tokens 200000`. A run should stop at those limits, not keep spending.\n- **What drives cost:** you have three agents (Researcher, Writer, Editor), all on `gemini-2.5-flash`, and the workflow loops. Each pass through the loop adds calls, so the loop bound matters most. That is what the harness design stage is for.\n- **First real runs:** a local Ollama model costs nothing per call. You'd install Ollama and pull a model, and `weave doctor` can check the setup. Its answers differ in quality from Gemini's, so it won't replace the real evaluation. The alternative is Gemini under the cap.\n\nI can't give a dollar figure yet. Preflight and the first real run will give measured token counts, and I'll state the estimate before anything paid starts. Nothing runs without your click.\n\nWould you rather do the first real runs on Ollama or on Gemini under the cap?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly names what bounds spending: it states a cap/budget of 200,000 tokens and 30 calls, plus the real evaluation command's --max-tokens 200000 limit, and explains that runs should stop at those limits. It also clearly identifies what is free: scripted tests, weave check, audit and mock evaluations, and local Ollama calls. It explains cost drivers without implying that the budget makes individual answers cheaper. The main gap is that it only indirectly points to cost visibility by saying preflight and the first real run will provide measured token counts and that an estimate will be stated before paid work; it does not explicitly mention the review's estimate or the live run page as the place to see cost. Overall it mostly satisfies the cost-question criterion with a minor omission.\",\n  \"rating\": 4\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

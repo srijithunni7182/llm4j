@@ -24,6 +24,7 @@ import { registerSemantic, semanticMiddleware } from './semantic/vscodeSemantic'
 import { registerReview } from './review/vscodeReview';
 import { registerDebug } from './debug/vscodeDebug';
 import { registerGenerate } from './generate/vscodeGenerate';
+import { registerGuide } from './companion/vscodeGuide';
 
 // Module-level client reference so deactivate() can stop it.
 let client: LanguageClient | undefined;
@@ -136,6 +137,8 @@ export function activate(context: vscode.ExtensionContext): void {
     // 4. Workflow Outline tree view (Requirement 6.1)                    //
     // ------------------------------------------------------------------ //
     const provider = new WorkflowOutlineProvider(() => engineHost()?.engine());
+    const guide = registerGuide(context);
+    if (guide) provider.journeyListener = (journey) => guide.journeyChanged(journey);
     const treeViewDisposable = vscode.window.registerTreeDataProvider(
         'loom.workflowOutline',
         provider

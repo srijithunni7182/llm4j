@@ -66,7 +66,11 @@ export class WorkflowOutlineProvider implements vscode.TreeDataProvider<OutlineR
     private readonly status: vscode.StatusBarItem | undefined;
 
     /** Shows the next step in the status bar, or hides the item when there is no journey. */
+    /** Told each time the journey is read, so the Guide can turn stage changes into events. */
+    journeyListener: ((journey: Parameters<typeof progressStatus>[0]) => void) | undefined;
+
     private showStatus(journey: Parameters<typeof progressStatus>[0]): void {
+        this.journeyListener?.(journey);
         const bar = progressStatus(journey);
         if (!this.status) {
             return;

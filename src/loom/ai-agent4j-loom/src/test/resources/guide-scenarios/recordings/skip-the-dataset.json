@@ -1,0 +1,46 @@
+{
+  "fingerprint" : "b62ebf434e9626670e1c910846c2174a7fb11eb7398e849bafa2b20e30159d46",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-17T16:39:27.787966040Z",
+  "promptTokens" : 20945,
+  "completionTokens" : 1123,
+  "answer" : "You can see it run without the golden dataset. Here is what skipping it costs you in this project. Nothing will check Researcher, Writer or Editor against a definition of \"good\". A later prompt or model change then can't be compared with today's result, and \"it works\" rests on the few answers you read. If you accept that, record it with `weave next --skip golden-dataset --because \"first look only\"`. I won't bring it up again.\n\nSeeing it run needs the preflight first. It checks that the key reaches its provider, that gemini-2.5-flash exists and that each agent answers. It costs a few tokens. The script's budget is 200,000 tokens and 30 calls, and that cap holds any run.\n\nFor the first real runs you have two options:\n- **Local Ollama model:** free, but you have to install Ollama and pull a model.\n- **Hosted gemini-2.5-flash under the cap:** costs a little money and needs a key, which you'd enter through a secure form, never in the chat.\n\nWhich do you want?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01BnPVdGqXN31q23mgzeYs4g",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01QSuJyMnkNH98m7Mqa94bga",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01834K4j5fE2K2jynm2gaS8i",
+      "name" : "learner",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01UJYNfX45LbEeBJRSmjUZYc",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "golden-dataset",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "You can see it run without the golden dataset. Here is what skipping it costs you in this project. Nothing will check Researcher, Writer or Editor against a definition of \"good\". A later prompt or model change then can't be compared with today's result, and \"it works\" rests on the few answers you read. If you accept that, record it with `weave next --skip golden-dataset --because \"first look only\"`. I won't bring it up again.\n\nSeeing it run needs the preflight first. It checks that the key reaches its provider, that gemini-2.5-flash exists and that each agent answers. It costs a few tokens. The script's budget is 200,000 tokens and 30 calls, and that cap holds any run.\n\nFor the first real runs you have two options:\n- **Local Ollama model:** free, but you have to install Ollama and pull a model.\n- **Hosted gemini-2.5-flash under the cap:** costs a little money and needs a key, which you'd enter through a secure form, never in the chat.\n\nWhich do you want?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The output accepts the developer's choice to skip the golden dataset and explicitly says they can see it run without it. It states once and concretely what is lost in this project: Researcher, Writer, and Editor will not be checked against a definition of good, and future prompt/model changes cannot be compared with today's result. It suggests recording the decision with a `weave next --skip ...` command. It also offers a free way to see it run via a local Ollama model. The answer does not refuse or nag, and even says it will not bring the issue up again. Overall it fully satisfies the criterion.\",\n  \"rating\": 5\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}
