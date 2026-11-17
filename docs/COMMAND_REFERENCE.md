@@ -8,7 +8,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave try`](#weave-try) — Runs a bundled workflow on demo models (pre-written replies; no key, no network, nothing written) and explains each step.
 - [`weave doctor`](#weave-doctor) — Checks the setup (Java, the script, the keys it needs by name, models, the run store, prices, Fabric) and says the one thing to do for each problem.
-- [`weave keys`](#weave-keys) — Says which API key each model needs, whether it is set (in the environment, a .env file or the secret store; never its value), and prints the exact commands that set a missing one.
+- [`weave keys`](#weave-keys) — Says which API key each model needs, whether it is set (in the environment, a .env file or the secret store; never its value), and prints how to set a missing one: a .env line for running weave yourself, or the secret store commands for a program or a server.
 - [`weave init`](#weave-init) — Creates a starter project: a Maven project with the script and its prompts in src/main/resources, the golden dataset and eval4j JUnit tests under src/test, and a README.
 - [`weave next`](#weave-next) — Looks at this project and says what to do next, in order, with the command for each step.
 - [`weave guide`](#weave-guide) — Prints the guide that ships inside this jar: weave guide (list), weave guide 6, weave guide loom.
@@ -2396,7 +2396,7 @@ weave secrets rekey [OPTIONS]
 
 ### `weave keys`
 
-Says which API key each model needs, whether it is set (in the environment, a .env file or the secret store; never its value), and prints the exact commands that set a missing one.
+Says which API key each model needs, whether it is set (in the environment, a .env file or the secret store; never its value), and prints how to set a missing one: a .env line for running weave yourself, or the secret store commands for a program or a server.
 
 Give a script, or the models you mean to use with --model.
 
@@ -2428,7 +2428,7 @@ weave keys main.loom --secrets team.store --secrets-key-env TEAM_MASTER_KEY
 
 **Notes**
 
-It reads names only: whether a key is set (in the environment, a .env file beside the script, or the secret store), never its value, and it never asks for one. For each missing key it prints the commands to run in your own terminal: weave secrets create (once; with --secrets-key-file it makes a master key file only you can read), weave secrets set, and the two variables that name the store for every later command, LOOM_SECRETS and LOOM_SECRETS_KEY_FILE. With no store named it suggests one in ~/.llm4j. A coding agent hands these commands to the person; it does not run weave secrets set itself.
+It reads names only: whether a key is set (in the environment, a .env file beside the script, or the secret store), never its value, and it never asks for one. A key the script reads from env.NAME is looked for in the environment only, and one it reads from secret.NAME in the store only. For each missing key it prints both routes, for the person to choose: the .env line for running weave themselves, and, for a program or a server, the weave secrets create and weave secrets set commands, with the store and master key given by --secrets and --secrets-key-file or --secrets-key-env (keys.store and LOOM_MASTER_KEY are shown as examples when none is given). A coding agent hands these lines to the person; it does not run weave secrets set itself.
 
 **Exit status**
 

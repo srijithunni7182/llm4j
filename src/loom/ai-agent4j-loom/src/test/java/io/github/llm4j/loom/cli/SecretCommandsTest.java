@@ -454,4 +454,30 @@ class SecretCommandsTest {
         assertThat(file()).exists();
         assertThat(dir.resolve("elsewhere.store")).doesNotExist();
     }
+
+    @Test
+    void oneOfTheTwoVariablesAloneIsRefusedByNameAndNothingIsAskedOrOpened() {
+        vars.put("LOOM_SECRETS_KEY_FILE", dir.resolve("k.key").toString());
+        Script nobody = new Script();
+
+        assertThat(SecretCommands.run(env(), nobody, "list")).isEqualTo(2);
+        assertThat(said()).contains("LOOM_SECRETS_KEY_FILE is set but LOOM_SECRETS is not").doesNotContain("--secrets-key-file");
+        assertThat(nobody.asked).isEmpty();
+
+        vars.clear();
+        out.reset();
+        vars.put("LOOM_SECRETS", file().toString());
+        SecretOptions options = new SecretOptions();
+        assertThat(options.apply(env(), nobody)).as("a run with only LOOM_SECRETS set is refused, not prompted").isNull();
+        assertThat(said()).contains("LOOM_SECRETS is set but LOOM_SECRETS_KEY_FILE is not");
+        assertThat(nobody.asked).isEmpty();
+    }
+
+    @Test
+    void withNeitherVariableACommandThatNeedsNoStoreOpensNone() {
+        SecretOptions options = new SecretOptions();
+        WeaveEnv before = env();
+
+        assertThat(options.apply(before, new Script())).isSameAs(before);
+    }
 }

@@ -56,7 +56,12 @@ final class SecretCommands implements Callable<Integer> {
         abstract Integer body(WeaveEnv env, Prompts prompts);
 
         Integer execute(WeaveEnv env, Prompts prompts) {
-            secrets.fromEnvironment(env.env());
+            try {
+                secrets.fromEnvironment(env.env());
+            } catch (SecretException e) {
+                env.err().println("Error: " + e.getMessage());
+                return 2;
+            }
             if (secrets.file == null) {
                 env.err().println("Error: --secrets <file> is required (or name the store once in " + SecretOptions.STORE_VARIABLE + ")");
                 return 2;

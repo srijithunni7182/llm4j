@@ -46,7 +46,7 @@ class KeysCommandTest {
                         null);
         KeysCommand c = new KeysCommand();
         new picocli.CommandLine(c).parseArgs(args);
-        return KeysCommand.keys(c, env, dir.resolve("home"));
+        return KeysCommand.keys(c, env);
     }
 
     private String said() {
@@ -54,21 +54,25 @@ class KeysCommandTest {
     }
 
     @Test
-    void aModelWithNoKeyGetsTheExactCommandsThatSetIt() {
+    void aMissingKeyGetsBothRoutesSideBySideAndNoStoreIsChosenForThePerson() {
         int code = keys("--model", "gpt-4.1-mini");
 
-        String store = dir.resolve("home/.llm4j/secrets.store").toString();
-        String key = dir.resolve("home/.llm4j/secrets.key").toString();
         assertThat(code).as("a key is missing").isEqualTo(1);
         assertThat(said())
                 .contains("gpt-4.1-mini")
                 .contains("OPENAI_API_KEY")
                 .contains("not set")
-                .contains("weave secrets create --secrets " + store + " --secrets-key-file " + key)
-                .contains("weave secrets set OPENAI_API_KEY --secrets " + store + " --secrets-key-file " + key)
-                .contains("LOOM_SECRETS=" + store)
-                .contains("LOOM_SECRETS_KEY_FILE=" + key)
-                .contains("in your own terminal");
+                .contains("Running weave yourself")
+                .contains("  OPENAI_API_KEY=")
+                .contains("A program or a server")
+                .contains("weave secrets create --secrets keys.store --secrets-key-env LOOM_MASTER_KEY")
+                .contains("weave secrets set OPENAI_API_KEY --secrets keys.store --secrets-key-env LOOM_MASTER_KEY")
+                .contains("only examples")
+                .contains("does not protect")
+                .contains("not through a coding agent")
+                .doesNotContain(".llm4j")
+                .doesNotContain("--secrets-key-file")
+                .doesNotContain("export ");
     }
 
     @Test
@@ -128,7 +132,57 @@ class KeysCommandTest {
 
         keys("--model", "grok-4", "--secrets", store.toString(), "--secrets-key-file", keyFile.toString());
 
-        assertThat(said()).contains("XAI_API_KEY").contains("weave secrets set XAI_API_KEY --secrets " + store + " --secrets-key-file " + keyFile);
+        assertThat(said())
+                .contains("XAI_API_KEY")
+                .contains("weave secrets set XAI_API_KEY --secrets " + store + " --secrets-key-file " + keyFile)
+                .doesNotContain("only examples");
+    }
+
+    @Test
+    void aSecretOnlyKeyIsNotCountedAsSetFromTheEnvironmentAndGetsOnlyTheStoreRoute() throws Exception {
+        vars.put("GATEWAY_KEY", FAKE_KEY);
+        Path script =
+                Files.writeString(
+                        dir.resolve("main.loom"),
+                        """
+                        provider Gate { use: openai  api_key: secret.GATEWAY_KEY }
+                        agent Remote { model: "Gate/gpt-4.1-mini" system: "You help." }
+                        workflow Main(q) { delegate "{q}" to Remote -> a }
+                        """);
+
+        int code = keys(script.toString());
+
+        assertThat(code).isEqualTo(1);
+        assertThat(said())
+                .contains("GATEWAY_KEY")
+                .contains("secret store only")
+                .contains("weave secrets set GATEWAY_KEY")
+                .doesNotContain("  GATEWAY_KEY=")
+                .doesNotContain(FAKE_KEY);
+    }
+
+    @Test
+    void anEnvOnlyKeyGetsOnlyTheEnvRoute() throws Exception {
+        Path script =
+                Files.writeString(
+                        dir.resolve("main.loom"),
+                        """
+                        provider Gate { use: openai  api_key: env.GATEWAY_KEY }
+                        agent Remote { model: "Gate/gpt-4.1-mini" system: "You help." }
+                        workflow Main(q) { delegate "{q}" to Remote -> a }
+                        """);
+
+        keys(script.toString());
+
+        assertThat(said()).contains("  GATEWAY_KEY=").doesNotContain("weave secrets set GATEWAY_KEY");
+    }
+
+    @Test
+    void onlyOneOfTheStoreVariablesIsRefusedByName() {
+        vars.put("LOOM_SECRETS", dir.resolve("keys.store").toString());
+
+        assertThat(keys("--model", "gpt-4.1-mini")).isEqualTo(2);
+        assertThat(said()).contains("LOOM_SECRETS is set but LOOM_SECRETS_KEY_FILE is not");
     }
 
     @Test
