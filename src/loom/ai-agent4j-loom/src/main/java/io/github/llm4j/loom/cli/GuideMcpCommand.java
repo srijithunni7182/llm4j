@@ -43,7 +43,7 @@ final class GuideMcpCommand implements Callable<Integer> {
                         quiet,
                         new GuideEvents(root, env.clock()),
                         new GuideLearner(Path.of(System.getProperty("user.home")), root, env.clock()),
-                        EditorChannel.loopback(root));
+                        EditorChannel.mailbox(root, env.clock(), env.sleeper()));
         Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
         server.serve(new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)), out);
         return 0;

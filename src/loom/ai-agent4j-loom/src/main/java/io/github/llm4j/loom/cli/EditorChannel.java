@@ -3,78 +3,94 @@ package io.github.llm4j.loom.cli;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.github.llm4j.ratelimit.Sleeper;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * How the Guide asks the editor to show something: open the graph, the review, the report, the
- * secret form, or a drafted instruction. The editor listens on loopback only and writes its port
- * and a per-session token to {@code .loom/guide/editor.json}; a request without the token is
- * refused there. When the editor is not open, the answer says so at once.
+ * key form, or a drafted instruction. There is no network: a request is a file in {@code
+ * .loom/guide/requests/}, the editor (which marks itself present with {@code
+ * .loom/guide/editor.json}) watches that folder, acts, and writes the answer to {@code
+ * .loom/guide/answers/}. When no editor is open the answer says so at once; a request the editor
+ * does not answer in time is given up.
  */
 interface EditorChannel {
 
     /** The editor's answer to one action, in words the Guide can pass on. */
     String send(String action, JsonNode args);
 
-    /** The channel the running editor opened for this project. */
-    static EditorChannel loopback(Path projectRoot) {
-        return new Loopback(projectRoot);
-    }
-
     /** The answer when no editor is listening. */
     String NOT_OPEN =
-            "The editor is not open on this project (no .loom/guide/editor.json), so nothing was shown. Ask the developer to open the folder in VS Code with the Loom extension, or name the file or command for them instead.";
+            "The editor is not open on this project, so nothing was shown. Ask the developer to open the folder in VS Code with the Loom extension, or name the file or command for them instead.";
 
-    final class Loopback implements EditorChannel {
-        private static final Duration CONNECT = Duration.ofSeconds(2);
+    /** The mailbox the running editor watches for this project. */
+    static EditorChannel mailbox(Path projectRoot, Clock clock, Sleeper sleeper) {
+        return new Mailbox(projectRoot, clock, sleeper);
+    }
+
+    final class Mailbox implements EditorChannel {
+        /** Showing something takes the editor a moment. */
+        static final Duration SHOW = Duration.ofSeconds(20);
         /** A person may take a while with a form or an instruction; never longer than this. */
-        private static final Duration ANSWER = Duration.ofMinutes(5);
+        static final Duration PERSON = Duration.ofMinutes(5);
+        static final Duration POLL = Duration.ofMillis(200);
+        private static final List<String> WAIT_FOR_PERSON = List.of("open_secret_form", "draft_builder_instruction", "start_observed_run");
         private static final ObjectMapper JSON = new ObjectMapper();
-        private final Path file;
-        private final HttpClient http;
+        private static final SecureRandom RANDOM = new SecureRandom();
 
-        Loopback(Path projectRoot) {
-            this.file = projectRoot.resolve(".loom").resolve("guide").resolve("editor.json");
-            this.http = HttpClient.newBuilder().connectTimeout(CONNECT).followRedirects(HttpClient.Redirect.NEVER).build();
+        private final Path folder;
+        private final Clock clock;
+        private final Sleeper sleeper;
+
+        Mailbox(Path projectRoot, Clock clock, Sleeper sleeper) {
+            this.folder = Objects.requireNonNull(projectRoot, "projectRoot").resolve(".loom").resolve("guide");
+            this.clock = Objects.requireNonNull(clock, "clock");
+            this.sleeper = Objects.requireNonNull(sleeper, "sleeper");
         }
 
         @Override
         public String send(String action, JsonNode args) {
-            if (!Files.isRegularFile(file)) return NOT_OPEN;
-            int port;
-            String token;
+            if (!Files.isRegularFile(folder.resolve("editor.json"))) return NOT_OPEN;
+            byte[] idBytes = new byte[12];
+            RANDOM.nextBytes(idBytes);
+            String id = HexFormat.of().formatHex(idBytes);
+            Path requests = folder.resolve("requests");
+            Path answer = folder.resolve("answers").resolve(id + ".json");
             try {
-                JsonNode e = JSON.readTree(file.toFile());
-                port = e.path("port").asInt(0);
-                token = e.path("token").asText("");
-            } catch (IOException ex) {
-                return NOT_OPEN;
-            }
-            if (port <= 0 || port > 65535 || token.isBlank()) return NOT_OPEN;
-            ObjectNode body = JSON.createObjectNode();
-            body.put("action", action);
-            body.set("args", args == null ? JSON.createObjectNode() : args);
-            try {
-                HttpRequest req = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/guide"))
-                        .timeout(ANSWER)
-                        .header("Content-Type", "application/json")
-                        .header("X-Loom-Guide-Token", token)
-                        .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)))
-                        .build();
-                HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
-                if (res.statusCode() == 403) return "The editor refused the request (its token changed). Ask the developer to reload the window.";
-                if (res.statusCode() != 200) return "The editor could not do it (status " + res.statusCode() + ").";
-                return JSON.readTree(res.body()).path("result").asText("done");
-            } catch (IOException ex) {
-                return NOT_OPEN;
-            } catch (InterruptedException ex) {
+                Files.createDirectories(requests);
+                ObjectNode body = JSON.createObjectNode();
+                body.put("id", id);
+                body.put("action", action);
+                body.put("at", clock.instant().toString());
+                body.set("args", args == null ? JSON.createObjectNode() : args);
+                Path tmp = requests.resolve(id + ".tmp");
+                Files.writeString(tmp, JSON.writeValueAsString(body));
+                // the editor sees only whole requests
+                Files.move(tmp, requests.resolve(id + ".json"), StandardCopyOption.ATOMIC_MOVE);
+                Instant until = clock.instant().plus(WAIT_FOR_PERSON.contains(action) ? PERSON : SHOW);
+                while (clock.instant().isBefore(until)) {
+                    if (Files.isRegularFile(answer)) {
+                        String result = JSON.readTree(answer.toFile()).path("result").asText("done");
+                        Files.deleteIfExists(answer);
+                        return result;
+                    }
+                    sleeper.sleep(POLL);
+                }
+                Files.deleteIfExists(requests.resolve(id + ".json"));
+                return "The editor did not answer in time, so nothing was shown. It may be busy or closed; ask the developer.";
+            } catch (IOException e) {
+                return "Could not reach the editor: " + e.getMessage();
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return "Interrupted before the editor answered.";
             }

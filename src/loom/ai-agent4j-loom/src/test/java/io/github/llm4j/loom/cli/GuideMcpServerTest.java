@@ -5,13 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.sun.net.httpserver.HttpServer;
 import java.io.BufferedReader;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -203,37 +200,53 @@ class GuideMcpServerTest {
 
     @Test
     void withNoEditorOpenTheShowToolsSaySoAndTheReadToolsStillWork() throws Exception {
-        server = server(EditorChannel.loopback(project));
+        server = server(EditorChannel.mailbox(project, CLOCK, d -> {}));
 
         assertThat(text(call("show_graph", Map.of()))).isEqualTo(EditorChannel.NOT_OPEN);
         assertThat(call("project_summary", Map.of()).path("isError").asBoolean()).isFalse();
     }
 
     @Test
-    void theLoopbackChannelSendsTheSessionTokenAndReadsTheAnswer() throws Exception {
-        List<String> tokens = new ArrayList<>();
-        HttpServer editor = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-        editor.createContext("/guide", ex -> {
-            tokens.add(ex.getRequestHeaders().getFirst("X-Loom-Guide-Token"));
-            boolean ok = "t0k3n".equals(ex.getRequestHeaders().getFirst("X-Loom-Guide-Token"));
-            byte[] body = (ok ? "{\"result\":\"opened the graph\"}" : "{}").getBytes(StandardCharsets.UTF_8);
-            ex.sendResponseHeaders(ok ? 200 : 403, body.length);
-            ex.getResponseBody().write(body);
-            ex.close();
-        });
-        editor.start();
-        try {
-            Files.createDirectories(project.resolve(".loom/guide"));
-            Path file = project.resolve(".loom/guide/editor.json");
-            Files.writeString(file, "{\"port\":" + editor.getAddress().getPort() + ",\"token\":\"t0k3n\"}");
-            EditorChannel ch = EditorChannel.loopback(project);
+    void theMailboxHandsTheEditorAWholeRequestAndReadsItsAnswer() throws Exception {
+        Path guide = Files.createDirectories(project.resolve(".loom/guide"));
+        Files.writeString(guide.resolve("editor.json"), "{\"pid\":1}");
+        // the fake editor answers each request it finds when the channel waits
+        io.github.llm4j.ratelimit.Sleeper editor = d -> {
+            try (var reqs = Files.list(guide.resolve("requests"))) {
+                for (Path r : reqs.filter(f -> f.toString().endsWith(".json")).toList()) {
+                    JsonNode req = JSON.readTree(r.toFile());
+                    Files.createDirectories(guide.resolve("answers"));
+                    Files.writeString(guide.resolve("answers").resolve(req.path("id").asText() + ".json"),
+                            "{\"result\":\"opened " + req.path("action").asText() + " on " + req.path("args").path("node").asText() + "\"}");
+                    Files.delete(r);
+                }
+            } catch (java.io.IOException e) {
+                throw new IllegalStateException(e);
+            }
+        };
+        EditorChannel ch = EditorChannel.mailbox(project, CLOCK, editor);
 
-            assertThat(ch.send("show_graph", JSON.createObjectNode())).isEqualTo("opened the graph");
-            Files.writeString(file, "{\"port\":" + editor.getAddress().getPort() + ",\"token\":\"stale\"}");
-            assertThat(ch.send("show_graph", JSON.createObjectNode())).contains("refused");
-            assertThat(tokens).containsExactly("t0k3n", "stale");
-        } finally {
-            editor.stop(0);
+        assertThat(ch.send("show_graph", JSON.createObjectNode().put("node", "Writer"))).isEqualTo("opened show_graph on Writer");
+        try (var left = Files.list(guide.resolve("answers"))) {
+            assertThat(left).isEmpty();
+        }
+    }
+
+    @Test
+    void aRequestTheEditorNeverAnswersIsGivenUpAndRemoved() throws Exception {
+        Path guide = Files.createDirectories(project.resolve(".loom/guide"));
+        Files.writeString(guide.resolve("editor.json"), "{\"pid\":1}");
+        Instant[] now = {Instant.parse("2026-11-17T10:00:00Z")};
+        Clock moving = new Clock() {
+            public java.time.ZoneId getZone() { return ZoneOffset.UTC; }
+            public Clock withZone(java.time.ZoneId z) { return this; }
+            public Instant instant() { return now[0]; }
+        };
+        EditorChannel ch = EditorChannel.mailbox(project, moving, d -> now[0] = now[0].plus(d));
+
+        assertThat(ch.send("show_graph", JSON.createObjectNode())).contains("did not answer in time");
+        try (var left = Files.list(guide.resolve("requests"))) {
+            assertThat(left).isEmpty();
         }
     }
 
