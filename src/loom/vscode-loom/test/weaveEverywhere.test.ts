@@ -84,11 +84,12 @@ test('the launcher the extension writes lives at one place a person and a coding
     assert.equal(launcherFolder('/home/asha'), path.join('/home/asha', '.llm4j', 'bin'));
 });
 
-test('the shell profile is the one the person uses', () => {
-    assert.equal(rcFileFor('/bin/zsh', '/home/asha'), path.join('/home/asha', '.zshrc'));
-    assert.equal(rcFileFor('/usr/bin/bash', '/home/asha'), path.join('/home/asha', '.bashrc'));
-    assert.equal(rcFileFor('/usr/bin/fish', '/home/asha'), path.join('/home/asha', '.profile'));
-    assert.equal(rcFileFor(undefined, '/home/asha'), path.join('/home/asha', '.profile'));
+test('the shell profile is the one the person uses, and bash on macOS gets the profile its login shells read', () => {
+    assert.equal(rcFileFor('/bin/zsh', '/home/asha', 'linux'), path.join('/home/asha', '.zshrc'));
+    assert.equal(rcFileFor('/usr/bin/bash', '/home/asha', 'linux'), path.join('/home/asha', '.bashrc'));
+    assert.equal(rcFileFor('/bin/bash', '/Users/asha', 'darwin'), path.join('/Users/asha', '.bash_profile'));
+    assert.equal(rcFileFor('/usr/bin/fish', '/home/asha', 'linux'), path.join('/home/asha', '.profile'));
+    assert.equal(rcFileFor(undefined, '/home/asha', 'linux'), path.join('/home/asha', '.profile'));
 });
 
 test('the PATH block is added once, after what the person wrote, and adding it again changes nothing', () => {
@@ -113,12 +114,22 @@ test('the Windows command appends the folder to the user PATH only when it is mi
     assert.equal(command.includes('\n'), false);
 });
 
-test('the instructions for coding agents say where weave is when the shell has none, and how keys are set', () => {
+test('the instructions for coding agents name the launcher the skill brings, and say how keys are set', () => {
     const section = agentsSection();
 
+    assert.ok(section.includes('.agents/skills/llm4j-workflow-guide/scripts/weave'));
+    assert.ok(section.includes('scripts\\weave.cmd'));
     assert.ok(section.includes('~/.llm4j/bin/weave'));
-    assert.ok(section.includes('%USERPROFILE%\\.llm4j\\bin\\weave.cmd'));
+    assert.match(section, /Prefer it over/);
     assert.ok(section.includes('weave keys --model'));
     assert.match(section, /which models/);
-    assert.match(section, /never .*weave secrets set/i);
+    assert.match(section, /themselves or deploy it/);
+    assert.match(section, /never run .*weave secrets set/i);
+});
+
+test('nothing is written to the home folder until the person asks for weave in every terminal', () => {
+    const register = fs.readFileSync(path.join(root, 'src', 'terminal', 'register.ts'), 'utf8');
+
+    assert.match(register, /const folder = path\.join\(context\.globalStorageUri\.fsPath, 'bin'\)/);
+    assert.match(register, /if \(context\.globalState\.get<boolean>\(EVERYWHERE, false\)\)/);
 });

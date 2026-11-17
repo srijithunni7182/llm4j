@@ -22,18 +22,21 @@ export const PATH_BLOCK_BEGIN = '# >>> weave: added by the Loom extension (Loom:
 export const PATH_BLOCK_END = '# <<< weave <<<';
 
 /**
- * Where the extension writes its launcher: `~/.llm4j/bin`. One folder that does not move when the extension is updated, so a
- * person, a shell profile and a coding agent's instructions can all name it.
+ * Where **Loom: Make weave Available in Every Terminal** puts the launcher: `~/.llm4j/bin`, one folder that does not move when the
+ * extension is updated, so a shell profile can name it. Nothing is written there until the person runs that command.
  */
 export function launcherFolder(home: string): string {
     return path.join(home, '.llm4j', 'bin');
 }
 
-/** The profile a POSIX shell reads for new terminals: zsh and bash have their own; anything else reads ~/.profile. */
-export function rcFileFor(shell: string | undefined, home: string): string {
+/**
+ * The profile a POSIX shell reads for new terminals: zsh reads ~/.zshrc; bash reads ~/.bashrc, except on macOS, where Terminal
+ * starts login shells that read ~/.bash_profile; anything else reads ~/.profile.
+ */
+export function rcFileFor(shell: string | undefined, home: string, platform: NodeJS.Platform): string {
     const name = path.basename(shell ?? '');
     if (name === 'zsh') return path.join(home, '.zshrc');
-    if (name === 'bash') return path.join(home, '.bashrc');
+    if (name === 'bash') return path.join(home, platform === 'darwin' ? '.bash_profile' : '.bashrc');
     return path.join(home, '.profile');
 }
 

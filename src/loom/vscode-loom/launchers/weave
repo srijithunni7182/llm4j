@@ -1,7 +1,7 @@
 #!/bin/sh
 # weave, as the Loom extension carries it: runs bin/weave.jar from this extension's folder. It works before the extension
 # has started, from any terminal and for any coding agent. Java comes from LOOM_JAVA, else JAVA_HOME, else the PATH.
-# The extension also writes a copy of the launcher to ~/.llm4j/bin/weave, a path that does not change with its version.
+# Loom: Make weave Available in Every Terminal writes a copy to ~/.llm4j/bin/weave, a path that does not change with its version.
 # only shell built-ins until Java is found, so a bare PATH still gets a clear message
 case "$0" in */*) dir="${0%/*}" ;; *) dir=. ;; esac
 here="$(cd "$dir" && pwd -P)"

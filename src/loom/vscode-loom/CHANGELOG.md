@@ -2,8 +2,8 @@
 
 ## 1.10.0
 
-- **`weave` for coding agents and every terminal.** The extension writes its launcher to `~/.llm4j/bin/weave` (Windows: `%USERPROFILE%\.llm4j\bin\weave.cmd`), one path that an update does not move, instead of a folder inside VS Code's storage. It also carries ready-made launchers (`launchers/weave`, `launchers/weave.cmd`) that run its jar before it has ever started. **Loom: Make weave Available in Every Terminal** adds that folder to your shell profile after asking (macOS, Linux) or copies the PowerShell line that adds it to your user PATH (Windows).
-- **Set Up My Coding Agent says where weave is and how keys are set.** The `AGENTS.md` section tells the agent to run `~/.llm4j/bin/weave` when its shell has no `weave`, and, before the first run that calls a model, to ask which models you want and hand you the commands `weave keys` prints, for you to run in your own terminal. Needs the engine with `weave keys`.
+- **`weave` for coding agents and every terminal.** **Loom: Make weave Available in Every Terminal** writes a launcher to `~/.llm4j/bin/weave` (Windows: `%USERPROFILE%\.llm4j\bin\weave.cmd`) and adds that folder to your shell profile after asking (macOS, Linux; `~/.bash_profile` for bash on macOS) or copies the PowerShell line that adds it to your user PATH (Windows). Nothing is written to your home folder until you run it; after that, this editor keeps the launcher up to date. The extension also carries ready-made launchers (`launchers/weave`, `launchers/weave.cmd`) that run its jar before it has ever started.
+- **Set Up My Coding Agent says where weave is and how keys are set.** The `AGENTS.md` section tells the agent to run the workflow skill's launcher when its shell has no `weave`, and, before the first run that calls a model, to ask which models you want and whether you will run it yourself or deploy it, then hand you the lines `weave keys` prints for that route. Needs the engine with `weave keys`.
 
 ## 1.9.0
 

@@ -1,7 +1,7 @@
 @echo off
 rem weave, as the Loom extension carries it: runs bin\weave.jar from this extension's folder. It works before the
 rem extension has started, from any terminal and for any coding agent. Java comes from LOOM_JAVA, else JAVA_HOME, else
-rem the PATH. The extension also writes a copy to %USERPROFILE%\.llm4j\bin\weave.cmd, a path that does not change.
+rem the PATH. Make weave Available in Every Terminal writes a copy to %USERPROFILE%\.llm4j\bin\weave.cmd.
 setlocal
 set "WEAVE_JAR=%~dp0..\bin\weave.jar"
 if not exist "%WEAVE_JAR%" (
