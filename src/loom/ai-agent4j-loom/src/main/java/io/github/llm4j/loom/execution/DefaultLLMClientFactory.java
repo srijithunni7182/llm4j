@@ -5,9 +5,11 @@ import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.ollama.OllamaProvider;
+import io.github.llm4j.provider.openai.Vendor;
 import io.github.llm4j.secret.SecretRef;
 import io.github.llm4j.secret.SecretStore;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -116,18 +118,17 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
      *
      * @throws IllegalArgumentException for a name this factory cannot place, with what it takes
      */
-    public static java.util.Optional<String> keyNameOf(String modelName) {
+    public static Optional<String> keyNameOf(String modelName) {
         Kind kind = modelName == null || modelName.isBlank() ? null : kindOf(modelName);
         if (kind == null)
             throw new IllegalArgumentException(new DefaultLLMClientFactory(name -> null).problem(modelName));
         return switch (kind) {
-            case GEMINI -> java.util.Optional.of("GEMINI_API_KEY");
-            case ANTHROPIC -> java.util.Optional.of("ANTHROPIC_API_KEY");
-            case OLLAMA -> java.util.Optional.empty();
+            case GEMINI -> Optional.of("GEMINI_API_KEY");
+            case ANTHROPIC -> Optional.of("ANTHROPIC_API_KEY");
+            case OLLAMA -> Optional.empty();
             case VENDOR -> {
-                io.github.llm4j.provider.openai.Vendor vendor =
-                        io.github.llm4j.provider.openai.Vendor.ofModel(modelName).orElseThrow().vendor();
-                yield vendor.keyOptional() ? java.util.Optional.empty() : java.util.Optional.ofNullable(vendor.keyEnv());
+                Vendor vendor = Vendor.ofModel(modelName).orElseThrow().vendor();
+                yield vendor.keyOptional() ? Optional.empty() : Optional.ofNullable(vendor.keyEnv());
             }
         };
     }

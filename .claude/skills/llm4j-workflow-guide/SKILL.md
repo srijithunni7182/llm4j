@@ -11,7 +11,7 @@ may not be here, so never send the user to a repository path and never ask them 
 - `weave guide` lists the guide; `weave guide 6` prints chapter 6; `weave guide loom` prints the Loom reference (every statement, option and
   command); `weave guide llms` prints a one-page index of the framework. The chapters are also in `references/` next to this file when the
   skill was installed with `weave guide --install-skill`.
-- **No `weave` in your terminal?** Outside VS Code's own terminals there may be none on the PATH. Run `~/.llm4j/bin/weave` (Windows: `%USERPROFILE%\.llm4j\bin\weave.cmd`), which the Loom extension writes, or `scripts/weave <command>` from this skill: it finds a weave (that launcher, the extension's jar, `bin/`, a fetched jar) or prints the one line that installs it (`jbang app install weave@srijithunni7182/llm4j`). Tell the person once if it prints the install line, and that **Loom: Make weave Available in Every Terminal** puts it on the PATH for good; do not build the command line from source.
+- **No `weave` in your terminal?** Outside VS Code's own terminals there may be none on the PATH. Run `scripts/weave <command>` from this skill: it finds a weave (`~/.llm4j/bin/weave` when the person has run **Loom: Make weave Available in Every Terminal**, the extension's jar, `bin/`, a fetched jar) or prints the one line that installs it (`jbang app install weave@srijithunni7182/llm4j`). Tell the person once if it prints the install line, and that **Loom: Make weave Available in Every Terminal** puts it on the PATH for good; do not build the command line from source.
 - If the person has described a goal but not a shape, the `llm4j-workflow-patterns` skill picks one first.
 - `weave init <template>` creates a small, complete, working project (`weave init --list` shows them).
 - `weave --help` and `weave <command> --help` are the truth about options. Do not guess a name; look.
@@ -84,11 +84,10 @@ you reach that situation, and do not guess at what it adds.
   check, say whether the gate passed. **5. Spend money last:** prove every stage free first; a mock run proves wiring, never quality; unjudged is never a pass.
 - **6. Before any real run, confirm** the provider's spending limit, a cap below it, where the key is, and a green free run. Ask who grades the
   plain-sentence checks and with which key before the first paid evaluation.
-- **7. Keys: ask which models, then hand over the exact commands.** Before anything calls a model, ask which models the person wants, run
-  `weave keys --model <name>` (or `weave keys <script>`), and give them the commands it prints to run in their own terminal; never run `weave secrets set`
-  yourself. Ask which person this is (developer on a laptop with `weave`, or a program or server) and show both routes side by side. **Never
-  read, open, print or paste `.env`, never ask for a key in the chat, and never put a key in `.env.example` or a script.** Vault-held keys need a small
-  Java host: read the rule.
+- **7. Keys: ask which person this is** (developer on a laptop with `weave`, or a program or server) and show both routes side by side. Before anything
+  calls a model, ask which models they want and run `weave keys --model <name>` (or `weave keys <script>`): hand them the lines it prints for their
+  route, to set themselves; never run `weave secrets set` yourself. **Never read, open, print or paste `.env`, never ask for a key in the chat, and
+  never put a key in `.env.example` or a script.** Vault-held keys need a small Java host: read the rule.
 - **8. Treat failing checks as findings.** Fix the prompt or tool; never weaken a check to get green. **9. Check names against the tools:**
   `weave <command> --help` and `weave guide loom`, not memory.
 - **10. If something is missing, write it.** A capability an agent may call is a tool; an activity that must happen every time is a **task** run with

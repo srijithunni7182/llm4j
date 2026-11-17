@@ -191,6 +191,7 @@ New and additive. It runs workflows from an application and resumes them from a 
 
 - `Persistence.file(dir)` uses the folder layout `weave` uses.
 - `Persistence.jdbc(dataSource)` uses the tables `LoomHost.createSchema` creates, including `llm4j_loom_runs` and `llm4j_loom_answers`.
+- `io.github.llm4j.loom.execution.DefaultLLMClientFactory.keyNameOf(model)` (added in 6.2.0): the name of the key a model needs (`GEMINI_API_KEY` for `gemini-2.5-flash`), empty for a model that needs none, from the model's name alone. `weave keys` uses it; an application can use it to say which key is missing before it starts a run. Additive.
 
 Beside it:
 

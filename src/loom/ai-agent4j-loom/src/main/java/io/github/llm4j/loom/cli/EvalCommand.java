@@ -312,7 +312,6 @@ final class EvalCommand implements Callable<Integer> {
         return true;
     }
 
-    /** Writes the JUnit class of {@code --emit-test}. */
     /**
      * The script as a generated test names it. A Maven build runs tests from the project's folder,
      * so in a project the path is relative to it and the class works on any machine; elsewhere
@@ -325,6 +324,7 @@ final class EvalCommand implements Callable<Integer> {
         return Path.of(root.relativize(whole).toString().replace('\\', '/'));
     }
 
+    /** Writes the JUnit class of {@code --emit-test}. */
     private static int emitTest(EvalCommand c, WeaveEnv env) {
         Path target = c.emitTest.toPath();
         String source;
