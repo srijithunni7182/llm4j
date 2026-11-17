@@ -2,6 +2,14 @@
 
 All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX.md)). This release is the field findings program ([docs/specs/FIELD_FINDINGS.md](specs/FIELD_FINDINGS.md)), a Loom tutorial and a starter set. Each item says what changed for you.
 
+## The Loom Guide: a companion that teaches while the workflow is built (phase 37)
+
+- **A Guide in the editor that explains, shows and asks, and never builds.** It runs as an `llm4j-guide` agent of the assistant you already use (a Copilot custom agent or a Claude Code agent, on your own subscription). **Loom: Set Up the Guide** writes both and the `.mcp.json` entry; **Loom: Open the Guide** opens it. It reads where the project stands from code, opens the graph, the review, the eval4j report and the live run page at the right moment, asks you for the decisions that are yours, and drafts instructions you give your coding agent. See [The Loom Guide](../wiki/The-Loom-Guide.md).
+- **`weave next` teaches.** Each stage now says why it exists, what to look at, the decision that is yours, what a skip loses, and the evidence its state was read from. A new stage, *Design the harness* (`HARNESS.md`), is second, for every workflow. `weave next --skip <stage> --because "..."` records a skip that stays visible with what it loses; a skip never hides a failing or finished stage.
+- **New commands:** `weave guide-context` (the bounded project summary the Guide reads: names and numbers only), `weave guide-facts` (what each feature is for and does not do), `weave guide-mcp` (the Guide's MCP server: read, show and steering tools only).
+- **The skills make the thorough path the default.** Two shared conventions: a shortcut only when you insist, with what it loses said once and recorded; and narrate, show and report each gate (to the Guide's `journey_checkpoint` when it is there). The workflow-guide skill no longer offers the fast lane unasked.
+- **The VS Code extension needs VS Code 1.101 or newer.**
+
 ## Sarvam's V2 chat and its Token Factory models
 
 - **`OpenAiCompatibleProvider.sarvam(config)`, `Dialect.SARVAM` and `Vendor.SARVAM`.** Sarvam's V2 chat completions serve its own `sarvam-105b` and the open-weight models of its Token Factory (`glm5.3`, `glm5.3-flash`, `gemma4`, `deepseekv4.1-flash-1017`, and provisioned models such as `kimi-k3.1-pro` and `qwen38-27b`) on the same `SARVAM_API_KEY`, with native tools, streaming reasoning, JSON-Schema output and pictures. Each model family's thinking switch is sent for you (`reasoning_effort: "none"` where the model takes it). Supported: recorded from the real API on 2026-11-12 and checked with the live suite on four models. See [OpenAI-family providers](../src/ai-agent4j/wiki/OpenAI-Family-Providers.md#sarvam-ai-and-its-token-factory).

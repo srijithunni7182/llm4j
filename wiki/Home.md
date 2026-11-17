@@ -52,6 +52,7 @@ Each module answers the question the previous one raises.
 - [Typed workflows in Java, and deploying them](Typed-Workflows-in-Java-and-Deploying.md): generated bindings, Spring beans, and the container files `weave deploy` writes
 - [Your first run](Your-First-Run.md): `weave try` on demo models, `weave doctor`, and the guided path
 - [Working with a coding agent](Working-with-a-Coding-Agent.md): one click teaches Claude Code, Copilot, Cursor or any agent that reads AGENTS.md to build with Loom; it looks commands up with `weave man`
+- [The Loom Guide](The-Loom-Guide.md): a companion agent in Copilot or Claude Code that explains, shows and asks while your workflow is built, and never edits a file
 - [Command reference](../docs/COMMAND_REFERENCE.md): every `weave` command, its options, examples and exit codes (in a terminal: `weave man`)
 - [Embedding Loom in an application](Embedding-Loom-in-an-Application.md): run workflows from your own program with `LoomHost`, hear a question, give the answer, learn how each run ended
 - [Starting and supervising workflows](Starting-and-Supervising-Workflows.md): start a workflow as a child run, wait for it, cancel it, steer it and watch it with rules, and what a restart does

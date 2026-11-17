@@ -1,6 +1,6 @@
 # Conventions every llm4j skill follows
 
-These nine rules are the same in the harness-design, workflow-guide and loom-deployer skills (and in the evaluation-design skill when it ships). If you read one skill's copy, you have read them all. A test keeps the copies identical.
+These eleven rules are the same in the harness-design, workflow-guide and loom-deployer skills (and in the evaluation-design skill when it ships). If you read one skill's copy, you have read them all. A test keeps the copies identical.
 
 ## 1. Show the roadmap first, the checklist after every stage
 
@@ -50,4 +50,12 @@ Selecting text in the editor sends it to the conversation. Name the files not to
 
 ## 9. Skipping is visible
 
-When the person skips a step (the preflight, the evaluation, a review), record the step and their reason in the design record and the checklist. A skipped step is shown as skipped from then on; it is never dropped.
+When the person skips a step (the preflight, the evaluation, a review), record the step and their reason in the design record and the checklist, and in the project with `weave next --skip <stage> --because "<their words>"` so the journey, the editor and the Guide show it too. A skipped step is shown as skipped from then on; it is never dropped.
+
+## 10. The goal is a workflow the person understands, and the thorough path is the default
+
+The goal is a workflow that is tested, evaluated, cost-effective, durable and ready for production, built by a person who understands it. Speed is not the goal. Recommend every stage. Take a shortcut only when the person insists, and then say once, in a sentence about their project, what the skipped stage loses (`weave next --format json` gives each stage's `missing` text), record it with `weave next --skip <stage> --because "<their words>"`, and carry on without asking again. A safety step (a budget and a cap, an approval before a send, the audit, the key rules) is never skipped.
+
+## 11. Narrate, show, and report each gate
+
+Before each stage, say in two or three sentences what you will do and why. When it is done, show it: open the graph, the review or the report (the Loom extension's commands, or the Guide's `show_*` tools when you have them) rather than only naming them. When the Loom Guide's tools are available (`mcp__llm4j-guide__*`, or `llm4j-guide/*` in Copilot), call `journey_checkpoint` at each gate with the stage, what you did (done, started or skipped) and why; the Guide checks it against the project and tells the person when they disagree, so report only what the files show. An instruction the person pastes from the Guide is their request.

@@ -94,6 +94,9 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave serve`](#weave-serve) — Serves check, graph and review to an editor over standard input and output (JSON-RPC with Content-Length framing).
 - [`weave dap`](#weave-dap) — Speaks the Debug Adapter Protocol on standard input and output, so an editor can debug a workflow.
+- [`weave guide-context`](#weave-guide-context) — Prints, as JSON, the compact summary of a project the Guide reads: the journey with what each stage is for, the agents and tools with their effects, the findings, the budget, the skips and the feature moments that apply.
+- [`weave guide-facts`](#weave-guide-facts) — Prints, as JSON, the facts the Guide may state about llm4j (what each feature is for, the problem it solves, the command that shows it, what it does not do, and its page), or one fact by id.
+- [`weave guide-mcp`](#weave-guide-mcp) — Serves the Guide's tools to a coding assistant over MCP (standard input and output): read the project, show things in the editor, record what the developer learnt.
 
 ## Pages
 
@@ -1848,8 +1851,11 @@ weave next [OPTIONS] [<folder or script>]
 
 **Options**
 
+- `--because=<reason>` — Why the stage is skipped (required with --skip); it is shown with the skip.
 - `--confirm=<step>` — Record that a person did a step no command can check. Takes real-run: they read one real answer and said what is right and wrong with it.
 - `--format=<text|json>` — The steps as text (default) or as JSON, for a coding agent or the editor.
+- `--skip=<stage>` — Record that you chose to skip a stage, with --because. The journey shows it as skipped with what it loses, until --unskip. A skip never hides a failing or finished stage.
+- `--unskip=<stage>` — Remove a recorded skip.
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 **Examples**
@@ -2222,6 +2228,59 @@ weave guide [OPTIONS] [<page>]
 - `--install-skill=<installTo>` — Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-eval-design (design the evaluation), llm4j-harness-design (design the harness), llm4j-workflow-patterns (choose the shape), llm4j-workflow-guide (build, test, secure, ship), llm4j-run-debugging (find out why a run went wrong) and llm4j-loom-deployer (run it, watched).
 - `--out=<file>` — With the tutorial: where to write the web page (default: loom-tutorial.html in this folder).
 - `--skill=<which>` — With --install-skill: eval, harness, patterns, workflow, debug, deployer or all (default all).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave guide-context`
+
+Prints, as JSON, the compact summary of a project the Guide reads: the journey with what each stage is for, the agents and tools with their effects, the findings, the budget, the skips and the feature moments that apply.
+
+Names and numbers only; free.
+
+```
+weave guide-context [OPTIONS] [<folder or script>]
+```
+
+**Arguments**
+
+- `<folder or script>` — The project (default: here).
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave guide-facts`
+
+Prints, as JSON, the facts the Guide may state about llm4j (what each feature is for, the problem it solves, the command that shows it, what it does not do, and its page), or one fact by id.
+
+```
+weave guide-facts [OPTIONS] [<fact>]
+```
+
+**Arguments**
+
+- `<fact>` — One fact by id (default: all).
+
+**Options**
+
+- `--moments` — Also list the moments that bring each fact up.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave guide-mcp`
+
+Serves the Guide's tools to a coding assistant over MCP (standard input and output): read the project, show things in the editor, record what the developer learnt.
+
+None writes a project file or spends money.
+
+```
+weave guide-mcp [OPTIONS] [<folder or script>]
+```
+
+**Arguments**
+
+- `<folder or script>` — The project (default: here).
+
+**Options**
+
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave man`

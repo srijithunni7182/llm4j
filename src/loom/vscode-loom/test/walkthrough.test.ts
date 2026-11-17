@@ -30,15 +30,16 @@ test('every completion event names a declared command or a built-in event', () =
     }
 });
 
-test('the walkthrough has the four steps in order, and every media file exists', () => {
-    assert.deepEqual(walkthrough.steps.map((s: { id: string }) => s.id), ['loom.step.agent', 'loom.step.chat', 'loom.step.demo', 'loom.step.tour']);
+test('the walkthrough has the five steps in order, and every media file exists', () => {
+    assert.deepEqual(walkthrough.steps.map((s: { id: string }) => s.id), ['loom.step.agent', 'loom.step.guide', 'loom.step.chat', 'loom.step.demo', 'loom.step.tour']);
     for (const s of walkthrough.steps) {
         assert.ok(fs.existsSync(path.join(root, s.media.markdown)), s.media.markdown);
     }
     assert.ok(walkthrough.steps[0].description.includes('(command:loom.installSkill)'));
     assert.deepEqual(walkthrough.steps[0].completionEvents, ['onCommand:loom.installSkill']);
-    assert.ok(walkthrough.steps[1].description.includes('(command:loom.startWorkflowInChat)'));
-    assert.ok(walkthrough.steps[2].description.includes('(command:loom.try)'));
+    assert.ok(walkthrough.steps[1].description.includes('(command:loom.guide.setUp)'));
+    assert.ok(walkthrough.steps[2].description.includes('(command:loom.startWorkflowInChat)'));
+    assert.ok(walkthrough.steps[3].description.includes('(command:loom.try)'));
 });
 
 test('the tour covers every major capability and names the four skills in order', () => {

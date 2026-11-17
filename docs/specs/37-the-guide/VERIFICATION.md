@@ -61,7 +61,7 @@ The default build needs no model and no key. `make test-live` is never run unask
 | A8 | Each show tool opens the right thing; `show_file` stays in the root; `open_secret_form` returns no value; no run starts without the developer's confirmation | R12 | E1, E3 |
 | A9 | Each host registers read, show and steering tools only; the Claude agent allows nothing else | principle 41, R17 | E1 (each guard broken once) |
 | A10 | One MCP server serves both hosts; both agent files carry the same persona text and allow only the Guide's tools and reading | D8, D10 | E1 |
-| A11 | The bridge refuses without the token, listens on loopback only, and fails clearly when the extension is not running | DESIGN §5 | E1 |
+| A11 | The editor channel opens no connection, hands the editor only whole requests, refuses what is not listed or not inside the project, and fails clearly when the editor is not open or does not answer | DESIGN §5 | E1 |
 | A12 | An instruction for the builder is sent only by the developer's click; a mismatched checkpoint is flagged | R13, R14 | E1, E3 |
 | A13 | The scenario dataset passes against recorded answers, including the planted-instruction, key and overclaim families | principles 43 to 51, D18 | E2 |
 | A14 | The Guide works end to end on Copilot | R16, R19 | E3 (M1) |
@@ -73,7 +73,7 @@ The default build needs no model and no key. `make test-live` is never run unask
 
 - After each sub-phase: `make test-core`. After any change to docs, skills or commands: `make docs-check`.
 - At the end of the phase: `make test-fast` on `ai-agent4j-loom`, the extension's tests (`npm test` in `src/loom/vscode-loom`), `make format-check` where it applies, and `make test-oracle` once.
-- The JaCoCo gates of `ai-agent4j-loom` hold for the new classes. New guard logic (the skip list, the summary's filtering, the bridge's token check) is added to the `mutation` profile, and its score does not drop.
+- The JaCoCo gates of `ai-agent4j-loom` hold for the new classes. New guard logic (the skip list, the summary's filtering, the server's tool list) is added to the `mutation` profile, and its score does not drop.
 - `make test-full` is left to CI.
 
 ## 3. Manual checks

@@ -57,11 +57,10 @@ Status: **final; nothing built.** Requirements are in [DESIGN.md](DESIGN.md) §3
 - **The agents' allow-lists (R16, R17).** A test reads the Claude plugin's agent and the Copilot custom agent and fails if either allows editing, a shell, web tools or any MCP server other than the Guide's.
 - **The contract (D10).** One table of tool names, parameter schemas and result shapes, which the server must match.
 - **The editor channel (DESIGN §5).**
-  - A request without the token is refused, and so is one with the wrong token.
-  - It listens on loopback only.
-  - The token file's permissions are owner-only.
-  - The editor tools are forwarded.
-  - When the extension is not running, it answers with a clear error, not a hang. Timeouts are bounded.
+  - A request is written whole and its answer read and removed; with no `editor.json` the answer says the editor is not open, at once.
+  - A request the editor never answers is given up after its bound (fake clock and sleeper) and removed.
+  - On the editor's side: only the listed actions run; a path outside the project or through a link out of it, a malformed key name or host, an empty or long instruction, a stale or malformed request, or one with a strange id is refused or dropped before any action.
+  - The extension still opens no connection (`noNetwork.test.ts`).
 - **Steering (R13, R14).**
   - `draft_builder_instruction` never sends without the developer's click.
   - A checkpoint whose claim disagrees with the journey produces `claim-mismatch`.

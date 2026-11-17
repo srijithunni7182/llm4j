@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.11.0
+
+- **The Loom Guide (phase 37).** A companion that explains, shows and asks while your coding agent builds the workflow, and never edits a file. It runs as an `llm4j-guide` agent of the assistant you already use: **Loom: Set Up the Guide** writes a Copilot custom agent (`.github/agents/llm4j-guide.agent.md`), a Claude Code agent (`.claude/agents/llm4j-guide.md`) and the `llm4j-guide` server in `.mcp.json` (other servers and any file you changed are left alone); **Loom: Open the Guide** opens it in Copilot Chat or in a terminal running `claude --agent llm4j-guide`. Its tools come from `weave guide-mcp`, which the extension also registers with the editor: it reads where the project stands, and asks the editor to open the graph, the review, the eval4j report, a file, a capped observed run, a terminal where you type a key with no echo, or an instruction you put in your agent's chat yourself. There is no network between them: requests and answers are files in `.loom/guide`.
+- **Notes from the Guide.** When a stage starts failing or goes out of date, a first real result arrives, or your coding agent claims a stage the project does not show, a notice offers **Ask the Guide** (at most one every two minutes; `loom.guide.notices` turns them off), and the status bar counts the notes not yet discussed.
+- **The walkthrough's second step is Meet the Loom Guide.**
+- **Needs VS Code 1.101 or newer** (the editor's MCP server API). The journey in the Outline has eleven stages: *Design the harness* is the second.
+
 ## 1.10.0
 
 - **`weave` for coding agents and every terminal.** **Loom: Make weave Available in Every Terminal** writes a launcher to `~/.llm4j/bin/weave` (Windows: `%USERPROFILE%\.llm4j\bin\weave.cmd`) and adds that folder to your shell profile after asking (macOS, Linux; `~/.bash_profile` for bash on macOS) or copies the PowerShell line that adds it to your user PATH (Windows). Nothing is written to your home folder until you run it; after that, this editor keeps the launcher up to date. The extension also carries ready-made launchers (`launchers/weave`, `launchers/weave.cmd`) that run its jar before it has ever started.

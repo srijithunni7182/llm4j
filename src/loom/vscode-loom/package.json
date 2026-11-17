@@ -2,7 +2,7 @@
   "name": "vscode-llm4j-loom",
   "displayName": "Loom for llm4j: AI agent workflows",
   "description": "Build, review, test and run multi-agent AI workflows: generate from a sentence, see the graph, review for cost and security. Loom language support (.loom, .loot).",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "publisher": "srijithunni7182",
   "homepage": "https://github.com/srijithunni7182/llm4j/tree/main/src/loom",
   "bugs": {
@@ -632,6 +632,17 @@
             },
             "completionEvents": [
               "onCommand:loom.installSkill"
+            ]
+          },
+          {
+            "id": "loom.step.guide",
+            "title": "Meet the Loom Guide",
+            "description": "A companion that explains, shows and asks while your workflow is built.\n[Set Up the Guide](command:loom.guide.setUp)",
+            "media": {
+              "markdown": "media/walkthrough/01b-meet-the-guide.md"
+            },
+            "completionEvents": [
+              "onCommand:loom.guide.setUp"
             ]
           },
           {

@@ -8,10 +8,11 @@
 
 ## Get started
 
-1. Install the extension. It carries its own engine and needs only **Java 17** or newer.
+1. Install the extension (VS Code 1.101 or newer). It carries its own engine and needs only **Java 17** or newer.
 2. Run **Loom: Set Up My Coding Agent**. Your coding agent (Claude Code, GitHub Copilot, Cursor or Codex) gets Loom's four skills and can design, build, test and deploy workflows for you. The chat then opens with a starter prompt typed in.
-3. Run **Loom: Try a Demo**. It runs a bundled workflow on demo models, so it needs no key and costs nothing.
-4. Run **Loom: Generate Workflow...** to turn a sentence into a checked project, or **Loom: New Workflow from Starter...** to copy one of twenty ready workflows, or open any `.loom` file.
+3. Run **Loom: Set Up the Guide**. The Loom Guide explains each stage while your agent builds, opens the graph, review and report at the right moment, and asks for the decisions that are yours. It runs on the Copilot or Claude Code you already use and never edits a file.
+4. Run **Loom: Try a Demo**. It runs a bundled workflow on demo models, so it needs no key and costs nothing.
+5. Run **Loom: Generate Workflow...** to turn a sentence into a checked project, or **Loom: New Workflow from Starter...** to copy one of twenty ready workflows, or open any `.loom` file.
 
 The same path is a guided **Walkthrough**: run **Loom: Open Walkthrough**. It opens by itself the first time the extension runs.
 
@@ -25,6 +26,7 @@ The same path is a guided **Walkthrough**: run **Loom: Open Walkthrough**. It op
 - **Run and watch.** A real run, capped by cost, with a live page for cost, context and incidents.
 - **Ship.** Docker, Compose and Kubernetes files read from the script.
 - **Set up your coding agent.** Teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom.
+- **The Loom Guide.** A companion agent in Copilot or Claude Code that teaches you the stack while your workflow is built: why each stage exists, what the graph, review and report show, what a skip loses. It never edits files.
 - **Language support.** Highlighting, checks from the engine's own parser, completion, hover, go to definition, rename and snippets.
 
 ![The Review panel: the workflow's steps with their findings, and why each one matters](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/vscode-loom/review-split.png)

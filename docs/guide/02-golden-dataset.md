@@ -13,7 +13,7 @@ test your prompts (chapter 3), agents (5) and workflow (8), and fill the dashboa
 
 ## Skippable, and where it lives
 
-A prototype may skip this chapter (record it in the README as `Evaluation: skipped`, and go to chapter 6). The cost is that nothing then measures whether the agents are right: `weave run` and `weave deploy` say so every time, `weave review` reports LT06 (medium when the script can write, send or ask a person), and `weave next` keeps listing the dataset as the next step. For a script run with `weave`, the
+A prototype may skip this chapter (record it with `weave next --skip golden-dataset --because "..."`, or in the README as `Evaluation: skipped`, and go to chapter 6). The cost is that nothing then measures whether the agents are right: `weave run` and `weave deploy` say so every time, `weave review` reports LT06 (medium when the script can write, send or ask a person), and `weave next` keeps listing the dataset as the next step. For a script run with `weave`, the
 dataset is a folder of YAML files beside the script, with no Java:
 
 ```
