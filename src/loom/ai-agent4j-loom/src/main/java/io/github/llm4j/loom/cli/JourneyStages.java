@@ -14,9 +14,10 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * The ten stages of the journey from an idea to a watched deployment, each with a state read from
- * the project's files and the results recorded in it. Nothing here calls a model or asks a person,
- * so the editor and the skills can show it as often as they like.
+ * The eleven stages of the journey from an idea to a watched deployment, each with a state read
+ * from the project's files and the results recorded in it, the evidence that state came from, and
+ * the person's skips. Nothing here calls a model or asks a person, so the editor, the skills and the
+ * Guide can read it as often as they like.
  */
 final class JourneyStages {
 
@@ -26,12 +27,75 @@ final class JourneyStages {
     static final String SKIPPED = "skipped";
     static final String STALE = "stale";
 
-    /** One stage: a stable id, a title, its state, why, and the command that moves it on (or null for an edit). */
-    record Stage(int number, String id, String title, String state, String detail, String command) {}
+    /**
+     * One stage: a stable id, a title, its state, why, the command that moves it on (or null for an
+     * edit), and the evidence its state was read from.
+     */
+    record Stage(int number, String id, String title, String state, String detail, String command, List<String> evidence) {
+        Stage {
+            evidence = List.copyOf(evidence);
+        }
+
+        Stage(int number, String id, String title, String state, String detail, String command) {
+            this(number, id, title, state, detail, command, List.of());
+        }
+
+        Stage numbered(int n) {
+            return new Stage(n, id, title, state, detail, command, evidence);
+        }
+
+        Stage withEvidence(List<String> e) {
+            return new Stage(number, id, title, state, detail, command, e);
+        }
+
+        Stage withState(String newState, String newDetail) {
+            return new Stage(number, id, title, newState, newDetail, command, evidence);
+        }
+    }
+
+    /** The stages with the person's skips applied, the skips themselves, and what could not be read. */
+    record Journey(List<Stage> stages, java.util.Map<String, SkippedStages.Skip> skips, List<String> warnings) {
+        Journey {
+            stages = List.copyOf(stages);
+            skips = java.util.Map.copyOf(skips);
+            warnings = List.copyOf(warnings);
+        }
+    }
+
+    /** The stage ids, in order: what {@code weave next --skip} accepts. */
+    static final List<String> IDS =
+            List.of(
+                    "decide-agents", "design-harness", "design-evaluation", "golden-dataset", "script",
+                    "audit-and-review", "scripted-tests", "preflight", "real-run-read", "real-evaluation", "deploy");
+
+    /** The three stages the README line {@code Evaluation: skipped} stands for. */
+    static final List<String> EVALUATION_STAGES = List.of("design-evaluation", "golden-dataset", "real-evaluation");
 
     private JourneyStages() {}
 
     static List<Stage> of(
+            Path script, LoomScript loaded, ProjectAdvisor.CheckResult check, AuditReport audit) {
+        return journey(script, loaded, check, audit).stages();
+    }
+
+    /** The journey with its evidence, the recorded skips and any warning about reading them. */
+    static Journey journey(
+            Path script, LoomScript loaded, ProjectAdvisor.CheckResult check, AuditReport audit) {
+        Path root = io.github.llm4j.loom.init.ProjectLayout.root(script);
+        SkippedStages.Read skips = SkippedStages.read(root);
+        List<Stage> out = new ArrayList<>();
+        int n = 0;
+        for (Stage st : computed(script, loaded, check, audit)) {
+            Stage s = st.numbered(++n).withEvidence(evidence(st.id(), root, script, loaded, check, audit));
+            SkippedStages.Skip skip = skips.skips().get(s.id());
+            if (skip != null && (s.state().equals(NOT_STARTED) || s.state().equals(STALE)))
+                s = s.withState(SKIPPED, "skipped: " + skip.because());
+            out.add(s);
+        }
+        return new Journey(out, skips.skips(), skips.warning().map(List::of).orElse(List.of()));
+    }
+
+    private static List<Stage> computed(
             Path script, LoomScript loaded, ProjectAdvisor.CheckResult check, AuditReport audit) {
         Path root = io.github.llm4j.loom.init.ProjectLayout.root(script);
         String file = io.github.llm4j.loom.init.ProjectLayout.shown(script);
@@ -47,6 +111,10 @@ final class JourneyStages {
                 loaded != null && !loaded.getAgents().isEmpty()
                         ? stage(1, "decide-agents", "Decide your agents", DONE, loaded.getAgents().size() + " agent(s) in the script", null)
                         : stage(1, "decide-agents", "Decide your agents", NOT_STARTED, "the script has no agent yet", null));
+        stages.add(
+                Files.isRegularFile(root.resolve("HARNESS.md"))
+                        ? stage(0, "design-harness", "Design the harness", DONE, "HARNESS.md", null)
+                        : stage(0, "design-harness", "Design the harness", NOT_STARTED, HarnessShape.advice(loaded), null));
         stages.add(designStage(root, skippedEvaluation));
         stages.add(datasetStage(file, dataset, skippedEvaluation));
         stages.add(scriptStage(file, check, scriptValid));
@@ -75,6 +143,35 @@ final class JourneyStages {
 
     private static Stage stage(int number, String id, String title, String state, String detail, String command) {
         return new Stage(number, id, title, state, detail, command);
+    }
+
+    /** Where a stage's state was read from, in words a person can check for themselves. */
+    private static List<String> evidence(
+            String id, Path root, Path script, LoomScript loaded, ProjectAdvisor.CheckResult check, AuditReport audit) {
+        String file = io.github.llm4j.loom.init.ProjectLayout.shown(script);
+        List<String> e = new ArrayList<>(
+                switch (id) {
+                    case "decide-agents" -> List.of(file + ": " + (loaded == null ? "could not be read" : loaded.getAgents().size() + " agent(s)"));
+                    case "design-harness" -> List.of(present(root, "HARNESS.md"));
+                    case "design-evaluation" -> List.of(present(root, "EVAL_DESIGN.md"));
+                    case "golden-dataset" -> List.of(present(root, root.relativize(io.github.llm4j.loom.init.ProjectLayout.dataset(script)).toString()));
+                    case "script" -> List.of("weave check: " + check.errors().size() + " error(s), " + check.warnings().size() + " warning(s)");
+                    case "audit-and-review" -> List.of(audit == null
+                            ? "weave audit: not run (the script could not be read)"
+                            : "weave audit: " + audit.count(Severity.HIGH) + " high, " + audit.count(Severity.MEDIUM) + " medium, " + audit.count(Severity.LOW) + " low");
+                    case "scripted-tests" -> List.of("tests/*.test.yaml: " + (hasTests(root) ? "present" : "absent"));
+                    case "preflight" -> List.of(".loom/preflight.json: " + PreflightState.read(root, script).state());
+                    case "real-run-read" -> List.of(".loom/confirmed.json: " + (RealRunRead.confirmed(root, script) ? "a real answer was read" : "no confirmation"));
+                    case "real-evaluation" -> List.of(".loom/eval.json: " + EvalRecord.read(root).map(r -> "last evaluation " + r.mode()).orElse("absent"));
+                    case "deploy" -> List.of(present(root, "deploy"));
+                    default -> List.of();
+                });
+        if (EVALUATION_STAGES.contains(id) && readme(root).contains("Evaluation: skipped")) e.add("README.md: Evaluation: skipped");
+        return e;
+    }
+
+    private static String present(Path root, String path) {
+        return path + ": " + (Files.exists(root.resolve(path)) ? "present" : "absent");
     }
 
     private static Stage designStage(Path root, boolean skipped) {

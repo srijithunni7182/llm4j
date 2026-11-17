@@ -300,6 +300,8 @@
                                         <include>io.github.llm4j.loom.execution.InvokerSource</include>
                                         <include>io.github.llm4j.loom.execution.InvokerRefs</include>
                                         <include>io.github.llm4j.loom.cli.InvokerOptions*</include>
+                                        <include>io.github.llm4j.loom.cli.SkippedStages*</include>
+                                        <include>io.github.llm4j.loom.cli.GuideContext</include>
                                     </includes>
                                     <limits>
                                         <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit>

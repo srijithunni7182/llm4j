@@ -42,10 +42,10 @@ class ServeNextTest {
     }
 
     @Test
-    void itAnswersWithTheTenStagesAndThePrimaryStep() throws Exception {
+    void itAnswersWithTheElevenStagesAndThePrimaryStep() throws Exception {
         JsonNode result = next().path("result");
 
-        assertThat(result.path("stages")).hasSize(10);
+        assertThat(result.path("stages")).hasSize(11);
         assertThat(result.path("primary").path("id").asText()).isNotBlank();
         assertThat(next().path("cached").asBoolean(true)).isFalse();
     }
@@ -68,6 +68,6 @@ class ServeNextTest {
 
         JsonNode result = client.request("loom/next", p).path("result");
 
-        assertThat(result.path("result").path("stages").get(3).path("state").asText()).isEqualTo("failing");
+        assertThat(result.path("result").path("stages").get(4).path("state").asText()).isEqualTo("failing");
     }
 }

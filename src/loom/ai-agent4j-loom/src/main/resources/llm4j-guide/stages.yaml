@@ -1,0 +1,70 @@
+# The fixed texts of each journey stage, read by `weave next --format json` and the Guide.
+# why: what the stage protects against. see: what to look at when it is done, and where.
+# decision: what the developer owns at this stage. missing: what is lost when it is skipped.
+# Keep each under 60 words: the Guide words them for the project, it does not read them out.
+
+decide-agents:
+  why: "Each agent is a role with one job and its own model, prompt and tools. Deciding them first keeps prompts small, makes each one testable on its own, and stops one agent from holding authority it does not need."
+  see: "The graph (Loom: Show Graph) shows each agent as a node and what it may reach."
+  decision: "Which roles the work needs, and which model each one uses."
+  missing: "A workflow without agents cannot run; this stage cannot really be skipped."
+
+design-harness:
+  why: "The harness is everything around the model: how a run is bounded, how it knows it is done, how it survives a crash, who may step in and how it is watched. Designing it first means the script implements decisions instead of discovering them."
+  see: "HARNESS.md, written with the llm4j-harness-design skill, maps each decision onto a Loom construct."
+  decision: "The bounds (budgets, loop limits), what needs a person's approval, and what happens when a run fails or is stopped."
+  missing: "No written decision on bounds, approvals, failure and recovery, so the script's limits are whatever the first draft happened to choose, and a reviewer cannot check them against an intent."
+
+design-evaluation:
+  why: "An evaluation designed before the dataset decides what 'good' means, who judges it, and which failures matter most. Without it the dataset tests what is easy to test rather than what matters."
+  see: "EVAL_DESIGN.md, written with the llm4j-eval-design skill: the dimensions, the judges and the thresholds."
+  decision: "What counts as a good answer, and which mistakes are unacceptable."
+  missing: "No agreed definition of 'good': scores later have nothing to be measured against, and a judge cannot be checked."
+
+golden-dataset:
+  why: "The golden dataset is the requirements written as examples: inputs with what a good answer must contain. It turns 'it seems to work' into a pass rate, and every later change is checked against it."
+  see: "eval/golden/*.yaml; `weave eval --check` validates it without calling a model, and the Outline shows drafted cases nobody reviewed."
+  decision: "Which cases are in it, and that each one is right: a person reviews every case."
+  missing: "No golden dataset means no evaluation: a prompt or model change cannot be checked against anything, and 'it works' rests on the few runs someone read."
+
+script:
+  why: "The Loom script is the workflow as code: agents, steps, tools, limits and approvals in one reviewable file. `weave check` proves it loads and is consistent before anything runs."
+  see: "The graph beside the script, and the problems panel for check errors and warnings."
+  decision: "The shape of the workflow: the order of steps, where it branches, where a person approves."
+  missing: "Without a script that passes `weave check` nothing can run."
+
+audit-and-review:
+  why: "The audit and the review read the script for security, cost, reliability and testability problems before any run: an agent that can both read untrusted text and send it out, a loop with no bound, an effect with no approval."
+  see: "The Review panel beside the graph (Loom: Review), each finding linked to its node, with an explanation and a fix."
+  decision: "Which findings to fix, and which to accept in writing with a reason."
+  missing: "Security and cost problems are found in production instead of in the editor: a prompt injection that sends data out, or a loop that spends the budget."
+
+scripted-tests:
+  why: "Scripted tests run the workflow with scripted models, tools and people: no key, no cost, no network. They prove the routes, retries, approvals and failure paths are wired, so the paid runs only test quality."
+  see: "tests/*.test.yaml; `weave test --coverage` shows which branches were taken."
+  decision: "Which routes and failures each test must prove."
+  missing: "Wiring mistakes are found in paid runs, and a later change can break a branch nobody notices until it runs for real."
+
+preflight:
+  why: "Preflight checks the real setup before the first paid run: the keys reach their providers, the models exist, the run store works, each agent answers. It costs a few tokens and catches the failures that would waste a whole run."
+  see: "`weave preflight` output, and the Outline marks it stale when the script changes."
+  decision: "The budget and the cap for the first real runs, and which provider and models to pay for."
+  missing: "The first real run finds a missing key, a wrong model name or an unreachable store halfway through, after spending money."
+
+real-run-read:
+  why: "A mock run proves wiring, never quality. Reading one real answer yourself, and saying what is right and wrong with it, is the first real evidence of quality and usually the source of the next golden cases."
+  see: "The run's answer, and the live run page or Fabric (Loom: Observe) for what each agent did and what it cost."
+  decision: "Whether the answer is good enough to evaluate at scale, and what to change first."
+  missing: "Nobody has looked at a real answer: the evaluation may score something nobody would accept."
+
+real-evaluation:
+  why: "A real evaluation runs the golden dataset against the real models and judges the answers. It gives the pass rate, the cost and the failures to work on, and it is the gate every later change must pass."
+  see: "The eval4j report (target/eval4j/report/index.html or eval-runs/report/index.html): scores per dimension, cost, and each failing case."
+  decision: "The threshold the workflow must pass, and whether this result is good enough to ship."
+  missing: "The workflow ships without evidence of quality: nobody knows its pass rate, and the next change cannot be compared with this one."
+
+deploy:
+  why: "Deployment files run the workflow where people can rely on it, with Fabric wired so every run can be watched, and secrets kept out of the files."
+  see: "deploy/, and the Fabric page for the deployed runs."
+  decision: "Where it runs, who may watch and steer it, and the production budgets."
+  missing: "The workflow runs only on a laptop, unwatched."

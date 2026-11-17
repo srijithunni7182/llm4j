@@ -1,0 +1,91 @@
+# Feature moments: a situation the Guide can see, and the feature that answers it. `weave
+# guide-context` lists the moments whose `project` trigger holds for the project; `words` are
+# hints for the Guide to match the developer's question. Each moment names a fact in facts.yaml.
+#   project  a trigger computed from the project (see GuideContext.TRIGGERS), or empty
+#   words    words in a question that point at it
+#   fact     the fact to bring up
+#   show     how to show it working on the developer's own workflow
+
+effect-without-approval:
+  project: "effect-without-approval"
+  words: ["send", "email", "pay", "publish", "delete", "post"]
+  fact: "approvals"
+  show: "Open the review on the finding for the step and the graph on its node; explain approve on the step and why the journal stops a resume repeating it."
+
+effect-and-durability:
+  project: "effect-without-approval"
+  words: ["crash", "retry", "twice", "duplicate"]
+  fact: "durable-runs"
+  show: "Point at the step on the graph that changes something, and explain that the journal records it so a resume does not do it again."
+
+no-budget:
+  project: "no-budget"
+  words: ["cost", "expensive", "spend", "money", "price"]
+  fact: "budgets"
+  show: "Show the review's cost estimate, then the budget block the script lacks; offer the capped run (Loom: Run Once With a Cap…)."
+
+cost-question:
+  project: ""
+  words: ["cost", "expensive", "cheaper", "tokens", "price"]
+  fact: "budgets"
+  show: "Show the review's cost estimate for this script and the prices on the live run page."
+
+no-dataset:
+  project: "no-dataset"
+  words: ["works", "good", "quality", "accurate"]
+  fact: "golden-dataset"
+  show: "Ask for three real inputs and what a good answer must contain; that is the first golden case."
+
+eval-stale:
+  project: "eval-stale"
+  words: ["changed", "prompt", "model", "regress"]
+  fact: "eval-report"
+  show: "Say what changed since the last real evaluation, and compare the next run with it in the report."
+
+high-finding:
+  project: "high-finding"
+  words: ["safe", "security", "injection", "leak"]
+  fact: "audit"
+  show: "Open the review on the high finding and explain the risk in terms of this workflow's agents and tools."
+
+untested-routes:
+  project: "no-tests"
+  words: ["branch", "route", "test"]
+  fact: "mock-and-scripted"
+  show: "Show the graph's branches and that no scripted test takes them; a scripted test proves them for free."
+
+skips-present:
+  project: "skips-present"
+  words: ["ship", "production", "live", "deploy"]
+  fact: "harness-design"
+  show: "Read the recorded skips back with what each loses, once, before going live."
+
+wrong-answer:
+  project: ""
+  words: ["wrong", "why", "weird", "unexpected", "broke"]
+  fact: "time-travel"
+  show: "Open the run on the graph and ask weave why for the step; no key and no spend."
+
+watch-a-run:
+  project: ""
+  words: ["slow", "stuck", "watch", "monitor", "what is it doing"]
+  fact: "observability"
+  show: "Offer the capped run with the live page, and say what each panel shows."
+
+key-question:
+  project: ""
+  words: ["key", "api key", "token", "credential"]
+  fact: "secrets"
+  show: "Open the secret form (or give the weave keys lines); explain that the key is bound to its host."
+
+free-first-runs:
+  project: "no-real-run"
+  words: ["free", "local", "offline", "ollama"]
+  fact: "local-models"
+  show: "Say that a local Ollama model is a free option for the first real runs and what installing it takes; let the developer choose it or a hosted model under a cap."
+
+long-run:
+  project: "loops"
+  words: ["long", "context", "window", "forgets"]
+  fact: "context"
+  show: "Show the agent's context settings and, on a live run, the context gauge."

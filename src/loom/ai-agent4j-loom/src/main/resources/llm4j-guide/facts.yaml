@@ -1,0 +1,244 @@
+# The facts the Guide may state about llm4j. Every claim the Guide makes about a feature comes from
+# here or from the page it links: it words them for the project, and never claims more than `not`
+# allows. Each entry:
+#   title    the feature's name
+#   for      what it is for, in one sentence
+#   solves   the problem a developer has without it
+#   command  a weave command that shows it working (tested: the command exists), or empty
+#   editor   an editor command title that shows it (tested: the extension has it), or empty
+#   not      what it does NOT do: the guard against overclaiming (required)
+#   doc      file#heading of the page that explains it (tested: the heading exists)
+
+golden-dataset:
+  title: "The golden dataset"
+  for: "Write the requirements as examples: an input and what a good answer must contain, checked by code or judged by a model."
+  solves: "Without it, quality is whatever the last few runs looked like, and a change cannot be checked against anything."
+  command: "weave eval --check"
+  editor: "Loom: Evaluate Workflow..."
+  not: "It does not write itself: a person reviews every case, and a drafted case nobody reviewed is marked as such."
+  doc: "docs/guide/11-build-the-dataset-with-the-user.md#11. Build the test examples together with the user"
+
+judge:
+  title: "Judges for plain-sentence checks"
+  for: "Grade the parts of an answer code cannot check, with a model that reads a rubric line and gives a verdict."
+  solves: "Without a judge, a requirement like 'is polite and cites a source' is either never checked or checked by hand every time."
+  command: "weave judge"
+  editor: ""
+  not: "A judge is a model and can be wrong: its agreement with a person is measured on a sample before its scores are trusted, and an unjudged case is never a pass."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#4. Evaluating a Workflow (`eval`)"
+
+eval-report:
+  title: "The eval4j report"
+  for: "See an evaluation as a page: a ring per quality dimension, each failing case, cost, judge reliability and the trend between runs."
+  solves: "A pass rate alone does not say what failed or why; the report shows each case and compares runs."
+  command: "weave eval"
+  editor: "Loom: Evaluate Workflow..."
+  not: "It shows results; it does not decide whether they are good enough. The threshold is the developer's decision."
+  doc: "src/eval4j-report/README.md#eval4j-report"
+
+mock-and-scripted:
+  title: "Free runs: scripted tests and mock evaluations"
+  for: "Run the whole workflow with scripted models, tools and people: no key, no cost, no network."
+  solves: "Wiring mistakes found in paid runs waste money; scripted runs find them for free."
+  command: "weave test"
+  editor: "Loom: Run Tests"
+  not: "A scripted or mock run proves the wiring, never the quality of real answers."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#5. Testing the Logic (`test`)"
+
+try:
+  title: "weave try"
+  for: "See a workflow run end to end in a minute, narrated, with no key."
+  solves: "A first look at what Loom does without setting anything up."
+  command: "weave try"
+  editor: "Loom: Try a Demo"
+  not: "It runs a demo with scripted answers; it says nothing about the developer's own workflow."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#The \"Weave-First\" Workflow"
+
+graph:
+  title: "The workflow graph"
+  for: "See the script as a picture: agents, steps, branches, loops, approvals and what each agent can reach, beside the code and updated as it changes."
+  solves: "A workflow read only as text hides its shape: where it loops, where it branches, where nothing asks a person."
+  command: "weave graph"
+  editor: "Loom: Show Workflow Graph"
+  not: "It draws the script as written; it does not run it or show real outcomes unless a run is overlaid."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#3. Seeing a Workflow (`graph`)"
+
+review:
+  title: "The review"
+  for: "Read the script for security, cost, reliability, durability, testability and privacy problems before any run, each finding with a fix."
+  solves: "These problems are otherwise found in production: an unbounded loop, an effect nobody approves, a prompt that leaks data."
+  command: "weave review"
+  editor: "Loom: Review Workflow"
+  not: "It reads the script, not the prompts' behaviour with a real model; a clean review is not a passing evaluation."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Reviewing a Workflow (`review`)"
+
+audit:
+  title: "The security audit and the lethal trifecta"
+  for: "Find agents that can read untrusted text, reach private data and send data out at once (the lethal trifecta), and other OWASP LLM risks, from the script."
+  solves: "Prompt injection turns such an agent into a data leak; the audit names the agent and the fix before it runs."
+  command: "weave audit"
+  editor: "Loom: Review Workflow"
+  not: "It cannot prove a workflow safe; it finds the patterns it knows, and an accepted risk stays the developer's written decision."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Security Audit"
+
+approvals:
+  title: "Approvals at the edge"
+  for: "Make a person approve a step that changes something outside (send, pay, publish, delete) before it happens."
+  solves: "A model can be wrong or be steered by injected text; an approval puts a person between the model and the effect."
+  command: "weave review"
+  editor: ""
+  not: "An approval only guards the steps that declare it; a tool whose effect is not declared is assumed to change things and the review says so."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Calling a tool yourself (`use`), and asking first (`approve`)"
+
+durable-runs:
+  title: "Durable runs and the journal"
+  for: "Every step and effect is written to a journal, so a run survives a crash and resumes where it stopped."
+  solves: "Without it a crash restarts from the beginning, and a retry can send the same email or make the same payment twice."
+  command: "weave resume"
+  editor: ""
+  not: "It cannot make an outside system idempotent; it records what was done so it is not done again by the run."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Durable Runs (no new syntax)"
+
+budgets:
+  title: "Budgets and caps"
+  for: "Bound tokens, calls, searches and money for a run or an agent, checked before every model call."
+  solves: "A loop or a long document can otherwise spend far more than intended before anyone notices."
+  command: "weave preflight"
+  editor: "Loom: Run Once With a Cap…"
+  not: "A budget stops spending at the limit; it does not make the answers cheaper. Choosing models is the other half."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Cost Budgets"
+
+bounded-loops:
+  title: "Bounded loops"
+  for: "Every loop says how many times it may run and what happens when it runs out."
+  solves: "A write-and-review loop that never satisfies its reviewer runs until the budget is gone."
+  command: "weave check"
+  editor: ""
+  not: "A bound limits the damage; it does not make the loop converge."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Bounded Loops"
+
+secrets:
+  title: "The secret store"
+  for: "Keep keys out of scripts and files; each key is bound to the hosts it may be sent to and resolved per request."
+  solves: "A key in a file leaks through git, logs or a prompt; a key sent to any host can be stolen by a redirect."
+  command: "weave keys"
+  editor: ""
+  not: "It does not create or rotate keys with providers; the developer gets them from the provider and sets them."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Secrets: the secret store"
+
+pii:
+  title: "PII masking"
+  for: "Mask personal data before it reaches a hosted model, and keep it out of logs."
+  solves: "Names, emails and numbers otherwise leave the company in every prompt."
+  command: "weave audit"
+  editor: ""
+  not: "It masks what its detectors recognise; it is a control to measure, not a guarantee."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#PII Guardrails"
+
+observability:
+  title: "Watching runs: the live page and Fabric"
+  for: "Watch a run as it happens: each agent's steps, tool calls, context fill, cost, and incidents such as looping or a failing tool."
+  solves: "Without it a slow, looping or expensive run is a black box until it ends."
+  command: "weave fabric"
+  editor: "Loom: Run With Live Page..."
+  not: "It shows and alerts; it does not change a run unless a person steers or stops it."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Watching runs live (loom-inspect and Fabric)"
+
+time-travel:
+  title: "Debugging from the journal: why, whatif, rewind"
+  for: "Ask why a run took a branch, replay it with a change, or step back, from the journal, with no key and no spend."
+  solves: "Reproducing a bad run usually means paying for it again and hoping it repeats."
+  command: "weave why"
+  editor: "Loom: Debug Workflow"
+  not: "It replays what was recorded; a change to a prompt is answered by a new model call only when the developer asks for one."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Debugging a Run: `why`, `whatif`, `step` and the Run on the Graph"
+
+capture:
+  title: "From an incident to a test: capture and regress"
+  for: "Turn a real run into a test case, and try a change against past runs before it ships."
+  solves: "A bug fixed once comes back when nothing tests for it."
+  command: "weave capture"
+  editor: ""
+  not: "A captured case tests the route and the recorded answers; quality still needs the golden dataset."
+  doc: "wiki/From-an-Incident-to-a-Regression-Test.md#From an incident to a regression test"
+
+context:
+  title: "Context and compaction"
+  for: "Keep a long run inside the model's window, with a strategy per agent and a gauge of how full it is."
+  solves: "A long run otherwise fails or silently loses its earliest instructions when the window fills."
+  command: "weave check"
+  editor: ""
+  not: "Compaction loses detail by design; a step that needs everything should keep its progress in a variable instead."
+  doc: "docs/guide/14-context-and-compaction.md#14. Context and compaction: keep a long run inside the model's window"
+
+extractor:
+  title: "Extractors"
+  for: "Pull typed fields out of text with a small, stateless step, validated against a schema."
+  solves: "An agent asked to reason and fill a large schema at once does both badly."
+  command: "weave review"
+  editor: ""
+  not: "It extracts what is in the text; it does not reason or decide."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Extracting fields: `extractor` and `extract`"
+
+policies:
+  title: "Policies checked at the edge"
+  for: "Write house rules once and check every model-written value against them before it leaves the workflow."
+  solves: "A rule only in a prompt is a wish; the model can ignore it."
+  command: "weave check"
+  editor: ""
+  not: "A policy checks what it is told to check; it does not invent rules."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Policies: rules checked at the edge"
+
+schedules:
+  title: "Schedules and triggers"
+  for: "Run a workflow on a schedule or when something happens, durably."
+  solves: "Cron jobs around a script lose runs, overlap and leave no record."
+  command: "weave daemon"
+  editor: ""
+  not: "A schedule starts runs; bounding and watching them is still the harness's job."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Schedules and Triggers"
+
+supervise:
+  title: "Steering, stopping and supervising"
+  for: "Let a person or a parent workflow steer, stop or watch a running workflow, with rules on what to do when it is stopped."
+  solves: "An autonomous run that goes wrong can otherwise only be killed, losing its work."
+  command: "weave run"
+  editor: ""
+  not: "It gives people the controls; it does not decide when to use them."
+  doc: "docs/guide/15-steer-stop-and-supervise.md#15. Steer, stop and supervise a running workflow"
+
+preflight:
+  title: "Preflight"
+  for: "Check the real setup before the first paid run: keys reach their providers, models exist, each agent answers."
+  solves: "The first real run otherwise fails halfway on a missing key or a wrong model name, after spending money."
+  command: "weave preflight"
+  editor: ""
+  not: "It checks the setup with a few tokens; it says nothing about the quality of answers."
+  doc: "docs/guide/09-go-live.md#9. Go live: real APIs, budgets and cost checks"
+
+deploy:
+  title: "Deployment files"
+  for: "Write Docker, compose or Kubernetes files that run the workflow with Fabric wired and secrets kept out."
+  solves: "Hand-written deployment files often bake in keys or leave runs unwatched."
+  command: "weave deploy"
+  editor: "Loom: Write Deployment Files..."
+  not: "It writes and verifies files; it does not run the cluster or pick the budgets."
+  doc: "docs/guide/09-go-live.md#9. Go live: real APIs, budgets and cost checks"
+
+local-models:
+  title: "Local models with Ollama"
+  for: "Run the workflow against a model on the developer's own machine, at no cost per call."
+  solves: "Early real runs cost money even when only the wiring and the rough shape of answers are being checked."
+  command: "weave doctor"
+  editor: ""
+  not: "It needs Ollama installed and a model pulled, which is the developer's choice; a local model's answers differ in quality from the hosted model's, so it does not replace the real evaluation."
+  doc: "src/loom/ai-agent4j-loom/LOOM_GUIDE.md#Models and Providers"
+
+harness-design:
+  title: "The harness design"
+  for: "Decide, before building, how a run is bounded, knows it is done, survives a crash, fails, and who may step in, and write it in HARNESS.md."
+  solves: "Limits and failure handling chosen by accident in the first draft are hard to review and easy to get wrong."
+  command: "weave next"
+  editor: "Loom: What Should I Do Next?"
+  not: "It is a design record; Loom enforces what the script declares, not what the document says."
+  doc: "docs/guide/15-steer-stop-and-supervise.md#15. Steer, stop and supervise a running workflow"
