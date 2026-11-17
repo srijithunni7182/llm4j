@@ -2563,6 +2563,10 @@ weave run flow.loom --secrets keys.store --secrets-key-env MYAPP_MASTER_KEY
 
 - **You choose the file and the master key.** `--secrets <file>` and one of `--secrets-key-file <file>` or `--secrets-key-env <VARIABLE>` (you name the variable);
   with neither, `weave` asks for the passphrase. There is no default location. Keeping the file and its directory ACL-protected is yours to do.
+- **Name them once.** `LOOM_SECRETS` and `LOOM_SECRETS_KEY_FILE`, set in your shell profile, stand for `--secrets` and `--secrets-key-file` on every command; an option
+  on the command line wins. `weave secrets create --secrets-key-file <file>` makes that file, with a random key readable by you only, when it does not exist yet.
+- **Which keys?** `weave keys <script>` (or `weave keys --model <name>` before there is a script) lists the key each model needs, says whether it is set, never its
+  value, and prints the commands above for each missing one.
   `run`, `check`, `resume`, `tick` and `daemon` take these options; they are not saved in a run's spec, so give them again when resuming.
 - `secret.NAME` reads only the store. The built-in models look the store up first by their usual name (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`,
   `SARVAM_API_KEY`), then the environment.

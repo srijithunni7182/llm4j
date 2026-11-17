@@ -17,6 +17,8 @@ weave eval {{script}} --mock           # the wiring runs, on a model that costs 
 
 ## Which way to store the key? (decide before the first real run)
 
+**Not sure which keys you need?** `weave keys {{script}}` says which key each model needs and whether it is set (never its value), and prints the exact commands that set a missing one. Run those yourself, in your own terminal.
+
 - **Running `weave` yourself, on your own machine:** a `.env` file (next section). Simple, and git ignores it.
 - **A program that uses this workflow, or a server:** the secret store. `weave secrets create --secrets keys.store`, then `weave secrets set GEMINI_API_KEY --secrets keys.store` (it asks for the value and does not show it), then add `--secrets keys.store` to `weave run` and `weave eval`. Unattended runs add `--secrets-key-env <VARIABLE>` for the store's password.
 

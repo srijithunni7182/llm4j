@@ -101,6 +101,8 @@ weave secrets remove  GEMINI_API_KEY --secrets keys.store
 
 A value is typed without echo or piped with `--stdin`: it is never a command-line argument, so it cannot end up in shell history or the process list.
 
+On your own machine, a key file saves typing the master key each time. `weave secrets create --secrets keys.store --secrets-key-file keys.key` makes `keys.key`, with a random key readable by you only, when it does not exist yet. Set `LOOM_SECRETS` and `LOOM_SECRETS_KEY_FILE` in your shell profile and every `weave` command finds the store without its options; an option on the command line still wins. `weave keys main.loom` (or `weave keys --model gpt-4.1-mini`) says which key each model needs, whether it is set, never its value, and prints these commands for the missing ones.
+
 ## Rotating exposed keys
 
 If a key was ever committed to a repository, rotate it at the provider: removing the string from the code does not remove it from history.

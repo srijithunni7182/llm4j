@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
 # Runs weave for a coding agent whose terminal has no `weave` command (the editor extension puts weave on the PATH of
-# VS Code's own terminals only). Looks, in order: WEAVE_JAR; a `weave` on PATH that is not this script; the editor
-# extension's bundled jar; bin/weave.jar next to this skill; a jar fetched into ~/.llm4j/tools. Otherwise it prints the
-# one line that installs weave and stops. Changes nothing and contacts no one.
+# VS Code's own terminals only). Looks, in order: WEAVE_JAR; a `weave` on PATH that is not this script; the launcher the
+# extension writes to ~/.llm4j/bin; the extension's bundled jar (VS Code, Insiders, VSCodium, Cursor, Windsurf, a remote
+# server); bin/weave.jar next to this skill; a jar fetched into ~/.llm4j/tools. Otherwise it prints the one line that
+# installs weave and stops. Changes nothing and contacts no one.
 self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 skill="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -24,8 +25,12 @@ for dir in $PATH; do
 done
 IFS="$old_ifs"
 
+if [ -x "$HOME/.llm4j/bin/weave" ] && [ "$HOME/.llm4j/bin/weave" != "$self" ]; then exec "$HOME/.llm4j/bin/weave" "$@"; fi
+
 for jar in \
-  $(ls -t "$HOME"/.vscode*/extensions/srijithunni7182.vscode-llm4j-loom-*/bin/weave.jar 2>/dev/null) \
+  $(ls -t "$HOME"/.vscode*/extensions/srijithunni7182.vscode-llm4j-loom-*/bin/weave.jar \
+          "$HOME"/.cursor/extensions/srijithunni7182.vscode-llm4j-loom-*/bin/weave.jar \
+          "$HOME"/.windsurf/extensions/srijithunni7182.vscode-llm4j-loom-*/bin/weave.jar 2>/dev/null) \
   "$skill/bin/weave.jar" \
   $(ls -t "$HOME"/.llm4j/tools/*/ai-agent4j-loom-*-cli.jar 2>/dev/null); do
   if [ -f "$jar" ]; then
@@ -37,7 +42,7 @@ done
 cat >&2 <<'MSG'
 weave was not found in this terminal. Install it once:
   jbang app install weave@srijithunni7182/llm4j        (needs JBang: https://www.jbang.dev)
-or install the "Loom" extension in VS Code, which bundles weave (its own terminals get `weave` on the PATH; other terminals
-need this launcher or the install above), or set WEAVE_JAR=/path/to/ai-agent4j-loom-<version>-cli.jar.
+or install the "Loom" extension in VS Code, which bundles weave and writes ~/.llm4j/bin/weave when it starts (open a .loom
+file, or run any Loom command), or set WEAVE_JAR=/path/to/ai-agent4j-loom-<version>-cli.jar.
 MSG
 exit 2

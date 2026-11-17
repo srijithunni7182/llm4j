@@ -36,9 +36,17 @@ After you write or change a script, run `weave explain` and read the result back
 
 Before you call a project ready, run each command in its README in a form that does not spend (`--check`, `--mock`, `--dry-run`, or the real command with a cap). Mark each command `tested` or `untested` in the README. Never leave an untried command in silently.
 
-## 7. Keys: ask first, offer both routes
+## 7. Keys: ask which models, then hand over the exact commands
 
-The first question about keys is: **will you run this yourself, or deploy it?** Then offer both routes side by side: the secret store (`weave secrets`), and a `.env` file that is git-ignored. Say it plainly: never put a key in `.env.example`, in a script or in a committed file. Never ask for a key in the conversation.
+Ask about keys before anything that calls a model, and do not wait for the person to raise it:
+
+1. **Ask which models they want to use** (or read them from the script once there is one), and whether they will run it themselves or deploy it.
+2. **Run `weave keys --model <name>`** for each model (or `weave keys <script>`). It says which key each model needs and whether it is already set, never its value, and prints the exact commands that set a missing one.
+3. **Give the person those commands to run in their own terminal**: `weave secrets create` (once; it makes the store and a master key file only they can read), `weave secrets set <NAME>` (it asks for the value and shows nothing), and the two lines that name the store for every later command, `LOOM_SECRETS` and `LOOM_SECRETS_KEY_FILE`. Then run `weave keys` again to confirm.
+
+Never run `weave secrets set` yourself, never ask for a key in the conversation, and never put a key in `.env.example`, a script or a committed file. A `.env` file that git ignores is the other route, for one project on one machine; a deployed application reads its keys from its own store or vault.
+
+If your shell has no `weave`, run `~/.llm4j/bin/weave` (Windows: `%USERPROFILE%\.llm4j\bin\weave.cmd`), which the Loom extension writes; do not install another.
 
 ## 8. Say once that selecting text shares it
 
