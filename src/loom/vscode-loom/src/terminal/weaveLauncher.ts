@@ -16,6 +16,44 @@ export interface PathCollection {
 }
 
 const EXECUTABLE = 0o755;
+
+/** The marks around the lines the extension adds to a shell profile, so it can find them again and never adds them twice. */
+export const PATH_BLOCK_BEGIN = '# >>> weave: added by the Loom extension (Loom: Make weave Available in Every Terminal) >>>';
+export const PATH_BLOCK_END = '# <<< weave <<<';
+
+/**
+ * Where the extension writes its launcher: `~/.llm4j/bin`. One folder that does not move when the extension is updated, so a
+ * person, a shell profile and a coding agent's instructions can all name it.
+ */
+export function launcherFolder(home: string): string {
+    return path.join(home, '.llm4j', 'bin');
+}
+
+/** The profile a POSIX shell reads for new terminals: zsh and bash have their own; anything else reads ~/.profile. */
+export function rcFileFor(shell: string | undefined, home: string): string {
+    const name = path.basename(shell ?? '');
+    if (name === 'zsh') return path.join(home, '.zshrc');
+    if (name === 'bash') return path.join(home, '.bashrc');
+    return path.join(home, '.profile');
+}
+
+/** `text` with the lines that put `~/.llm4j/bin` on the PATH appended, once: text that already has them is returned unchanged. */
+export function withPathBlock(text: string): string {
+    if (text.includes(PATH_BLOCK_BEGIN)) return text;
+    const block = [PATH_BLOCK_BEGIN, 'export PATH="$PATH:$HOME/.llm4j/bin"', PATH_BLOCK_END, ''].join('\n');
+    if (text === '') return block;
+    return `${text}${text.endsWith('\n') ? '' : '\n'}\n${block}`;
+}
+
+/**
+ * The PowerShell line that appends `folder` to the user PATH unless it is there already. The extension starts no process but
+ * Java, so it hands this to the person to paste rather than running it. A single quote in the folder is doubled, as PowerShell
+ * reads it inside single quotes.
+ */
+export function windowsPathCommand(folder: string): string {
+    const quoted = `'${folder.replace(/'/g, "''")}'`;
+    return `$f = ${quoted}; $p = [Environment]::GetEnvironmentVariable('Path', 'User'); if (-not (($p -split ';') -contains $f)) { [Environment]::SetEnvironmentVariable('Path', (($p.TrimEnd(';') + ';' + $f).TrimStart(';')), 'User') }`;
+}
 const WINDOWS_LINE_END = '\r\n';
 const COLLECTION_DESCRIPTION = 'Adds the `weave` command (the Loom command line, carried by the Loom extension) to the PATH of integrated terminals.';
 
