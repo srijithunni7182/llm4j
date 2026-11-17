@@ -110,3 +110,37 @@ The default build needs no model and no key. `make test-live` is never run unask
 - [ ] A1 to A16 met; A17 run, with its findings recorded
 - [ ] The gates of §2 green; what did not run is stated
 - [ ] The documentation of §4 updated in the same change
+
+## 7. Results of the build (2026-11-17)
+
+Built in one session: 37a (`5c3f3a58`), the MCP server (`8a410654`, `30e4cbe7`), the editor side and the scenarios (`736bbb32`), the skills and documentation (`c84ea2ee`). Nothing has been run in a real VS Code with Copilot or Claude Code yet (M1, M2), and no usability session has been held (M3).
+
+### What met its criterion
+
+- A1 to A9, A11 to A13 and A16 at E1 or E2: `GuideJourneyTest`, `GuideCatalogueTest`, `GuideContextTest`, `GuideMcpServerTest`, `guideCompanion.test.ts`, `SkillConventionsTest`. Two guards were broken on purpose and their tests failed: prompt text added to the summary (the canary test), and a `write_file` tool added to the server.
+- A10: one MCP server serves both hosts, and both agent files carry the same persona text and allow only reading and the Guide's tools (checked by code; whether each host really withholds unlisted tools is M1 and M2).
+- A13: the eleven scenarios pass against recorded answers, replayed twice with no model call. Recorded with `claude-sonnet-5-5` as the Guide and `gpt-5.5` as the judge, about 740,000 input and 40,000 output tokens over five recording rounds, about $3.
+
+### What recording found, and what changed because of it
+
+- **Answers written next to tool calls were lost.** The Guide put its answer beside a `record_learning` call and then wrote a last message that referred to it. The persona now says: every tool call first, then the whole answer as the last message.
+- **A key pasted into the chat was not called exposed.** The persona now says to treat it as exposed and replace it.
+- **Two rubrics asked for more than a short answer holds,** and the judge missed that "200,000 tokens, 30 calls" is the declared budget. `first-eval-report` and `cost-question` were narrowed to their essentials after the first recording; the other rubrics are as first written.
+- **Two code checks were wrong,** not the Guide: "must not say *I won't*" caught "I won't bring it up again", and "ready to deploy" caught "you're not ready to deploy".
+- **The fingerprint used `Map.of`'s order,** which changes between runs; it is now sorted.
+
+### Where the build differs from the design
+
+1. **The editor channel is a file mailbox, not a loopback socket** (DESIGN §5 rewritten): the extension promises never to open a connection (spec 10, R32).
+2. **The Claude host is a project agent, not an installed plugin:** Set Up writes `.claude/agents/llm4j-guide.md` and the `.mcp.json` entry, so nothing is installed. The `.mcp.json` entry holds the absolute path of this extension's `weave.jar` and is rewritten each time Set Up runs; a team that commits `.mcp.json` shares a path that is only right on one machine. **Open.**
+3. **The key "form" is a terminal** running `weave secrets set <NAME> --allow-host <host>`, which asks for the value with no echo; the tool answers "opened", not "saved" or "cancelled". It needs a secret store (`--secrets` or `LOOM_SECRETS`); without one `weave` says how to name one. **Open** (a smoother path for a developer's laptop).
+4. **The summary's findings come from `weave audit`,** not the whole review; `explain_finding` explains any rule through `weave review --explain`.
+5. **Not built:** a node highlighted by `show_graph` and a rule focused by `show_review` (both open the view and name the node or rule); "no notice while the developer types to the Guide" (the editor does not say when its chat input has focus); `run_summary`; R19's one-time offer on the first `.loom` file (the walkthrough step and the two commands stand in for it).
+6. **Tool names:** `new_events` (was `events_since_discussed`), `explain_finding` (was `review_finding`), and `project_summary` holds the journey.
+7. **The server speaks the MCP handshake era** (`initialize`, versions 2025-06-18, 2025-03-26 and 2024-11-05) and answers `server/discover` the same way; whether Copilot and Claude Code accept it is M1 and M2.
+8. **G5:** section J of GitHub's terms is still to be read before release.
+
+### Gates
+
+- `make docs-check`: passes.
+- `make test-fast` on `ai-agent4j-loom`, the extension's whole suite and `make test-oracle`: see the session's final report; the other `slow` tests are left to CI.
