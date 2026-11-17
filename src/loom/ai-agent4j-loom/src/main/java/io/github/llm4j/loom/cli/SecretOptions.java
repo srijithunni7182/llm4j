@@ -13,10 +13,20 @@ import picocli.CommandLine.Option;
  * variable (it is not read from a fixed one). With neither key option the passphrase is asked for
  * on the console.
  *
+ * <p>The store and its key file may instead be named once in the environment, as {@value
+ * #STORE_VARIABLE} and {@value #KEY_FILE_VARIABLE}, both or neither, so a person need not repeat
+ * them on every command. Any store option on the command line wins over both.
+ *
  * <p>Protecting the file and its directory (an ACL) is the consumer's responsibility. Nothing here
  * is written to a run's saved spec: resuming a run needs these options again.
  */
 final class SecretOptions {
+
+    /** The environment variable that names the store when {@code --secrets} is not given. */
+    static final String STORE_VARIABLE = "LOOM_SECRETS";
+
+    /** The environment variable that names the master key file when no key option is given. */
+    static final String KEY_FILE_VARIABLE = "LOOM_SECRETS_KEY_FILE";
 
     @Option(
             names = "--secrets",
@@ -68,13 +78,39 @@ final class SecretOptions {
      * opened.
      */
     WeaveEnv apply(WeaveEnv env, Prompts prompts) {
-        if (file == null && keyFile == null && keyEnv == null) return env;
         try {
+            fromEnvironment(env.env());
+            if (file == null && keyFile == null && keyEnv == null) return env;
             return env.withSecrets(open(env, prompts));
         } catch (io.github.llm4j.secret.SecretException e) {
             env.err().println("Error: " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Fills in the store and its key file from {@value #STORE_VARIABLE} and {@value
+     * #KEY_FILE_VARIABLE}, only when the command line named neither the store nor a key source and
+     * both variables are set: an environment variable never makes a command open a store it did
+     * not open before, and never makes it ask for a passphrase.
+     *
+     * @throws io.github.llm4j.secret.SecretStoreException when only one of the two is set, naming it
+     */
+    void fromEnvironment(java.util.function.Function<String, String> env) {
+        if (file != null || keyFile != null || keyEnv != null) return;
+        String store = env.apply(STORE_VARIABLE);
+        String key = env.apply(KEY_FILE_VARIABLE);
+        boolean hasStore = store != null && !store.isBlank();
+        boolean hasKey = key != null && !key.isBlank();
+        if (hasStore != hasKey)
+            throw new io.github.llm4j.secret.SecretStoreException(
+                    (hasStore ? STORE_VARIABLE : KEY_FILE_VARIABLE)
+                            + " is set but "
+                            + (hasStore ? KEY_FILE_VARIABLE : STORE_VARIABLE)
+                            + " is not: set both to name the store once, or neither");
+        if (!hasStore) return;
+        file = new File(store.strip());
+        keyFile = new File(key.strip());
     }
 
     /** Wipes an array (a passphrase read from the console). */

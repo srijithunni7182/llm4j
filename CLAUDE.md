@@ -26,6 +26,7 @@ The reactor order matters: a failure in `ai-agent4j-loom` skips the modules afte
 | Command | Use |
 |---|---|
 | `make setup` | **Get a checkout ready** (about a minute): the full git history, the A2A test kit, the core, Loom and `loom-inspect-core` installed from this checkout into `~/.m2`, and the VS Code extension built with a matching `bin/weave.jar`. Run it **once at the start of a session** and after switching branch. The cloud environment may already have run it. Without it, `loom-inspect*`, `loom-fabric` and the extension compile and run against whatever jars an earlier build left, and fail in confusing ways. |
+| `make observe-jars` | Builds Loom, the inspect add-on and the Fabric server together, clean (about two minutes). **Run it before watching a run** on the live page or on Fabric from this checkout: the add-on refuses to run with a Loom jar from another commit. |
 | `make regen` | Regenerates every generated file in one go: the command reference, the pictures in the starters' READMEs, the graph renderer's copies, the review rule pages and the tutorial's web page. |
 | `make docs-check` | **Run it after changing docs, a command or option, a starter, a review rule or the tutorial** (about 40 s). It regenerates everything, lists *all* the generated files that were stale (the tests that pin them fail one at a time), then runs the documentation tests. Commit what it regenerated. |
 | `make build` | Compile |
@@ -231,7 +232,7 @@ Several files are tested against each other; the full table is in the `steward` 
 - **A starter's `main.loom`:** redraw its picture with `bash scripts/make-starter-diagrams.sh` (its README shows the script itself and the graph `weave graph` draws now, and `StartersTest` compares both).
 - **Graph node or edge kinds:** run `bash scripts/sync-graph-render.sh`, then `bash scripts/check-graph-render-sync.sh`.
 - **A public API or file format:** update `docs/API_COMPATIBILITY.md`. When you add a component to a record, keep its old constructor.
-- **Any `.loom` file:** it must pass `RepositoryScriptsTest`.
+- **Any `.loom` file:** it must pass `RepositoryScriptsTest`. A new script, or a change to what `weave check`, `audit` or `review` say about one, also needs its row in the recording of `ToolKindCharacterizationTest`: run it with `-Dcharacterization.record=true` and check that the diff holds only the rows you expect.
 
 ## Working conventions
 

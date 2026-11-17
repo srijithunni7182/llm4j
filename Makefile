@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help setup regen docs-check build test test-core test-fast test-oracle test-full test-extended test-live smoke-apps release-check skill-package quick verify format-check
+.PHONY: help setup observe-jars regen docs-check build test test-core test-fast test-oracle test-full test-extended test-live smoke-apps release-check skill-package quick verify format-check
 
 help:
 	@echo "Targets:"
@@ -27,6 +27,11 @@ DOCS_TESTS = *Doc*Test,*Docs*Test,*Guide*Test,*Tutorial*Test,StartersTest,ManPag
 
 setup:
 	bash scripts/setup-dev.sh
+
+# Loom, the inspect add-on and the Fabric server from one commit: the add-on refuses a Loom jar of another build,
+# and Maven keeps the commit stamp of a jar it thinks is up to date, so this builds them clean.
+observe-jars:
+	mvn -q -pl src/loom/ai-agent4j-loom,src/loom/loom-inspect-core,src/loom/loom-inspect,src/loom/loom-fabric -DskipTests clean install
 
 regen:
 	bash scripts/regen.sh

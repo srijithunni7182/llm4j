@@ -122,6 +122,18 @@ class NodeCasesEvalTest {
         assertThat(r.checks()).anySatisfy(c -> assertThat(c.detail()).contains("240"));
     }
 
+    @Test
+    void aNodeCaseKeepsItsTagsAndDimensionsSoTheReportCanSliceAndCountIt() throws Exception {
+        Files.writeString(
+                dir.resolve("eval/golden/invoice.yaml"),
+                "- id: i1\n  input: \"Acme 240\"\n  expected_fields: { vendor: Acme, total: 240 }\n  dimensions: [safety]\n  tags: [\"kind:injection\", risky]\n"
+                        + "- id: i2\n  input: \"Acme thanks\"\n  expected_fields: { vendor: Acme }\n  tags: { kind: in-lane }\n");
+        var o = run(null, false, false, null, false);
+        assertThat(row(o, "Invoice", "i1").tags()).containsExactly("kind:injection", "risky");
+        assertThat(row(o, "Invoice", "i1").dimensions()).containsExactly("safety");
+        assertThat(row(o, "Invoice", "i2").tags()).containsExactly("kind:in-lane");
+    }
+
     // ── evaluators and the false-alarm rate ──────────────────────────────────────────────────
 
     @Test

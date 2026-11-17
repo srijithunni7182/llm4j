@@ -30,5 +30,6 @@ needed**.
 | 🐈 **[Kingini](../src/examples/kingini/README.md)** | A voice-first companion for children: a whimsical Kerala cat who talks in Malayalam, built on Sarvam speech-to-text, LLM and text-to-speech. |
 | 🎫 **[Ticket triage](../src/examples/ticket-triage/README.md)** | Routes a support message with a classifier (`intentclassify`, on Jev or any chat model) and writes a reply only where a machine may; doubtful or urgent cases go to a person. |
 | 🤝 **[A2A starter](../src/examples/a2a-starter/README.md)** | The code around llm4j's A2A support that you provide: a transport, a channel, a serving route, a runner per caller and a task store. It compiles and need not run. |
+| 🧾 **[Expense Desk](../src/examples/expense-desk/README.md)** | A web application where a model reads an expense claim, Java policy decides, a person approves the larger payouts and a journaled task pays exactly once. A Loom workflow on a `LoomHost` with the graph and the security audit on the page; runs with no API key. |
 | 📧 **[Gmail MCP App](../src/examples/gmail-mcp-app/)** | Agents that read, draft and send email through the Model Context Protocol, with human approval before anything is sent. |
 

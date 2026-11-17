@@ -1,0 +1,10 @@
+## EXAMPLES
+weave keys --model gpt-4.1-mini --model claude-sonnet-5-5    the keys these models need, before any script exists
+weave keys main.loom                                         the keys the script's models need, and which are set
+weave keys main.loom --secrets team.store --secrets-key-env TEAM_MASTER_KEY
+## NOTES
+It reads names only: whether a key is set (in the environment, a .env file beside the script, or the secret store), never its value, and it never asks for one. A key the script reads from env.NAME is looked for in the environment only, and one it reads from secret.NAME in the store only. For each missing key it prints both routes, for the person to choose: the .env line for running weave themselves, and, for a program or a server, the weave secrets create and weave secrets set commands, with the store and master key given by --secrets and --secrets-key-file or --secrets-key-env (keys.store and LOOM_MASTER_KEY are shown as examples when none is given). A coding agent hands these lines to the person; it does not run weave secrets set itself.
+## EXIT STATUS
+0 every model's key is set. 1 a key is missing, or a model could not be placed. 2 nothing to look at, or the script could not be read.
+## SEE ALSO
+weave man secrets, weave man doctor, weave man preflight

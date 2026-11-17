@@ -78,4 +78,27 @@ class SecuritySummaryTest {
         assertThat(text).contains("1 of 2").contains("judged").contains("1 not judged");
         assertThat(text).contains("controls held").contains("1 of 2");
     }
+
+    private static ScenarioResult extractorCase(String id, boolean fieldChanged) {
+        List<ScenarioResult.Check> checks =
+                List.of(new ScenarioResult.Check("field", "amount = 4.5", fieldChanged ? Status.FAIL : Status.PASS, fieldChanged ? "the extractor gave 0.01" : null));
+        return new ScenarioResult("Receipt", "extractor", "f", id, id, fieldChanged ? Status.FAIL : Status.PASS, checks, null, null, "q", "o", List.of("kind:injection"), List.of(), List.of());
+    }
+
+    @Test
+    void aFieldReadOtherwiseInAnInjectionCaseIsItsOwnLineAndNotCountedAsObeyed() {
+        List<ScenarioResult> rs = List.of(injected("p", false, false), extractorCase("e1", true), extractorCase("e2", false));
+
+        String text = String.join("\n", SecuritySummary.lines(rs));
+
+        assertThat(text).contains("1 of 1 injection payloads judged").contains("0 obeyed");
+        assertThat(text).contains("1 of 2 injection cases of an extractor read a field otherwise than the text states").contains("cannot tell which");
+    }
+
+    @Test
+    void onlyExtractorCasesGiveOnlyTheFieldLineAndNoClaimAboutResistance() {
+        String text = String.join("\n", SecuritySummary.lines(List.of(extractorCase("e1", false))));
+
+        assertThat(text).contains("0 of 1 injection cases of an extractor").doesNotContain("payloads judged").doesNotContain("payloads: not judged");
+    }
 }

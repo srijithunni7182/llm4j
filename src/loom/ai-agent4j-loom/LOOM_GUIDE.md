@@ -156,6 +156,8 @@ The VS Code extension (`src/loom/vscode-loom`) puts the same engine in the edito
 
 **Requirements a person can sign off.** `weave eval <script> --requirements` (no model, no key) renders the dataset as a plain page, Markdown by default and `--format html` for a page to share: per workflow, agent and node what it must do and must never do, per policy rule its text with the examples that break it and the near misses, the identity read (the dataset's `version:` and hash, each policy's version and hash) and what has no requirement yet. Personal data in a case is masked. `--requirements --approve --approver <name> --why "<text>"` records the exact identity in `eval/requirements-approvals.yaml`; a later change to any case or policy makes the page say "changed since approved by <name> on <date>" until it is approved again. It is a review aid, not a security control.
 
+**What a real run really does.** A real run carries out the workflow's steps: a task that changes things (a payment, a send) runs, and every question to a person is answered yes. Before it starts, `weave eval` names those tasks (`These steps change things and will run for real: task IssueRefund`). `--effects simulate` describes them instead, as `--mock` does, so nothing is paid or sent while the models and the judge are still real; a step that reads such a task's value then sees a simulated outcome, so check the routes that depend on it in `weave test`. Tools are replaced by `fixtures.yaml`, as before.
+
 **Continuous, and cheap.** Run the free things on every change (`weave check`, `weave test`, `weave eval --mock`), `weave eval --changed --max-tokens N` before a merge, and a full `weave eval` on a schedule. Every complete real run records a fingerprint per agent and node (the resolved prompt including the shared prompt, model, temperature, schema or fields, tools and their declared effect, an evaluator's policies by version and hash, and the node's own cases); `--changed [--since baseline|last|<file>]` runs the cases of the nodes that differ plus every workflow that reaches one, and prints *what changed* first. Without a reference everything counts as changed and it says so; an unreadable prompt counts as changed. It needs a cap. An evaluator's cases are run too, and its **false-alarm rate** (the share of its clean and near-miss answers flagged violated or unsure, with a 95% interval) fails the run above `false_alarm_limit` (10% unless the evaluator says otherwise: `evaluator Compliance { model: "…" false_alarm_limit: 5% }`). The report's *By agent and node* section has a row for each. `weave init` writes a GitHub Actions file with the three costs, the full run commented out.
 
 ```
@@ -212,6 +214,7 @@ weave eval newsletter/main.loom --mock            # run the wiring on a model th
 weave eval newsletter/main.loom --max-tokens 200000 --yes   # a real run, capped, without asking first
 weave eval newsletter/main.loom --agent Editor --json results.json --report report.html
 weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the same dataset with only that prompt changed
+weave eval newsletter/main.loom --effects simulate --max-tokens 200000   # a real run that describes, and does not run, the tasks that change things
 ```
 
 - **Order of work.** Write the dataset first (what "good" means), then the script, then `--check`, then `--mock`, then a capped real run. The workflow guide does it in that order when you want tests, and skips straight to the script when you do not.
@@ -2560,6 +2563,12 @@ weave run flow.loom --secrets keys.store --secrets-key-env MYAPP_MASTER_KEY
 
 - **You choose the file and the master key.** `--secrets <file>` and one of `--secrets-key-file <file>` or `--secrets-key-env <VARIABLE>` (you name the variable);
   with neither, `weave` asks for the passphrase. There is no default location. Keeping the file and its directory ACL-protected is yours to do.
+- **A key file, if you choose one.** `weave secrets create --secrets-key-file <file>` makes that file, with a random key readable by you only, when it does not
+  exist yet. It sits wherever you put it: keep it away from the store, since anyone with both reads every key.
+- **Name them once (optional).** `LOOM_SECRETS` and `LOOM_SECRETS_KEY_FILE`, both set, stand for `--secrets` and `--secrets-key-file` on every command. One
+  without the other is an error that names the missing one, and any store option on the command line wins over both.
+- **Which keys?** `weave keys <script>` (or `weave keys --model <name>` before there is a script) lists the key each model needs, says whether it is set, never its
+  value, and prints both routes for each missing one: the `.env` line, and the store commands above.
   `run`, `check`, `resume`, `tick` and `daemon` take these options; they are not saved in a run's spec, so give them again when resuming.
 - `secret.NAME` reads only the store. The built-in models look the store up first by their usual name (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`,
   `SARVAM_API_KEY`), then the environment.
@@ -3537,6 +3546,8 @@ host.startTriggers(Duration.ofSeconds(15), null, Duration.ofMinutes(5), null);  
 ```
 
 - `run` blocks and returns how the run ended; a failure is thrown as `LoomRunFailedException` with the run id. `start` returns a `LoomRun` and runs on the executor you give the builder.
+- A run started with `start`, or carried on by an answer or a timer, hands nothing back to the caller. `.runListener((record, variables) -> ...)` on the builder is told how **every** run ended (completed, suspended, stopped or failed), with the workflow's values at that moment, once the run's record is saved.
+- A question listener is told once the run is recorded as suspended, so it may answer at once: `host.answer(run, step, "yes", who)` from inside the listener is taken.
 - A host with no persistence cannot resume anything, so it refuses a script that can wait (`human_prompt`, `approve:`, `sleep`, `rate_limits`, a windowed budget) unless you say `allowNonDurable(true)`,
   and then such a run fails instead of suspending. A script that keeps earned-autonomy records always needs a store.
 - With `Persistence.file(dir)` a host's runs are in the folder layout `weave` uses (`dir/runs/<id>/journal.json` and `run.json`), so `weave timeline` and the other run commands read them.

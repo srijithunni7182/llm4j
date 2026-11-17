@@ -407,4 +407,77 @@ class SecretCommandsTest {
                     .containsExactly("api.x.ai");
         }
     }
+
+    @Test
+    void createMakesTheMasterKeyFileWhenItDoesNotExistYet() throws Exception {
+        Path key = dir.resolve("new/keys.key");
+
+        assertThat(SecretCommands.run(env(), new Script(), "create", "--secrets", file().toString(), "--secrets-key-file", key.toString(), "--iterations", "100000"))
+                .as(said())
+                .isZero();
+
+        assertThat(key).exists();
+        assertThat(Files.readString(key).strip()).hasSizeGreaterThanOrEqualTo(40);
+        if (key.getFileSystem().supportedFileAttributeViews().contains("posix"))
+            assertThat(java.nio.file.Files.getPosixFilePermissions(key))
+                    .containsExactlyInAnyOrder(java.nio.file.attribute.PosixFilePermission.OWNER_READ, java.nio.file.attribute.PosixFilePermission.OWNER_WRITE);
+        assertThat(said()).contains("Made a master key in " + key).doesNotContain(Files.readString(key).strip());
+        try (var store = io.github.llm4j.secret.EncryptedFileSecretStore.open(file(), io.github.llm4j.secret.MasterKey.fromFile(key))) {
+            assertThat(store.names()).isEmpty();
+        }
+    }
+
+    @Test
+    void theStoreAndItsKeyFileCanBeNamedOnceInTheEnvironment() throws Exception {
+        Path key = dir.resolve("keys.key");
+        vars.put("LOOM_SECRETS", file().toString());
+        vars.put("LOOM_SECRETS_KEY_FILE", key.toString());
+        assertThat(SecretCommands.run(env(), new Script(), "create", "--iterations", "100000")).as(said()).isZero();
+        Script typed = new Script(VALUE);
+
+        assertThat(SecretCommands.run(env(), typed, "set", "OPENAI_API_KEY")).as(said()).isZero();
+
+        assertThat(typed.asked).containsExactly("Value for OPENAI_API_KEY: ");
+        try (var store = io.github.llm4j.secret.EncryptedFileSecretStore.open(file(), io.github.llm4j.secret.MasterKey.fromFile(key))) {
+            assertThat(store.names()).containsExactly("OPENAI_API_KEY");
+        }
+        assertThat(said()).doesNotContain(VALUE);
+    }
+
+    @Test
+    void anOptionOnTheCommandLineWinsOverTheEnvironment() throws Exception {
+        vars.put("LOOM_SECRETS", dir.resolve("elsewhere.store").toString());
+        Path key = dir.resolve("k.key");
+
+        assertThat(SecretCommands.run(env(), new Script(), "create", "--secrets", file().toString(), "--secrets-key-file", key.toString(), "--iterations", "100000")).isZero();
+
+        assertThat(file()).exists();
+        assertThat(dir.resolve("elsewhere.store")).doesNotExist();
+    }
+
+    @Test
+    void oneOfTheTwoVariablesAloneIsRefusedByNameAndNothingIsAskedOrOpened() {
+        vars.put("LOOM_SECRETS_KEY_FILE", dir.resolve("k.key").toString());
+        Script nobody = new Script();
+
+        assertThat(SecretCommands.run(env(), nobody, "list")).isEqualTo(2);
+        assertThat(said()).contains("LOOM_SECRETS_KEY_FILE is set but LOOM_SECRETS is not").doesNotContain("--secrets-key-file");
+        assertThat(nobody.asked).isEmpty();
+
+        vars.clear();
+        out.reset();
+        vars.put("LOOM_SECRETS", file().toString());
+        SecretOptions options = new SecretOptions();
+        assertThat(options.apply(env(), nobody)).as("a run with only LOOM_SECRETS set is refused, not prompted").isNull();
+        assertThat(said()).contains("LOOM_SECRETS is set but LOOM_SECRETS_KEY_FILE is not");
+        assertThat(nobody.asked).isEmpty();
+    }
+
+    @Test
+    void withNeitherVariableACommandThatNeedsNoStoreOpensNone() {
+        SecretOptions options = new SecretOptions();
+        WeaveEnv before = env();
+
+        assertThat(options.apply(before, new Script())).isSameAs(before);
+    }
 }

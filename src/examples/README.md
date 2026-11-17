@@ -11,6 +11,9 @@ REST APIs, local RAG (addons), creator memory (Engram), an eval4j quality gate, 
 rendered Reel, a Showrunner that signs off every artifact, and approval-gated Instagram publishing. A multi-user website that deploys to Cloud Run and
 runs locally with `./launch.sh`, with no API key needed.
 
+### [expense-desk](./expense-desk/)
+A small web application: a model reads an expense claim, Java policy decides, a person approves the larger payouts and a journaled task pays exactly once. A Loom workflow on a `LoomHost`, served by the JDK's HTTP server, with the workflow's graph and security audit on the page. Runs with `./run.sh` and no API key.
+
 ### [a2a-starter](./a2a-starter/)
 The code around llm4j's A2A support that you provide: a transport, a channel, a serving route, a runner per caller and a task store, in the JDK only. It compiles and need not run, and it marks every decision that is yours.
 

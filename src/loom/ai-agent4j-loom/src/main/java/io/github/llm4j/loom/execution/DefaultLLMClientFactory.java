@@ -5,9 +5,11 @@ import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.ollama.OllamaProvider;
+import io.github.llm4j.provider.openai.Vendor;
 import io.github.llm4j.secret.SecretRef;
 import io.github.llm4j.secret.SecretStore;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -106,6 +108,29 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                 || m.contains("gemma")
                 || m.contains("mistral")) return Kind.OLLAMA;
         return null;
+    }
+
+    /**
+     * The name of the key a model needs (the environment variable or the secret it is read from),
+     * worked out from the model's name alone: {@code GEMINI_API_KEY} for {@code gemini-2.5-flash},
+     * {@code OPENAI_API_KEY} for {@code gpt-4.1-mini}. Empty for a model that needs no key (one
+     * served on this computer).
+     *
+     * @throws IllegalArgumentException for a name this factory cannot place, with what it takes
+     */
+    public static Optional<String> keyNameOf(String modelName) {
+        Kind kind = modelName == null || modelName.isBlank() ? null : kindOf(modelName);
+        if (kind == null)
+            throw new IllegalArgumentException(new DefaultLLMClientFactory(name -> null).problem(modelName));
+        return switch (kind) {
+            case GEMINI -> Optional.of("GEMINI_API_KEY");
+            case ANTHROPIC -> Optional.of("ANTHROPIC_API_KEY");
+            case OLLAMA -> Optional.empty();
+            case VENDOR -> {
+                Vendor vendor = Vendor.ofModel(modelName).orElseThrow().vendor();
+                yield vendor.keyOptional() ? Optional.empty() : Optional.ofNullable(vendor.keyEnv());
+            }
+        };
     }
 
     /**

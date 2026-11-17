@@ -1,6 +1,6 @@
 # The order a person meets the commands in. A command not named here is listed under "Other",
 # and ManPageTest fails until it is placed.
-Start here: try doctor init next guide man
+Start here: try doctor keys init next guide man
 Describe it and build it: generate
 Understand and check a script: check explain graph card symbols review audit rules mcp connect
 Test and evaluate: test eval judge metamorphic security probe gate preflight

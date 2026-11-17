@@ -38,7 +38,11 @@ Before you call a project ready, run each command in its README in a form that d
 
 ## 7. Keys: ask first, offer both routes
 
-The first question about keys is: **will you run this yourself, or deploy it?** Then offer both routes side by side: the secret store (`weave secrets`), and a `.env` file that is git-ignored. Say it plainly: never put a key in `.env.example`, in a script or in a committed file. Never ask for a key in the conversation.
+The first question about keys is: **will you run this yourself, or deploy it?** Then offer both routes side by side: a `.env` file that is git-ignored, for `weave` on the person's own machine, and the secret store (`weave secrets`) for a program or a server. Say it plainly: never put a key in `.env.example`, in a script or in a committed file. Never ask for a key in the conversation.
+
+Ask before the first step that calls a model, without waiting to be asked: **which models do you want to use?** (or read them from the script). Then run `weave keys --model <name>` for each, or `weave keys <script>`: it says which key each model needs and whether it is set (never its value), and prints the `.env` line and the store commands for a missing one. Give the person the lines for the route they chose, to set in their own editor or terminal, and run `weave keys` again to confirm. Never run `weave secrets set` yourself: it asks for the value, and the value must not pass through you.
+
+If your shell has no `weave`, run the launcher that comes with the workflow skill (`llm4j-workflow-guide/scripts/weave`, beside this skill's folder), or `~/.llm4j/bin/weave` when the person has run **Loom: Make weave Available in Every Terminal**; prefer either over installing another copy.
 
 ## 8. Say once that selecting text shares it
 

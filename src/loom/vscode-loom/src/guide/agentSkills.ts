@@ -26,6 +26,16 @@ export function agentsSection(): string {
         '',
         'Start with `llm4j-harness-design`. After you create or edit a `.loom` file, run `weave check` and `weave review` (the skills explain how to',
         'read and fix its findings), and tell the person what is still open before you say you are done.',
+        '',
+        '**Running weave.** If your shell has no `weave` command, run the launcher that comes with the workflow skill:',
+        `\`${SKILL_ROOTS[0]}/llm4j-workflow-guide/scripts/weave\` (Windows: \`scripts\\weave.cmd\` in the same folder). It finds the weave the Loom`,
+        'extension carries (or `~/.llm4j/bin/weave`, once the person has run **Loom: Make weave Available in Every Terminal**). Prefer it over',
+        'installing another copy.',
+        '',
+        '**Keys.** Before the first run that calls a model, ask the person which models they want to use and whether they will run it',
+        'themselves or deploy it. Run `weave keys --model <name>` for each (or `weave keys <script>` once there is a script): it prints the',
+        '`.env` line and the secret store commands for a missing key. Give them the lines for the route they chose, to set themselves.',
+        'Never run `weave secrets set` yourself, never ask for a key in the chat, and never write one into a file.',
         SECTION_END,
     ].join('\n');
 }

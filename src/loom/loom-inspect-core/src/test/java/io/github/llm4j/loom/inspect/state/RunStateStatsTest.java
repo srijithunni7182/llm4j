@@ -488,4 +488,34 @@ class RunStateStatsTest {
         assertThat(toolRow("Wiki").get("calls")).isEqualTo(20_000L);
         assertThat((long) model("m1").get("p95Ms")).isBetween(400L, 499L);
     }
+
+    /**
+     * An extractor's model call belongs to no agent step, and the run's totals were the sum of the
+     * agent steps: a run that read a document and then wrote a note showed one model call.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void anExtractorsModelCallCountsInTheRunsTotalsAndAnAgentsCallIsNotCountedTwice() {
+        chat(1, "Invoice", 100, Semconv.GEN_AI_OPERATION_NAME, Semconv.OP_EXTRACT);
+        chat(2, "Writer", 100); // an agent's call: its step adds it to the totals when the step ends
+
+        Map<String, Object> totals = (Map<String, Object>) state.view().get("totals");
+
+        assertThat(totals.get("tokens")).isEqualTo(120L);
+        assertThat(totals.get("calls")).isEqualTo(1L);
+    }
+
+    /** A daemon that extracts on every item must not grow the spend series without bound. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void theSpendSeriesStaysBoundedHoweverManyExtractCallsARunMakes() {
+        for (int i = 0; i < 3 * RunState.SPEND_POINTS; i++)
+            chat(1 + i * 0.001, "Invoice", 1, Semconv.GEN_AI_OPERATION_NAME, Semconv.OP_EXTRACT);
+
+        List<?> series = (List<?>) state.view().get("spend");
+        Map<String, Object> totals = (Map<String, Object>) state.view().get("totals");
+
+        assertThat(series.size()).isLessThanOrEqualTo(RunState.SPEND_POINTS);
+        assertThat(totals.get("calls")).isEqualTo(3L * RunState.SPEND_POINTS);
+    }
 }

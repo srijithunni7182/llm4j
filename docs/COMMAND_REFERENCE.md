@@ -8,6 +8,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave try`](#weave-try) — Runs a bundled workflow on demo models (pre-written replies; no key, no network, nothing written) and explains each step.
 - [`weave doctor`](#weave-doctor) — Checks the setup (Java, the script, the keys it needs by name, models, the run store, prices, Fabric) and says the one thing to do for each problem.
+- [`weave keys`](#weave-keys) — Says which API key each model needs, whether it is set (in the environment, a .env file or the secret store; never its value), and prints how to set a missing one: a .env line for running weave yourself, or the secret store commands for a program or a server.
 - [`weave init`](#weave-init) — Creates a starter project: a Maven project with the script and its prompts in src/main/resources, the golden dataset and eval4j JUnit tests under src/test, and a README.
 - [`weave next`](#weave-next) — Looks at this project and says what to do next, in order, with the command for each step.
 - [`weave guide`](#weave-guide) — Prints the guide that ships inside this jar: weave guide (list), weave guide 6, weave guide loom.
@@ -1890,6 +1891,7 @@ weave eval [OPTIONS] <script>
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--dataset=<dir>` — The folder of dataset files (default: eval/golden beside the script).
+- `--effects=<real|simulate>` — What a real run does with the tasks that change things (a payment, a send): real (default) runs them, and every question to a person is answered yes; simulate describes them instead, as --mock does, so nothing is paid or sent. The run says which tasks these are before it starts.
 - `--emit-test=<file>` — Write the opt-in JUnit class for this project (for a project that wants the Java API): a hermetic test that runs the wiring on a mock model, and a real evaluation that runs only with -Deval.real=true, under a cap (-Deval.maxCost with -Deval.prices, else a token cap). The package is taken from the folder under src/test/java. An existing file is never overwritten. Runs nothing else.
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
 - `--format=<md|html>` — With --requirements: markdown (default) or html, a page to share.
@@ -2392,6 +2394,50 @@ weave secrets rekey [OPTIONS]
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
+### `weave keys`
+
+Says which API key each model needs, whether it is set (in the environment, a .env file or the secret store; never its value), and prints how to set a missing one: a .env line for running weave yourself, or the secret store commands for a program or a server.
+
+Give a script, or the models you mean to use with --model.
+
+```
+weave keys [OPTIONS] [<script>]
+```
+
+**Arguments**
+
+- `<script>` — The .loom script whose models to look at.
+
+**Options**
+
+- `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--model=<name>` — A model you mean to use, e.g. gpt-4.1-mini (repeatable).
+- `--no-env-file` — Do not read a .env file, even if one is beside the script.
+- `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
+- `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
+- `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+**Examples**
+
+```
+weave keys --model gpt-4.1-mini --model claude-sonnet-5-5    the keys these models need, before any script exists
+weave keys main.loom                                         the keys the script's models need, and which are set
+weave keys main.loom --secrets team.store --secrets-key-env TEAM_MASTER_KEY
+```
+
+**Notes**
+
+It reads names only: whether a key is set (in the environment, a .env file beside the script, or the secret store), never its value, and it never asks for one. A key the script reads from env.NAME is looked for in the environment only, and one it reads from secret.NAME in the store only. For each missing key it prints both routes, for the person to choose: the .env line for running weave themselves, and, for a program or a server, the weave secrets create and weave secrets set commands, with the store and master key given by --secrets and --secrets-key-file or --secrets-key-env (keys.store and LOOM_MASTER_KEY are shown as examples when none is given). A coding agent hands these lines to the person; it does not run weave secrets set itself.
+
+**Exit status**
+
+0 every model's key is set. 1 a key is missing, or a model could not be placed. 2 nothing to look at, or the script could not be read.
+
+**See also**
+
+weave man secrets, weave man doctor, weave man preflight
+
 ### `weave tools`
 
 Gets the extra jars a deployment needs (the Fabric server, the inspect add-on) from Maven Central, after asking and checking their checksums.
@@ -2739,11 +2785,13 @@ weave preflight [OPTIONS] <script>
 
 **Options**
 
+- `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--format=<text|json>` — The report as text (default) or JSON.
 - `--input=<text>` — The probe input (default: the agent's first dataset case, else a greeting).
 - `--max-cost=<amount>` — Stop when the probes have cost this much (needs --prices). Default 0.05.
 - `--max-tokens=<n>` — Stop when the probes have used this many tokens (default 20000 when there are no prices).
 - `--mock` — Run the same checks on models that cost nothing.
+- `--no-auto-classes` — Do not put the project's target/classes on the class path when --classes is not given.
 - `--prices=<file>` — Price table: lines of 'model = input / output' per million tokens.
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `-y, --yes` — Do not ask before sending the probes.
