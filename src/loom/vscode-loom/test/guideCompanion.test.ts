@@ -6,6 +6,7 @@ import * as path from 'path';
 import {
     CLAUDE_FILE, CLAUDE_TOOLS, COPILOT_FILE, COPILOT_TOOLS, MCP_FILE, claudeAgent, copilotAgent, mergeMcpJson, writeAgentFiles,
 } from '../src/companion/agentFiles';
+import { GUIDE_OFFER_NEVER, GUIDE_OFFER_NOT_NOW, GUIDE_OFFER_SET_UP, GuideOfferFacts, guideOfferMessage, offerGuideSetUp, shouldOfferGuide } from '../src/companion/guideOffer';
 import { ACTIONS, EditorActions, handleRequest, insideProject, pending, refusal } from '../src/companion/mailbox';
 import { MAX_EVENTS, NOTICE_SPACING_MS, NoticeGate, appendEvent, noticeFor, stageChanges, statusText, undiscussed } from '../src/companion/model';
 import { Journey } from '../src/views/progressModel';
@@ -164,14 +165,16 @@ test('the persona holds the rules the Guide is judged on', () => {
 test('setting up writes both agents and the MCP entry, keeps other servers, and leaves a file the developer changed', () => {
     const dir = tmp();
     fs.writeFileSync(path.join(dir, MCP_FILE), JSON.stringify({ mcpServers: { mine: { command: 'x' } } }));
-    const first = writeAgentFiles(dir, persona, 'java', '/ext/bin/weave.jar');
+    const first = writeAgentFiles(dir, persona);
     assert.deepEqual(first.map((w) => w.outcome), ['written', 'written', 'written']);
     const mcp = JSON.parse(fs.readFileSync(path.join(dir, MCP_FILE), 'utf8'));
     assert.deepEqual(Object.keys(mcp.mcpServers).sort(), ['llm4j-guide', 'mine']);
-    assert.deepEqual(mcp.mcpServers['llm4j-guide'].args, ['-jar', '/ext/bin/weave.jar', 'guide-mcp', '.']);
+    // nothing of this machine: the file can be committed and works for every teammate with the launcher
+    assert.deepEqual(mcp.mcpServers['llm4j-guide'], { type: 'stdio', command: 'weave', args: ['guide-mcp', '${CLAUDE_PROJECT_DIR:-.}'] });
+    assert.doesNotMatch(fs.readFileSync(path.join(dir, MCP_FILE), 'utf8'), /weave\.jar|\/home\/|\/Users\/|[A-Z]:\\\\/);
 
     fs.appendFileSync(path.join(dir, CLAUDE_FILE), '\nMy own rule.\n');
-    const second = writeAgentFiles(dir, persona + '\nA newer rule.\n', 'java', '/ext/bin/weave.jar');
+    const second = writeAgentFiles(dir, persona + '\nA newer rule.\n');
     const byFile = Object.fromEntries(second.map((w) => [w.file, w.outcome]));
     assert.equal(byFile[COPILOT_FILE], 'written');
     assert.equal(byFile[CLAUDE_FILE], 'kept-yours');
@@ -181,10 +184,10 @@ test('setting up writes both agents and the MCP entry, keeps other servers, and 
 test('an .mcp.json that is not JSON is never overwritten', () => {
     const dir = tmp();
     fs.writeFileSync(path.join(dir, MCP_FILE), '{ broken');
-    const out = writeAgentFiles(dir, persona, 'java', 'weave.jar');
+    const out = writeAgentFiles(dir, persona);
     assert.equal(out.find((w) => w.file === MCP_FILE)?.outcome, 'kept-yours');
     assert.equal(fs.readFileSync(path.join(dir, MCP_FILE), 'utf8'), '{ broken');
-    assert.throws(() => mergeMcpJson('{ broken', 'java', 'x'));
+    assert.throws(() => mergeMcpJson('{ broken'));
 });
 
 test('the manifest declares the Guide: commands, setting, MCP provider and the new minimum editor', () => {
@@ -196,4 +199,37 @@ test('the manifest declares the Guide: commands, setting, MCP provider and the n
     assert.equal(manifest.contributes.configuration.properties['loom.guide.notices'].default, true);
     assert.deepEqual(manifest.contributes.mcpServerDefinitionProviders, [{ id: 'llm4j-guide', label: 'llm4j-guide' }]);
     assert.ok(manifest.files.includes('guide/**/*'));
+});
+
+
+const due: GuideOfferFacts = { hasLoom: true, guideSetUp: false, walkthroughSeenBefore: true, hosts: ['Copilot'], dismissedHere: false, dismissedEverywhere: false };
+
+test('the Guide is offered once the walkthrough was seen in an earlier session, in a Loom folder, with an assistant to run on', () => {
+    assert.equal(shouldOfferGuide(due), true);
+    assert.equal(shouldOfferGuide({ ...due, walkthroughSeenBefore: false }), false, 'not in the session the walkthrough first opens');
+    assert.equal(shouldOfferGuide({ ...due, hasLoom: false }), false);
+    assert.equal(shouldOfferGuide({ ...due, guideSetUp: true }), false);
+    assert.equal(shouldOfferGuide({ ...due, hosts: [] }), false, 'nothing to run it on');
+    assert.equal(shouldOfferGuide({ ...due, dismissedHere: true }), false);
+    assert.equal(shouldOfferGuide({ ...due, dismissedEverywhere: true }), false);
+    assert.match(guideOfferMessage(['Copilot', 'Claude Code']), /Copilot or Claude Code/);
+});
+
+test('the offer is a question: set up runs only on the person\'s click, and each refusal is remembered where it belongs', async () => {
+    for (const [choice, expected] of [[GUIDE_OFFER_SET_UP, 'setup'], [GUIDE_OFFER_NOT_NOW, 'workspace'], [GUIDE_OFFER_NEVER, 'global'], [undefined, 'nothing']] as const) {
+        const log: string[] = [];
+        await offerGuideSetUp({
+            facts: async () => due,
+            show: async (_m, buttons) => {
+                assert.deepEqual(buttons, [GUIDE_OFFER_SET_UP, GUIDE_OFFER_NOT_NOW, GUIDE_OFFER_NEVER]);
+                return choice;
+            },
+            setFlag: async (scope) => void log.push(scope),
+            runSetUp: async () => void log.push('setup'),
+        });
+        assert.deepEqual(log, expected === 'nothing' ? [] : [expected], String(choice));
+    }
+    const shown: string[] = [];
+    await offerGuideSetUp({ facts: async () => ({ ...due, guideSetUp: true }), show: async (m) => (shown.push(m), undefined), setFlag: async () => {}, runSetUp: async () => {} });
+    assert.deepEqual(shown, []);
 });

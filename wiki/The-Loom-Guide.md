@@ -8,7 +8,7 @@ Its goal is the same as the skills': a workflow that is tested, evaluated, cost-
 
 The Guide runs as an `llm4j-guide` agent of the assistant you already use, on your own Copilot or Claude subscription: no new key, no new bill. In VS Code (1.101 or newer):
 
-1. Run **Loom: Set Up the Guide**. It writes `.github/agents/llm4j-guide.agent.md` for Copilot, `.claude/agents/llm4j-guide.md` for Claude Code, and the `llm4j-guide` server in `.mcp.json`. A file you changed is left alone.
+1. Run **Loom: Set Up the Guide** (the extension also offers it once, in a later session than your first walkthrough). It writes `.github/agents/llm4j-guide.agent.md` for Copilot, `.claude/agents/llm4j-guide.md` for Claude Code, and the `llm4j-guide` server in `.mcp.json` as `weave guide-mcp ${CLAUDE_PROJECT_DIR:-.}`: no path of your machine, so all three files can be committed for the team. Claude Code starts it with the `weave` launcher; Set Up offers to put it on your PATH if it is not there. A file you changed is left alone.
 2. Run **Loom: Open the Guide**, or click the Guide's note count in the status bar:
    - **Copilot:** choose `llm4j-guide` in Copilot Chat's agent list.
    - **Claude Code:** a terminal opens running `claude --agent llm4j-guide`.

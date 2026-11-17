@@ -50,13 +50,19 @@ export function serverCommand(java: string, jar: string, root: string): { comman
     return { command: java, args: ['-jar', jar, 'guide-mcp', root] };
 }
 
+/**
+ * The Guide's entry in `.mcp.json`. It names no path of this machine, so the file can be committed: `weave` is the launcher
+ * the extension keeps on the PATH (Loom: Make weave Available in Every Terminal), and Claude Code expands the project folder.
+ */
+export const MCP_ENTRY = { type: 'stdio', command: 'weave', args: ['guide-mcp', '${CLAUDE_PROJECT_DIR:-.}'] };
+
 /** `.mcp.json` with the Guide's server added or updated; every other server is kept as it was. */
-export function mergeMcpJson(existing: string | undefined, java: string, jar: string): string {
+export function mergeMcpJson(existing: string | undefined): string {
     let doc: { mcpServers?: Record<string, unknown> } = {};
     if (existing !== undefined && existing.trim() !== '') {
         doc = JSON.parse(existing);
     }
-    doc.mcpServers = { ...(doc.mcpServers ?? {}), [MCP_SERVER]: { type: 'stdio', ...serverCommand(java, jar, '.') } };
+    doc.mcpServers = { ...(doc.mcpServers ?? {}), [MCP_SERVER]: MCP_ENTRY };
     return JSON.stringify(doc, null, 2) + '\n';
 }
 
@@ -77,7 +83,7 @@ export const MCP_FILE = '.mcp.json';
  * Writes the agent files. A file this extension wrote before and the developer has since changed
  * is kept as it is (its hash is remembered in `.loom/guide/written.json`).
  */
-export function writeAgentFiles(root: string, persona: string, java: string, jar: string): Written[] {
+export function writeAgentFiles(root: string, persona: string): Written[] {
     const record = path.join(guideFolder(root), 'written.json');
     let hashes: Record<string, string> = {};
     try {
@@ -110,7 +116,7 @@ export function writeAgentFiles(root: string, persona: string, java: string, jar
     const existing = fs.existsSync(mcpPath) ? fs.readFileSync(mcpPath, 'utf8') : undefined;
     let merged: string | undefined;
     try {
-        merged = mergeMcpJson(existing, java, jar);
+        merged = mergeMcpJson(existing);
     } catch {
         merged = undefined;
     }

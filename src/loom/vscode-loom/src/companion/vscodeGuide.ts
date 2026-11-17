@@ -5,7 +5,10 @@ import { vscodeHandoffHost } from '../commands/onboardingCommands';
 import { Journey } from '../views/progressModel';
 import { shellKind, terminalCommand } from '../welcome/welcome';
 import { AGENT_NAME, MCP_SERVER, serverCommand, writeAgentFiles } from './agentFiles';
+import { GUIDE_HOSTS, offerGuideSetUp } from './guideOffer';
 import { Args, EditorActions, handleRequest, pending } from './mailbox';
+import * as os from 'os';
+import { launcherFolder } from '../terminal/weaveLauncher';
 import { GuideEvent, NoticeGate, appendEvent, guideFolder, noticeFor, stageChanges, statusText, undiscussed } from './model';
 
 /**
@@ -190,18 +193,33 @@ export class GuideCompanion implements vscode.Disposable {
     /** Writes the Guide's agent files for Copilot and Claude Code, after showing what it writes. */
     async setUp(): Promise<void> {
         const ok = await vscode.window.showInformationMessage(
-            'Set up the Loom Guide? It writes .github/agents/llm4j-guide.agent.md (Copilot), .claude/agents/llm4j-guide.md (Claude Code) and adds the llm4j-guide server to .mcp.json. A file you changed is left alone.',
+            'Set up the Loom Guide? It writes .github/agents/llm4j-guide.agent.md (Copilot), .claude/agents/llm4j-guide.md (Claude Code) and adds the llm4j-guide server to .mcp.json (it runs `weave guide-mcp` and names no path of this machine, so the file can be committed). A file you changed is left alone.',
             { modal: true },
             'Set Up',
         );
         if (ok !== 'Set Up') return;
         const persona = fs.readFileSync(this.context.asAbsolutePath(path.join('guide', 'persona.md')), 'utf8');
-        const written = writeAgentFiles(this.root, persona, this.java(), this.jar());
+        const written = writeAgentFiles(this.root, persona);
         const kept = written.filter((w) => w.outcome === 'kept-yours').map((w) => w.file);
-        void vscode.window.showInformationMessage(
+        const done =
             `The Guide is set up. In Copilot Chat pick "${AGENT_NAME}" in the agent list; in Claude Code run "claude --agent ${AGENT_NAME}" (Loom: Open the Guide does it).` +
-                (kept.length ? ` Left as you changed them: ${kept.join(', ')}.` : ''),
+            (kept.length ? ` Left as you changed them: ${kept.join(', ')}.` : '');
+        if (this.launcherInstalled()) {
+            void vscode.window.showInformationMessage(done);
+            return;
+        }
+        // Claude Code starts the Guide with `weave`, so it must be on the PATH of the shell Claude Code runs in
+        const add = 'Make weave Available';
+        const pick = await vscode.window.showInformationMessage(
+            `${done} Claude Code starts the Guide with the weave command, which is not in your terminals yet.`,
+            add,
         );
+        if (pick === add) await vscode.commands.executeCommand('loom.addWeaveToShellPath');
+    }
+
+    private launcherInstalled(): boolean {
+        const folder = launcherFolder(os.homedir());
+        return fs.existsSync(path.join(folder, 'weave')) || fs.existsSync(path.join(folder, 'weave.cmd'));
     }
 
     /** Opens the Guide on the assistant the developer chooses. */
@@ -248,7 +266,11 @@ export class GuideCompanion implements vscode.Disposable {
 }
 
 /** Starts the Guide for the first workspace folder and registers its commands. */
-export function registerGuide(context: vscode.ExtensionContext): GuideCompanion | undefined {
+const OFFER_HERE = 'loom.guide.offerDismissed';
+const OFFER_EVERYWHERE = 'loom.guide.offerNever';
+
+/** Starts the Guide for the first workspace folder, registers its commands, and makes the one-time offer when it is due. */
+export function registerGuide(context: vscode.ExtensionContext, walkthroughSeenBefore = false): GuideCompanion | undefined {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const companion = root ? new GuideCompanion(context, root) : undefined;
     companion?.registerServer();
@@ -257,6 +279,24 @@ export function registerGuide(context: vscode.ExtensionContext): GuideCompanion 
         vscode.commands.registerCommand('loom.guide.setUp', () => (companion ? companion.setUp() : needFolder())),
         vscode.commands.registerCommand('loom.guide.open', (e?: GuideEvent) => (companion ? companion.open(e) : needFolder())),
     );
-    if (companion) context.subscriptions.push(companion);
+    if (companion && root) {
+        context.subscriptions.push(companion);
+        void offerGuideSetUp({
+            facts: async () => ({
+                hasLoom: (await vscode.workspace.findFiles(new vscode.RelativePattern(root, '**/*.loom'), '**/{node_modules,target,out}/**', 1)).length > 0,
+                guideSetUp: fs.existsSync(path.join(root, '.github', 'agents', `${AGENT_NAME}.agent.md`)) || fs.existsSync(path.join(root, '.claude', 'agents', `${AGENT_NAME}.md`)),
+                walkthroughSeenBefore,
+                hosts: Object.entries(GUIDE_HOSTS).filter(([id]) => vscode.extensions.getExtension(id) !== undefined).map(([, name]) => name),
+                dismissedHere: context.workspaceState.get<boolean>(OFFER_HERE, false),
+                dismissedEverywhere: context.globalState.get<boolean>(OFFER_EVERYWHERE, false),
+            }),
+            show: (message, buttons) => Promise.resolve(vscode.window.showInformationMessage(message, ...buttons)),
+            setFlag: async (scope) => {
+                if (scope === 'workspace') await context.workspaceState.update(OFFER_HERE, true);
+                else await context.globalState.update(OFFER_EVERYWHERE, true);
+            },
+            runSetUp: () => companion.setUp(),
+        });
+    }
     return companion;
 }
