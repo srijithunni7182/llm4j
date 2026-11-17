@@ -13,12 +13,16 @@ import { available, realClient } from './realEngine';
  * the delta is a number to decide on when retiring the parser.
  */
 const repo = path.join(__dirname, '..', '..', '..', '..', '..');
+const bundledStarters = path.join(repo, 'src', 'loom', 'vscode-loom', 'starters');
 const baselineFile = path.join(__dirname, '..', '..', 'test', 'fixtures', 'parity', 'parser-delta.json');
 
 function corpus(dir: string, out: string[] = []): string[] {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const p = path.join(dir, entry.name);
         if (entry.isDirectory()) {
+            if (p === bundledStarters) {
+                continue; // build-vsix.sh copies src/loom/starters here for the package: the same scripts, compared once
+            }
             if (!['node_modules', 'target', '.git', 'out', 'out-test'].includes(entry.name)) {
                 corpus(p, out);
             }

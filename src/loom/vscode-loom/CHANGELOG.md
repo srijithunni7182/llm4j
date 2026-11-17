@@ -4,11 +4,11 @@
 
 - **`weave` for coding agents and every terminal.** The extension writes its launcher to `~/.llm4j/bin/weave` (Windows: `%USERPROFILE%\.llm4j\bin\weave.cmd`), one path that an update does not move, instead of a folder inside VS Code's storage. It also carries ready-made launchers (`launchers/weave`, `launchers/weave.cmd`) that run its jar before it has ever started. **Loom: Make weave Available in Every Terminal** adds that folder to your shell profile after asking (macOS, Linux) or copies the PowerShell line that adds it to your user PATH (Windows).
 - **Set Up My Coding Agent says where weave is and how keys are set.** The `AGENTS.md` section tells the agent to run `~/.llm4j/bin/weave` when its shell has no `weave`, and, before the first run that calls a model, to ask which models you want and hand you the commands `weave keys` prints, for you to run in your own terminal. Needs the engine with `weave keys`.
-- **New Workflow from Starter** lists starter 21, *Connect a system*, and the reference lists the `tool-openapi`, `tool-command` and `mcp-server` snippets of 1.9.0.
 
 ## 1.9.0
 
 - **Integrations (phase 36).** Hover on `use:` lists `command`, and hover explains `operation`, `pin`, `paginate`, `list_auth` and `ok_exit`, and says that `isolation` and `image` also apply to `command` and `mcp` and that `auth` can be `invoker.NAME` in a remote `mcp` block. Three snippets (`tool-openapi`, `tool-command`, `mcp-server`) pass `weave check`. The new `check` findings (a pin that no longer matches, a `command` with no isolation) reach the editor through `loom/check` with no change of the extension. Needs the engine's phase 36.
+- **Starter gallery.** *Loom: New from starter* offers `21-connect-a-system` (an OpenAPI operation and a command line that `weave connect` wrote), under *Connecting systems*. The reference lists the three new snippets.
 
 ## 1.8.0
 
