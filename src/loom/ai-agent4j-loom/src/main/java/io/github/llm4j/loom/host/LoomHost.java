@@ -607,7 +607,7 @@ public final class LoomHost implements AutoCloseable {
             }
         }
         Trigger.AgentTask a = (Trigger.AgentTask) trigger.target();
-        HarnessExecutor ex = assemble(null, false);
+        HarnessExecutor ex = assemble(null, false, Runnable::run);
         try {
             ex.runAgentTask(a.agent(), a.task());
             return TriggerTarget.Outcome.done();
@@ -675,7 +675,7 @@ public final class LoomHost implements AutoCloseable {
      * discards an executor that has no journal and no trigger store, so it writes nothing.
      */
     public void validate() {
-        closeExecutor(assemble(null, false));
+        closeExecutor(assemble(null, false, Runnable::run));
     }
 
     // ── executors ──────────────────────────────────────────────────────────────────────────────
@@ -685,11 +685,17 @@ public final class LoomHost implements AutoCloseable {
      * that run. The caller shuts it down.
      */
     public HarnessExecutor newExecutor(String runId) {
-        return executorFor(runId);
+        // the caller runs it, so nothing here can tell the listeners after the run is put down:
+        // they are told at once, as they always were for an executor handed out
+        return assemble(runId, true, Runnable::run);
     }
 
+    /**
+     * An executor for one of the host's own runs: its questions reach the listeners once the run
+     * is recorded as suspended and released, so a listener can answer at once.
+     */
     private HarnessExecutor executorFor(String runId) {
-        return assemble(runId, true);
+        return assemble(runId, true, tell -> toTell(runId, tell));
     }
 
     /** Where started workflows keep their runs: a sibling run in the host's persistence (D3). */
@@ -752,7 +758,7 @@ public final class LoomHost implements AutoCloseable {
         };
     }
 
-    private HarnessExecutor assemble(String runId, boolean forRun) {
+    private HarnessExecutor assemble(String runId, boolean forRun, java.util.function.Consumer<Runnable> tellQuestions) {
         HarnessExecutor ex = new HarnessExecutor(script, tools, models);
         if (o.baseDir != null) ex.setBaseDir(o.baseDir);
         if (o.scriptRef != null) ex.setScriptRef(o.scriptRef);
@@ -783,7 +789,7 @@ public final class LoomHost implements AutoCloseable {
                 if (human == null)
                     human =
                             new HostHumanInterface(
-                                    runId, answers, o.listeners, clock, tell -> toTell(runId, tell));
+                                    runId, answers, o.listeners, clock, tellQuestions);
             } else {
                 ex.setTriggerStore(
                         new InMemoryTriggerStore()); // a task given to an agent: the script's

@@ -476,4 +476,21 @@ class LoomHostRunTest {
         assertThat(fine).isInstanceOf(RunOutcome.Completed.class);
         assertThat(ended).containsExactly(RunRecord.Status.FAILED, RunRecord.Status.COMPLETED);
     }
+
+    /**
+     * An executor an application takes with {@code newExecutor} and runs itself: the host does not
+     * see its run end, so its listeners are told at once, as before, and nothing is kept for it.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
+    void anExecutorTakenFromTheHostTellsItsListenersAtOnce(String kind) {
+        HostEnv env = new HostEnv(kind, dir).open(APPROVE);
+        io.github.llm4j.loom.execution.HarnessExecutor ex = env.host.newExecutor("r-own");
+
+        assertThatThrownBy(() -> ex.executeWorkflow("Main", Map.of()))
+                .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
+        ex.shutdown();
+
+        assertThat(env.questions).singleElement().asString().startsWith("r-own|").endsWith("|Publish? (yes/no)");
+    }
 }
