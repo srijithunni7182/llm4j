@@ -28,6 +28,7 @@ export const STARTERS: readonly Starter[] = [
     { folder: '16-step-by-step-agent', category: 'Budgeted agents', label: 'Step-by-step agent', detail: 'A long job whose progress the script owns' },
     { folder: '17-compliance-boundary', category: 'Budgeted agents', label: 'Compliance boundary', detail: 'A reply is checked against house rules before it leaves' },
     { folder: '20-data-analyst', category: 'Budgeted agents', label: 'Data analyst', detail: 'Runs a model\'s script on a CSV in a sandbox' },
+    { folder: '21-connect-a-system', category: 'Budgeted agents', label: 'Connect a system', detail: 'An API operation and a command line as tools, with their effects' },
     { folder: '09-handbook-qa', category: 'Memory, documents and schedules', label: 'Handbook Q&A', detail: 'Answers from your own documents (checked, not run)' },
     { folder: '10-memory-assistant', category: 'Memory, documents and schedules', label: 'Memory assistant', detail: 'Remembers each person' },
     { folder: '11-daily-digest', category: 'Memory, documents and schedules', label: 'Daily digest', detail: 'Runs itself on weekday mornings' },

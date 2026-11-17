@@ -68,7 +68,7 @@ Open the Command Palette and type **Loom**. The commands below run the same `wea
 | Agent | **Loom: Set Up My Coding Agent**, **Loom: Start a Workflow in Agent Chat** | Gives Claude Code, Copilot, Cursor or Codex the four Loom skills, then opens the chat with a starter prompt typed in | nothing |
 | Try | **Loom: Try a Demo**, **Loom: Open an Example Project** | A bundled workflow on demo models, explained step by step; or its project written into your folder | nothing |
 | Check | **Loom: Check My Setup** | Java, keys, the run store, with the one fix for each problem | nothing |
-| Start | **Loom: New Workflow from Starter...** | A grouped list of twenty starters (approvals, classifier routing, parallel fan-out, budgeted agents and more); the one you pick is copied into your folder and opened. Its tests need no key | nothing |
+| Start | **Loom: New Workflow from Starter...** | A grouped list of twenty-one starters (approvals, classifier routing, parallel fan-out, budgeted agents and more); the one you pick is copied into your folder and opened. Its tests need no key | nothing |
 | Describe | **Loom: Generate Workflow...** | A sentence in, a plan to read, then a project that passed five gates | a few cents |
 | Change | **Loom: Change Workflow...** | A change as a diff with the review and cost difference; nothing is written until you accept | a few cents |
 | See | **Loom: Show Workflow Graph** | The live graph (Outline, Focus, Flow) | nothing |
@@ -177,7 +177,7 @@ When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "r
 
 ## Snippets
 
-Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `agent-grounded`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`, `extractor`, `extract`, `evaluator`, `check`, `use`, `for-each-max`, `remote`, `agent-channel`, `ask`, `expose`, `start`, `progress`, `notify`, `waitsignal`, `waitany`, `tool-workspace`, `tool-sandbox`, `tool-check`. Each one's description says the habit it encodes (a loop always has a `max`, `{name}` for a variable in a text, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
+Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `agent-grounded`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`, `extractor`, `extract`, `evaluator`, `check`, `use`, `for-each-max`, `remote`, `agent-channel`, `ask`, `expose`, `start`, `progress`, `notify`, `waitsignal`, `waitany`, `tool-workspace`, `tool-sandbox`, `tool-openapi`, `tool-command`, `mcp-server`, `tool-check`. Each one's description says the habit it encodes (a loop always has a `max`, `{name}` for a variable in a text, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
 
 ## The guide and the agent skill
 
