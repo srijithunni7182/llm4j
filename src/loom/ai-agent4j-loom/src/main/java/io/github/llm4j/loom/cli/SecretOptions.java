@@ -13,10 +13,20 @@ import picocli.CommandLine.Option;
  * variable (it is not read from a fixed one). With neither key option the passphrase is asked for
  * on the console.
  *
+ * <p>The store and its key file may instead be named once in the environment, as {@value
+ * #STORE_VARIABLE} and {@value #KEY_FILE_VARIABLE}, so a person need not repeat them on every
+ * command. An option given on the command line wins.
+ *
  * <p>Protecting the file and its directory (an ACL) is the consumer's responsibility. Nothing here
  * is written to a run's saved spec: resuming a run needs these options again.
  */
 final class SecretOptions {
+
+    /** The environment variable that names the store when {@code --secrets} is not given. */
+    static final String STORE_VARIABLE = "LOOM_SECRETS";
+
+    /** The environment variable that names the master key file when no key option is given. */
+    static final String KEY_FILE_VARIABLE = "LOOM_SECRETS_KEY_FILE";
 
     @Option(
             names = "--secrets",
@@ -68,12 +78,28 @@ final class SecretOptions {
      * opened.
      */
     WeaveEnv apply(WeaveEnv env, Prompts prompts) {
+        fromEnvironment(env.env());
         if (file == null && keyFile == null && keyEnv == null) return env;
         try {
             return env.withSecrets(open(env, prompts));
         } catch (io.github.llm4j.secret.SecretException e) {
             env.err().println("Error: " + e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Fills in what the command line left out from {@value #STORE_VARIABLE} and {@value
+     * #KEY_FILE_VARIABLE}. The key file is taken only when the command line named no key source.
+     */
+    void fromEnvironment(java.util.function.Function<String, String> env) {
+        if (file == null) {
+            String store = env.apply(STORE_VARIABLE);
+            if (store != null && !store.isBlank()) file = new File(store.strip());
+        }
+        if (keyFile == null && keyEnv == null) {
+            String key = env.apply(KEY_FILE_VARIABLE);
+            if (key != null && !key.isBlank()) keyFile = new File(key.strip());
         }
     }
 

@@ -56,8 +56,9 @@ final class SecretCommands implements Callable<Integer> {
         abstract Integer body(WeaveEnv env, Prompts prompts);
 
         Integer execute(WeaveEnv env, Prompts prompts) {
+            secrets.fromEnvironment(env.env());
             if (secrets.file == null) {
-                env.err().println("Error: --secrets <file> is required");
+                env.err().println("Error: --secrets <file> is required (or name the store once in " + SecretOptions.STORE_VARIABLE + ")");
                 return 2;
             }
             try {
@@ -354,6 +355,10 @@ final class SecretCommands implements Callable<Integer> {
 
     /** A key for a new store: from the chosen source, or asked for twice at the console. */
     private static MasterKey newKey(SecretOptions o, WeaveEnv env, Prompts prompts, String prompt) {
+        if (o.keyFile != null && o.keyEnv == null && !o.keyFile.exists()) {
+            MasterKeyFile.make(o.keyFile.toPath());
+            env.out().println("Made a master key in " + o.keyFile + ", readable by you only. Keep it out of git and out of any chat.");
+        }
         if (o.keyFile != null || o.keyEnv != null) return o.masterKey(env, prompts, prompt);
         return confirmed(prompts, prompt);
     }

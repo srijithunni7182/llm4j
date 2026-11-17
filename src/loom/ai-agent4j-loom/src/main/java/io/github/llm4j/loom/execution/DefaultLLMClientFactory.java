@@ -109,6 +109,30 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
     }
 
     /**
+     * The name of the key a model needs (the environment variable or the secret it is read from),
+     * worked out from the model's name alone: {@code GEMINI_API_KEY} for {@code gemini-2.5-flash},
+     * {@code OPENAI_API_KEY} for {@code gpt-4.1-mini}. Empty for a model that needs no key (one
+     * served on this computer).
+     *
+     * @throws IllegalArgumentException for a name this factory cannot place, with what it takes
+     */
+    public static java.util.Optional<String> keyNameOf(String modelName) {
+        Kind kind = modelName == null || modelName.isBlank() ? null : kindOf(modelName);
+        if (kind == null)
+            throw new IllegalArgumentException(new DefaultLLMClientFactory(name -> null).problem(modelName));
+        return switch (kind) {
+            case GEMINI -> java.util.Optional.of("GEMINI_API_KEY");
+            case ANTHROPIC -> java.util.Optional.of("ANTHROPIC_API_KEY");
+            case OLLAMA -> java.util.Optional.empty();
+            case VENDOR -> {
+                io.github.llm4j.provider.openai.Vendor vendor =
+                        io.github.llm4j.provider.openai.Vendor.ofModel(modelName).orElseThrow().vendor();
+                yield vendor.keyOptional() ? java.util.Optional.empty() : java.util.Optional.ofNullable(vendor.keyEnv());
+            }
+        };
+    }
+
+    /**
      * What the named model takes, worked out from its name alone: no key, no provider, no network.
      * Empty for a model this factory cannot place (a provider declared in the script), because
      * guessing would be worse than saying nothing.

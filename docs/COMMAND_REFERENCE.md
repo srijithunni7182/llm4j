@@ -8,6 +8,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave try`](#weave-try) — Runs a bundled workflow on demo models (pre-written replies; no key, no network, nothing written) and explains each step.
 - [`weave doctor`](#weave-doctor) — Checks the setup (Java, the script, the keys it needs by name, models, the run store, prices, Fabric) and says the one thing to do for each problem.
+- [`weave keys`](#weave-keys) — Says which API key each model needs, whether it is set (in the environment, a .env file or the secret store; never its value), and prints the exact commands that set a missing one.
 - [`weave init`](#weave-init) — Creates a starter project: a Maven project with the script and its prompts in src/main/resources, the golden dataset and eval4j JUnit tests under src/test, and a README.
 - [`weave next`](#weave-next) — Looks at this project and says what to do next, in order, with the command for each step.
 - [`weave guide`](#weave-guide) — Prints the guide that ships inside this jar: weave guide (list), weave guide 6, weave guide loom.
@@ -2392,6 +2393,50 @@ weave secrets rekey [OPTIONS]
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave keys`
+
+Says which API key each model needs, whether it is set (in the environment, a .env file or the secret store; never its value), and prints the exact commands that set a missing one.
+
+Give a script, or the models you mean to use with --model.
+
+```
+weave keys [OPTIONS] [<script>]
+```
+
+**Arguments**
+
+- `<script>` — The .loom script whose models to look at.
+
+**Options**
+
+- `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--model=<name>` — A model you mean to use, e.g. gpt-4.1-mini (repeatable).
+- `--no-env-file` — Do not read a .env file, even if one is beside the script.
+- `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
+- `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
+- `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+**Examples**
+
+```
+weave keys --model gpt-4.1-mini --model claude-sonnet-5-5    the keys these models need, before any script exists
+weave keys main.loom                                         the keys the script's models need, and which are set
+weave keys main.loom --secrets team.store --secrets-key-env TEAM_MASTER_KEY
+```
+
+**Notes**
+
+It reads names only: whether a key is set (in the environment, a .env file beside the script, or the secret store), never its value, and it never asks for one. For each missing key it prints the commands to run in your own terminal: weave secrets create (once; with --secrets-key-file it makes a master key file only you can read), weave secrets set, and the two variables that name the store for every later command, LOOM_SECRETS and LOOM_SECRETS_KEY_FILE. With no store named it suggests one in ~/.llm4j. A coding agent hands these commands to the person; it does not run weave secrets set itself.
+
+**Exit status**
+
+0 every model's key is set. 1 a key is missing, or a model could not be placed. 2 nothing to look at, or the script could not be read.
+
+**See also**
+
+weave man secrets, weave man doctor, weave man preflight
 
 ### `weave tools`
 
