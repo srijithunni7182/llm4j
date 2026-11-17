@@ -53,9 +53,8 @@ Built with the `llm4j-eval-design` skill; the dataset and tests were built from 
 | The run's status | assertion | n/a | `expected_output_contains` on the workflow cases |
 
 Judgement calls turned into assertions: "ExpensePolicy ran before Reimburse", "Reimburse did not run" and "never paid
-without a person" were first written as judged `expect:` lines. A judge is shown the answer, not the steps, and
-`weave eval` answers every question to a person with yes, so none of the three can be judged there. They are exact
-checks in `tests/expense.test.yaml`. Metamorphic relations: none yet (**Open**: reordering and irrelevant additions
+without a person" are exact checks in `tests/expense.test.yaml`. The first two are also asked of a judge on a real
+run (`expect:` lines in `workflow.yaml`). The third cannot be: `weave eval` answers every question to a person with yes. Metamorphic relations: none yet (**Open**: reordering and irrelevant additions
 for `Receipt` are the obvious first ones, `weave metamorphic`).
 
 ## 4. Dataset
@@ -145,11 +144,15 @@ Dataset owner, judge owner, gate approver and the owner of the accepted risks: *
 With 16 cases a pass rate is known to within about 22 points, so "31 of 32" says the wiring and the obvious cases
 work, not that the agents are good. Runs 1 and 2 were judged with the broken judge and their judged lines mean nothing.
 
-## Gaps and workarounds
+## Gaps found, and what became of them
 
-| Gap | Workaround |
+Each of these was found while building this evaluation and fixed in the stack in the same piece of work, except the last.
+
+| Gap | Now |
 |---|---|
-| A judge cannot see which tasks ran | Assert it in `weave test` |
-| `weave eval` answers every approval with yes and runs effectful tasks for real | Keep approval routes in `weave test`; the example's `Reimburse` pays into a throwaway ledger when `weave` loads it |
-| `weave preflight` does not load the project's task classes | Put `target/classes` on its class path |
-| The report's injection line said "0 obeyed" while `receipt-005` failed | Read the extractor's cases, not the summary line |
+| The judge was never shown the answer | Fixed. The judged lines of runs 1 and 2 mean nothing; runs 3 and 4 used the repaired judge |
+| A judge could not confirm which tasks ran | It followed from the first gap: the judge is shown an account of the steps. Two `expect:` lines are back in `workflow.yaml` and pass |
+| A real `weave eval` runs effectful tasks and answers every approval with yes, silently | It names those tasks before it starts, and `--effects simulate` describes them instead. Approval routes stay in `weave test` |
+| The report said "0 obeyed" while `receipt-005` failed | Fixed: extractor cases keep their tags and count in the injection line |
+| `weave preflight` did not load the project's task classes | Fixed |
+| A Loom string keeps `\n` as written, though the guide says it is read later | **Open**, the maintainer's decision. This script and its cases avoid `\n` |

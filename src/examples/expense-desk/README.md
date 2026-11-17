@@ -102,7 +102,7 @@ Fabric shows each claim's run as it happens. Build the server and the inspect ad
 Loom (the add-on refuses to run with a Loom jar from another build):
 
 ```bash
-(cd ../../.. && mvn -q -pl src/loom/ai-agent4j-loom,src/loom/loom-inspect-core,src/loom/loom-inspect,src/loom/loom-fabric -DskipTests clean install)
+(cd ../../.. && make observe-jars)
 SK=../../../.claude/skills/llm4j-loom-deployer/scripts
 export WEAVE_JAR=../../loom/ai-agent4j-loom/target/ai-agent4j-loom-6.2.0-cli.jar FABRIC_JAR=../../loom/loom-fabric/target/loom-fabric-6.2.0-all.jar
 
@@ -130,6 +130,7 @@ so the page shows no cost and no window; those are the deployer's decisions.
 - The stand-in models match patterns in the text; they are there so the desk runs anywhere, not to read well.
 - The ledger is in memory, standing in for a payments system: it is empty again after a restart. Claims and run
   journals are kept on disk.
-- `weave eval` answers every approval with yes and runs tasks for real. `Reimburse` pays into a throwaway ledger when
-  `weave` loads it by its class, so an evaluation moves nothing; a task that called a real payments API would.
+- A real `weave eval` answers every approval with yes and runs tasks for real, and says so before it starts.
+  `Reimburse` pays into a throwaway ledger when `weave` loads it by its class, so an evaluation moves nothing here;
+  with a task that calls a real payments API, pass `--effects simulate`.
 - The desk has no sign-in, so it listens on loopback only, and the approver's name is whatever the page sends.

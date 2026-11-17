@@ -103,6 +103,7 @@ public final class Desk implements AutoCloseable {
                         .clock(clock)
                         .taskRegistry(new TaskRegistry().register(new ExpensePolicy()).register(new Reimburse(ledger)))
                         .questionListener(this::asked)
+                        .runListener(this::ended)
                         .customizer(executor -> executor.addTraceListener(event -> happened(executor, event)));
         this.host = hostSetup.apply(builder).build();
         host.validate();
@@ -129,7 +130,7 @@ public final class Desk implements AutoCloseable {
     public void decide(String id, boolean approve, String by) {
         String approver = bounded(by, "the approver's name", MAX_NAME);
         Claim claim = book.find(id).orElseThrow(() -> new IllegalArgumentException("there is no claim " + id));
-        if (!claim.question().open() || !suspended(id)) {
+        if (!claim.question().open()) {
             throw new IllegalStateException("claim " + id + " is not waiting for a decision");
         }
         AnswerResult result = host.answer(id, claim.question().stepId(), approve ? "yes" : "no", approver);
@@ -143,20 +144,7 @@ public final class Desk implements AutoCloseable {
 
     /** Every claim, newest first. */
     public List<Claim> claims() {
-        for (Claim claim : book.all()) {
-            if (claim.status() == Claim.Status.READING && claim.question().open() && suspended(claim.id())) {
-                book.update(claim.id(), c -> c.withStatus(Claim.Status.WAITING));
-            }
-        }
         return book.all();
-    }
-
-    /**
-     * Whether the host has put the run down. A question is heard a moment before that, and an
-     * answer is only taken once the run is suspended, so a claim is shown as waiting from then.
-     */
-    private boolean suspended(String id) {
-        return host.run(id).map(RunRecord::status).filter(RunRecord.Status.SUSPENDED::equals).isPresent();
     }
 
     /** Every payment the ledger holds, oldest first. */
@@ -178,6 +166,7 @@ public final class Desk implements AutoCloseable {
         book.update(
                 runId,
                 c -> c.withQuestion(new Claim.Question(stepId, prompt))
+                        .withStatus(Claim.Status.WAITING) // the host tells us once the run can take an answer
                         .withStep(step("desk", "Waiting for a person to approve the payment")));
     }
 
@@ -186,35 +175,37 @@ public final class Desk implements AutoCloseable {
         if (id == null) return;
         switch (event.type()) {
             case TraceEvent.EXTRACT_END -> book.update(id, c -> c.withStep(step("model", "Read the claim's fields from its text")));
-            case TraceEvent.TASK_END -> book.update(id, c -> seen(c, executor).withStep(step("code", event.text())));
+            case TraceEvent.TASK_END -> book.update(id, c -> seen(c, executor.getContext().getAll()).withStep(step("code", event.text())));
             case TraceEvent.DELEGATE_END -> book.update(id, c -> c.withStep(step("model", event.agent() + " wrote the note to the employee")));
             case TraceEvent.HALT -> book.update(id, c -> c.withStatus(Claim.Status.FAILED).withReason(event.text()).withStep(step("desk", event.text())));
-            case TraceEvent.RUN_END -> ended(id, executor, String.valueOf(event.data().get("status")));
             default -> { } // the desk shows the steps a claim's owner cares about, not every trace event
         }
     }
 
-    private void ended(String id, HarnessExecutor executor, String status) {
-        if (status.equals("completed")) {
-            Map<String, Object> result = map(executor.getContext().getVariable("result"));
-            book.update(
-                    id,
-                    c -> seen(c, executor)
-                            .withStatus(Claim.Status.valueOf(String.valueOf(result.get("status"))))
-                            .withNote(String.valueOf(result.getOrDefault("note", ""))));
-        } else if (status.equals("failed")) {
-            book.update(
-                    id,
+    /** How a claim's run ended, from the host: the result of a finished run, the reason of a failed one. */
+    private void ended(RunRecord record, Map<String, Object> variables) {
+        switch (record.status()) {
+            case COMPLETED -> {
+                Map<String, Object> result = map(variables.get("result"));
+                book.update(
+                        record.runId(),
+                        c -> seen(c, variables)
+                                .withStatus(Claim.Status.valueOf(String.valueOf(result.get("status"))))
+                                .withNote(String.valueOf(result.getOrDefault("note", ""))));
+            }
+            case FAILED -> book.update(
+                    record.runId(),
                     c -> c.withStatus(Claim.Status.FAILED)
                             .withReason(c.reason().isEmpty() ? "The run failed; its journal says why." : c.reason()));
+            default -> book.update(record.runId(), c -> seen(c, variables)); // suspended or stopped: keep what it knows so far
         }
     }
 
     /** Copies what the run knows so far (the fields read, the refusal, the payment) onto the claim. */
-    private static Claim seen(Claim claim, HarnessExecutor executor) {
-        Map<String, Object> receipt = map(executor.getContext().getVariable("receipt"));
-        Map<String, Object> verdict = map(executor.getContext().getVariable("verdict"));
-        Map<String, Object> payment = map(executor.getContext().getVariable("payment"));
+    private static Claim seen(Claim claim, Map<String, Object> variables) {
+        Map<String, Object> receipt = map(variables.get("receipt"));
+        Map<String, Object> verdict = map(variables.get("verdict"));
+        Map<String, Object> payment = map(variables.get("payment"));
         Claim next = receipt.isEmpty() ? claim : claim.withFields(receipt);
         if (verdict.get("reason") != null) next = next.withReason(String.valueOf(verdict.get("reason")));
         if (payment.get("value") != null) next = next.withPayment(String.valueOf(payment.get("value")));
