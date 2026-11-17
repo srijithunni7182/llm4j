@@ -79,6 +79,23 @@ final class GuideContext {
         return m;
     }
 
+    /** The state of one stage, computed the same way as the summary's journey. */
+    static String stageState(Path script, WeaveEnv env, String stageId) {
+        LoomScript loaded;
+        try {
+            loaded = new LoomLoader().load(script.toString());
+        } catch (Exception e) {
+            loaded = null;
+        }
+        WeaveEnv withKeys = new EnvFileOptions().apply(env, script);
+        ProjectAdvisor.CheckResult check =
+                withKeys == null || loaded == null
+                        ? new ProjectAdvisor.CheckResult(loaded != null, List.of("the script could not be read"), List.of(), Set.of())
+                        : NextCommand.check(script, withKeys);
+        AuditReport audit = loaded == null ? null : SecurityAudit.audit(loaded, script.getFileName().toString());
+        return state(JourneyStages.journey(script, loaded, check, audit), stageId);
+    }
+
     private static List<Object> agents(LoomScript s) {
         List<Object> out = new ArrayList<>();
         if (s == null) return out;

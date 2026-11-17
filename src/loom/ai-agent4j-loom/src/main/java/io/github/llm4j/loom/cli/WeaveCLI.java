@@ -1801,6 +1801,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new GuideCommand())
                 .addSubcommand(new GuideContextCommand())
                 .addSubcommand(new GuideFactsCommand())
+                .addSubcommand(new GuideMcpCommand())
                 .addSubcommand(new ManCommand())
                 .addSubcommand(new SecretCommands())
                 .addSubcommand(new KeysCommand())

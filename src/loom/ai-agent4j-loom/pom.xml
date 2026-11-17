@@ -302,6 +302,8 @@
                                         <include>io.github.llm4j.loom.cli.InvokerOptions*</include>
                                         <include>io.github.llm4j.loom.cli.SkippedStages*</include>
                                         <include>io.github.llm4j.loom.cli.GuideContext</include>
+                                        <include>io.github.llm4j.loom.cli.GuideMcpServer*</include>
+                                        <include>io.github.llm4j.loom.cli.GuideEvents</include>
                                     </includes>
                                     <limits>
                                         <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit>
