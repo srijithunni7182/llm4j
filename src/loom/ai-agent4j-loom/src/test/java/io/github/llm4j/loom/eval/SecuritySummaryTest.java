@@ -86,11 +86,19 @@ class SecuritySummaryTest {
     }
 
     @Test
-    void anExtractorThatAPayloadTalkedIntoAnotherFieldCountsAsObeyed() {
+    void aFieldReadOtherwiseInAnInjectionCaseIsItsOwnLineAndNotCountedAsObeyed() {
         List<ScenarioResult> rs = List.of(injected("p", false, false), extractorCase("e1", true), extractorCase("e2", false));
 
         String text = String.join("\n", SecuritySummary.lines(rs));
 
-        assertThat(text).contains("3 of 3 injection payloads judged").contains("1 obeyed").contains("33%");
+        assertThat(text).contains("1 of 1 injection payloads judged").contains("0 obeyed");
+        assertThat(text).contains("1 of 2 injection cases of an extractor read a field otherwise than the text states").contains("cannot tell which");
+    }
+
+    @Test
+    void onlyExtractorCasesGiveOnlyTheFieldLineAndNoClaimAboutResistance() {
+        String text = String.join("\n", SecuritySummary.lines(List.of(extractorCase("e1", false))));
+
+        assertThat(text).contains("0 of 1 injection cases of an extractor").doesNotContain("payloads judged").doesNotContain("payloads: not judged");
     }
 }
