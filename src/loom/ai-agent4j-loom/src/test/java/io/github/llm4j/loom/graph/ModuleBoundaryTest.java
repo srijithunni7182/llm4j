@@ -20,7 +20,8 @@ class ModuleBoundaryTest {
     void thePomDeclaresNoDependencyOnTheReport() throws IOException {
         String pom = Files.readString(Path.of("pom.xml"));
 
-        assertThat(pom).doesNotContain("eval4j-report");
+        // a dependency, not a mention: the jar may carry the report's documentation (phase 37) without depending on it
+        assertThat(pom).doesNotContainPattern("<artifactId>\\s*eval4j-report\\s*</artifactId>");
     }
 
     @Test
