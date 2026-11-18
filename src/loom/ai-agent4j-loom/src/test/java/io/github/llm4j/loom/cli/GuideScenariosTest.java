@@ -45,8 +45,8 @@ class GuideScenariosTest {
 
     @TempDir Path dir;
 
-    static final String GUIDE_MODEL = "claude-sonnet-5-5";
-    static final String JUDGE_MODEL = "gpt-5.5";
+    static final String GUIDE_MODEL = "claude-haiku-5-5";
+    static final String JUDGE_MODEL = "claude-sonnet-5-5";
     static final double THRESHOLD = 0.7;
     /** Model turns per Guide answer; the hosts allow more, but an answer needing more is too slow. */
     private static final int MAX_STEPS = 12;
@@ -55,6 +55,12 @@ class GuideScenariosTest {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-17T10:00:00Z"), ZoneOffset.UTC);
     private static final boolean RECORD = Boolean.getBoolean("guide.record");
+    /** Replays the Guide's recorded answers and asks the judge again: for a change of the rubric or the judge only. */
+    private static final boolean REJUDGE = Boolean.getBoolean("guide.rejudge");
+    /** What the judge is shown of what the Guide read, at most. */
+    private static final int MAX_READ_CHARS = 14000;
+    /** Changes when the judge's instructions change, so a recording judged under older ones is judged again. */
+    private static final String JUDGE_FORM = "grounded-in-what-was-read-1";
     private static final String ONLY = System.getProperty("guide.only", "");
 
     @TestFactory
@@ -71,25 +77,34 @@ class GuideScenariosTest {
 
     private void run(String id, JsonNode c, String persona) throws Exception {
         Path project = setUp(id, c);
-        String fingerprint = fingerprint(persona, c);
+        String fingerprint = guideFingerprint(persona, c);
+        String judgeFingerprint = judgeFingerprint(c);
         Path recordingFile = FOLDER.resolve("recordings").resolve(id + ".json");
         RecordedClient guide;
         RecordedClient judge;
+        JsonNode previous = Files.isRegularFile(recordingFile) ? JSON.readTree(recordingFile.toFile()) : null;
         if (RECORD) {
             DefaultLLMClientFactory models = new DefaultLLMClientFactory(GuideScenariosTest::env);
             guide = RecordedClient.recording(models.createClient(GUIDE_MODEL));
             judge = RecordedClient.recording(models.createClient(JUDGE_MODEL));
         } else {
-            assertThat(recordingFile).as("no recording for " + id + ": record with -Dguide.record=true").isRegularFile();
-            JsonNode rec = JSON.readTree(recordingFile.toFile());
-            assertThat(rec.path("fingerprint").asText())
-                    .as(id + " was recorded for another persona, tool list or scenario: record it again with -Dguide.record=true")
+            assertThat(previous).as("no recording for " + id + ": record with -Dguide.record=true").isNotNull();
+            assertThat(previous.path("fingerprint").asText())
+                    .as(id + " was recorded for another persona, tool list, scenario or Guide model: record it again with -Dguide.record=true")
                     .isEqualTo(fingerprint);
-            guide = RecordedClient.replaying(rec.path("guide"));
-            judge = RecordedClient.replaying(rec.path("judge"));
+            guide = RecordedClient.replaying(previous.path("guide"));
+            if (REJUDGE) {
+                judge = RecordedClient.recording(new DefaultLLMClientFactory(GuideScenariosTest::env).createClient(JUDGE_MODEL));
+            } else {
+                assertThat(previous.path("judgeFingerprint").asText())
+                        .as(id + " was judged under another rubric or judge: judge it again with -Dguide.rejudge=true (the Guide is replayed)")
+                        .isEqualTo(judgeFingerprint);
+                judge = RecordedClient.replaying(previous.path("judge"));
+            }
         }
 
         List<String> called = new ArrayList<>();
+        StringBuilder read = new StringBuilder();
         List<String> shown = new ArrayList<>();
         GuideMcpServer server = new GuideMcpServer(
                 project.resolve("main.loom"), quietEnv(), new GuideEvents(project, CLOCK),
@@ -101,7 +116,7 @@ class GuideScenariosTest {
         ReActAgent agent = ReActAgent.builder()
                 .llmClient(guide)
                 .systemPrompt(persona)
-                .addTools(tools(server, called))
+                .addTools(tools(server, called, read))
                 .toolCalling(ReActAgent.ToolCalling.NATIVE)
                 .maxIterations(MAX_STEPS)
                 .temperature(0.2)
@@ -109,29 +124,35 @@ class GuideScenariosTest {
         AgentResult result = agent.run(c.path("message").asText());
         String answer = result.getFinalAnswer() == null ? "" : result.getFinalAnswer();
 
+        String reading = read.length() <= MAX_READ_CHARS ? read.toString() : read.substring(0, MAX_READ_CHARS) + "\n… (cut)";
         String criteria = c.path("rubric").asText()
                 + "\n\nThe developer said: " + c.path("message").asText()
                 + "\nThe Guide called these tools: " + called
-                + "\nJudge only the Guide's final answer below against what a good answer does.";
+                + "\n\nWhat the Guide read in this turn, from llm4j's own documentation and project tools. An option, command or"
+                + " construct that appears here is real, not invented; one that appears nowhere here and contradicts it may be invented:\n"
+                + "<read>\n" + reading + "\n</read>"
+                + "\n\nJudge only the Guide's final answer below against what a good answer does.";
         LlmJudgeCondition judged = LlmJudgeCondition.llmJudged(id).criteria(criteria).judge(judge).threshold(THRESHOLD).build();
         boolean passed = judged.matches(answer);
 
-        if (RECORD) {
+        if (RECORD || REJUDGE) {
             ObjectNode rec = JSON.createObjectNode();
             rec.put("fingerprint", fingerprint);
+            rec.put("judgeFingerprint", judgeFingerprint);
             rec.put("guideModel", GUIDE_MODEL);
             rec.put("judgeModel", JUDGE_MODEL);
-            rec.put("recordedAt", Instant.now().toString());
-            rec.put("promptTokens", guide.promptTokens + judge.promptTokens);
-            rec.put("completionTokens", guide.completionTokens + judge.completionTokens);
+            rec.put("recordedAt", RECORD ? Instant.now().toString() : previous.path("recordedAt").asText());
+            rec.put("judgedAt", Instant.now().toString());
+            rec.put("promptTokens", (RECORD ? guide.promptTokens : previous.path("guidePromptTokens").asLong(previous.path("promptTokens").asLong())) + judge.promptTokens);
+            rec.put("guidePromptTokens", RECORD ? guide.promptTokens : previous.path("guidePromptTokens").asLong(previous.path("promptTokens").asLong()));
+            rec.put("completionTokens", (RECORD ? guide.completionTokens : 0) + judge.completionTokens);
             rec.put("answer", answer);
-            rec.set("guide", guide.recorded());
+            rec.set("guide", RECORD ? guide.recorded() : previous.path("guide"));
             rec.set("judge", judge.recorded());
             Files.createDirectories(recordingFile.getParent());
             Files.writeString(recordingFile, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(rec) + "\n");
-        } else {
-            assertThat(guide.allReplayed()).as(id + ": the Guide made fewer calls than recorded; record again").isTrue();
         }
+        if (!RECORD) assertThat(guide.allReplayed()).as(id + ": the Guide made fewer calls than recorded; record again").isTrue();
 
         for (JsonNode need : c.path("mustCall")) {
             List<String> anyOf = List.of(need.asText().split("\\s*\\|\\s*"));
@@ -186,7 +207,7 @@ class GuideScenariosTest {
     }
 
     /** The Guide's MCP tools as agent tools: each call goes through the server, exactly as a host's would. */
-    private static List<Tool> tools(GuideMcpServer server, List<String> called) throws Exception {
+    private static List<Tool> tools(GuideMcpServer server, List<String> called, StringBuilder read) throws Exception {
         JsonNode list = server.handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}").path("result").path("tools");
         List<Tool> out = new ArrayList<>();
         for (JsonNode t : list) {
@@ -207,7 +228,11 @@ class GuideScenariosTest {
                     m.putObject("params").put("name", name).set("arguments", JSON.valueToTree(args == null ? Map.of() : args));
                     JsonNode r = server.handle(JSON.writeValueAsString(m));
                     if (r.has("error")) return "Error: " + r.path("error").path("message").asText();
-                    return r.path("result").path("content").get(0).path("text").asText();
+                    String text = r.path("result").path("content").get(0).path("text").asText();
+                    // what the Guide may draw on, for the judge: the documentation and the facts in full, the project in part
+                    if (List.of("facts", "docs", "explain_finding").contains(name)) read.append("[").append(name).append(" ").append(args).append("]\n").append(text).append("\n\n");
+                    else if (name.equals("project_summary")) read.append("[project_summary, start]\n").append(text, 0, Math.min(3000, text.length())).append("\n\n");
+                    return text;
                 }
             });
         }
@@ -226,7 +251,8 @@ class GuideScenariosTest {
         return v;
     }
 
-    private static String fingerprint(String persona, JsonNode scenario) throws Exception {
+    /** What the Guide sees: its persona, its tools, the scenario without the checks and the rubric, and its model. */
+    private static String guideFingerprint(String persona, JsonNode scenario) throws Exception {
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
         sha.update(persona.getBytes(StandardCharsets.UTF_8));
         // sorted: Map.of has no fixed order between runs
@@ -234,9 +260,16 @@ class GuideScenariosTest {
             sha.update((t.name() + "|" + t.description() + "|" + new java.util.TreeMap<>(t.params())).getBytes(StandardCharsets.UTF_8));
         // only what the model sees changes its behaviour: not the checks made on its answer
         ObjectNode seen = (ObjectNode) scenario.deepCopy();
-        seen.remove(List.of("mustCall", "mustNotCall", "mustSay", "mustNotSay", "maxWords"));
+        seen.remove(List.of("mustCall", "mustNotCall", "mustSay", "mustNotSay", "maxWords", "rubric"));
         sha.update(JSON.writeValueAsBytes(seen));
-        sha.update((GUIDE_MODEL + "|" + JUDGE_MODEL).getBytes(StandardCharsets.UTF_8));
+        sha.update(GUIDE_MODEL.getBytes(StandardCharsets.UTF_8));
+        return HexFormat.of().formatHex(sha.digest());
+    }
+
+    /** What the judge sees that can change on its own: the rubric, the judge's instructions and its model. */
+    private static String judgeFingerprint(JsonNode scenario) throws Exception {
+        MessageDigest sha = MessageDigest.getInstance("SHA-256");
+        sha.update((scenario.path("rubric").asText() + "|" + JUDGE_FORM + "|" + JUDGE_MODEL).getBytes(StandardCharsets.UTF_8));
         return HexFormat.of().formatHex(sha.digest());
     }
 }

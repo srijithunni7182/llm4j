@@ -1,55 +1,49 @@
 {
-  "fingerprint" : "e4d2edb8a4229b282122f565031bded583bfd86a92971ac578685793b9060f1d",
-  "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "gpt-5.5",
-  "recordedAt" : "2026-11-18T01:16:33.702431977Z",
-  "promptTokens" : 35878,
-  "completionTokens" : 1219,
-  "answer" : "We can run it today without the dataset. Without it, you'll have no pass rate, and a later prompt or model change can't be checked against anything. \"It works\" will rest on the few answers you read yourself. If you still want to skip it, record that with `weave next --skip golden-dataset --because \"...\"`. I'll read the skips back to you before you go live.\n\nHere is the order I'd suggest:\n1. **Scripted tests.** These are free, and your tests already exist, so run `weave test main.loom --coverage`.\n2. **Preflight.** `weave preflight main.loom` hasn't been run yet, and it has to pass before a real run. It costs a few tokens.\n3. **One capped run.** Your budget is 200,000 tokens and 30 calls. I'll ask you to confirm before anything runs.\n\nFor the model, a local Ollama model costs nothing per call. You'd need to install Ollama and pull a model, and its answers will differ in quality from `gemini-2.5-flash`. Your other option is Gemini under the cap.\n\nWhich do you want for the first run: local Ollama or Gemini?",
+  "fingerprint" : "5463c7fd6f036a4ab22113c2dd2a041c67d3c7c117372d662ee0adc031c4da44",
+  "judgeFingerprint" : "e292f87b93622057b65c5ccf142bcc3394c91c3c2936a6731f60fb5392d3374b",
+  "guideModel" : "claude-haiku-5-5",
+  "judgeModel" : "claude-sonnet-5-5",
+  "recordedAt" : "2026-11-18T01:35:38.945054371Z",
+  "judgedAt" : "2026-11-18T01:39:57.621378386Z",
+  "promptTokens" : 30589,
+  "guidePromptTokens" : 27192,
+  "completionTokens" : 558,
+  "answer" : "You can see something run today without spending anything. Two free options:\n\n- **`weave test main.loom --coverage`** runs your workflow's scripted tests with scripted models. No key, no network, no cost. It shows the routes being taken.\n- **`weave try`** runs a bundled demo workflow on demo models and explains each step. It does not run your script.\n\nA real run on your three agents (Researcher, Writer, Editor) comes after preflight, which hasn't run yet. It is capped at 200,000 tokens and 30 calls. A local Ollama model is also free per call, if you install it first.\n\nSkipping the golden dataset means no pass rate. One real answer shows you what it can do, not how often it is right. I can record the skip so it's on the record, or we can start with the free tests now. Which would you like?",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01NhTaFPJd6sTC5LjxTBj3Ur",
+      "id" : "toolu_01JDuGPre5JiSyXMUZea14BT",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_016nqB2u5iutaT5MXM8EGbFx",
+      "id" : "toolu_01WuVvTGPfCTsS9xM9yqtSAW",
       "name" : "new_events",
-      "arguments" : { }
-    }, {
-      "id" : "toolu_01QBVgGZQ42B2xKdjwE7wdma",
-      "name" : "learner",
       "arguments" : { }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01WHX6FW54nRKqij9P2JodS3",
+      "id" : "toolu_014MPVctagNEFMNSrqLQd2BG",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "weave try run without a key mock"
+      }
+    }, {
+      "id" : "toolu_01EE5hrKMDaFHqWRf313mbwW",
       "name" : "facts",
       "arguments" : {
         "id" : "local-models"
       }
     } ]
   }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_011oTMt6WExNzr7S3JpzPQNH",
-      "name" : "record_learning",
-      "arguments" : {
-        "concept" : "golden-dataset",
-        "level" : "seen"
-      }
-    } ]
-  }, {
-    "content" : "We can run it today without the dataset. Without it, you'll have no pass rate, and a later prompt or model change can't be checked against anything. \"It works\" will rest on the few answers you read yourself. If you still want to skip it, record that with `weave next --skip golden-dataset --because \"...\"`. I'll read the skips back to you before you go live.\n\nHere is the order I'd suggest:\n1. **Scripted tests.** These are free, and your tests already exist, so run `weave test main.loom --coverage`.\n2. **Preflight.** `weave preflight main.loom` hasn't been run yet, and it has to pass before a real run. It costs a few tokens.\n3. **One capped run.** Your budget is 200,000 tokens and 30 calls. I'll ask you to confirm before anything runs.\n\nFor the model, a local Ollama model costs nothing per call. You'd need to install Ollama and pull a model, and its answers will differ in quality from `gemini-2.5-flash`. Your other option is Gemini under the cap.\n\nWhich do you want for the first run: local Ollama or Gemini?",
+    "content" : "You can see something run today without spending anything. Two free options:\n\n- **`weave test main.loom --coverage`** runs your workflow's scripted tests with scripted models. No key, no network, no cost. It shows the routes being taken.\n- **`weave try`** runs a bundled demo workflow on demo models and explains each step. It does not run your script.\n\nA real run on your three agents (Researcher, Writer, Editor) comes after preflight, which hasn't run yet. It is capped at 200,000 tokens and 30 calls. A local Ollama model is also free per call, if you install it first.\n\nSkipping the golden dataset means no pass rate. One real answer shows you what it can do, not how often it is right. I can record the skip so it's on the record, or we can start with the free tests now. Which would you like?",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer accepts the developer's decision to skip the golden dataset and does not refuse. It states the concrete loss for this project: no pass rate and future prompt/model changes cannot be checked against a benchmark, with results relying only on manual inspection. It suggests recording the skip using a weave next --skip-style command. It also offers free ways to see it run, including existing scripted tests and a local Ollama model with no per-call cost. There is a slight conditional phrase ('If you still want to skip it') and a bit more explanation than strictly necessary, but it largely satisfies all required elements clearly.\",\n  \"rating\": 5\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The criterion has four parts: (1) accept without refusing or nagging, (2) say once, concretely for this project, what skipping loses, (3) suggest recording the skip with `weave next --skip`, (4) offer a free way to see it run.\\n\\n(1) Accepted: yes. The answer goes straight to helping the developer see something run, and the closing question is not nagging.\\n\\n(2) Loss: it says 'Skipping the golden dataset means no pass rate. One real answer shows you what it can do, not how often it is right.' This is stated once and is somewhat concrete, but it is generic. The expected example is that a prompt or model change can't be checked against anything. It does not mention changes to the three agents' prompts or models. It only partly meets the 'concrete for this project' requirement.\\n\\n(3) Recording the skip: it says 'I can record the skip so it's on the record' but never names `weave next --skip`. That is a partial hit, because the specific command is missing.\\n\\n(4) Free way: it offers `weave try` (confirmed in the docs as free, with demo models) and Ollama (confirmed in the facts). It also offers `weave test main.loom --coverage`. The docs read here do not show that command, so it may be invented, or it may come from the project summary, which is truncated. It also mentions a 200,000-token cap and 30 calls, which are unverified from the visible reads. The free option is well covered overall, and it correctly notes that `weave try` does not run the developer's script.\\n\\nOverall: accepts, offers free options, and mentions the loss and the recording, but lacks the specific command and has only a generic loss statement.\",\n  \"rating\": 3\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

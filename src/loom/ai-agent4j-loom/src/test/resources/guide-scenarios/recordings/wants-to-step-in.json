@@ -1,24 +1,27 @@
 {
-  "fingerprint" : "be93efe1a5835d62a26ed4b2de416ba49dda26834d43af5a91776307c9c7bca7",
-  "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "gpt-5.5",
-  "recordedAt" : "2026-11-18T01:19:52.640078073Z",
-  "promptTokens" : 62008,
-  "completionTokens" : 1351,
-  "answer" : "Yes. Loom has this built in, and it's called steering. You mark the Researcher `steerable`. Then you can correct it mid-run, ask it to wrap up with what it has, or stop it. The script's `on_stopped` handler says what the run does after a stop. A stop is never a silent failure.\n\n```loom\nagent Researcher {\n    model: \"gemini-2.5-flash\"\n    streaming: true   // you watch the reply as it is written\n    reasoning: true   // shows its reasoning where the model can\n    steerable: true   // off unless you say so\n}\n```\n\nWhile it runs, you type something like `steer Researcher focus on the EU market`. For example, with `weave run main.loom --steer-via console`, you type that line in the same terminal. A steer corrects the agent's reasoning, and it arrives before the agent's next model call. It never changes the workflow. Without steering you would have to build the interruption, the injected correction and the handling of a half-done step yourself.\n\n`weave audit` will list a steerable agent as an input channel (`LA18`), so expect that line.\n\nWant me to draft the instruction for the builder? I'd also suggest an `on_stopped` handler, so you decide what a stop means.",
+  "fingerprint" : "6fc8b65258f1f6bd08abb420bcba28daa4d5f4d037edc50cba697b343261be31",
+  "judgeFingerprint" : "70ddf68e0d1257ccae207040467401e28a0937cf45440c329b2fbd0cb19e8be6",
+  "guideModel" : "claude-haiku-5-5",
+  "judgeModel" : "claude-sonnet-5-5",
+  "recordedAt" : "2026-11-18T01:37:23.204778688Z",
+  "judgedAt" : "2026-11-18T01:40:59.468214465Z",
+  "promptTokens" : 69788,
+  "guidePromptTokens" : 63483,
+  "completionTokens" : 535,
+  "answer" : "Yes. Mark the Researcher `steerable: true` (with `streaming: true` so you can see it write, and `reasoning: true` to watch its thinking). Then you can send it a correction while it runs, and the correction applies before its next model call. A steer changes its reasoning only, never the workflow. The Researcher isn't steerable yet, and only the person the run serves can steer it.\n\nWant me to draft the instruction for the builder to add those flags?",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01WFzHzVqSCwxpQjHjkuuA36",
+      "id" : "toolu_01YNbhNvbfsqeLiGZZ1zGNn7",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_01EWTxhnGweoHbf3i9RTDKK5",
+      "id" : "toolu_018NzXR91bq5i7K2AyKA1CcT",
       "name" : "new_events",
       "arguments" : { }
     }, {
-      "id" : "toolu_0133Ygb7DwLeTkBmbDskRxLa",
+      "id" : "toolu_01RNGnVAwET5PaKBmkLBejVV",
       "name" : "facts",
       "arguments" : {
         "feature" : "list"
@@ -28,27 +31,23 @@
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_0152cZgj64X7oWMwP8tj4Vwg",
+      "id" : "toolu_01Rh7dWRZ4ik7JGH4gnbhbHi",
       "name" : "facts",
       "arguments" : {
         "feature" : "steering"
       }
     }, {
-      "id" : "toolu_01VNhH81RE9rgsn51yYeNxrx",
+      "id" : "toolu_01K5SEhbbrFPRqv8Gx9gtQp5",
       "name" : "docs",
       "arguments" : {
-        "search" : "steerable on_stopped steer agent while it works"
+        "search" : "steerable steering mid-run correct stop wrap up"
       }
-    }, {
-      "id" : "toolu_01DN9QxA3AUp7sAHBgFrkaDY",
-      "name" : "learner",
-      "arguments" : { }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_011nEpmLgW8yQHUJg8YaCpPX",
+      "id" : "toolu_01YDxEpHahjA6FM2iMFhMrEc",
       "name" : "docs",
       "arguments" : {
         "page" : "guide/LOOM_GUIDE.md",
@@ -59,20 +58,20 @@
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01UyCPvZRkFEKC6QxTbAvSTE",
+      "id" : "toolu_019qvXemALSjM7sDdQpVAH6X",
       "name" : "record_learning",
       "arguments" : {
-        "concept" : "agents-and-roles",
+        "concept" : "steering",
         "level" : "seen"
       }
     } ]
   }, {
-    "content" : "Yes. Loom has this built in, and it's called steering. You mark the Researcher `steerable`. Then you can correct it mid-run, ask it to wrap up with what it has, or stop it. The script's `on_stopped` handler says what the run does after a stop. A stop is never a silent failure.\n\n```loom\nagent Researcher {\n    model: \"gemini-2.5-flash\"\n    streaming: true   // you watch the reply as it is written\n    reasoning: true   // shows its reasoning where the model can\n    steerable: true   // off unless you say so\n}\n```\n\nWhile it runs, you type something like `steer Researcher focus on the EU market`. For example, with `weave run main.loom --steer-via console`, you type that line in the same terminal. A steer corrects the agent's reasoning, and it arrives before the agent's next model call. It never changes the workflow. Without steering you would have to build the interruption, the injected correction and the handling of a half-done step yourself.\n\n`weave audit` will list a steerable agent as an input channel (`LA18`), so expect that line.\n\nWant me to draft the instruction for the builder? I'd also suggest an `on_stopped` handler, so you decide what a stop means.",
+    "content" : "Yes. Mark the Researcher `steerable: true` (with `streaming: true` so you can see it write, and `reasoning: true` to watch its thinking). Then you can send it a correction while it runs, and the correction applies before its next model call. A steer changes its reasoning only, never the workflow. The Researcher isn't steerable yet, and only the person the run serves can steer it.\n\nWant me to draft the instruction for the builder to add those flags?",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly recognizes the feature as Loom steering and answers the developer's question directly and positively. It shows the key configuration on the Researcher, including `steerable: true` and `streaming: true` so the user can watch and intervene mid-run. It explains that the person can correct the agent, ask it to wrap up, or stop it, and it mentions `on_stopped` as the place to define what happens after a stop. It also shows where this goes in an `agent Researcher` block and gives an example of using console steering during `weave run`. It offers a next step by asking whether to draft the instruction and recommending an `on_stopped` handler. Minor caveats: it includes extra claims such as `reasoning: true` showing reasoning and specific audit/input-channel details that are not central and may be somewhat implementation-specific, but they do not substantially detract from satisfying the criterion.\",\n  \"rating\": 5\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The criterion has several parts: (1) recognise this as Loom's steering and be visibly pleased to say Loom does it; (2) name steerable: true on the Researcher, with streaming to watch it; (3) say a person can correct mid-run, ask it to wrap up, or stop it; (4) say on_stopped or intervention defines what the run does then; (5) show where it goes; (6) be accurate; (7) ask a question or offer a next step.\\n\\nThe output opens with 'Yes' and correctly names steerable: true, streaming: true and reasoning: true. It says a correction is applied before the next model call and that a steer changes reasoning only, never the workflow. It also says only the person the run serves can steer, which is accurate. It ends by offering a next step (drafting the instruction for the builder).\\n\\nGaps: it never mentions wrap up or stop, so only one of the three interventions is covered. It never mentions on_stopped or intervention, which the criterion explicitly requires for saying what the run does after a stop. It shows no snippet and gives no placement beyond 'on the Researcher'. The enthusiasm is mild; 'Yes' reads as plain, not visibly pleased. The claim 'The Researcher isn't steerable yet' is plausible but not verified in the visible read, though it fits the default of being off. 'Draft the instruction for the builder' is a reasonable next step.\\n\\nOverall it is accurate and concise, with a next-step offer, but it misses wrap up, stop and on_stopped/intervention, and the placement is thin.\",\n  \"rating\": 3\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

@@ -1,42 +1,57 @@
 {
-  "fingerprint" : "65c266cd680a159c3f87cc905f6a73449669172867e90dcde0d6bd70d0d2f61f",
-  "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "gpt-5.5",
-  "recordedAt" : "2026-11-18T01:18:00.933599512Z",
-  "promptTokens" : 17829,
-  "completionTokens" : 868,
-  "answer" : "Loom has no auto-scaling GPU cluster mode. I searched the docs and the feature list and found no such setting, so I won't invent a flag for it. Loom doesn't manage hardware. Each agent names a model with `model:`, and Loom calls that provider. Your three agents (Researcher, Writer, Editor) use `gemini-2.5-flash`, which is hosted, so scaling is the provider's job.\n\nThe nearest thing Loom does is a `routing` policy. It has `strategy: fallback` or `cost_aware`, so a call can fall back to another model or go to a cheaper one. It controls which model answers, not how much hardware runs it.\n\nIf you need to run your own GPUs, you would host the model yourself and point an agent at it. I'd have to check the docs before saying exactly how.\n\nWhat are you after: lower cost, higher throughput, or keeping the data on your own machines? That decides what I'd suggest.",
+  "fingerprint" : "7feec82d2b1e373f0bd45eaaa1dff6fefbfaa1fa72668ceea5e2c023de0fb6fb",
+  "judgeFingerprint" : "8eef34d68e8e15f6a9596449204e77eee21a12cb4f681a76869928b286b5ee2f",
+  "guideModel" : "claude-haiku-5-5",
+  "judgeModel" : "claude-sonnet-5-5",
+  "recordedAt" : "2026-11-18T01:36:20.132073061Z",
+  "judgedAt" : "2026-11-18T01:40:23.319759073Z",
+  "promptTokens" : 38601,
+  "guidePromptTokens" : 32646,
+  "completionTokens" : 267,
+  "answer" : "I couldn't find a documented auto-scaling GPU cluster mode in llm4j or Loom, so I can't show you how to turn one on. The nearest things I did find are choosing a model per agent by name, including a local Ollama model, and a `routing` policy that falls back between models in order or picks by cost. Routing decides by your rules, and whether a cheaper model is good enough is what your evaluation tells you.\n\nWhat are you trying to get: more throughput, lower cost, or running on your own GPU hardware?",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01UeCu2wvwLt2JfsT5yUkeEY",
+      "id" : "toolu_01BhvQ6rrkcbe1tvzmj51F5g",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_01LgrPjVDC6LQVG7CggcC3Nw",
-      "name" : "new_events",
-      "arguments" : { }
-    }, {
-      "id" : "toolu_01P3nowWgCzDbKtgFWspisXo",
+      "id" : "toolu_011rigeSDyVSKY44VMVcG3GY",
       "name" : "docs",
       "arguments" : {
-        "search" : "auto-scaling GPU cluster"
+        "search" : "auto-scaling GPU cluster mode"
       }
     }, {
-      "id" : "toolu_013uuNsqjgVmc2LY6eTHrbSb",
+      "id" : "toolu_01M3ZxMuMbdYjLGgLFquQKu4",
       "name" : "facts",
       "arguments" : {
         "feature" : "list"
       }
     } ]
   }, {
-    "content" : "Loom has no auto-scaling GPU cluster mode. I searched the docs and the feature list and found no such setting, so I won't invent a flag for it. Loom doesn't manage hardware. Each agent names a model with `model:`, and Loom calls that provider. Your three agents (Researcher, Writer, Editor) use `gemini-2.5-flash`, which is hosted, so scaling is the provider's job.\n\nThe nearest thing Loom does is a `routing` policy. It has `strategy: fallback` or `cost_aware`, so a call can fall back to another model or go to a cheaper one. It controls which model answers, not how much hardware runs it.\n\nIf you need to run your own GPUs, you would host the model yourself and point an agent at it. I'd have to check the docs before saying exactly how.\n\nWhat are you after: lower cost, higher throughput, or keeping the data on your own machines? That decides what I'd suggest.",
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_016F2g4zn7GBzTXVDQXxvcC2",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "GPU cluster autoscaling replicas"
+      }
+    }, {
+      "id" : "toolu_017sVFvZmcStwi4RYFCxixcD",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "model-routing"
+      }
+    } ]
+  }, {
+    "content" : "I couldn't find a documented auto-scaling GPU cluster mode in llm4j or Loom, so I can't show you how to turn one on. The nearest things I did find are choosing a model per agent by name, including a local Ollama model, and a `routing` policy that falls back between models in order or picks by cost. Routing decides by your rules, and whether a cheaper model is good enough is what your evaluation tells you.\n\nWhat are you trying to get: more throughput, lower cost, or running on your own GPU hardware?",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer plainly states that Loom has no auto-scaling GPU cluster mode and that no such setting was found. It explicitly avoids inventing a flag or setting. It redirects the user to the nearest real concepts: agents choose models via `model:`, hosted providers handle scaling, and Loom may support routing policies for model selection rather than hardware scaling. It also cautiously frames self-hosted GPU use without making unsupported claims. This fully matches the criterion.\",\n  \"rating\": 5\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The Guide says plainly that it couldn't find a documented auto-scaling GPU cluster mode in llm4j or Loom, so it doesn't invent a setting, command or option. It points to the nearest real things: per-agent model choice by name, local Ollama models, and the `routing` policy with fallback and cost_aware strategies. All of these appear in the read material. The `strategy: fallback` / `cost_aware` details match the docs. It does not mention deployment files, but the criterion lists models and providers as an acceptable example. The closing clarifying question is reasonable and not a fabrication. One small gap: it says 'couldn't find' rather than stating definitively that Loom has no such feature, but the criterion allows 'can't find one'.\",\n  \"rating\": 5\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

@@ -1,86 +1,83 @@
 {
-  "fingerprint" : "d38b166d299b9225a5a236b3116fc4a04b912148db7922ec33b0c655ff80e0db",
-  "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "gpt-5.5",
-  "recordedAt" : "2026-11-18T01:19:24.087282674Z",
-  "promptTokens" : 66811,
-  "completionTokens" : 1591,
-  "answer" : "Good news: Loom already does this, and it does it with no tool code. Your Writer has no tools yet, so you'd declare one and give it to the Writer.\n\n**If your API has an OpenAPI spec**, use `openapi`. This is the better choice. Each tool is one operation, so the model never writes a path or a method:\n\n```loom\ntool Product_get { use: openapi  spec: \"specs/products.json\"  operation: \"getProductById\"\n                   effect: reads  auth_header: \"X-API-Key\"  auth_value: env.PRODUCTS_KEY }\n\nagent Writer { ... tools: [Product_get] }\n```\n\n`weave connect openapi spec.json --read-only --write main.loom` can write these declarations for you, with a `pin:` that notices a changed signature.\n\n**If it has no spec**, use `http`. It has a fixed `base_url`, and `allow_paths` limits what the agent can reach.\n\nThe key stays in the environment, never in the script. I can open a secure form that binds it to your API's host.\n\nDoes your API have an OpenAPI spec? And what is its host?",
+  "fingerprint" : "0c0287bcf1dd0b81b56d91527b605fdafd37679a8fca1551f768d9d58b37f850",
+  "judgeFingerprint" : "472c2d72b30efd840013bfdc47b1ab45b77d47e825ab64b82b1aba21eb0c2fd6",
+  "guideModel" : "claude-haiku-5-5",
+  "judgeModel" : "claude-sonnet-5-5",
+  "recordedAt" : "2026-11-18T01:37:00.396925068Z",
+  "judgedAt" : "2026-11-18T01:40:47.983847122Z",
+  "promptTokens" : 70297,
+  "guidePromptTokens" : 63507,
+  "completionTokens" : 467,
+  "answer" : "Loom has this built in. The `http` tool calls a REST API under a fixed base URL, and you declare it once in `main.loom` and give it to the Writer. Your Writer currently has no tools, so this would be its first.\n\nHere is the shape, with your company's address filled in later:\n\n```text\ntool ProductApi { use: http  base_url: \"https://api.yourcompany.example\"  auth_header: \"Authorization\"  auth_value: env.PRODUCT_API_TOKEN\n                  allow_paths: \"/products/*\" }\n```\n\nThe Writer can only reach the paths you allow, and it cannot set headers or change the host. `GET` calls need no approval. Any other method needs a person's approval.\n\nTwo questions before I draft anything for the builder: what is the base URL, and how does the API authenticate (a header, a query parameter, or a token each user has)? If your team has an OpenAPI spec for the API, Loom can instead make each operation its own audited tool.",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01Fis56w27s3qPjFCDfLiQzM",
+      "id" : "toolu_01MqrXgrCdzkiwn6LjZYbFoG",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_01Q7ibYdtRc7tMKAW1MQ9Zxr",
+      "id" : "toolu_01GBrHtMKDMoEVu2BhABP38L",
       "name" : "new_events",
       "arguments" : { }
     }, {
-      "id" : "toolu_01CqEWigvS7DEDwEWAmsmJju",
+      "id" : "toolu_01WT7jW4c7b7V4AK91o9e9ky",
       "name" : "facts",
       "arguments" : {
         "feature" : "list"
       }
-    }, {
-      "id" : "toolu_0127N6TMuW2BD5ih9m6kuYJJ",
-      "name" : "docs",
-      "arguments" : {
-        "search" : "openapi http tool REST API"
-      }
-    }, {
-      "id" : "toolu_01WVzWfxPVGbia8N4fydAG6j",
-      "name" : "learner",
-      "arguments" : { }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01Wp2a2qKKvV67C35WiacyUU",
-      "name" : "docs",
+      "id" : "toolu_014S8oYDwZ16JNtgPCz296Rs",
+      "name" : "facts",
       "arguments" : {
-        "page" : "catalog/TOOLS_CATALOG.md",
-        "section" : "`openapi`"
+        "catalog" : "list"
       }
     }, {
-      "id" : "toolu_01Cot5x9nhXnKE1RSgEVtVZc",
+      "id" : "toolu_012a6F5MheSVSvayYgJg9Ueu",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "openapi http tool REST API agent"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01MoC2JHKjA5oSEeWofTjTzX",
       "name" : "docs",
       "arguments" : {
         "page" : "catalog/TOOLS_CATALOG.md",
         "section" : "`http`"
       }
-    } ]
-  }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_012LHnHJ6hfhrKwcyk6Jjh2f",
+    }, {
+      "id" : "toolu_01A6gAttk2bwRypDEsUf6QBR",
       "name" : "docs",
       "arguments" : {
-        "page" : "guide/LOOM_GUIDE.md",
-        "section" : "Tools, Knowledge and Approvals"
+        "page" : "catalog/TOOLS_CATALOG.md",
+        "section" : "`openapi`"
       }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_016gz7kQMYdQiwsxVRmSC1yJ",
-      "name" : "record_learning",
+      "id" : "toolu_015dm2gUdt6hiNcnppMxdTBR",
+      "name" : "docs",
       "arguments" : {
-        "concept" : "effects-and-approvals",
-        "level" : "seen"
+        "search" : "agent tools: list tool names attach http tool to agent loom"
       }
     } ]
   }, {
-    "content" : "Good news: Loom already does this, and it does it with no tool code. Your Writer has no tools yet, so you'd declare one and give it to the Writer.\n\n**If your API has an OpenAPI spec**, use `openapi`. This is the better choice. Each tool is one operation, so the model never writes a path or a method:\n\n```loom\ntool Product_get { use: openapi  spec: \"specs/products.json\"  operation: \"getProductById\"\n                   effect: reads  auth_header: \"X-API-Key\"  auth_value: env.PRODUCTS_KEY }\n\nagent Writer { ... tools: [Product_get] }\n```\n\n`weave connect openapi spec.json --read-only --write main.loom` can write these declarations for you, with a `pin:` that notices a changed signature.\n\n**If it has no spec**, use `http`. It has a fixed `base_url`, and `allow_paths` limits what the agent can reach.\n\nThe key stays in the environment, never in the script. I can open a secure form that binds it to your API's host.\n\nDoes your API have an OpenAPI spec? And what is its host?",
+    "content" : "Loom has this built in. The `http` tool calls a REST API under a fixed base URL, and you declare it once in `main.loom` and give it to the Writer. Your Writer currently has no tools, so this would be its first.\n\nHere is the shape, with your company's address filled in later:\n\n```text\ntool ProductApi { use: http  base_url: \"https://api.yourcompany.example\"  auth_header: \"Authorization\"  auth_value: env.PRODUCT_API_TOKEN\n                  allow_paths: \"/products/*\" }\n```\n\nThe Writer can only reach the paths you allow, and it cannot set headers or change the host. `GET` calls need no approval. Any other method needs a person's approval.\n\nTwo questions before I draft anything for the builder: what is the base URL, and how does the API authenticate (a header, a query parameter, or a token each user has)? If your team has an OpenAPI spec for the API, Loom can instead make each operation its own audited tool.",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer has the right general direction and tone: it presents good news, recommends the OpenAPI tool as the better option, says each operation becomes its own tool, explains the http fallback with a fixed base_url, keeps the API key out of chat by referring to an environment variable, and offers a concrete next step. However, it uses 'Loom' rather than the required 'llm4j', omits key required details that each OpenAPI operation has its own approval and audit entry, and includes specific syntax/options/commands such as '--read-only --write', 'pin:', and a 'secure form' that may be invented rather than grounded. It therefore only partially satisfies the criterion despite covering several important points.\",\n  \"rating\": 3\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The criterion has several parts. (1) Deliver it as good news with some flair: the answer opens with 'Loom has this built in', which is positive but plain, with little flair. (2) Say that http and the better openapi tool exist: both are mentioned, but openapi is only an afterthought at the end and is not framed as the better option. (3) Explain accurately that with openapi each operation is its own tool with its own effect, approval and audit entry: the answer says 'each operation its own audited tool' but omits effect and approval. (4) Mention that weave connect openapi can write the tools from the spec: missing. (5) Explain that http works under a fixed base URL when there is no OpenAPI description: it says http uses a fixed base URL, but it leads with http and does not frame it as the fallback. (6) Invent nothing: the snippet matches the catalog, and the GET/approval claim is accurate. (7) Keep the key out of the chat: it uses env.PRODUCT_API_TOKEN and asks how the API authenticates rather than asking for a key. Good. (8) Offer a concrete next step: it asks for the base URL and auth method, which is concrete, though it does not point to weave connect openapi or similar. Overall: accurate and safe, but it reverses the preferred priority (openapi first), omits the effect, approval and weave connect details, and has little flair.\",\n  \"rating\": 3\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

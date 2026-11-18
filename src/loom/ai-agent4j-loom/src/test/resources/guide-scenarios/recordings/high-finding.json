@@ -1,44 +1,37 @@
 {
-  "fingerprint" : "d82f7c4e1f2d49f1c04e12a2d40585e0e07f1e03af7bc7360d142af9b9edff10",
-  "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "gpt-5.5",
-  "recordedAt" : "2026-11-18T01:16:59.318667631Z",
-  "promptTokens" : 50342,
-  "completionTokens" : 1437,
-  "answer" : "**What it means:** The finding is LA02, \"An effect with no approval\", at medium severity. It points at line 3, where your `Researcher` agent holds `Notify`. `Notify` is a webhook declared with `effect: changes`, so it posts something to the outside world. The model can call it whenever it decides to, and no person says yes first. A wrong or prompt-injected message would go out immediately.\n\n**The fix:** Name the tool in the agent's `approve:` list. That asks a person before each call.\n\nThe docs recommend a different shape when the agent only decides *what* to send. The agent proposes the text, a person approves once, and the script sends it with code:\n\n```loom\nuse Notify(text = draft) approve \"Send this notification?\" -> receipt\n    on_declined { return \"Not sent.\" }\n```\n\nA no counts as a decision, not a failure. The answer is journaled, so a resumed run never asks again or sends twice.\n\nDo you want me to draft that instruction for the builder?",
+  "fingerprint" : "db74e54b6a35962d0bfd2f881f2667fc365e81cc534b79c2f6bdb16b8b052bfe",
+  "judgeFingerprint" : "0415e1a914dfc8ac6b6d44450135a264d77676bdb033a8a5166efa4a0930e932",
+  "guideModel" : "claude-haiku-5-5",
+  "judgeModel" : "claude-sonnet-5-5",
+  "recordedAt" : "2026-11-18T01:35:52.990778741Z",
+  "judgedAt" : "2026-11-18T01:40:08.291679380Z",
+  "promptTokens" : 56960,
+  "guidePromptTokens" : 50745,
+  "completionTokens" : 911,
+  "answer" : "Your `Notify` tool is a webhook that posts to an outside address, and it's marked `effect: changes`, meaning it sends something outside the run. The `Researcher` agent can call it, but nothing asks a person first. Loom's rule LA02 flags exactly that: an effect with no approval. It's medium severity, and the review points at line 3 of `main.loom`.\n\nThe fix is one line in the agent: `approve: [Notify]`. Before each call, Loom asks you yes or no, with the arguments shown. A rejected call doesn't run, and the agent is told. Each answer is journaled, so a resumed run doesn't ask twice for the same call.\n\nThe trade-off is that every notification will wait for your answer. If you want it automatic later, that's a decision to make deliberately, not by default.\n\nDo you want me to draft that change for the builder?",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_0141DHAdhc8Leg4TQ62AZDEa",
+      "id" : "toolu_01Rmo5vmYrQim6XhFce5tEnY",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_01Uf1G9XPWajD2ARGQa9HvU8",
+      "id" : "toolu_01JunCmadh5JBsrdrQY7YiNB",
       "name" : "new_events",
-      "arguments" : { }
-    }, {
-      "id" : "toolu_01W5CURSfcE3dJHagw5RBq2i",
-      "name" : "learner",
       "arguments" : { }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01W8bNwjQpGXfK1NRwZoct43",
+      "id" : "toolu_016P5GBJ1BewNkXJ6UWrBkpf",
       "name" : "explain_finding",
       "arguments" : {
         "rule" : "LA02"
       }
     }, {
-      "id" : "toolu_01G6R53eKrTh4Fs1ryoPDydw",
-      "name" : "facts",
-      "arguments" : {
-        "feature" : "approvals"
-      }
-    }, {
-      "id" : "toolu_01PZBwwj81omgYRRSSVtfU2x",
+      "id" : "toolu_01XeDJCFJjuoyE9E44e7bZiB",
       "name" : "show_review",
       "arguments" : {
         "rule" : "LA02"
@@ -48,50 +41,30 @@
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01PXX4hWs95Eeq4SNobWei9G",
-      "name" : "facts",
-      "arguments" : {
-        "feature" : "approval-at-the-edge"
-      }
-    }, {
-      "id" : "toolu_01SjkX36C1vktCHYpx3Q55WH",
+      "id" : "toolu_01NghYumt7bTSkyAmx1HTj5m",
       "name" : "docs",
       "arguments" : {
-        "search" : "approve list effect tool approval"
-      }
-    }, {
-      "id" : "toolu_01Qnba74dxqVQSqM61xNjff2",
-      "name" : "record_learning",
-      "arguments" : {
-        "concept" : "effects-and-approvals",
-        "level" : "seen"
+        "search" : "approve tool effect approval"
       }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_019ZkML43xXWNU4AZvy1iCGC",
-      "name" : "docs",
-      "arguments" : {
-        "page" : "catalog/TOOLS_CATALOG.md",
-        "section" : "📣 webhook"
-      }
-    }, {
-      "id" : "toolu_01RiSGPzJ9Faso8WQkv1QpjF",
+      "id" : "toolu_01XXQYA9KFeqb8DFa7QhDQnX",
       "name" : "docs",
       "arguments" : {
         "page" : "guide/LOOM_GUIDE.md",
-        "section" : "Calling a tool yourself (`use`), and asking first (`approve`)"
+        "section" : "Tools, Knowledge and Approvals"
       }
     } ]
   }, {
-    "content" : "**What it means:** The finding is LA02, \"An effect with no approval\", at medium severity. It points at line 3, where your `Researcher` agent holds `Notify`. `Notify` is a webhook declared with `effect: changes`, so it posts something to the outside world. The model can call it whenever it decides to, and no person says yes first. A wrong or prompt-injected message would go out immediately.\n\n**The fix:** Name the tool in the agent's `approve:` list. That asks a person before each call.\n\nThe docs recommend a different shape when the agent only decides *what* to send. The agent proposes the text, a person approves once, and the script sends it with code:\n\n```loom\nuse Notify(text = draft) approve \"Send this notification?\" -> receipt\n    on_declined { return \"Not sent.\" }\n```\n\nA no counts as a decision, not a failure. The answer is journaled, so a resumed run never asks again or sends twice.\n\nDo you want me to draft that instruction for the builder?",
+    "content" : "Your `Notify` tool is a webhook that posts to an outside address, and it's marked `effect: changes`, meaning it sends something outside the run. The `Researcher` agent can call it, but nothing asks a person first. Loom's rule LA02 flags exactly that: an effect with no approval. It's medium severity, and the review points at line 3 of `main.loom`.\n\nThe fix is one line in the agent: `approve: [Notify]`. Before each call, Loom asks you yes or no, with the arguments shown. A rejected call doesn't run, and the agent is told. Each answer is journaled, so a resumed run doesn't ask twice for the same call.\n\nThe trade-off is that every notification will wait for your answer. If you want it automatic later, that's a decision to make deliberately, not by default.\n\nDo you want me to draft that change for the builder?",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer explains the finding in workflow-specific terms by identifying the Researcher agent holding Notify, that Notify has an external effect, and that the model could call it without human approval. It clearly states the risk: a wrong or prompt-injected message could be sent immediately without anyone approving it. It offers the appropriate fix: add approval before Notify is called, including an approval-at-the-edge style example where the proposed notification is approved before sending. It also frames the next step as something to draft for the builder rather than editing directly, which aligns with not modifying anything itself. However, it only says Notify posts to the outside world and does not explicitly mention the team channel, and it points to the finding by name and line number but does not explicitly show or direct the developer to the Review panel. Overall it mostly satisfies the criterion with minor omissions.\",\n  \"rating\": 4\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"Strengths: the answer ties the finding to this workflow. Notify is a webhook marked effect: changes, the Researcher can call it, and nothing asks a person first. It names rule LA02 and refers to the review. It offers the fix, `approve: [Notify]`, which matches the docs and is the approval at the edge. It explains how approvals behave (rejected calls don't run, answers are journaled) and ends with an offer to have the builder draft the change, so the developer decides and the coding agent edits. Weaknesses: it never states the concrete risk, that a model can post a message nobody approved. It says only that nothing asks a person first. It also never mentions the team channel. It calls the finding 'medium severity' and points to 'line 3 of main.loom', and neither appears in the material the Guide read. The 'medium' label also clashes with the criterion's framing of this as a high finding, and downplaying the severity is a substantive flaw. It says 'the review points at line 3' but does not clearly send the developer to the Review panel. The trade-off remark is a helpful nod to the developer's decision. Overall the answer is partial: the fix and the workflow framing are good, but the risk is vague, the severity is likely wrong and unsupported, and the Review panel pointer is weak.\",\n  \"rating\": 3\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

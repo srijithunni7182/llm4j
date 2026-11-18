@@ -1,66 +1,54 @@
 {
-  "fingerprint" : "9b6f206b34d95b5cde6c79bf593d89113842e0e31529dee089d54c0c3d02febf",
-  "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "gpt-5.5",
-  "recordedAt" : "2026-11-18T01:18:15.614950506Z",
-  "promptTokens" : 44864,
-  "completionTokens" : 996,
-  "answer" : "Probably not, and nothing has cost anything yet. No real run has happened, and the tests and review run without a model.\n\n- **Cap:** the script is limited to 200,000 tokens and 30 calls.\n- **Models:** all three agents (Researcher, Writer, Editor) use `gemini-2.5-flash`, a hosted model, so real runs are paid.\n- **Loop:** the harness loops, which is where cost can grow. Designing the harness (`HARNESS.md`) is the step that fixes the loop bounds.\n- **Free first:** scripted tests and `weave check` cost nothing. Preflight costs only a few tokens.\n- **Free option:** a local Ollama model costs nothing per call. You'd install Ollama and pull a model. Its answers differ in quality from the hosted model's, so it can't replace the real evaluation.\n\nDo you want to use Ollama for the first real runs, or a hosted model under the cap?",
+  "fingerprint" : "ca95314d6dd6d19b14fc893ec2ddb0198c2c2bc20458b1ddb7a7e366d0ec39bd",
+  "judgeFingerprint" : "41796a79f2a7c8d4559fad949b0de40919d08bddd604bb267c8421f4cee60d61",
+  "guideModel" : "claude-haiku-5-5",
+  "judgeModel" : "claude-sonnet-5-5",
+  "recordedAt" : "2026-11-18T01:36:27.710954619Z",
+  "judgedAt" : "2026-11-18T01:40:27.872121772Z",
+  "promptTokens" : 40348,
+  "guidePromptTokens" : 37131,
+  "completionTokens" : 554,
+  "answer" : "Nothing has cost money yet. No real run has happened, and the steps done so far (checks, audit, scripted tests) make no model calls. Costs start at preflight, which spends a few tokens, then the first real answer and the real evaluation.\n\nThe script's budget is 200,000 tokens and 30 model calls. The cap is checked before each model call, so it stops the next call, but it won't stop a tool step that is already running. I can't give you a dollar figure: the docs I read don't set a price for your model, so check your provider's rates. Before the first paid run, I'd set the cap and a budget you're comfortable with. Want to go through that next?",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_018ZDDnTfo6iJR8FUAuuMuTq",
+      "id" : "toolu_01XGneGgEozLpYNNqrLLzBoa",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_01AXhVwXxkhqLeVwQ3y4aNFz",
+      "id" : "toolu_017er6CL91wn5ENNhURemJ3k",
       "name" : "new_events",
       "arguments" : { }
-    }, {
-      "id" : "toolu_01SwDhrwee2CJeX8yVBtUxvj",
-      "name" : "eval_summary",
-      "arguments" : { }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01TmdwAsHjdVEGk1baoRFrqW",
-      "name" : "facts",
+      "id" : "toolu_01S7scphx28NsSWHUEexrFJG",
+      "name" : "docs",
       "arguments" : {
-        "id" : "local-models"
+        "search" : "budget tokens calls cap"
       }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01JRpf2VWH892Yuyhv6BAytA",
-      "name" : "record_learning",
+      "id" : "toolu_01WMtmDymgt4Xtb4UHT5oga6",
+      "name" : "docs",
       "arguments" : {
-        "concept" : "cost",
-        "level" : "seen"
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "Where a budget bites"
       }
     } ]
   }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_017EhoS3EBGuTGSoJMApeuAE",
-      "name" : "record_learning",
-      "arguments" : {
-        "concept" : "budgets-and-caps",
-        "level" : "seen"
-      }
-    } ]
-  }, {
-    "content" : "Probably not, and nothing has cost anything yet. No real run has happened, and the tests and review run without a model.\n\n- **Cap:** the script is limited to 200,000 tokens and 30 calls.\n- **Models:** all three agents (Researcher, Writer, Editor) use `gemini-2.5-flash`, a hosted model, so real runs are paid.\n- **Loop:** the harness loops, which is where cost can grow. Designing the harness (`HARNESS.md`) is the step that fixes the loop bounds.\n- **Free first:** scripted tests and `weave check` cost nothing. Preflight costs only a few tokens.\n- **Free option:** a local Ollama model costs nothing per call. You'd install Ollama and pull a model. Its answers differ in quality from the hosted model's, so it can't replace the real evaluation.\n\nDo you want to use Ollama for the first real runs, or a hosted model under the cap?",
+    "content" : "Nothing has cost money yet. No real run has happened, and the steps done so far (checks, audit, scripted tests) make no model calls. Costs start at preflight, which spends a few tokens, then the first real answer and the real evaluation.\n\nThe script's budget is 200,000 tokens and 30 model calls. The cap is checked before each model call, so it stops the next call, but it won't stop a tool step that is already running. I can't give you a dollar figure: the docs I read don't set a price for your model, so check your provider's rates. Before the first paid run, I'd set the cap and a budget you're comfortable with. Want to go through that next?",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly names what bounds spending by stating the 200,000 token and 30 call cap and noting that loop bounds affect cost. It also identifies what is free, including scripted tests, `weave check`, and local Ollama per-call usage, while distinguishing hosted model runs as paid. It does not claim that having a budget makes answers cheaper. However, it does not point the developer to a way to see cost, such as the review's estimate or the live run page, which is an explicit part of the criterion. Overall it mostly satisfies the requirement but misses that cost-visibility element.\",\n  \"rating\": 4\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The answer names the declared budget with numbers (200,000 tokens and 30 model calls) and explains that the cap is checked before each model call. The visible read is truncated, so I can't confirm those numbers, but they are plausible. It also says what is free: the steps done so far (checks, audit, scripted tests) make no model calls, and cost starts at preflight and the first real run. It never claims a budget makes answers cheaper. However, it does not point to any way to see cost, such as the review's estimate or the live run page. It only tells the developer to check their provider's rates. The closing line 'set the cap and a budget' is also muddled. Missing the 'how to see cost' element is a clear gap in a three-part criterion.\",\n  \"rating\": 3\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

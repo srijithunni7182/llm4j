@@ -1,121 +1,126 @@
 {
-  "fingerprint" : "e08d942bfd04a0e3ca88281d6024da27275a21cb32d8518981f0350691087331",
-  "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "gpt-5.5",
-  "recordedAt" : "2026-11-18T01:19:36.114552408Z",
-  "promptTokens" : 105360,
-  "completionTokens" : 1004,
-  "answer" : "Maximum iterations reached without finding a final answer.",
+  "fingerprint" : "62babb522b9e1b280b8a43fb407cff0a215b4cabdfe24d2e1aaeeb777a46caf0",
+  "judgeFingerprint" : "73d8d4450f43d7c697dff6af2c1255696874ad3ed9aebb16bd96509fa59cbc27",
+  "guideModel" : "claude-haiku-5-5",
+  "judgeModel" : "claude-sonnet-5-5",
+  "recordedAt" : "2026-11-18T01:37:14.716702279Z",
+  "judgedAt" : "2026-11-18T01:40:54.934506942Z",
+  "promptTokens" : 151142,
+  "guidePromptTokens" : 144612,
+  "completionTokens" : 812,
+  "answer" : "This is what Loom's `broadcast` is for. It sends one task to a list of agents at once, Researcher, Writer and Editor here, and returns their answers together as one combined result. Nothing has been written yet, so your script still has no `broadcast` line.\n\nThe comparison is a separate step. `broadcast` only collects the three takes, and a later step has to decide between them, with an agent, an evaluator or a rule. Your three agents all use gemini-2.5-flash, so the step that compares them could also be a fourth agent.\n\nYour harness isn't designed yet. It's the next stage and it sets the call limits this fan-out will count against.\n\nWould you like me to draft the instruction for the builder, or first read the broadcast section of the docs with you?",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01UxaotG7hGPf9bVcCMfP9TF",
+      "id" : "toolu_01EFMKtSapWhrHt6gTLZL3kP",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_01AYxgNPyHjmmur7CQGkkSBL",
+      "id" : "toolu_01R5RBvVXQo1kSUMVojtmmCm",
       "name" : "new_events",
       "arguments" : { }
     }, {
-      "id" : "toolu_0122t9X53xoEFJ47A83gZH1W",
+      "id" : "toolu_01NzG4SzcLfEPqMWZBGfapAH",
       "name" : "facts",
       "arguments" : {
         "feature" : "list"
       }
     } ]
   }, {
-    "content" : "Broadcast matches. Let me read it.",
+    "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_013avSStHUpLwcSYm6BMLwQw",
+      "id" : "toolu_01NvFwt5FdhBuaEfDzYdiedW",
       "name" : "facts",
       "arguments" : {
         "feature" : "broadcast"
       }
     }, {
-      "id" : "toolu_019LtYQZeAjLjSpp8jBUZ3Uk",
-      "name" : "learner",
-      "arguments" : { }
-    } ]
-  }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01MX9Ler4eG129EoizY9FCjj",
+      "id" : "toolu_01HhGnnrJjiotXWv75AQmTFy",
       "name" : "docs",
       "arguments" : {
-        "search" : "broadcast"
+        "search" : "broadcast same task to several agents"
       }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_012fMRz54PDukfsrDvkhCyWT",
+      "id" : "toolu_01HMHGREeMLUeVD7Xgcjhaza",
       "name" : "docs",
       "arguments" : {
         "page" : "guide/LOOM_GUIDE.md",
         "section" : "The Primitive Set"
       }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_011iWAv1LzECtBFWyw7rJdvd",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "broadcast [ agents ] task result combined JSON syntax"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_014QJp6YQKyGvqi39Zu6gw46",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "library/modules/ai-agent4j-loom/README.md",
+        "section" : "The primitive set"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01SCuC5TuKBavcZr7EbYhDav",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "Broadcast"
+      }
     }, {
-      "id" : "toolu_018rW7EqJW2ZePbpnYpMDvJg",
+      "id" : "toolu_01TTcEzMZAhh6xHB8vGAoWt4",
       "name" : "show_file",
       "arguments" : {
         "path" : "main.loom"
       }
-    }, {
-      "id" : "toolu_01HYa6WyMNVuA8mE8cVuqm59",
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01EXckW6hv8n9enrKnmSp919",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "Concurrency Example (Parallel Branches)"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01ACqdCEBDaQoBYr15taKrnC",
       "name" : "record_learning",
       "arguments" : {
-        "concept" : "agents-and-roles",
+        "concept" : "broadcast",
         "level" : "seen"
       }
     } ]
   }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01GUJfAqzSgG2wKX4kwvK2nS",
-      "name" : "docs",
-      "arguments" : {
-        "search" : "broadcast [ agents ] \"task\" result"
-      }
-    } ]
-  }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01HstMSw4ZhiRAzB2LV2moxh",
-      "name" : "docs",
-      "arguments" : {
-        "page" : "skill-patterns/references/patterns.md"
-      }
-    } ]
-  }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01EJ9ECZBi7aDBtTXPunbDUd",
-      "name" : "docs",
-      "arguments" : {
-        "search" : "broadcast to Researcher, Writer"
-      }
-    } ]
-  }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01Nh2cmuNenmqonM5iENd34Y",
-      "name" : "docs",
-      "arguments" : {
-        "page" : "guide/LOOM_PROMPT.md",
-        "section" : "Frontier Features (High-Priority)"
-      }
-    } ]
+    "content" : "This is what Loom's `broadcast` is for. It sends one task to a list of agents at once, Researcher, Writer and Editor here, and returns their answers together as one combined result. Nothing has been written yet, so your script still has no `broadcast` line.\n\nThe comparison is a separate step. `broadcast` only collects the three takes, and a later step has to decide between them, with an agent, an evaluator or a rule. Your three agents all use gemini-2.5-flash, so the step that compares them could also be a fourth agent.\n\nYour harness isn't designed yet. It's the next stage and it sets the call limits this fan-out will count against.\n\nWould you like me to draft the instruction for the builder, or first read the broadcast section of the docs with you?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The actual output does not answer the developer's request at all. It does not recognize that the use case matches Loom's broadcast, does not express enthusiasm, does not explain that one broadcast sends the same task to the Researcher, Writer, and Editor at once and returns their answers together for comparison, does not show any lines of code/configuration with the agents' names, does not mention what would otherwise need to be built by hand, and does not ask a follow-up question or offer a next step. It is only an error message indicating no final answer was produced.\",\n  \"rating\": 1\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The answer recognises that the request matches `broadcast`. It explains correctly that one task goes to a list of agents at once and the answers come back as one combined result. It also says the comparison is a separate step, and names the Researcher, Writer and Editor in prose. It ends with a question and an offer of next steps, which meets the closing requirement. It falls short on several points. The tone is flat ('This is what Loom's broadcast is for'), with no sense that this is good news or that no concurrency code is needed. It shows no lines of Loom code with the agents' names; it even says no `broadcast` line exists yet, but does not show what one would look like. It never says what the developer would otherwise build by hand (fanning a prompt out to several clients, collecting replies, building the combined result). It adds material the developer did not ask about: the harness stage, 'call limits', and the claim that all three agents use gemini-2.5-flash, which cannot be checked against the visible read. The harness remark is speculative. Overall the answer is partly right but misses the code snippet, the by-hand contrast and the enthusiasm.\",\n  \"rating\": 2\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]
