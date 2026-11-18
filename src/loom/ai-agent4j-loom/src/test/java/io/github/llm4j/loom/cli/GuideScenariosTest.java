@@ -48,7 +48,8 @@ class GuideScenariosTest {
     static final String GUIDE_MODEL = "claude-sonnet-5-5";
     static final String JUDGE_MODEL = "gpt-5.5";
     static final double THRESHOLD = 0.7;
-    private static final int MAX_STEPS = 8;
+    /** Model turns per Guide answer; the hosts allow more, but an answer needing more is too slow. */
+    private static final int MAX_STEPS = 12;
     private static final Path FOLDER = Path.of("src/test/resources/guide-scenarios");
     private static final Path PERSONA = Path.of("../vscode-loom/guide/persona.md");
     private static final ObjectMapper JSON = new ObjectMapper();

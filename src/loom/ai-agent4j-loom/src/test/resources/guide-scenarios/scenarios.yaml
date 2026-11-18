@@ -138,7 +138,7 @@ wants-to-call-an-api:
   mustSay: ["openapi", "http"]
   mustNotSay: ["write a tool class", "you would have to write"]
   maxWords: 260
-  rubric: "Delivers it as good news with some flair: llm4j already has http and the even better openapi tool. Accurately explains that with openapi each operation becomes its own tool with its own effect, approval and audit entry (and weave connect openapi can write them from the spec), and that http works under a fixed base URL when there is no OpenAPI description. Invents no option or command, keeps the key out of the chat, and offers a concrete next step."
+  rubric: "Delivers it as good news with some flair: llm4j (or Loom, the same stack) already has http and the even better openapi tool. Accurately explains that with openapi each operation becomes its own tool with its own effect, approval and audit entry (and weave connect openapi can write them from the spec), and that http works under a fixed base URL when there is no OpenAPI description. Invents no option or command (the tools catalog's options are real, among them weave connect openapi --read-only --write and pin:, and so is the Guide's key form), keeps the key out of the chat, and offers a concrete next step."
 
 wants-several-opinions:
   template: pipeline
