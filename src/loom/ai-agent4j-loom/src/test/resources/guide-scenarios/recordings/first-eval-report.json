@@ -1,13 +1,13 @@
 {
   "fingerprint" : "90f6b7cd11bbccef199367dcca8618cf8b0952099ab4e5ae7463829f5443609a",
-  "judgeFingerprint" : "ba31d260a7edc412d2301a2060c0deb0ee41f4b0f5dd4c8f911eccc24b4b24d2",
+  "judgeFingerprint" : "e0c1bc5ac4eab78b5b36474b19c7cab6081577c333fc89c38c93da85aec0533a",
   "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "claude-opus-5-5",
+  "judgeModel" : "gpt-5.5",
   "recordedAt" : "2026-11-18T02:10:29.648717698Z",
-  "judgedAt" : "2026-11-18T02:10:29.648768987Z",
-  "promptTokens" : 27155,
+  "judgedAt" : "2026-11-18T02:19:48.881825863Z",
+  "promptTokens" : 26450,
   "guidePromptTokens" : 25027,
-  "completionTokens" : 1052,
+  "completionTokens" : 383,
   "answer" : "You measure it by running your golden dataset (`eval/golden`, already reviewed) as an evaluation. Nothing has been evaluated yet in this project.\n\n- **Mock evaluation:** free, but it only proves the wiring.\n- **Real evaluation:** runs your Researcher, Writer and Editor on `gemini-2.5-flash` and judges the answers. It gives a pass rate, a cost and the failing cases. The journey's command is `weave eval main.loom --max-tokens 200000`.\n\nBefore that, write `EVAL_DESIGN.md`. It sets what \"good\" means for this workflow and which mistakes are unacceptable. Then run preflight and read one real answer yourself.\n\nThe pass threshold is yours to set. What share of golden cases should pass before you'd trust this workflow, and is any single failure unacceptable?",
   "guide" : [ {
     "content" : "",
@@ -53,7 +53,7 @@
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer covers all three essentials in a short form. (1) It says quality is measured by running the project's golden dataset (`eval/golden`, already reviewed) as an evaluation, which matches the project summary showing the golden dataset as done/reviewed. (2) It distinguishes the mock evaluation, which is free but only proves wiring, from the real evaluation, which runs the agents and judges the answers, giving a pass rate, cost and failing cases. (3) It explicitly leaves the pass threshold to the developer and asks what share should pass and whether any single failure is unacceptable. It also mentions judging, which is a plus. The extra details (agent names, the model, the `--max-tokens` command) likely come from the truncated project summary and do not contradict the visible material. Recommending EVAL_DESIGN.md is consistent with the journey's not-started design-evaluation stage. The answer is concise and on point.\",\n  \"rating\": 5\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly says quality is measured by running the project's golden dataset in `eval/golden` as an evaluation. It distinguishes mock evaluation as free and only proving wiring, and real evaluation as measuring/judging actual answers and producing pass/failure information. It explicitly leaves the pass threshold to the developer by asking what share of golden cases should pass and whether any single failure is unacceptable. It also mentions judges, which is a plus. The answer is short and directly addresses the user's question, with only minor extra guidance that does not detract.\",\n  \"rating\": 5\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

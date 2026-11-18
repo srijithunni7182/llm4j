@@ -1,13 +1,13 @@
 {
   "fingerprint" : "a1e39f02f03e7f8f10e510c893c753af6d00dd366486e952fdcee1ddf5c3b8e2",
-  "judgeFingerprint" : "8c944eec0546ce3a152bc4d0c3be3f176ff9c99456c00c55b7fc3f04184604d2",
+  "judgeFingerprint" : "e1c99402feb49be70991fac998ebacc40e70562fb5f7a2c809689c2d24ac4a7d",
   "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "claude-opus-5-5",
+  "judgeModel" : "gpt-5.5",
   "recordedAt" : "2026-11-18T02:13:11.037913280Z",
-  "judgedAt" : "2026-11-18T02:13:11.037956424Z",
-  "promptTokens" : 71045,
+  "judgedAt" : "2026-11-18T02:21:15.910665901Z",
+  "promptTokens" : 69114,
   "guidePromptTokens" : 64436,
-  "completionTokens" : 1888,
+  "completionTokens" : 624,
   "answer" : "Yes, and Loom has this built in. Mark the Researcher `steerable: true`, and add `streaming: true` so you can watch it work. Add `reasoning: true` if you want to see its thinking too.\n\n```loom\nagent Researcher {\n    model: \"gemini-2.5-flash\"\n    streaming: true\n    reasoning: true\n    steerable: true      // off unless you say so\n}\n```\n\nWhile it runs you have three options:\n- **Steer:** sends a correction before its next model call, e.g. `steer Researcher focus on the EU market`. It changes the agent's reasoning, not the workflow.\n- **Wrap up:** it finishes now with what it has.\n- **Stop:** ends it. Your step's `on_stopped` then says what happens next, such as `use partial`, `skip` or `rewind` to a checkpoint. A stop is never a silent failure.\n\nOne caveat: with `weave run` you can type these commands in the terminal by using `--steer-via console`.\n\nIf you'd rather the script catch tangents itself, a `supervise` block can steer the agent automatically when it loops. I can show that instead.\n\nDo you want me to draft the instruction for the builder? If so, tell me what a stopped Researcher should do: keep its partial answer, or rewind and retry with your note.",
   "guide" : [ {
     "content" : "",
@@ -82,7 +82,7 @@
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer opens with 'Yes, and Loom has this built in,' so it recognises this as Loom's steering feature and sounds pleased to offer it.\\n\\nWhat it gets right:\\n- It names `steerable: true` on the Researcher, with `streaming: true` to watch it and `reasoning: true` to see its thinking. This matches the steering facts.\\n- It shows where these go, in an agent block, and notes that steering is off unless you say so.\\n- It lists steer, wrap up and stop. It says steer changes the reasoning, not the workflow, which matches the docs.\\n- It says `on_stopped` decides what happens after a stop. The outcomes it names (`use partial`, `skip`, `rewind` to a checkpoint) are real, and 'a stop is never a silent failure' matches the docs.\\n- It mentions `supervise` as an alternative; that feature exists in the facts list.\\n- It ends with a concrete question about what a stopped Researcher should do, and offers to draft the builder instruction.\\n\\nGaps:\\n- It does not mention `intervention` as a script-wide default. The criterion phrases this as 'on_stopped or intervention', so this is minor.\\n- Some specifics do not appear in the visible read: the `steer Researcher ...` command syntax, `--steer-via console`, and 'before its next model call'. They may be in the truncated guide section, but they are unverified.\\n- Calling the console option 'one caveat' is awkward phrasing.\\n\\nOverall it is strong, with small accuracy uncertainties.\",\n  \"rating\": 4\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The answer correctly recognizes the user's need as Loom's steering feature and clearly says Loom supports it. It names the key constructs: `steerable: true` on the Researcher, `streaming: true` to watch it, and `reasoning: true` as an optional watching aid. It accurately explains that a person can steer/correct mid-run, wrap up, or stop, and that `on_stopped` decides what happens next so stopping is not silent. It also asks a useful follow-up about what a stopped Researcher should do and offers a next step. Minor gaps: it does not show a concrete `on_stopped` or `intervention` block in context, so 'where it goes' is only partially demonstrated; and it introduces a specific `--steer-via console` command/flag and example terminal command that were not present in the provided documentation, so there is a small accuracy risk.\",\n  \"rating\": 4\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

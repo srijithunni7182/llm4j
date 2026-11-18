@@ -146,6 +146,11 @@ Built in one session: 37a (`5c3f3a58`), the MCP server (`8a410654`, `30e4cbe7`),
 - **Every Loom shape and feature, matched to what the developer says.** `features.yaml` (25 features: parallel, broadcast, routing, bounded loops, fan-out, approvals, people mid-run, schedules, steering, supervision, checkpoints, durable runs, earned autonomy, A2A, media, memory, tasks, composition, routing of models, sandboxed code…) gives each the words a developer uses, how Loom does it, what it saves, what it does not do, its section and its tested pattern; `facts feature=list|<id>`. `GuideFeaturesTest` holds every section and pattern to shipping and every construct a feature names to appearing in the language reference or the patterns (broken once with an invented `teleport` block).
 - **The persona sounds pleased when the stack has what the developer needs** (two examples in its own text), and must look a feature up with `docs` before it explains or recommends it.
 
+### The scenarios, as recorded last (2026-11-18)
+
+- **Sixteen of sixteen pass** with `claude-sonnet-5-5` as the Guide and `gpt-5.5` as the judge, which sees what the Guide read in the turn; the replay passes with no model call. Earlier, `claude-haiku-5-5` as the Guide passed only five of sixteen under the same grounded judge (it leaves parts of the answer out), so **the Guide needs a Sonnet-class model**, as Copilot and Claude Code users normally run.
+- **The judges disagree on two answers.** `claude-opus-5-5` scored `cost-question` and `wants-an-mcp-server` 3/5: the first does not say where cost is seen (the review's estimate, the live run page), the second is plain in tone and leaves out `approve:` for tools that change things. `gpt-5.5` passes both. Both criticisms are fair and small; they are the next persona lines to add, with one recording. Before the judge's scores are trusted for release, its agreement with the owner's own grading should be checked on a sample (the eval-design skill's judge validation); that has not been done.
+
 ### Gates
 
 - `make docs-check`: passes.

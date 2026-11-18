@@ -1,13 +1,13 @@
 {
   "fingerprint" : "9fa59cdb5c18b8efb643c945f4f538b94c78318620c171ebca9719c5d56de795",
-  "judgeFingerprint" : "8d47a6827d38c6dd521a378138317d6e607da68990a546c88b78cc857b8a1896",
+  "judgeFingerprint" : "4f2f58afdddb53e465d0831ae4d648749368283f2fd8db394f88594993a27dfb",
   "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "claude-opus-5-5",
+  "judgeModel" : "gpt-5.5",
   "recordedAt" : "2026-11-18T02:11:41.496919163Z",
-  "judgedAt" : "2026-11-18T02:11:41.496969909Z",
-  "promptTokens" : 31079,
+  "judgedAt" : "2026-11-18T02:20:26.449843904Z",
+  "promptTokens" : 29879,
   "guidePromptTokens" : 27257,
-  "completionTokens" : 1263,
+  "completionTokens" : 446,
   "answer" : "In Loom, an agent is a role with one job. It has its own model, its own prompt and its own tools. It's the step where a model reads or writes text. Your project has one, `Helper`, running `gemini-2.5-flash` with no tools. It can only produce text, so it can't reach anything outside the run. I've put the graph beside the script.\n\nThe docs give one rule of thumb: **the model reads, the code decides and acts.**\n\n- If a step has to write something, such as a reply or a summary, make it an agent.\n- If a step only picks from a fixed set of labels, make it a classifier.\n- If a step does arithmetic, checks a rule, or moves money or sends something, make it plain Java (a \"task\"). That keeps it exact, free to run and unit-testable.\n\nThe reason is that a prompt-injected input can fool an agent, but it can't fool a plain Java policy check.\n\nWould you like to see how `Helper` is declared in `main.loom`? Or I can explain the next step, the harness, which is how a run is bounded and stopped.",
   "guide" : [ {
     "content" : "",
@@ -59,7 +59,7 @@
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer defines an agent briefly as a role with one job and its own model, prompt and tools, which matches the docs. It uses the project's Helper agent as the concrete example. It points to the graph, which it opened beside the script, and later mentions main.loom. It ends with an offer to show how Helper is declared or to move on to the harness, so it offers to go deeper rather than closing with a lecture. The bulleted rule of thumb (agent, classifier or task) adds some lecture-like content beyond what was asked. It is still short and useful to a Java dev, because it frames tasks as plain, unit-testable Java. The main gap is the 'Java terms' framing for the agent itself. It never maps the agent onto a familiar Java concept, such as a configured component declared in the script. The Java connection appears only in the contrast with tasks. The 'declared in the script' point is also only implicit, in the closing offer. These are minor gaps overall.\",\n  \"rating\": 4\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly defines a Loom agent as a role with one job, its own model, prompt, and tools, and frames it in Java-developer terms by contrasting agents with classifiers and plain Java tasks. It uses the project’s Helper agent as the concrete example, including its model and lack of tools. It points the user to both the graph and main.loom/script to inspect the declaration. It also avoids over-lecturing by staying relatively brief and ends by offering either to show the Helper declaration or explain the harness next. Minor extra detail is included, but it supports the explanation rather than distracting from it.\",\n  \"rating\": 5\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

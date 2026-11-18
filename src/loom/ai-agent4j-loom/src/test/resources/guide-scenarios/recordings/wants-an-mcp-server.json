@@ -1,13 +1,13 @@
 {
   "fingerprint" : "0787652c0ecf677c90318dc36fe40c4c39654693555abe11263f294d1e97bfeb",
-  "judgeFingerprint" : "7e1a3f8f6531b7b7eb692286549e95a68f4e29f340f2096b7ac8c4b3ac92f93f",
+  "judgeFingerprint" : "f7a60e53d3b4140c91ddd4195eab9c286ab53b0b10553be927cc37879e003bea",
   "guideModel" : "claude-sonnet-5-5",
-  "judgeModel" : "claude-opus-5-5",
+  "judgeModel" : "gpt-5.5",
   "recordedAt" : "2026-11-18T02:12:16.292241242Z",
-  "judgedAt" : "2026-11-18T02:12:16.292293356Z",
-  "promptTokens" : 39972,
+  "judgedAt" : "2026-11-18T02:20:49.012340739Z",
+  "promptTokens" : 37986,
   "guidePromptTokens" : 33329,
-  "completionTokens" : 1654,
+  "completionTokens" : 901,
   "answer" : "Yes, llm4j has this built in. An `mcp` block gives an agent the server's tools. For your Researcher it could look like this, assuming your docs server is remote:\n\n```loom\nmcp InternalDocs {\n    transport: \"http\"\n    url: \"https://docs-mcp.example.internal/mcp\"\n    auth: secret.DOCS_MCP_TOKEN\n    effects: { search_docs: reads, get_page: reads }\n    reach: reads\n}\nagent Researcher { model: \"gemini-2.5-flash\"  mcp_servers: [InternalDocs] }\n```\n\n- **Effects:** A server's own annotations are untrusted. You declare each tool's effect yourself, and a tool you leave out is assumed to change things.\n- **Pin:** `weave mcp list` shows the tools and can write the `effects:` and a `pin:`. If the tool list later changes, the server won't start.\n- **Stdio:** If the server is a local program instead, you need `isolation:` (`process` or `container`). Without it, the audit reports LA31.\n- **Key:** If it needs a token, I can open a secure form for it. Don't paste it in the chat.\n\nIs the server remote over HTTP or a local program, and does it need a token? Once I know, I can draft the instruction for the builder.",
   "guide" : [ {
     "content" : "",
@@ -57,7 +57,7 @@
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"Tone: The answer opens with \\\"Yes, llm4j has this built in.\\\" That is affirmative but plain and matter-of-fact. It does not come across as genuinely pleased or upbeat, so the 'good news' warmth the criterion asks for is weak.\\n\\nAccuracy and content:\\n- It shows an `mcp` block for the Researcher's case using real options from the docs: `transport: \\\"http\\\"`, `url`, `auth: secret.X`, `effects` and `reach`.\\n- It attaches the server to the Researcher with `mcp_servers`.\\n- It declares an effect for each placeholder tool and correctly says that an unlisted tool is assumed to change things.\\n- It names `weave mcp list` as writing the effects and a pin. That is accurate, though it does not spell out the `--write` flag.\\n- It mentions the audit reporting LA31 when `isolation:` is missing, which is accurate for stdio servers.\\n- It invents no options or commands.\\n\\nGaps:\\n- It never mentions `approve:` for tools that change things. The criterion explicitly expects this, and the docs example shows it. Every tool in the example is a read, but the guidance on approving changing tools is absent.\\n- The audit is tied only to isolation, not to checking effects or approvals more broadly.\\n\\nEnding: It closes with clear questions and a next step, which satisfies that part.\\n\\nOverall the answer is accurate and well structured, but it lacks the warm, pleased tone and omits approve, so it only partially meets the criterion.\",\n  \"rating\": 3\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"The answer is warm and affirmative, clearly saying this is built in. It includes an `mcp` block and lists it on the `Researcher` agent with `mcp_servers: [InternalDocs]`. It declares effects for the example tools and accurately notes that omitted tools are assumed to change things. It correctly uses real MCP options such as `transport`, `url`, `auth`, `effects`, `reach`, and `isolation`, and it does not invent a fake command or option. It mentions audit reporting LA31 for an unisolated local server, which is accurate, though it does not fully frame the audit as checking the MCP declaration more generally. The main gaps are that it does not give the exact command `weave mcp list --write` even though it says `weave mcp list` can write effects and a pin, and it does not explicitly say to put changing MCP tools in the agent's `approve` list. The example only has read-only tools, so the missing approval is less severe, but the criterion specifically wanted that point. It ends with clear questions and a next step.\",\n  \"rating\": 4\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

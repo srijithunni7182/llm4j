@@ -46,7 +46,7 @@ class GuideScenariosTest {
     @TempDir Path dir;
 
     static final String GUIDE_MODEL = "claude-sonnet-5-5";
-    static final String JUDGE_MODEL = "claude-opus-5-5";
+    static final String JUDGE_MODEL = "gpt-5.5";
     static final double THRESHOLD = 0.7;
     /** Model turns per Guide answer; the hosts allow more, but an answer needing more is too slow. */
     private static final int MAX_STEPS = 12;
