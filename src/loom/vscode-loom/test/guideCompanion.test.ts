@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
-    CLAUDE_FILE, CLAUDE_TOOLS, COPILOT_FILE, COPILOT_TOOLS, MCP_FILE, claudeAgent, copilotAgent, mergeMcpJson, writeAgentFiles,
+    CLAUDE_FILE, CLAUDE_TOOLS, COPILOT_FILE, COPILOT_TOOLS, MCP_FILE, claudeAgent, copilotAgent, mergeMcpJson, refreshAgentFiles, writeAgentFiles,
 } from '../src/companion/agentFiles';
 import { GUIDE_OFFER_NEVER, GUIDE_OFFER_NOT_NOW, GUIDE_OFFER_SET_UP, GuideOfferFacts, guideOfferMessage, offerGuideSetUp, shouldOfferGuide } from '../src/companion/guideOffer';
 import { ACTIONS, EditorActions, handleRequest, insideProject, pending, refusal } from '../src/companion/mailbox';
@@ -232,4 +232,52 @@ test('the offer is a question: set up runs only on the person\'s click, and each
     const shown: string[] = [];
     await offerGuideSetUp({ facts: async () => ({ ...due, guideSetUp: true }), show: async (m) => (shown.push(m), undefined), setFlag: async () => {}, runSetUp: async () => {} });
     assert.deepEqual(shown, []);
+});
+
+test('at start-up a newer persona reaches the files the extension wrote, and nothing else is touched', () => {
+    const dir = tmp();
+    writeAgentFiles(dir, persona);
+    const newer = persona + '\nA rule from a newer version.\n';
+
+    const refreshed = refreshAgentFiles(dir, newer);
+
+    assert.deepEqual(Object.fromEntries(refreshed.map((w) => [w.file, w.outcome])), {
+        [COPILOT_FILE]: 'written', [CLAUDE_FILE]: 'written', [MCP_FILE]: 'unchanged',
+    });
+    assert.match(fs.readFileSync(path.join(dir, COPILOT_FILE), 'utf8'), /A rule from a newer version/);
+    assert.match(fs.readFileSync(path.join(dir, CLAUDE_FILE), 'utf8'), /A rule from a newer version/);
+    assert.deepEqual(refreshAgentFiles(dir, newer).map((w) => w.outcome), ['unchanged', 'unchanged', 'unchanged']);
+});
+
+test('a refresh creates nothing in a project that was never set up', () => {
+    const dir = tmp();
+    const out = refreshAgentFiles(dir, persona);
+    assert.deepEqual(out.map((w) => w.outcome), ['absent', 'absent', 'absent']);
+    assert.equal(fs.existsSync(path.join(dir, '.github')), false);
+    assert.equal(fs.existsSync(path.join(dir, '.claude')), false);
+    assert.equal(fs.existsSync(path.join(dir, MCP_FILE)), false);
+    assert.equal(fs.existsSync(path.join(dir, '.loom')), false);
+});
+
+test('a refresh leaves a file the developer changed or deleted, a file it did not write, and a removed server entry', () => {
+    const dir = tmp();
+    writeAgentFiles(dir, persona);
+    fs.appendFileSync(path.join(dir, CLAUDE_FILE), '\nMy own rule.\n');
+    fs.rmSync(path.join(dir, COPILOT_FILE));
+    fs.writeFileSync(path.join(dir, MCP_FILE), JSON.stringify({ mcpServers: { mine: { command: 'x' } } }));
+
+    const out = Object.fromEntries(refreshAgentFiles(dir, persona + '\nNewer.\n').map((w) => [w.file, w.outcome]));
+
+    assert.equal(out[COPILOT_FILE], 'absent');
+    assert.equal(out[CLAUDE_FILE], 'kept-yours');
+    assert.equal(out[MCP_FILE], 'kept-yours');
+    assert.equal(fs.existsSync(path.join(dir, COPILOT_FILE)), false, 'a deleted agent is not brought back');
+    assert.match(fs.readFileSync(path.join(dir, CLAUDE_FILE), 'utf8'), /My own rule/);
+    assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(dir, MCP_FILE), 'utf8')).mcpServers), ['mine']);
+
+    const other = tmp();
+    fs.mkdirSync(path.join(other, '.claude', 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(other, CLAUDE_FILE), 'an agent someone else wrote');
+    assert.equal(refreshAgentFiles(other, persona).find((w) => w.file === CLAUDE_FILE)?.outcome, 'kept-yours');
+    assert.equal(fs.readFileSync(path.join(other, CLAUDE_FILE), 'utf8'), 'an agent someone else wrote');
 });

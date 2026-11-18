@@ -68,10 +68,10 @@ export function mergeMcpJson(existing: string | undefined): string {
 
 const hash = (text: string): string => crypto.createHash('sha256').update(text).digest('hex');
 
-/** What `writeAgentFiles` did with each file. */
+/** What `writeAgentFiles` or `refreshAgentFiles` did with each file. */
 export interface Written {
     file: string;
-    outcome: 'written' | 'unchanged' | 'kept-yours';
+    outcome: 'written' | 'unchanged' | 'kept-yours' | 'absent';
 }
 
 /** The relative paths the Guide's files go to. */
@@ -80,10 +80,23 @@ export const CLAUDE_FILE = path.join('.claude', 'agents', `${AGENT_NAME}.md`);
 export const MCP_FILE = '.mcp.json';
 
 /**
- * Writes the agent files. A file this extension wrote before and the developer has since changed
- * is kept as it is (its hash is remembered in `.loom/guide/written.json`).
+ * Writes the agent files, when the developer asks (Set Up). A file this extension wrote before and the developer has since
+ * changed is kept as it is (its hash is remembered in `.loom/guide/written.json`).
  */
 export function writeAgentFiles(root: string, persona: string): Written[] {
+    return apply(root, persona, false);
+}
+
+/**
+ * Brings the agent files up to date with this version's persona, at start-up, without being asked. It creates nothing: a
+ * file that is not there (never set up, or deleted by the developer), a file this extension did not write, and a file the
+ * developer changed are all left alone, and the `.mcp.json` entry is updated only while it is still there.
+ */
+export function refreshAgentFiles(root: string, persona: string): Written[] {
+    return apply(root, persona, true);
+}
+
+function apply(root: string, persona: string, refreshOnly: boolean): Written[] {
     const record = path.join(guideFolder(root), 'written.json');
     let hashes: Record<string, string> = {};
     try {
@@ -95,6 +108,10 @@ export function writeAgentFiles(root: string, persona: string): Written[] {
     const put = (rel: string, text: string, ours: (current: string) => boolean): void => {
         const file = path.join(root, rel);
         const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : undefined;
+        if (current === undefined && refreshOnly) {
+            out.push({ file: rel, outcome: 'absent' });
+            return;
+        }
         if (current === text) {
             out.push({ file: rel, outcome: 'unchanged' });
             hashes[rel] = hash(text);
@@ -115,18 +132,25 @@ export function writeAgentFiles(root: string, persona: string): Written[] {
     const mcpPath = path.join(root, MCP_FILE);
     const existing = fs.existsSync(mcpPath) ? fs.readFileSync(mcpPath, 'utf8') : undefined;
     let merged: string | undefined;
+    let hasEntry = false;
     try {
+        hasEntry = existing !== undefined && existing.trim() !== '' && JSON.parse(existing)?.mcpServers?.[MCP_SERVER] !== undefined;
         merged = mergeMcpJson(existing);
     } catch {
         merged = undefined;
     }
-    if (merged === undefined) {
+    if (refreshOnly && !hasEntry) {
+        // the developer removed the Guide's server, or the file is not JSON: a refresh does not bring it back
+        out.push({ file: MCP_FILE, outcome: existing === undefined ? 'absent' : 'kept-yours' });
+    } else if (merged === undefined) {
         out.push({ file: MCP_FILE, outcome: 'kept-yours' });
     } else {
         // only the Guide's own entry changes, so the rest of the file is always the developer's
         put(MCP_FILE, merged, () => true);
     }
-    fs.mkdirSync(path.dirname(record), { recursive: true });
-    fs.writeFileSync(record, JSON.stringify(hashes, null, 2) + '\n');
+    if (!refreshOnly || out.some((w) => w.outcome === 'written' || w.outcome === 'unchanged')) {
+        fs.mkdirSync(path.dirname(record), { recursive: true });
+        fs.writeFileSync(record, JSON.stringify(hashes, null, 2) + '\n');
+    }
     return out;
 }

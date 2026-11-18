@@ -13,7 +13,7 @@ The Guide runs as an `llm4j-guide` agent of the assistant you already use, on yo
    - **Copilot:** choose `llm4j-guide` in Copilot Chat's agent list.
    - **Claude Code:** a terminal opens running `claude --agent llm4j-guide`.
 
-Both agents carry the same instructions (`src/loom/vscode-loom/guide/persona.md`) and may use only reading and the Guide's tools.
+Both agents carry the same instructions (`src/loom/vscode-loom/guide/persona.md`) and may use only reading and the Guide's tools. When the extension updates, it brings these files up to the new instructions at start-up, but only the ones it wrote and you have not changed.
 
 ## What it knows, and where it comes from
 

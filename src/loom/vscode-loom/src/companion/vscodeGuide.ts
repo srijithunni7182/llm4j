@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { vscodeHandoffHost } from '../commands/onboardingCommands';
 import { Journey } from '../views/progressModel';
 import { shellKind, terminalCommand } from '../welcome/welcome';
-import { AGENT_NAME, MCP_SERVER, serverCommand, writeAgentFiles } from './agentFiles';
+import { AGENT_NAME, MCP_SERVER, refreshAgentFiles, serverCommand, writeAgentFiles } from './agentFiles';
 import { GUIDE_HOSTS, offerGuideSetUp } from './guideOffer';
 import { Args, EditorActions, handleRequest, pending } from './mailbox';
 import * as os from 'os';
@@ -217,6 +217,18 @@ export class GuideCompanion implements vscode.Disposable {
         if (pick === add) await vscode.commands.executeCommand('loom.addWeaveToShellPath');
     }
 
+    /**
+     * Brings the Guide's agent files up to the persona this version ships, at start-up. Only files this extension wrote and
+     * the developer has not changed are rewritten; nothing is created. A failure is never a reason not to start.
+     */
+    refreshFiles(): void {
+        try {
+            refreshAgentFiles(this.root, fs.readFileSync(this.context.asAbsolutePath(path.join('guide', 'persona.md')), 'utf8'));
+        } catch {
+            // an unreadable or read-only project keeps its files as they are; Set Up says what is wrong when asked
+        }
+    }
+
     private launcherInstalled(): boolean {
         const folder = launcherFolder(os.homedir());
         return fs.existsSync(path.join(folder, 'weave')) || fs.existsSync(path.join(folder, 'weave.cmd'));
@@ -274,6 +286,7 @@ export function registerGuide(context: vscode.ExtensionContext, walkthroughSeenB
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const companion = root ? new GuideCompanion(context, root) : undefined;
     companion?.registerServer();
+    companion?.refreshFiles();
     const needFolder = () => void vscode.window.showInformationMessage('Open a folder with a .loom script first.');
     context.subscriptions.push(
         vscode.commands.registerCommand('loom.guide.setUp', () => (companion ? companion.setUp() : needFolder())),
