@@ -1,0 +1,50 @@
+{
+  "fingerprint" : "993d4702ef817b7fcbba73a4b5d1134f3c63d45383784ca5164d67b9a01da96d",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T01:17:13.798409644Z",
+  "promptTokens" : 24849,
+  "completionTokens" : 1128,
+  "answer" : "You find out by measuring it, and your project is partway there.\n\n**Done:** your Researcher → Writer → Editor workflow has a reviewed golden dataset, a clean `weave check`, an audit with no findings, and scripted tests. Those show the wiring works. They don't show the answers are good.\n\n**Missing:** quality evidence, and that takes three steps.\n1. **Design the evaluation.** Write `EVAL_DESIGN.md` to decide what \"good\" means and which mistakes are unacceptable.\n2. **Read one real answer yourself.** Run preflight first. A real run costs money, though a local Ollama model is a free option.\n3. **Run the real evaluation.** `weave eval main.loom --max-tokens 200000` gives a pass rate, cost and the failing cases. That is the number you can defend, and the gate for later changes.\n\nYour workflow loops, so I'd also write `HARNESS.md` to bound it.\n\nWant me to draft the builder instruction for `EVAL_DESIGN.md`?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01DBt3CFf1Vz8tAFd5CJn21x",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01UoaAEKXjn53v7aBe4Z75WK",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01KguFWy1VG5XF6YDgy8zdTi",
+      "name" : "eval_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01MB2ywU9brQ9fSYDgoAqHVE",
+      "name" : "learner",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01TBqweB2MjqG3qZ8PpPBPhQ",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "golden-dataset",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "You find out by measuring it, and your project is partway there.\n\n**Done:** your Researcher → Writer → Editor workflow has a reviewed golden dataset, a clean `weave check`, an audit with no findings, and scripted tests. Those show the wiring works. They don't show the answers are good.\n\n**Missing:** quality evidence, and that takes three steps.\n1. **Design the evaluation.** Write `EVAL_DESIGN.md` to decide what \"good\" means and which mistakes are unacceptable.\n2. **Read one real answer yourself.** Run preflight first. A real run costs money, though a local Ollama model is a free option.\n3. **Run the real evaluation.** `weave eval main.loom --max-tokens 200000` gives a pass rate, cost and the failing cases. That is the number you can defend, and the gate for later changes.\n\nYour workflow loops, so I'd also write `HARNESS.md` to bound it.\n\nWant me to draft the builder instruction for `EVAL_DESIGN.md`?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer correctly says quality must be measured rather than inferred from wiring/tests, notes that a golden dataset exists, and recommends running a real evaluation that returns pass rate, cost, and failing cases. It also distinguishes wiring evidence from answer-quality evidence. However, it does not clearly state that the evaluation should run the project's existing golden dataset in eval/golden, does not explicitly explain that a mock evaluation is free and only proves wiring, and only implicitly leaves the pass threshold to the developer via EVAL_DESIGN rather than clearly saying the developer must choose the threshold. It partially covers the key ideas but misses several required essentials.\",\n  \"rating\": 3\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

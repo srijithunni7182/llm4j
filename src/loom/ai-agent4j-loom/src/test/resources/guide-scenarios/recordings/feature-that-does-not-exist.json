@@ -1,0 +1,43 @@
+{
+  "fingerprint" : "65c266cd680a159c3f87cc905f6a73449669172867e90dcde0d6bd70d0d2f61f",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T01:18:00.933599512Z",
+  "promptTokens" : 17829,
+  "completionTokens" : 868,
+  "answer" : "Loom has no auto-scaling GPU cluster mode. I searched the docs and the feature list and found no such setting, so I won't invent a flag for it. Loom doesn't manage hardware. Each agent names a model with `model:`, and Loom calls that provider. Your three agents (Researcher, Writer, Editor) use `gemini-2.5-flash`, which is hosted, so scaling is the provider's job.\n\nThe nearest thing Loom does is a `routing` policy. It has `strategy: fallback` or `cost_aware`, so a call can fall back to another model or go to a cheaper one. It controls which model answers, not how much hardware runs it.\n\nIf you need to run your own GPUs, you would host the model yourself and point an agent at it. I'd have to check the docs before saying exactly how.\n\nWhat are you after: lower cost, higher throughput, or keeping the data on your own machines? That decides what I'd suggest.",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01UeCu2wvwLt2JfsT5yUkeEY",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01LgrPjVDC6LQVG7CggcC3Nw",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01P3nowWgCzDbKtgFWspisXo",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "auto-scaling GPU cluster"
+      }
+    }, {
+      "id" : "toolu_013uuNsqjgVmc2LY6eTHrbSb",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "list"
+      }
+    } ]
+  }, {
+    "content" : "Loom has no auto-scaling GPU cluster mode. I searched the docs and the feature list and found no such setting, so I won't invent a flag for it. Loom doesn't manage hardware. Each agent names a model with `model:`, and Loom calls that provider. Your three agents (Researcher, Writer, Editor) use `gemini-2.5-flash`, which is hosted, so scaling is the provider's job.\n\nThe nearest thing Loom does is a `routing` policy. It has `strategy: fallback` or `cost_aware`, so a call can fall back to another model or go to a cheaper one. It controls which model answers, not how much hardware runs it.\n\nIf you need to run your own GPUs, you would host the model yourself and point an agent at it. I'd have to check the docs before saying exactly how.\n\nWhat are you after: lower cost, higher throughput, or keeping the data on your own machines? That decides what I'd suggest.",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer plainly states that Loom has no auto-scaling GPU cluster mode and that no such setting was found. It explicitly avoids inventing a flag or setting. It redirects the user to the nearest real concepts: agents choose models via `model:`, hosted providers handle scaling, and Loom may support routing policies for model selection rather than hardware scaling. It also cautiously frames self-hosted GPU use without making unsupported claims. This fully matches the criterion.\",\n  \"rating\": 5\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

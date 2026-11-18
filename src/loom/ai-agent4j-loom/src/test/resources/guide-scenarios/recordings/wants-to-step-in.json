@@ -1,0 +1,79 @@
+{
+  "fingerprint" : "be93efe1a5835d62a26ed4b2de416ba49dda26834d43af5a91776307c9c7bca7",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T01:19:52.640078073Z",
+  "promptTokens" : 62008,
+  "completionTokens" : 1351,
+  "answer" : "Yes. Loom has this built in, and it's called steering. You mark the Researcher `steerable`. Then you can correct it mid-run, ask it to wrap up with what it has, or stop it. The script's `on_stopped` handler says what the run does after a stop. A stop is never a silent failure.\n\n```loom\nagent Researcher {\n    model: \"gemini-2.5-flash\"\n    streaming: true   // you watch the reply as it is written\n    reasoning: true   // shows its reasoning where the model can\n    steerable: true   // off unless you say so\n}\n```\n\nWhile it runs, you type something like `steer Researcher focus on the EU market`. For example, with `weave run main.loom --steer-via console`, you type that line in the same terminal. A steer corrects the agent's reasoning, and it arrives before the agent's next model call. It never changes the workflow. Without steering you would have to build the interruption, the injected correction and the handling of a half-done step yourself.\n\n`weave audit` will list a steerable agent as an input channel (`LA18`), so expect that line.\n\nWant me to draft the instruction for the builder? I'd also suggest an `on_stopped` handler, so you decide what a stop means.",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01WFzHzVqSCwxpQjHjkuuA36",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01EWTxhnGweoHbf3i9RTDKK5",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_0133Ygb7DwLeTkBmbDskRxLa",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "list"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_0152cZgj64X7oWMwP8tj4Vwg",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "steering"
+      }
+    }, {
+      "id" : "toolu_01VNhH81RE9rgsn51yYeNxrx",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "steerable on_stopped steer agent while it works"
+      }
+    }, {
+      "id" : "toolu_01DN9QxA3AUp7sAHBgFrkaDY",
+      "name" : "learner",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_011nEpmLgW8yQHUJg8YaCpPX",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "Steering, Stopping and Wrapping Up an Agent"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01UyCPvZRkFEKC6QxTbAvSTE",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "agents-and-roles",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "Yes. Loom has this built in, and it's called steering. You mark the Researcher `steerable`. Then you can correct it mid-run, ask it to wrap up with what it has, or stop it. The script's `on_stopped` handler says what the run does after a stop. A stop is never a silent failure.\n\n```loom\nagent Researcher {\n    model: \"gemini-2.5-flash\"\n    streaming: true   // you watch the reply as it is written\n    reasoning: true   // shows its reasoning where the model can\n    steerable: true   // off unless you say so\n}\n```\n\nWhile it runs, you type something like `steer Researcher focus on the EU market`. For example, with `weave run main.loom --steer-via console`, you type that line in the same terminal. A steer corrects the agent's reasoning, and it arrives before the agent's next model call. It never changes the workflow. Without steering you would have to build the interruption, the injected correction and the handling of a half-done step yourself.\n\n`weave audit` will list a steerable agent as an input channel (`LA18`), so expect that line.\n\nWant me to draft the instruction for the builder? I'd also suggest an `on_stopped` handler, so you decide what a stop means.",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly recognizes the feature as Loom steering and answers the developer's question directly and positively. It shows the key configuration on the Researcher, including `steerable: true` and `streaming: true` so the user can watch and intervene mid-run. It explains that the person can correct the agent, ask it to wrap up, or stop it, and it mentions `on_stopped` as the place to define what happens after a stop. It also shows where this goes in an `agent Researcher` block and gives an example of using console steering during `weave run`. It offers a next step by asking whether to draft the instruction and recommending an `on_stopped` handler. Minor caveats: it includes extra claims such as `reasoning: true` showing reasoning and specific audit/input-channel details that are not central and may be somewhat implementation-specific, but they do not substantially detract from satisfying the criterion.\",\n  \"rating\": 5\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

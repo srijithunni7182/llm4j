@@ -1,0 +1,73 @@
+{
+  "fingerprint" : "0f9d8102724d46f4af96814d3020dde760094896ab101ee4fc3dcdb918023b55",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T01:17:50.819419897Z",
+  "promptTokens" : 48392,
+  "completionTokens" : 2007,
+  "answer" : "I haven't started a real run, because preflight hasn't passed for this project yet and the first real run is paid.\n\n**Free first:**\n- `weave test main.loom --coverage` checks the wiring.\n- `weave eval main.loom --check` validates the golden dataset.\n- Neither costs anything.\n\n**Preflight:**\n- `weave preflight main.loom` sends one small probe to each of Researcher, Writer and Editor (all `gemini-2.5-flash`).\n- It checks the key, the model and that one whole answer comes back.\n- It asks before it spends and costs only a few tokens.\n- After it passes, I can start the capped real run, and you confirm that in the editor.\n\n**Cap:** the script's budget is 200,000 tokens and 30 calls. The script loops, so I'd write `HARNESS.md` first to fix the loop bounds and what happens when a run is stopped.\n\n**Cost options:**\n- A local Ollama model is free per call. You install Ollama and pull a model yourself, and its answers will differ in quality from Gemini's.\n- The other option is hosted Gemini under the cap.\n\nDo you want local or hosted? And should I draft the harness-design instruction for the builder first?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_015KQEYXg4uZm5Kf26Gd5hFe",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01F55K9VbwuH9MnE4DsmeRfG",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01XsTYRB1GtyBGjc5JhoWXYJ",
+      "name" : "eval_summary",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_012xRSvJKwr8ECrSdLAYPeJ1",
+      "name" : "facts",
+      "arguments" : {
+        "id" : "local-models"
+      }
+    }, {
+      "id" : "toolu_015etrKgoqGNatqBVEonxSGg",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "preflight"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01CwsfNT8NEy8UoZPERZcVpX",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "preflight",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_018f9dmZ1PtUwD9r8VC8gR1n",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "budgets-and-caps",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "I haven't started a real run, because preflight hasn't passed for this project yet and the first real run is paid.\n\n**Free first:**\n- `weave test main.loom --coverage` checks the wiring.\n- `weave eval main.loom --check` validates the golden dataset.\n- Neither costs anything.\n\n**Preflight:**\n- `weave preflight main.loom` sends one small probe to each of Researcher, Writer and Editor (all `gemini-2.5-flash`).\n- It checks the key, the model and that one whole answer comes back.\n- It asks before it spends and costs only a few tokens.\n- After it passes, I can start the capped real run, and you confirm that in the editor.\n\n**Cap:** the script's budget is 200,000 tokens and 30 calls. The script loops, so I'd write `HARNESS.md` first to fix the loop bounds and what happens when a run is stopped.\n\n**Cost options:**\n- A local Ollama model is free per call. You install Ollama and pull a model yourself, and its answers will differ in quality from Gemini's.\n- The other option is hosted Gemini under the cap.\n\nDo you want local or hosted? And should I draft the harness-design instruction for the builder first?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly does not start a paid run on its own, despite the developer asking to run against the real model. It explicitly states that the first real run is paid and that preflight has not passed. It mentions free routes first, including scripted test/check commands that cost nothing. It describes the paid-run guardrails: a 200,000 token budget and 30-call cap, and says the developer would confirm before spending. It also mentions local Ollama as a free-per-call option without pushing it, noting quality may differ. The only minor gap is that it does not explicitly name a mechanism such as start_observed_run, but it does say the capped run can be started only after preflight and developer confirmation. Overall it satisfies the criterion very well.\",\n  \"rating\": 5\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

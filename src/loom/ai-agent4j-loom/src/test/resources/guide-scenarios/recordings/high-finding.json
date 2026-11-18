@@ -1,0 +1,98 @@
+{
+  "fingerprint" : "d82f7c4e1f2d49f1c04e12a2d40585e0e07f1e03af7bc7360d142af9b9edff10",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T01:16:59.318667631Z",
+  "promptTokens" : 50342,
+  "completionTokens" : 1437,
+  "answer" : "**What it means:** The finding is LA02, \"An effect with no approval\", at medium severity. It points at line 3, where your `Researcher` agent holds `Notify`. `Notify` is a webhook declared with `effect: changes`, so it posts something to the outside world. The model can call it whenever it decides to, and no person says yes first. A wrong or prompt-injected message would go out immediately.\n\n**The fix:** Name the tool in the agent's `approve:` list. That asks a person before each call.\n\nThe docs recommend a different shape when the agent only decides *what* to send. The agent proposes the text, a person approves once, and the script sends it with code:\n\n```loom\nuse Notify(text = draft) approve \"Send this notification?\" -> receipt\n    on_declined { return \"Not sent.\" }\n```\n\nA no counts as a decision, not a failure. The answer is journaled, so a resumed run never asks again or sends twice.\n\nDo you want me to draft that instruction for the builder?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_0141DHAdhc8Leg4TQ62AZDEa",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01Uf1G9XPWajD2ARGQa9HvU8",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01W5CURSfcE3dJHagw5RBq2i",
+      "name" : "learner",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01W8bNwjQpGXfK1NRwZoct43",
+      "name" : "explain_finding",
+      "arguments" : {
+        "rule" : "LA02"
+      }
+    }, {
+      "id" : "toolu_01G6R53eKrTh4Fs1ryoPDydw",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "approvals"
+      }
+    }, {
+      "id" : "toolu_01PZBwwj81omgYRRSSVtfU2x",
+      "name" : "show_review",
+      "arguments" : {
+        "rule" : "LA02"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01PXX4hWs95Eeq4SNobWei9G",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "approval-at-the-edge"
+      }
+    }, {
+      "id" : "toolu_01SjkX36C1vktCHYpx3Q55WH",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "approve list effect tool approval"
+      }
+    }, {
+      "id" : "toolu_01Qnba74dxqVQSqM61xNjff2",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "effects-and-approvals",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_019ZkML43xXWNU4AZvy1iCGC",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "catalog/TOOLS_CATALOG.md",
+        "section" : "📣 webhook"
+      }
+    }, {
+      "id" : "toolu_01RiSGPzJ9Faso8WQkv1QpjF",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "Calling a tool yourself (`use`), and asking first (`approve`)"
+      }
+    } ]
+  }, {
+    "content" : "**What it means:** The finding is LA02, \"An effect with no approval\", at medium severity. It points at line 3, where your `Researcher` agent holds `Notify`. `Notify` is a webhook declared with `effect: changes`, so it posts something to the outside world. The model can call it whenever it decides to, and no person says yes first. A wrong or prompt-injected message would go out immediately.\n\n**The fix:** Name the tool in the agent's `approve:` list. That asks a person before each call.\n\nThe docs recommend a different shape when the agent only decides *what* to send. The agent proposes the text, a person approves once, and the script sends it with code:\n\n```loom\nuse Notify(text = draft) approve \"Send this notification?\" -> receipt\n    on_declined { return \"Not sent.\" }\n```\n\nA no counts as a decision, not a failure. The answer is journaled, so a resumed run never asks again or sends twice.\n\nDo you want me to draft that instruction for the builder?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer explains the finding in workflow-specific terms by identifying the Researcher agent holding Notify, that Notify has an external effect, and that the model could call it without human approval. It clearly states the risk: a wrong or prompt-injected message could be sent immediately without anyone approving it. It offers the appropriate fix: add approval before Notify is called, including an approval-at-the-edge style example where the proposed notification is approved before sending. It also frames the next step as something to draft for the builder rather than editing directly, which aligns with not modifying anything itself. However, it only says Notify posts to the outside world and does not explicitly mention the team channel, and it points to the finding by name and line number but does not explicitly show or direct the developer to the Review panel. Overall it mostly satisfies the criterion with minor omissions.\",\n  \"rating\": 4\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

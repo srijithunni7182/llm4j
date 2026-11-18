@@ -1,0 +1,68 @@
+{
+  "fingerprint" : "5e662ec2f68e0d7d5448d051e2f6dae4389a4fc4b629798ceedf2d0956786002",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T01:19:06.103955049Z",
+  "promptTokens" : 33563,
+  "completionTokens" : 2040,
+  "answer" : "Yes. Loom has an `mcp` block for this. It turns the server's tools into tools your Researcher can call. If your docs server is remote, it would look like this (the name `Docs` and the URL are placeholders):\n\n```loom\nmcp Docs {\n    transport: \"http\"\n    url: \"https://docs-mcp.internal.example/mcp\"\n    auth: secret.DOCS_MCP_TOKEN\n    effects: { search_docs: reads }\n    reach: reads\n}\nagent Researcher { model: \"gemini-2.5-flash\"  mcp_servers: [Docs] }\n```\n\n- **Effects:** a tool you don't list in `effects` is assumed to change things. Declare the read-only ones as `reads`.\n- **Annotations:** the server's own annotations are untrusted, so don't rely on them for effects. `weave mcp list --write` shows what the server suggests, lets you approve it, and writes the `effects:` and a `pin:` into the block. If the tool list later drifts, the server won't start.\n- **Approvals:** `approve:` works on these tools like any other.\n\nYour Researcher has no tools yet, so this would be its first. Is the server remote over HTTP or a local program over stdio, and what auth does it use? Once I know, I can draft the builder instruction.",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01F9gnaAfaRePE37UFFPyAFC",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_016o9ythvPjRVmbNHyGwFrsg",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01TL48oKBHpmbeittZ85s81w",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "list"
+      }
+    }, {
+      "id" : "toolu_01NUwjuUJL6AmX6YA7Msjpjo",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "mcp server tools agent"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_018zaqpsoqHzcCL7naJCSfqY",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "MCP servers (`mcp`)"
+      }
+    }, {
+      "id" : "toolu_01BNVvJKX4ajkvjHLrvWCU4n",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "catalog/TOOLS_CATALOG.md",
+        "section" : "`mcp`"
+      }
+    }, {
+      "id" : "toolu_01Y8KFkAw3ivpNLin1q9wdWs",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "mcp",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "Yes. Loom has an `mcp` block for this. It turns the server's tools into tools your Researcher can call. If your docs server is remote, it would look like this (the name `Docs` and the URL are placeholders):\n\n```loom\nmcp Docs {\n    transport: \"http\"\n    url: \"https://docs-mcp.internal.example/mcp\"\n    auth: secret.DOCS_MCP_TOKEN\n    effects: { search_docs: reads }\n    reach: reads\n}\nagent Researcher { model: \"gemini-2.5-flash\"  mcp_servers: [Docs] }\n```\n\n- **Effects:** a tool you don't list in `effects` is assumed to change things. Declare the read-only ones as `reads`.\n- **Annotations:** the server's own annotations are untrusted, so don't rely on them for effects. `weave mcp list --write` shows what the server suggests, lets you approve it, and writes the `effects:` and a `pin:` into the block. If the tool list later drifts, the server won't start.\n- **Approvals:** `approve:` works on these tools like any other.\n\nYour Researcher has no tools yet, so this would be its first. Is the server remote over HTTP or a local program over stdio, and what auth does it use? Once I know, I can draft the builder instruction.",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly says this is possible and gives a plausible Loom declaration with an mcp block and the Researcher listing that server. It accurately mentions that MCP server tools become callable tools, that effects should be declared, that server annotations are untrusted, that approvals apply, and that `weave mcp list --write` proposes effects and writes a pin/tool-list guard. It also ends with a useful next-step question. However, it is only mildly upbeat rather than warmly pleased, the sample declaration gives an effect for only one placeholder tool rather than showing an effect for each tool on the server, it does not actually show `approve` on any mutating tools in the declaration, and it does not explicitly mention the audit checking this setup. Overall it mostly satisfies the criterion but has some notable omissions in the concrete declaration.\",\n  \"rating\": 4\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

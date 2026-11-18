@@ -1,0 +1,59 @@
+{
+  "fingerprint" : "96fd96dfe07676de6e7209f0c05ae1153e9232fb20d0fded352aa80437ef2305",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T01:18:26.400232715Z",
+  "promptTokens" : 27229,
+  "completionTokens" : 970,
+  "answer" : "An agent in Loom is a role with one job, and it has its own model, prompt and tools. You can think of it as a function whose body is an LLM call. It reasons and writes text, and it can use the tools you give it.\n\nYour project has one agent, `Helper`, on `gemini-2.5-flash`, with no tools. It can only read its input and write an answer. It can't touch anything outside the run.\n\nThe rule of thumb in the docs is that the model reads and your code decides and acts. Use an agent where you need text written. If a step only picks a label, use a classifier. If it calculates, checks a rule or moves money, use plain Java.\n\nThe next stage for your project is the harness. It's a short `HARNESS.md` that says how a run is bounded and what happens when it fails. Want me to explain that, or go deeper on agents, tools and effects first?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01Y3qWRM64cdoC33MT39z5n1",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01P86U9zgL2wLj3tjwPgYeNQ",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_015qCN6ETZsSKH9hxW7GCHzj",
+      "name" : "learner",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_019arxyQcSDhxVfeQGVg9Ka1",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "what is an agent"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01VB49mCkttVNv2cyQyXrVxZ",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/01-decide-your-agents.md",
+        "section" : "Agent, classifier or task?"
+      }
+    }, {
+      "id" : "toolu_01YGc317YMgabP46H9TATi4V",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "agents-and-roles",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "An agent in Loom is a role with one job, and it has its own model, prompt and tools. You can think of it as a function whose body is an LLM call. It reasons and writes text, and it can use the tools you give it.\n\nYour project has one agent, `Helper`, on `gemini-2.5-flash`, with no tools. It can only read its input and write an answer. It can't touch anything outside the run.\n\nThe rule of thumb in the docs is that the model reads and your code decides and acts. Use an agent where you need text written. If a step only picks a label, use a classifier. If it calculates, checks a rule or moves money, use plain Java.\n\nThe next stage for your project is the harness. It's a short `HARNESS.md` that says how a run is bounded and what happens when it fails. Want me to explain that, or go deeper on agents, tools and effects first?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer gives a brief, newcomer-friendly explanation of an agent in Loom as a role with a job, model, prompt, and tools, and it translates that into Java-ish terms by comparing it to a function whose body is an LLM call. It uses the project's Helper agent as the example and accurately notes that it uses gemini-2.5-flash and has no tools. It also offers to go deeper, which satisfies the requirement to check understanding or avoid lecturing. However, it does not explicitly say the agent is declared in the script, and it does not point the learner to the graph or the script to see the Helper agent. The extra mention of the next harness stage is somewhat tangential but not harmful. Overall it mostly satisfies the criterion with a couple of notable omissions.\",\n  \"rating\": 4\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}
