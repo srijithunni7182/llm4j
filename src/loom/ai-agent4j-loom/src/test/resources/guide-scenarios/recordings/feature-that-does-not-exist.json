@@ -1,0 +1,46 @@
+{
+  "fingerprint" : "b7c0a6072fe4bf0c1b8fa8d03668aebbf67fe84fde1f088aa1604099deacfade",
+  "judgeFingerprint" : "d457e86afe2e187219f2fece4af0d9d67af1972fd00d2baae561ffae16987590",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T02:11:15.323775809Z",
+  "judgedAt" : "2026-11-18T02:20:11.673625556Z",
+  "promptTokens" : 21093,
+  "guidePromptTokens" : 17693,
+  "completionTokens" : 484,
+  "answer" : "Loom has no auto-scaling GPU cluster mode. I found nothing about it in the docs or the feature list, so there's no switch to turn on, and I won't invent one.\n\nLoom doesn't manage hardware at all. Each agent names a model with `model:`, and that model runs wherever its provider runs it. Your three agents (Researcher, Writer, Editor) all use `gemini-2.5-flash`, so Google handles the scaling. The docs also describe a `routing` policy with `strategy: fallback` or `cost_aware`, which picks between models by cost or falls back when one fails.\n\nIf you want to host the model yourself, a local Ollama model is a free option for the first real runs. If you want GPU-backed inference, you'd run that serving layer outside Loom and point an agent at it.\n\nAre you after lower cost, more throughput, or running on your own hardware? The answer decides whether model routing or a local model fits.",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01XbXncyp9yLMz886nCQPbQc",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01E6My4GDGP1hVFC8psiECfd",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01Q6oxWhCrtZt2apYpuHngoB",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "auto-scaling GPU cluster"
+      }
+    }, {
+      "id" : "toolu_01XL7zzPUMY3sXomb2UsgwLd",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "list"
+      }
+    } ]
+  }, {
+    "content" : "Loom has no auto-scaling GPU cluster mode. I found nothing about it in the docs or the feature list, so there's no switch to turn on, and I won't invent one.\n\nLoom doesn't manage hardware at all. Each agent names a model with `model:`, and that model runs wherever its provider runs it. Your three agents (Researcher, Writer, Editor) all use `gemini-2.5-flash`, so Google handles the scaling. The docs also describe a `routing` policy with `strategy: fallback` or `cost_aware`, which picks between models by cost or falls back when one fails.\n\nIf you want to host the model yourself, a local Ollama model is a free option for the first real runs. If you want GPU-backed inference, you'd run that serving layer outside Loom and point an agent at it.\n\nAre you after lower cost, more throughput, or running on your own hardware? The answer decides whether model routing or a local model fits.",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer directly and plainly states that Loom has no auto-scaling GPU cluster mode and that there is no switch to turn on. It avoids inventing a Loom setting, command, or option for this non-existent feature. It points to the nearest real mechanisms from the provided documentation: agents choose models with `model:`, providers handle execution, and Loom supports routing policies such as `fallback` and `cost_aware`. The extra mention of self-hosted/local inference is framed as something outside Loom rather than as a Loom feature, so it does not materially violate the criterion.\",\n  \"rating\": 5\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

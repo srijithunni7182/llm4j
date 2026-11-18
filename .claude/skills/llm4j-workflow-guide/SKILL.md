@@ -39,12 +39,13 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 
 ## Conventions every llm4j skill follows
 
-Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
+Read `references/conventions.md` before you start. It sets eleven rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; make every skipped step visible; make the thorough path the default and take a shortcut only when the person insists; and narrate, show and report each gate to the Loom Guide.
 
 ## The fast lane: when the person wants something working today
 
-The full path is slower than most people want for a first version. Offer the choice once, in one sentence ("the full path, or a fast lane that skips
-the evidence stages and says so?"), and do not ask again. The fast lane skips **evidence**, never **safety**.
+The full path is the default: do not offer the fast lane yourself (conventions rule 10). When the person asks to go fast, say once, in one sentence about
+their project, what the fast lane skips and what that loses, then follow it and record each skip with `weave next --skip <stage> --because "<their words>"`.
+The fast lane skips **evidence**, never **safety**.
 
 1. Choose the shape with the `llm4j-workflow-patterns` skill (or `weave init <template>` when one is the closest fit).
 2. For a description with no script yet, use `weave generate` (below): read `PLAN.md` to the person, let them change it, then build.

@@ -1,0 +1,244 @@
+# What Loom does as a workflow language: the shapes and features a developer's requirement can match. When what the
+# developer describes matches `when`, that is the Guide's moment to say, with pleasure, how simple Loom makes it, then to
+# read `doc` (and `pattern`, a tested skeleton) before it shows anything. Each entry:
+#   title    the feature
+#   when     what a developer says when they need it, in their words (the Guide matches on these)
+#   how      the Loom construct that does it, in one or two sentences
+#   saves    what they would otherwise build by hand in plain Java
+#   pattern  a heading of the workflow-patterns skill's patterns.md with a tested skeleton, or empty
+#   doc      page#heading in the shipped documentation (tested: it exists)
+#   not      what it does not do (required)
+
+parallel:
+  title: "Parallel branches"
+  when: ["ask several sources at once", "at the same time", "concurrently", "in parallel", "independent look-ups", "speed it up"]
+  how: "Put the steps in a `parallel { }` block: each runs in its own thread, each can have its own `retry`, `timeout` and `on_failure`, and the script carries on after all of them."
+  saves: "An executor, futures, timeouts per task, error handling per branch and joining the results."
+  pattern: "3. Ask several at once, carry on if one fails"
+  doc: "guide/LOOM_GUIDE.md#Concurrency Example (Parallel Branches)"
+  not: "Branches must not write the same variable; Loom runs them together, it does not merge their writes."
+
+parallel-fallback:
+  title: "Parallel branches that fall back"
+  when: ["if one source fails carry on", "a backup", "fall back", "whichever answers"]
+  how: "Each branch of a `parallel` block can carry its own `on_failure`, so one failing source becomes a flag and a note instead of a failed run."
+  saves: "Hand-written try/catch per thread and a report that remembers which part is missing."
+  pattern: "3. Ask several at once, carry on if one fails"
+  doc: "guide/LOOM_GUIDE.md#Parallel branches that fall back"
+  not: "It does not hide a failure: the script must say in the result what is missing."
+
+broadcast:
+  title: "Broadcast: the same task to several agents"
+  when: ["ask every expert", "several opinions", "same question to all", "map reduce", "panel of reviewers", "compare answers"]
+  how: "`broadcast` sends one task to a list of agents at once and returns their combined answers as one JSON result, ready for a step that compares or merges them."
+  saves: "Fanning one prompt out to several clients, collecting the replies and building the combined result."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#The Primitive Set"
+  not: "It collects the answers; deciding between them is the next step's job (an agent, an evaluator or a rule)."
+
+route-by-label:
+  title: "Route by label to a specialist"
+  when: ["different kinds of request", "triage", "route", "classify then answer", "send billing questions to", "intent"]
+  how: "An `intentclassifier` labels the request and `alt` sends each label to its own specialist agent; the labels are a closed list the script checks."
+  saves: "Parsing a model's free-text label, mapping it to handlers and handling the label nobody expected."
+  pattern: "1. Route by a label, answer by specialist"
+  doc: "guide/LOOM_GUIDE.md#Classifying: `intentclassifier` and `intentclassify`"
+  not: "A classifier can mislabel; the golden dataset measures how often, and a low-confidence case can go to a person."
+
+write-review-loop:
+  title: "Write, review, rewrite, bounded"
+  when: ["review and improve", "until it is good enough", "critic", "iterate on a draft", "self-correct"]
+  how: "A `loop until` with a `max` bound: a writer drafts, a reviewer scores, and the loop stops when the score passes or the bound is reached, with what happens then written in the script."
+  saves: "A while loop, a stop condition, a counter and the case where it never converges."
+  pattern: "2. Write, review, rewrite, bounded"
+  doc: "guide/LOOM_GUIDE.md#Bounded Loops"
+  not: "A bound limits the cost; it does not make the reviewer and the writer agree."
+
+fan-out:
+  title: "Plan, then one task per item"
+  when: ["for each item", "a list of tasks", "break it into steps", "one per file", "per customer", "plan and execute"]
+  how: "`for each` (or `parallel for each`) runs a block once per item of a list, in order or all at once, with a `max` on how many a model-written list may hold."
+  saves: "Looping over a parsed list, limiting its length, running items concurrently and collecting what each produced."
+  pattern: "4. Plan, then one task per item"
+  doc: "guide/LOOM_GUIDE.md#for each"
+  not: "A list a model wrote is untrusted: without `max N` the review flags it."
+
+approval-at-the-edge:
+  title: "A person approves, at the edge"
+  when: ["before it sends", "before paying", "ask me first", "human approval", "sign off", "publish only if"]
+  how: "`use Tool(...) approve \"...\"` (or `approve:` on an agent's tool) asks a person before the step that changes something, and the journal makes sure a resume never repeats it."
+  saves: "An approval queue, a pause in the middle of a run, resuming it, and making the send happen exactly once."
+  pattern: "5. A person approves once, at the edge, and the script sends"
+  doc: "guide/LOOM_GUIDE.md#Calling a tool yourself (`use`), and asking first (`approve`)"
+  not: "It guards the steps that declare it; a tool whose effect is undeclared is assumed to change things and the review says so."
+
+human-in-the-loop:
+  title: "Ask a person in the middle of a run"
+  when: ["ask the user", "wait for an answer", "human in the loop", "a person decides", "from my phone", "slack reply"]
+  how: "`human_prompt` asks a person and waits; with a run journal the run suspends instead of holding a thread, and the answer can come from the console, a chat or a phone."
+  saves: "Persisting a half-finished run, a callback for the answer and resuming exactly where it stopped."
+  pattern: "8. Wait for a person, or for time"
+  doc: "guide/LOOM_GUIDE.md#Human-in-the-Loop (Interactive flows)"
+  not: "It waits as long as you let it; a timeout and what happens then are the script's to say."
+
+schedule:
+  title: "Runs itself on a clock"
+  when: ["every morning", "nightly", "on a schedule", "cron", "every hour", "daily digest", "when something happens"]
+  how: "A `schedule` block names a workflow and a cron line (and a timezone); `weave daemon` runs it durably, and triggers start runs when something happens."
+  saves: "A scheduler, missed-run handling, overlap protection and a record of every run."
+  pattern: "9. A schedule: runs itself on a clock"
+  doc: "guide/LOOM_GUIDE.md#Schedules and Triggers"
+  not: "A schedule starts runs; bounding and watching them is still the harness's job."
+
+long-job:
+  title: "A long job, one small step at a time"
+  when: ["long running", "many steps", "takes hours", "keep progress", "work through a backlog"]
+  how: "One agent works through the job in small steps while the script keeps the progress in a typed variable it owns, so a long run never depends on the model remembering where it was."
+  saves: "State management across many model calls and a context that does not overflow."
+  pattern: "10. A long job, one small step at a time"
+  doc: "guide/LOOM_GUIDE.md#Bounded Loops"
+  not: "It keeps the progress safe; it does not make each step right, which is what the tests check."
+
+house-rules:
+  title: "Check a reply against house rules before it leaves"
+  when: ["compliance", "never promise", "brand rules", "must not mention", "policy", "legal review"]
+  how: "A `policy` file holds the rules a compliance owner writes, and `check … against … using` an `evaluator` checks every model-written value at the edge, with an action for each outcome."
+  saves: "A rules engine of your own, and the discipline of checking every exit."
+  pattern: "11. Check a reply against house rules before it leaves"
+  doc: "guide/LOOM_GUIDE.md#Policies: rules checked at the edge"
+  not: "It checks the rules it is given; it does not invent rules, and an evaluator is a model to be tested."
+
+steering:
+  title: "Steer, stop or wrap up an agent while it works"
+  when: ["step in", "correct it while it runs", "stop it", "tell it to finish", "watch it think", "interrupt"]
+  how: "Mark an agent `steerable: true` (with `streaming` and `reasoning` to watch it): a person can correct it mid-run, ask it to wrap up or stop it, and `on_stopped` and `intervention` say what the run does then, so a stop is never a silent failure."
+  saves: "Interrupting a model call safely, injecting a correction, and deciding what a half-done step means."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Steering, Stopping and Wrapping Up an Agent"
+  not: "Steering is off unless you say so, and only the person the run serves may steer it."
+
+supervise:
+  title: "Rules that watch an agent, and supervising other workflows"
+  when: ["it keeps looping", "watch for problems", "supervisor", "manager agent", "run several workflows and watch them", "orchestrator"]
+  how: "A `supervise` block watches an agent with counted rules (looping, a failing tool, a full context) and steers, wraps up or cancels; `start`, `wait`, `cancel` and `steer` run other workflows as children you can watch the same way."
+  saves: "A watchdog thread, counters per agent, and starting, waiting for and cancelling child runs durably."
+  pattern: "12. Start several workflows at once and supervise them"
+  doc: "guide/LOOM_GUIDE.md#Starting workflows and supervising them (`start`, `wait`, `cancel`, `steer`, `supervise`)"
+  not: "The rules act on what they can count or check; judgement calls stay with a person or an evaluator."
+
+earned-autonomy:
+  title: "Earned autonomy: an agent earns the right to decide"
+  when: ["let the agent decide on its own", "automate a decision", "trust the agent", "auto-approve later", "take a person out of the loop"]
+  how: "A `decision` records each choice the agent makes beside the one a person makes; a `trust` rule or a `ladder` you write says when the agent has earned the right to decide alone, from that history, and it can lose it again."
+  saves: "A ledger of agent versus human decisions, agreement statistics, promotion and demotion rules, and an audit trail."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Earned Autonomy"
+  not: "It does not decide that autonomy is wise: the thresholds and the ladder are the owner's policy."
+
+checkpoints-rewind:
+  title: "Checkpoints, rewind and fork"
+  when: ["go back and redo", "retry from an earlier step", "a late step shows an early one was wrong", "try another branch"]
+  how: "A `checkpoint` names a point in the run and `rewind to` it goes back with feedback, keeping what was learned, under a bound; `weave fork` starts a new run from a past point."
+  saves: "Snapshotting state, restoring it and carrying feedback back without paying for everything again."
+  pattern: "13. Edit, check, and try again from a clean state"
+  doc: "guide/LOOM_GUIDE.md#Checkpoints, Rewind and Fork"
+  not: "A rewind repeats the steps after the checkpoint; effects already done stay done, and the journal stops them repeating."
+
+durable-runs:
+  title: "Durable runs that survive a crash"
+  when: ["survive a restart", "crash", "resume", "exactly once", "do not send twice", "long waits"]
+  how: "With a run journal every step and effect is recorded, so `weave resume` carries on where the run stopped; no new syntax is needed."
+  saves: "Persistence of every step, idempotency of every effect and resume logic."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Durable Runs (no new syntax)"
+  not: "It cannot make an outside system idempotent; it stops the run itself from repeating what it did."
+
+extract-fields:
+  title: "Free text in, checked fields out"
+  when: ["pull out fields", "parse an email", "structured data from text", "extract", "fill a form from"]
+  how: "An `extractor` with a schema pulls typed fields out of text in one stateless step; a field the text does not state is `missing`, never guessed."
+  saves: "Prompting for JSON, validating it, and handling a model that invents a value."
+  pattern: "6. Free text in, checked fields out"
+  doc: "guide/LOOM_GUIDE.md#Extracting fields: `extractor` and `extract`"
+  not: "It extracts what the text says; it does not reason or decide."
+
+documents-rag:
+  title: "Answers from your own documents"
+  when: ["our documents", "knowledge base", "rag", "search our docs", "internal wiki", "manuals"]
+  how: "A `knowledge` base gives an agent your documents to search, so its answers come from them."
+  saves: "Chunking, embedding, a vector search and citations."
+  pattern: "7. Answers from your own documents"
+  doc: "guide/LOOM_GUIDE.md#Tools, Knowledge and Approvals"
+  not: "Answers are only as good as the documents and the retrieval; the golden dataset measures both."
+
+web-grounding:
+  title: "Current information from the web"
+  when: ["latest news", "search the web", "current prices", "today", "up to date"]
+  how: "`grounding: web` on an agent lets the provider search the web natively and return typed citations, under a `searches` budget."
+  saves: "A search API client, result parsing and citation handling."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Searching the web: `grounding:`"
+  not: "Only providers that offer native grounding support it; a search result can still be wrong."
+
+media:
+  title: "Pictures, recordings and documents in a task"
+  when: ["image", "photo", "pdf", "audio", "screenshot", "scan", "invoice picture"]
+  how: "`attach` sends a picture, recording, video or PDF with a task, from a declared `media_root`, to models that can take it, and refuses before any call when one cannot."
+  saves: "Encoding media per provider and checking what each model accepts."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Sending pictures, recordings and documents (`attach`)"
+  not: "It sends files only from the declared folder, and it does not convert a format a model refuses."
+
+a2a:
+  title: "Call another organisation's agent, or be called (A2A)"
+  when: ["another team's agent", "partner agent", "agent to agent", "a2a", "expose my workflow", "let others call"]
+  how: "A `remote` agent is called with `delegate` over the A2A protocol, with an `agent_channel` for its questions; `expose` lets others call one of your workflows, and `weave card` shows what they see."
+  saves: "An A2A client and server, agent cards and the message flow between them."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Calling an agent that someone else runs (`remote`, `agent_channel`, `ask`)"
+  not: "A remote agent's answer is untrusted, and Loom brings no server: the transport is yours."
+
+memory-persona:
+  title: "Remembers each person"
+  when: ["remember the user", "personal assistant", "preferences", "memory", "persona", "voice"]
+  how: "An agent with a `memory` block remembers conversations and facts across runs, one `session` per person (for example `session: \"{user_id}\"`), and a `persona` gives it a consistent character."
+  saves: "A memory store, recall and forgetting rules."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Memory, Voice and Languages"
+  not: "What may be remembered, for how long and who may erase it are decisions to make first."
+
+deterministic-tasks:
+  title: "Steps too important for a model: tasks"
+  when: ["exact calculation", "must not be a model", "business logic", "call my java code", "deterministic"]
+  how: "`run` executes a task written in plain Java, with no model and no tokens unless the statement names one."
+  saves: "Glue between your Java code and the agents, with the same journal, retries and tests."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Tasks: deterministic steps (`run`)"
+  not: "The task does what its Java code does; Loom runs and records it."
+
+composition:
+  title: "Workflows made of workflows"
+  when: ["reuse a workflow", "sub-workflow", "modular", "split into parts", "import"]
+  how: "`call` runs another workflow to the end and `import` brings in scripts and libraries, so a large workflow is made of small, tested ones."
+  saves: "Wiring modules together and testing each on its own."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Workflow Composition & Modularity"
+  not: "A called workflow shares the run's budget unless it is started as a child."
+
+model-routing:
+  title: "The right model for each step"
+  when: ["cheaper model", "use a small model for", "fall back to another model", "different providers"]
+  how: "Each agent names its own model, and a `routing` policy falls back between models in the order written (`strategy: fallback`) or picks by cost (`cost_aware`)."
+  saves: "Client selection logic and fallbacks per call."
+  pattern: ""
+  doc: "guide/LOOM_GUIDE.md#Model Routing Policies"
+  not: "It routes by your rules; whether a cheaper model is good enough is what the evaluation tells you."
+
+run-code:
+  title: "Run a model's code, and check its answer"
+  when: ["run code", "execute python", "data analysis", "write and run a script", "sandbox"]
+  how: "A `sandbox` tool runs allow-listed programs on a workspace, isolated, and a `verify` step checks the result as typed counts."
+  saves: "Process isolation, allow-lists, time limits and parsing test output."
+  pattern: "14. Run a model's code, and check its answer"
+  doc: "guide/LOOM_GUIDE.md#Running programs (`sandbox`)"
+  not: "Isolation limits what the code can reach; it does not make the code correct."

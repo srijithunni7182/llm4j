@@ -51,6 +51,25 @@ final class NextCommand implements Callable<Integer> {
                     "Record that a person did a step no command can check. Takes real-run: they read one real answer and said what is right and wrong with it.")
     String confirm;
 
+    @picocli.CommandLine.Option(
+            names = "--skip",
+            paramLabel = "<stage>",
+            description =
+                    "Record that you chose to skip a stage, with --because. The journey shows it as skipped with what it loses, until --unskip. A skip never hides a failing or finished stage.")
+    String skip;
+
+    @picocli.CommandLine.Option(
+            names = "--because",
+            paramLabel = "<reason>",
+            description = "Why the stage is skipped (required with --skip); it is shown with the skip.")
+    String because;
+
+    @picocli.CommandLine.Option(
+            names = "--unskip",
+            paramLabel = "<stage>",
+            description = "Remove a recorded skip.")
+    String unskip;
+
     @Override
     public Integer call() {
         return next(this, WeaveEnv.system());
@@ -73,6 +92,7 @@ final class NextCommand implements Callable<Integer> {
             env.err().println("Error: --format takes text or json, got " + c.format + ".");
             return 2;
         }
+        if (c.skip != null || c.unskip != null) return skipOrUnskip(c, env, script);
         if (c.confirm != null) {
             if (!c.confirm.equals(RealRunRead.STEP)) {
                 env.err().println("Error: --confirm takes " + RealRunRead.STEP + ", got " + c.confirm + ".");
@@ -106,7 +126,7 @@ final class NextCommand implements Callable<Integer> {
                             null),
                     c.format,
                     script,
-                    JourneyStages.of(
+                    JourneyStages.journey(
                             script,
                             null,
                             new ProjectAdvisor.CheckResult(false, List.of(String.valueOf(e.getMessage())), List.of(), Set.of()),
@@ -122,7 +142,68 @@ final class NextCommand implements Callable<Integer> {
                 ProjectAdvisor.advise(script, loaded, check, audit),
                 c.format,
                 script,
-                JourneyStages.of(script, loaded, check, audit));
+                JourneyStages.journey(script, loaded, check, audit));
+    }
+
+    private static int skipOrUnskip(NextCommand c, WeaveEnv env, Path script) {
+        if (c.skip != null && c.unskip != null) {
+            env.err().println("Error: give --skip or --unskip, not both.");
+            return 2;
+        }
+        String stage = c.skip != null ? c.skip : c.unskip;
+        if (!JourneyStages.IDS.contains(stage)) {
+            env.err().println("Error: no stage " + stage + ". The stages are: " + String.join(", ", JourneyStages.IDS) + ".");
+            return 2;
+        }
+        Path root = io.github.llm4j.loom.init.ProjectLayout.root(script);
+        try {
+            if (c.unskip != null) {
+                boolean fromReadme = JourneyStages.EVALUATION_STAGES.contains(stage) && unmarkEvaluationSkipped(root, env);
+                boolean removed = SkippedStages.unskip(root, stage) || fromReadme;
+                env.out().println(removed ? "No longer skipped: " + stage + "." : stage + " was not skipped.");
+                return 0;
+            }
+            if (c.because == null || c.because.isBlank()) {
+                env.err().println("Error: --skip needs --because \"<reason>\": a skip is a choice someone can read back later.");
+                return 2;
+            }
+            String by = java.util.Objects.requireNonNullElse(env.env().apply("USER"), java.util.Objects.requireNonNullElse(env.env().apply("USERNAME"), "unknown"));
+            SkippedStages.skip(root, stage, c.because, by, env.clock().instant());
+            env.out().println("Skipped: " + stage + ". What this loses: " + StageTexts.of(stage).missing());
+            if (SkippedStages.read(root).skips().keySet().containsAll(JourneyStages.EVALUATION_STAGES)) markEvaluationSkipped(root);
+            return 0;
+        } catch (java.io.IOException e) {
+            env.err().println("Error: could not record it: " + e.getMessage());
+            return 1;
+        }
+    }
+
+    /**
+     * Takes one evaluation stage back from the README line {@code Evaluation: skipped}, which stands for all three: the line
+     * is removed, and the other two stay skipped as entries of the skip list with the line as their reason. False when the
+     * README has no such line.
+     */
+    private static boolean unmarkEvaluationSkipped(Path root, WeaveEnv env) throws java.io.IOException {
+        Path readme = root.resolve("README.md");
+        if (!java.nio.file.Files.isRegularFile(readme)) return false;
+        List<String> lines = new ArrayList<>(java.nio.file.Files.readAllLines(readme));
+        String marker = lines.stream().filter(l -> l.contains("Evaluation: skipped")).findFirst().orElse(null);
+        if (marker == null) return false;
+        var recorded = SkippedStages.read(root).skips();
+        for (String other : JourneyStages.EVALUATION_STAGES)
+            if (!recorded.containsKey(other))
+                SkippedStages.skip(root, other, "README said: " + marker.strip(), "README.md", env.clock().instant());
+        lines.removeIf(l -> l.contains("Evaluation: skipped"));
+        java.nio.file.Files.write(readme, lines);
+        return true;
+    }
+
+    /** Keeps the README line the skills already read, once all three evaluation stages are skipped. */
+    private static void markEvaluationSkipped(Path root) throws java.io.IOException {
+        Path readme = root.resolve("README.md");
+        String text = java.nio.file.Files.isRegularFile(readme) ? java.nio.file.Files.readString(readme) : "";
+        if (text.contains("Evaluation: skipped")) return;
+        java.nio.file.Files.writeString(readme, text + (text.isEmpty() || text.endsWith("\n") ? "" : "\n") + "\nEvaluation: skipped\n");
     }
 
     /**
@@ -154,7 +235,7 @@ final class NextCommand implements Callable<Integer> {
     }
 
     /** The script's own check with no keys, read from its JSON form so the two never disagree. */
-    private static ProjectAdvisor.CheckResult check(Path script, WeaveEnv env) {
+    static ProjectAdvisor.CheckResult check(Path script, WeaveEnv env) {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         WeaveEnv quiet =
                 new WeaveEnv(
@@ -200,6 +281,26 @@ final class NextCommand implements Callable<Integer> {
         row.put("state", st.state());
         row.put("detail", st.detail());
         row.put("command", st.command());
+        StageTexts texts = StageTexts.of(st.id());
+        row.put("why", texts.why());
+        row.put("see", texts.see());
+        row.put("decision", texts.decision());
+        row.put("missing", texts.missing());
+        row.put("evidence", st.evidence());
+        return row;
+    }
+
+    static java.util.Map<String, Object> stageJson(JourneyStages.Stage st, JourneyStages.Journey journey) {
+        java.util.Map<String, Object> row = stageJson(st);
+        SkippedStages.Skip skip = journey.skips().get(st.id());
+        if (skip != null && st.state().equals(JourneyStages.SKIPPED)) {
+            java.util.Map<String, Object> k = new java.util.LinkedHashMap<>();
+            k.put("because", skip.because());
+            k.put("by", skip.by());
+            k.put("at", skip.at());
+            k.put("missing", StageTexts.of(st.id()).missing());
+            row.put("skip", k);
+        }
         return row;
     }
 
@@ -209,7 +310,8 @@ final class NextCommand implements Callable<Integer> {
             List<ProjectAdvisor.Step> steps,
             String format,
             Path script,
-            List<JourneyStages.Stage> stages) {
+            JourneyStages.Journey journey) {
+        List<JourneyStages.Stage> stages = journey.stages();
         if (format.equals("json")) {
             java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
             m.put("script", file);
@@ -223,7 +325,8 @@ final class NextCommand implements Callable<Integer> {
                 rows.add(row);
             }
             m.put("steps", rows);
-            m.put("stages", stages.stream().map(NextCommand::stageJson).toList());
+            m.put("stages", stages.stream().map(st -> stageJson(st, journey)).toList());
+            m.put("warnings", journey.warnings());
             m.put("primary", JourneyStages.primary(stages).map(NextCommand::stageJson).orElse(null));
             PreflightState pre = PreflightState.read(io.github.llm4j.loom.init.ProjectLayout.root(script), script);
             java.util.Map<String, Object> p = new java.util.LinkedHashMap<>();
@@ -252,6 +355,13 @@ final class NextCommand implements Callable<Integer> {
             env.out().println("     " + s.why());
             if (s.command() != null) env.out().println("     $ " + s.command());
         }
+        List<JourneyStages.Stage> skipped = stages.stream().filter(st -> journey.skips().containsKey(st.id()) && st.state().equals(JourneyStages.SKIPPED)).toList();
+        if (!skipped.isEmpty()) {
+            env.out().println("\nSkipped, by your choice (weave next --unskip <stage> to take one back)");
+            for (JourneyStages.Stage st : skipped)
+                env.out().println("  " + st.id() + ": " + journey.skips().get(st.id()).because() + "\n     loses: " + StageTexts.of(st.id()).missing());
+        }
+        for (String w : journey.warnings()) env.out().println("\nWarning: " + w);
         env.out().println("\nEverything before the last step is free: nothing here calls a model.");
         return 0;
     }

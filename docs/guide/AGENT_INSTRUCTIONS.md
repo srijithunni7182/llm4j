@@ -6,7 +6,8 @@ This project holds Loom workflows: `.loom` scripts that `weave` checks, tests, r
 
 - `weave man` lists every command by what a person is doing; `weave man <command>` prints one page (every option with its default, examples, exit codes). Use it before you write a flag you have not seen in this session.
 - `weave guide` lists the chapters; `weave guide loom` prints the language reference; `weave guide 6` the chapter on building a workflow.
-- `weave next` says what to do next in this project, in order. It is free.
+- `weave next` says what to do next in this project, in order, and what each stage is for. It is free. When the person chooses to skip a stage, record it with `weave next --skip <stage> --because "<their words>"`; never skip one for them.
+- If the Loom Guide's tools are available (`llm4j-guide`), call `journey_checkpoint` at each stage with what you did and why; report only what the files show.
 - If `.claude/skills/llm4j-*` exists, those skills hold the long version of everything below.
 
 ## The loop

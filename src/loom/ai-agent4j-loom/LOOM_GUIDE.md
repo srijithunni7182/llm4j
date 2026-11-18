@@ -282,7 +282,12 @@ weave guide --install-skill .          # the agent skill and the guide, into ./.
 weave guide recipes                    # tested, copy-and-paste changes to the starter, each with a sentence for your coding agent
 weave explain main.loom                # the script in plain English: which agent is asked what, where a person is asked, what can spend money
 weave next                             # what to do next in this project, in order, with the command for each step
+weave next --skip golden-dataset --because "a demo for Friday"   # record a skip: shown with what it loses until --unskip
+weave guide-context                    # the compact project summary the Loom Guide reads (JSON; names and numbers only)
+weave guide-facts budgets              # what a feature is for, what it does not do, and its page
 ```
+
+The journey has eleven stages, from deciding the agents and designing the harness (`HARNESS.md`) to a watched deployment. A skip never hides a failing or finished stage. **The Loom Guide** (`weave guide-mcp`, set up from the VS Code extension) is a companion agent in Copilot or Claude Code that reads this journey and explains each stage while your coding agent builds; it never edits files ([the Guide](../../../wiki/The-Loom-Guide.md)).
 
 ### Starting from a description instead
 

@@ -1,0 +1,78 @@
+{
+  "fingerprint" : "306b7c01e3853154b28993337a7a47d2294ff6fb1a0afd7a55183184f460534a",
+  "judgeFingerprint" : "3f7f73685e05e2d17e7ff947a670205803792f9f2f454647a30408a8edf3e1d5",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T02:13:30.690275139Z",
+  "judgedAt" : "2026-11-18T02:21:25.727311865Z",
+  "promptTokens" : 51294,
+  "guidePromptTokens" : 46741,
+  "completionTokens" : 729,
+  "answer" : "Loom has a feature for exactly this: **earned autonomy**. You declare a `decision Refund`, and the agent proposes while a person decides. Loom keeps a ledger of both and moves the agent up a ladder as its record earns it. It can also drop the agent back down.\n\n```loom\ndecision Refund {\n    proposed by: Triager\n    choices: approve, reject, escalate\n    dangerous mistake: propose approve, person decides reject\n    trust {\n        start at watch\n        never go above suggest\n        to suggest: after 100 cases over 14 days, agreeing at least 90%\n        always ask a person when amount > 200\n        drop to suggest when 2 dangerous mistakes in 50 cases\n    }\n}\n```\n\n- **`watch`:** the person decides blind, without seeing the proposal, and these cases count as evidence.\n- **`suggest`:** the person sees the proposal and confirms or overrides it.\n- **`act`:** the agent decides alone. Reaching it takes a sentence you write on purpose, because `never go above suggest` is the default.\n\nThe thresholds are your policy. Loom doesn't decide that autonomy is wise.\n\nYour current `main.loom` has Researcher, Writer and Editor and no refund step. Is the refund approval in another workflow, or still to be built? Which amounts should always go to a person?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01AM5rv9Dk8GnnvkuJhWFL1R",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01T6YzDas9ZqrthW6bUHFwk3",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01SQTdPMDAfLrVz8KH66jdTs",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "list"
+      }
+    }, {
+      "id" : "toolu_019VP7iANoc3C8MDJUGnRsKK",
+      "name" : "learner",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01Q7HGCbESszg3DSdxtvX4C7",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "earned-autonomy"
+      }
+    }, {
+      "id" : "toolu_01WGDBFQZo48b9tNecL7LBRo",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "earned autonomy decision trust ladder"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01SmjADz9MmhyVf4F1eY94HB",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "Earned Autonomy"
+      }
+    }, {
+      "id" : "toolu_01B1MBJR92V6csjP1iFwCrbB",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "effects-and-approvals",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "Loom has a feature for exactly this: **earned autonomy**. You declare a `decision Refund`, and the agent proposes while a person decides. Loom keeps a ledger of both and moves the agent up a ladder as its record earns it. It can also drop the agent back down.\n\n```loom\ndecision Refund {\n    proposed by: Triager\n    choices: approve, reject, escalate\n    dangerous mistake: propose approve, person decides reject\n    trust {\n        start at watch\n        never go above suggest\n        to suggest: after 100 cases over 14 days, agreeing at least 90%\n        always ask a person when amount > 200\n        drop to suggest when 2 dangerous mistakes in 50 cases\n    }\n}\n```\n\n- **`watch`:** the person decides blind, without seeing the proposal, and these cases count as evidence.\n- **`suggest`:** the person sees the proposal and confirms or overrides it.\n- **`act`:** the agent decides alone. Reaching it takes a sentence you write on purpose, because `never go above suggest` is the default.\n\nThe thresholds are your policy. Loom doesn't decide that autonomy is wise.\n\nYour current `main.loom` has Researcher, Writer and Editor and no refund step. Is the refund approval in another workflow, or still to be built? Which amounts should always go to a person?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer directly recognises the request as exactly the earned autonomy feature and names it clearly. It explains the core mechanism: a `decision Refund`, the agent proposes while a person decides, and Loom keeps a ledger of both, satisfying the requirement that agent choices are recorded beside human choices. It describes promotion via a ladder/trust rule and demotion back down, and it makes clear that thresholds are the owner’s policy and Loom does not decide autonomy is wise. It also offers practical next-step questions about where the refund workflow belongs and which amounts should always go to a person. The main minor gap is that the sample trust block stops at `suggest` and does not include an actual `to act` rule for the desired eventual solo approval, even though the prose explains `act`; also the claim that `never go above suggest` is the default is not clearly established by the provided documentation. Overall it strongly satisfies the criterion with only minor shortcomings.\",\n  \"rating\": 4\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

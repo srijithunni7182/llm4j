@@ -838,4 +838,8 @@ New commands, files and options, and one change to how text is substituted.
 | eval4j `EvalScenario` | Gains six components (`correctConclusion`, `acceptedEquivalents`, `rejected`, `acceptableActions`, `unacceptableActions`, `requiredCitations`). The sixteen-component constructor and every older one are kept, and datasets without them read as before |
 | `weave judge validate` | A new command; `eval/judge-validation.json`, a new file |
 | `WeaveCLI.run(String...)` | A new public method: runs `weave` in the process and returns the exit code (`main` now calls it) |
+| `weave next --format json` (phase 37) | Eleven stages instead of ten: `design-harness` is the second, so the numbers of the later stages move up by one (read stages by `id`). Each stage gains `why`, `see`, `decision`, `missing` and `evidence`, a skipped one `skip`, and the answer `warnings`. Added fields only; the old fields keep their meaning |
+| `weave next --skip <stage> --because <reason>`, `--unskip <stage>`; `.loom/skipped.json` | New options and a new file. The README line `Evaluation: skipped` still means stages 2, 3 and 9 of the old numbering (`design-evaluation`, `golden-dataset`, `real-evaluation`) |
+| `weave guide-context`, `weave guide-facts`, `weave guide-mcp`; `.loom/guide/` | New commands (the Loom Guide's summary, facts and MCP server) and a new folder of the Guide's events, learner record and editor mailbox |
+| VS Code extension 1.11.0 | Needs VS Code 1.101 or newer (was 1.85) |
 | `weave security generate`, `--route-danger`, `--emit-test`, `weave gate --protocol`, `weave judge validate --system-model`, and the `expect.told` key of test cases | New |

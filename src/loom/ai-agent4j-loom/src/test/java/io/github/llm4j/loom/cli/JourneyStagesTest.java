@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * {@code weave next --format json} reports the ten stages of the journey with a state each, read
+ * {@code weave next --format json} reports the eleven stages of the journey with a state each, read
  * from the files and the recorded results (never by asking a model), and names the primary next
  * step. The editor's Outline and the skills read this and nothing else.
  */
@@ -49,13 +49,13 @@ class JourneyStagesTest {
     }
 
     @Test
-    void aFreshStarterHasTenStagesInOrderAndTheScriptStageIsDone() throws Exception {
+    void aFreshStarterHasElevenStagesInOrderAndTheScriptStageIsDone() throws Exception {
         JsonNode json = next(project());
 
-        assertThat(json.path("stages")).hasSize(10);
+        assertThat(json.path("stages")).hasSize(11);
         assertThat(json.path("stages").findValuesAsText("id"))
                 .containsExactly(
-                        "decide-agents", "design-evaluation", "golden-dataset", "script", "audit-and-review",
+                        "decide-agents", "design-harness", "design-evaluation", "golden-dataset", "script", "audit-and-review",
                         "scripted-tests", "preflight", "real-run-read", "real-evaluation", "deploy");
         assertThat(state(json, "decide-agents")).isEqualTo("done");
         assertThat(state(json, "script")).isEqualTo("done");
@@ -126,6 +126,7 @@ class JourneyStagesTest {
     void theRealRunIsReadOnlyAfterAPassingPreflightAndOnlyForThisScript() throws Exception {
         Path p = project();
         Files.writeString(p.resolve("EVAL_DESIGN.md"), "# Evaluation design\n");
+        Files.writeString(p.resolve("HARNESS.md"), "# Harness\n");
         Files.createDirectories(p.resolve(".loom"));
         Files.writeString(p.resolve(".loom/preflight.json"),
                 "{\"at\":\"2026-10-29T10:00:00Z\",\"scriptHash\":\"" + PreflightCommand.hash(Files.readString(p.resolve("main.loom")))
@@ -173,7 +174,7 @@ class JourneyStagesTest {
         Path p = project();
         Files.writeString(p.resolve("eval/golden/extra.yaml"), "- {id: a-1, input: q, tags: [\"author:assistant\"]}\n");
 
-        JsonNode stage = next(p).path("stages").get(2);
+        JsonNode stage = next(p).path("stages").get(3);
         assertThat(stage.path("state").asText()).isEqualTo("done");
         assertThat(stage.path("detail").asText()).contains("1 drafted case").contains("no person has reviewed");
     }
@@ -183,7 +184,7 @@ class JourneyStagesTest {
         Path p = project();
         Files.writeString(p.resolve("eval/golden/broken.yaml"), "- {id: b-1}\n");
 
-        JsonNode stage = next(p).path("stages").get(2);
+        JsonNode stage = next(p).path("stages").get(3);
         assertThat(stage.path("state").asText()).isEqualTo("failing");
         assertThat(stage.path("detail").asText()).isNotBlank();
     }

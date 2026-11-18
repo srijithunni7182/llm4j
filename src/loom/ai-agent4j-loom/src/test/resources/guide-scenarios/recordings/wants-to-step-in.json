@@ -1,0 +1,89 @@
+{
+  "fingerprint" : "a1e39f02f03e7f8f10e510c893c753af6d00dd366486e952fdcee1ddf5c3b8e2",
+  "judgeFingerprint" : "e1c99402feb49be70991fac998ebacc40e70562fb5f7a2c809689c2d24ac4a7d",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T02:13:11.037913280Z",
+  "judgedAt" : "2026-11-18T02:21:15.910665901Z",
+  "promptTokens" : 69114,
+  "guidePromptTokens" : 64436,
+  "completionTokens" : 624,
+  "answer" : "Yes, and Loom has this built in. Mark the Researcher `steerable: true`, and add `streaming: true` so you can watch it work. Add `reasoning: true` if you want to see its thinking too.\n\n```loom\nagent Researcher {\n    model: \"gemini-2.5-flash\"\n    streaming: true\n    reasoning: true\n    steerable: true      // off unless you say so\n}\n```\n\nWhile it runs you have three options:\n- **Steer:** sends a correction before its next model call, e.g. `steer Researcher focus on the EU market`. It changes the agent's reasoning, not the workflow.\n- **Wrap up:** it finishes now with what it has.\n- **Stop:** ends it. Your step's `on_stopped` then says what happens next, such as `use partial`, `skip` or `rewind` to a checkpoint. A stop is never a silent failure.\n\nOne caveat: with `weave run` you can type these commands in the terminal by using `--steer-via console`.\n\nIf you'd rather the script catch tangents itself, a `supervise` block can steer the agent automatically when it loops. I can show that instead.\n\nDo you want me to draft the instruction for the builder? If so, tell me what a stopped Researcher should do: keep its partial answer, or rewind and retry with your note.",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01HdNXo2AYbQRrUKR4Hyjmt4",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01TjE4KKNAQ7QrgZXJBE1Z44",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01JrXubMRRRhLrBGDvFyVtm7",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "list"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01XxJujbyfcgFyj7EyGaqc4c",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "steering"
+      }
+    }, {
+      "id" : "toolu_01FJvrYhWpuwcfnsL9WgkaSn",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "steerable on_stopped"
+      }
+    }, {
+      "id" : "toolu_01WxR2NDQwtGNLYSKKF2ritG",
+      "name" : "learner",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01KtGmmqHBz4iktr2TGSPUYJ",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/15-steer-stop-and-supervise.md",
+        "section" : "2. Say what happens when an agent is stopped"
+      }
+    }, {
+      "id" : "toolu_01ES7ZX76S6NL5udSgbc2TSG",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "Steering, Stopping and Wrapping Up an Agent"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01FiqcsUCXbNCZMLfj8ggNHA",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "agents-and-roles",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "Yes, and Loom has this built in. Mark the Researcher `steerable: true`, and add `streaming: true` so you can watch it work. Add `reasoning: true` if you want to see its thinking too.\n\n```loom\nagent Researcher {\n    model: \"gemini-2.5-flash\"\n    streaming: true\n    reasoning: true\n    steerable: true      // off unless you say so\n}\n```\n\nWhile it runs you have three options:\n- **Steer:** sends a correction before its next model call, e.g. `steer Researcher focus on the EU market`. It changes the agent's reasoning, not the workflow.\n- **Wrap up:** it finishes now with what it has.\n- **Stop:** ends it. Your step's `on_stopped` then says what happens next, such as `use partial`, `skip` or `rewind` to a checkpoint. A stop is never a silent failure.\n\nOne caveat: with `weave run` you can type these commands in the terminal by using `--steer-via console`.\n\nIf you'd rather the script catch tangents itself, a `supervise` block can steer the agent automatically when it loops. I can show that instead.\n\nDo you want me to draft the instruction for the builder? If so, tell me what a stopped Researcher should do: keep its partial answer, or rewind and retry with your note.",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer correctly recognizes the user's need as Loom's steering feature and clearly says Loom supports it. It names the key constructs: `steerable: true` on the Researcher, `streaming: true` to watch it, and `reasoning: true` as an optional watching aid. It accurately explains that a person can steer/correct mid-run, wrap up, or stop, and that `on_stopped` decides what happens next so stopping is not silent. It also asks a useful follow-up about what a stopped Researcher should do and offers a next step. Minor gaps: it does not show a concrete `on_stopped` or `intervention` block in context, so 'where it goes' is only partially demonstrated; and it introduces a specific `--steer-via console` command/flag and example terminal command that were not present in the provided documentation, so there is a small accuracy risk.\",\n  \"rating\": 4\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

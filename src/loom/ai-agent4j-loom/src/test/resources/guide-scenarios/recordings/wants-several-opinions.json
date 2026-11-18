@@ -1,0 +1,88 @@
+{
+  "fingerprint" : "04f1b668024df71108d98a2d576584798cd9bdc07f33bda81afe1715591030a2",
+  "judgeFingerprint" : "605d84dbc22ff6c9e261caf1e0c35a1ea86e09e1dd7303021a89d24094f2ee4d",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T02:12:51.388832691Z",
+  "judgedAt" : "2026-11-18T02:21:07.257827901Z",
+  "promptTokens" : 80809,
+  "guidePromptTokens" : 76237,
+  "completionTokens" : 570,
+  "answer" : "Good news: Loom already does this. It's `broadcast`.\n\nOne `broadcast` step sends the same topic to your Researcher, Writer and Editor at the same time. It returns their three answers together as one JSON result. In plain Java you'd have to fan out the prompt to three clients, collect the replies and build the combined result yourself.\n\n`broadcast` only collects the answers. It doesn't compare them. The comparison is a separate step, such as one more agent that reads the three takes and says where they agree and differ. I've drafted an instruction for the builder that covers both steps and a scripted test. I haven't confirmed the exact `broadcast` syntax, so the builder is told to read it in the docs and not guess.\n\nRead the draft and send it if it looks right. Which agent should do the comparing: one of the three, or a fourth agent that only judges?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01Uk5fnpAsdAGFP5hA6ca5bq",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01RrDAPeSwkajhWWGTgstWsk",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_018roHepb9gJhBBoiDP5YdbE",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "list"
+      }
+    } ]
+  }, {
+    "content" : "Broadcast matches. Let me read it.",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_013mjAb4sJRZ9jqKnXYrX8sD",
+      "name" : "facts",
+      "arguments" : {
+        "feature" : "broadcast"
+      }
+    }, {
+      "id" : "toolu_01Juikj66GSXdnsNTXZP53by",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "broadcast same task to several agents"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_015j1vT6KLbryMVLJbznRZyb",
+      "name" : "docs",
+      "arguments" : {
+        "page" : "guide/LOOM_GUIDE.md",
+        "section" : "The Primitive Set"
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_014DBLiJ4gHsKpAsXNRhMfUF",
+      "name" : "docs",
+      "arguments" : {
+        "search" : "broadcast ["
+      }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01RJ9x3cqgxsu39s2iLFo1Rt",
+      "name" : "draft_builder_instruction",
+      "arguments" : {
+        "stage" : "script",
+        "text" : "In main.loom, add a step that uses `broadcast` to send the same topic to Researcher, Writer and Editor at once and collect their three answers as one combined result. Read the broadcast syntax in the llm4j docs (guide/LOOM_GUIDE.md, \"The Primitive Set\", and the tested broadcast pattern) before writing it; do not guess it. Then add a final `delegate` to one agent (or a judge) that compares the three takes and says where they agree and differ. Add a scripted test for it, then run `weave check main.loom --no-env` and `weave test main.loom --coverage`."
+      }
+    } ]
+  }, {
+    "content" : "Good news: Loom already does this. It's `broadcast`.\n\nOne `broadcast` step sends the same topic to your Researcher, Writer and Editor at the same time. It returns their three answers together as one JSON result. In plain Java you'd have to fan out the prompt to three clients, collect the replies and build the combined result yourself.\n\n`broadcast` only collects the answers. It doesn't compare them. The comparison is a separate step, such as one more agent that reads the three takes and says where they agree and differ. I've drafted an instruction for the builder that covers both steps and a scripted test. I haven't confirmed the exact `broadcast` syntax, so the builder is told to read it in the docs and not guess.\n\nRead the draft and send it if it looks right. Which agent should do the comparing: one of the three, or a fourth agent that only judges?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly recognises the developer's need as Loom's broadcast feature and does so enthusiastically with 'Good news.' It accurately explains that one broadcast sends the same topic to Researcher, Writer and Editor at the same time and returns their answers together as one JSON result, ready for a later comparison step. It also correctly says broadcast only collects answers and that comparison is a separate step. It states what would otherwise need to be built by hand: fanning out prompts, collecting replies, and building the combined result. It asks a useful follow-up question about who should compare the answers. It does not appear to invent unsupported Loom constructs or options. The main gap is that it does not actually show the few lines with the agents' names, as the criterion specifically asks; it only mentions them in prose.\",\n  \"rating\": 4\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}

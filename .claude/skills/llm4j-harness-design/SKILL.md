@@ -55,7 +55,7 @@ this skill's `references/` folder and in the tools:
 
 ## Conventions every llm4j skill follows
 
-Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
+Read `references/conventions.md` before you start. It sets eleven rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; make every skipped step visible; make the thorough path the default and take a shortcut only when the person insists; and narrate, show and report each gate to the Loom Guide.
 
 ## The path
 

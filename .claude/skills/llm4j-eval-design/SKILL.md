@@ -47,7 +47,7 @@ You never write the answer key for domain facts. Ask the developer and the domai
 
 ## Conventions every llm4j skill follows
 
-Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make skipping visible.
+Read `references/conventions.md` before you start. It sets eleven rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make skipping visible.
 
 ## The path
 

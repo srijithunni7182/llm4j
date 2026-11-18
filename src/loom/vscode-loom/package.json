@@ -2,7 +2,7 @@
   "name": "vscode-llm4j-loom",
   "displayName": "Loom for llm4j: AI agent workflows",
   "description": "Build, review, test and run multi-agent AI workflows: generate from a sentence, see the graph, review for cost and security. Loom language support (.loom, .loot).",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "publisher": "srijithunni7182",
   "homepage": "https://github.com/srijithunni7182/llm4j/tree/main/src/loom",
   "bugs": {
@@ -38,7 +38,7 @@
   "qna": "https://github.com/srijithunni7182/llm4j/issues",
   "license": "Apache-2.0",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.101.0"
   },
   "activationEvents": [
     "onLanguage:loom",
@@ -231,6 +231,14 @@
       {
         "command": "loom.startWorkflowInChat",
         "title": "Loom: Start a Workflow in Agent Chat"
+      },
+      {
+        "command": "loom.guide.setUp",
+        "title": "Loom: Set Up the Guide"
+      },
+      {
+        "command": "loom.guide.open",
+        "title": "Loom: Open the Guide"
       },
       {
         "command": "loom.newFromStarter",
@@ -588,6 +596,11 @@
           "default": 50000,
           "minimum": 1000,
           "description": "The most tokens a run started from Loom: Run With Live Page may use. It is a real run with your model keys; it stops when it reaches this."
+        },
+        "loom.guide.notices": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a notice when the Loom Guide has something worth talking about (at most one every two minutes). The status bar count stays either way."
         }
       }
     },
@@ -619,6 +632,17 @@
             },
             "completionEvents": [
               "onCommand:loom.installSkill"
+            ]
+          },
+          {
+            "id": "loom.step.guide",
+            "title": "Meet the Loom Guide",
+            "description": "A companion that explains, shows and asks while your workflow is built.\n[Set Up the Guide](command:loom.guide.setUp)",
+            "media": {
+              "markdown": "media/walkthrough/01b-meet-the-guide.md"
+            },
+            "completionEvents": [
+              "onCommand:loom.guide.setUp"
             ]
           },
           {
@@ -658,11 +682,18 @@
           }
         ]
       }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "llm4j-guide",
+        "label": "llm4j-guide"
+      }
     ]
   },
   "files": [
     "out/**/*",
     "starters/**/*",
+    "guide/**/*",
     "media/**/*",
     "bin/**/*",
     "launchers/**/*",
@@ -686,7 +717,7 @@
     "vscode-languageserver-textdocument": "1.0.11"
   },
   "devDependencies": {
-    "@types/vscode": "1.85.0",
+    "@types/vscode": "1.101.0",
     "@types/node": "20.11.0",
     "typescript": "5.3.3",
     "@vscode/test-electron": "2.5.2"

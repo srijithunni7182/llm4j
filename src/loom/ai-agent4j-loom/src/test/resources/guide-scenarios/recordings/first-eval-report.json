@@ -1,0 +1,60 @@
+{
+  "fingerprint" : "90f6b7cd11bbccef199367dcca8618cf8b0952099ab4e5ae7463829f5443609a",
+  "judgeFingerprint" : "e0c1bc5ac4eab78b5b36474b19c7cab6081577c333fc89c38c93da85aec0533a",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "gpt-5.5",
+  "recordedAt" : "2026-11-18T02:10:29.648717698Z",
+  "judgedAt" : "2026-11-18T02:19:48.881825863Z",
+  "promptTokens" : 26450,
+  "guidePromptTokens" : 25027,
+  "completionTokens" : 383,
+  "answer" : "You measure it by running your golden dataset (`eval/golden`, already reviewed) as an evaluation. Nothing has been evaluated yet in this project.\n\n- **Mock evaluation:** free, but it only proves the wiring.\n- **Real evaluation:** runs your Researcher, Writer and Editor on `gemini-2.5-flash` and judges the answers. It gives a pass rate, a cost and the failing cases. The journey's command is `weave eval main.loom --max-tokens 200000`.\n\nBefore that, write `EVAL_DESIGN.md`. It sets what \"good\" means for this workflow and which mistakes are unacceptable. Then run preflight and read one real answer yourself.\n\nThe pass threshold is yours to set. What share of golden cases should pass before you'd trust this workflow, and is any single failure unacceptable?",
+  "guide" : [ {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_01541dmZ9dyTKMWcAyVG1Nkb",
+      "name" : "project_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01Vo5KUZT3w4WEw8XHQfBy6t",
+      "name" : "new_events",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_01Wn6WbaGnQKsvw5jHF9e5GE",
+      "name" : "eval_summary",
+      "arguments" : { }
+    }, {
+      "id" : "toolu_016EbYMHB1w6KcxXYvu6N1W9",
+      "name" : "learner",
+      "arguments" : { }
+    } ]
+  }, {
+    "content" : "",
+    "finish" : "tool_calls",
+    "toolCalls" : [ {
+      "id" : "toolu_018gQrQn6wHb3NVaoWPdBXuy",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "golden-dataset",
+        "level" : "seen"
+      }
+    }, {
+      "id" : "toolu_01RfUQGzcf6XUVXB5Wbz21Dc",
+      "name" : "record_learning",
+      "arguments" : {
+        "concept" : "mock-vs-real",
+        "level" : "seen"
+      }
+    } ]
+  }, {
+    "content" : "You measure it by running your golden dataset (`eval/golden`, already reviewed) as an evaluation. Nothing has been evaluated yet in this project.\n\n- **Mock evaluation:** free, but it only proves the wiring.\n- **Real evaluation:** runs your Researcher, Writer and Editor on `gemini-2.5-flash` and judges the answers. It gives a pass rate, a cost and the failing cases. The journey's command is `weave eval main.loom --max-tokens 200000`.\n\nBefore that, write `EVAL_DESIGN.md`. It sets what \"good\" means for this workflow and which mistakes are unacceptable. Then run preflight and read one real answer yourself.\n\nThe pass threshold is yours to set. What share of golden cases should pass before you'd trust this workflow, and is any single failure unacceptable?",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ],
+  "judge" : [ {
+    "content" : "```json\n{\n  \"reasoning\": \"The answer clearly says quality is measured by running the project's golden dataset in `eval/golden` as an evaluation. It distinguishes mock evaluation as free and only proving wiring, and real evaluation as measuring/judging actual answers and producing pass/failure information. It explicitly leaves the pass threshold to the developer by asking what share of golden cases should pass and whether any single failure is unacceptable. It also mentions judges, which is a plus. The answer is short and directly addresses the user's question, with only minor extra guidance that does not detract.\",\n  \"rating\": 5\n}\n```",
+    "finish" : "stop",
+    "toolCalls" : [ ]
+  } ]
+}
