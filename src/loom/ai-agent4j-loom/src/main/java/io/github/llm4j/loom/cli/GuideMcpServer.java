@@ -86,18 +86,85 @@ final class GuideMcpServer {
         this.editor = Objects.requireNonNull(editor, "editor");
     }
 
-    /** Serves until the input ends. Nothing but protocol messages is written to {@code out}. */
+    /** How many tool calls may wait at once (a show or a form waits for the editor and the person). */
+    static final int WORKERS = 4;
+    /** On end of input, how long calls still waiting may take to finish. */
+    private static final long DRAIN_SECONDS = 360;
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(GuideMcpServer.class.getName());
+    private static final String TOO_LONG = "\u0000too long";
+
+    /**
+     * Serves until the input ends. A tool call runs on one of {@link #WORKERS} threads, so a call that waits for the editor
+     * never holds up a ping or another call; everything else is answered at once. Nothing but protocol messages is written
+     * to {@code out}, one per line, and a line longer than the limit is refused without being kept in memory.
+     */
     void serve(BufferedReader in, Writer out) throws IOException {
-        String line;
-        while ((line = in.readLine()) != null) {
-            if (line.isBlank()) continue;
-            JsonNode answer = line.length() > MAX_LINE ? error(null, -32600, "Message too large") : handle(line);
-            if (answer != null) {
+        java.util.concurrent.ExecutorService workers = java.util.concurrent.Executors.newFixedThreadPool(WORKERS, r -> {
+            Thread t = new Thread(r, "guide-mcp-call");
+            t.setDaemon(true);
+            return t;
+        });
+        try {
+            String line;
+            while ((line = readLine(in)) != null) {
+                if (line.isBlank()) continue;
+                if (line.equals(TOO_LONG)) {
+                    write(out, error(null, -32600, "Message too large"));
+                    continue;
+                }
+                String message = line;
+                if (isToolCall(message)) workers.submit(() -> write(out, handle(message)));
+                else write(out, handle(message));
+            }
+        } finally {
+            workers.shutdown();
+            try {
+                workers.awaitTermination(DRAIN_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    private static boolean isToolCall(String line) {
+        try {
+            JsonNode m = JSON.readTree(line);
+            return m != null && m.path("method").asText("").equals("tools/call");
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private static void write(Writer out, JsonNode answer) {
+        if (answer == null) return;
+        synchronized (out) {
+            try {
                 out.write(JSON.writeValueAsString(answer));
                 out.write('\n');
                 out.flush();
+            } catch (IOException e) {
+                LOG.log(java.util.logging.Level.WARNING, "Could not write an answer to the client", e);
             }
         }
+    }
+
+    /** One line, or {@link #TOO_LONG} for a line over {@link #MAX_LINE} characters (the rest of it is read and dropped), or null at the end. */
+    private static String readLine(BufferedReader in) throws IOException {
+        StringBuilder b = new StringBuilder();
+        boolean tooLong = false;
+        int c;
+        while ((c = in.read()) != -1) {
+            if (c == '\n') return tooLong ? TOO_LONG : b.toString();
+            if (tooLong) continue;
+            if (b.length() >= MAX_LINE) {
+                tooLong = true;
+                b.setLength(0);
+            } else if (c != '\r') {
+                b.append((char) c);
+            }
+        }
+        if (tooLong) return TOO_LONG;
+        return b.length() == 0 ? null : b.toString();
     }
 
     /** One message in, one answer out (null for a notification). */
@@ -108,6 +175,7 @@ final class GuideMcpServer {
         } catch (IOException e) {
             return error(null, -32700, "Parse error");
         }
+        if (msg == null || msg.isArray()) return error(null, -32600, "Batch requests are not supported: send one message per line");
         JsonNode id = msg.get("id");
         String method = msg.path("method").asText("");
         if (id == null || id.isNull()) return null;
@@ -122,6 +190,10 @@ final class GuideMcpServer {
             };
         } catch (IllegalArgumentException e) {
             return error(id, -32602, e.getMessage());
+        } catch (RuntimeException e) {
+            // never let one request end the server: the client gets an error and the next request is served
+            LOG.log(java.util.logging.Level.WARNING, "The Guide's server failed on " + method, e);
+            return error(id, -32603, "Internal error in weave guide-mcp: " + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : ": " + e.getMessage()));
         }
     }
 
@@ -173,7 +245,8 @@ final class GuideMcpServer {
             return content(run(name, args), false);
         } catch (IllegalArgumentException e) {
             return content(e.getMessage(), true);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            if (e instanceof RuntimeException) LOG.log(java.util.logging.Level.WARNING, "The Guide's tool " + name + " failed", e);
             return content("Could not do it: " + e.getMessage(), true);
         }
     }
@@ -181,7 +254,10 @@ final class GuideMcpServer {
     private String run(String name, JsonNode a) throws IOException {
         return switch (name) {
             case "project_summary" -> GuideContextCommand.json(GuideContext.of(script, env));
-            case "new_events" -> JSON.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of("events", events.undiscussed(true)));
+            case "new_events" -> {
+                GuideEvents.Batch b = events.undiscussed(true);
+                yield JSON.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of("events", b.events(), "more", b.more()));
+            }
             case "facts" -> a.hasNonNull("feature") ? feature(a.path("feature").asText()) : a.hasNonNull("catalog") ? catalog(a.path("catalog").asText()) : facts(a.path("id").asText(null));
             case "docs" -> docs(a.path("search").asText(""), a.path("page").asText(""), a.path("section").asText(""));
             case "explain_finding" -> explain(a.path("rule").asText());

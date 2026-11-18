@@ -57,12 +57,19 @@ final class SkippedStages {
                 String because = s.path("because").asText("");
                 if (stage.isBlank() || because.isBlank())
                     return unreadable(f, "an entry has no stage or no reason");
-                out.put(stage, new Skip(stage, because, s.path("by").asText(""), s.path("at").asText("")));
+                // a hand-edited file can hold anything: what reaches the journey and the Guide is bounded
+                out.put(stage, new Skip(stage, bound(because), bound(s.path("by").asText("")), bound(s.path("at").asText(""))));
             }
             return new Read(out, Optional.empty());
         } catch (IOException e) {
             return unreadable(f, "it is not valid JSON");
         }
+    }
+
+    static final int MAX_TEXT = 300;
+
+    private static String bound(String s) {
+        return s.length() <= MAX_TEXT ? s : s.substring(0, MAX_TEXT) + "…";
     }
 
     private static Read unreadable(Path f, String why) {

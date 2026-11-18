@@ -35,7 +35,7 @@ interface EditorChannel {
 
     /** The mailbox the running editor watches for this project. */
     static EditorChannel mailbox(Path projectRoot, Clock clock, Sleeper sleeper) {
-        return new Mailbox(projectRoot, clock, sleeper);
+        return new Mailbox(projectRoot, clock, sleeper, pid -> ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false));
     }
 
     final class Mailbox implements EditorChannel {
@@ -48,19 +48,49 @@ interface EditorChannel {
         private static final ObjectMapper JSON = new ObjectMapper();
         private static final SecureRandom RANDOM = new SecureRandom();
 
+        /** An answer older than this belongs to a request that was given up; it is removed. */
+        static final Duration STALE_ANSWER = Duration.ofMinutes(10);
+
         private final Path folder;
         private final Clock clock;
         private final Sleeper sleeper;
+        private final java.util.function.LongPredicate alive;
 
-        Mailbox(Path projectRoot, Clock clock, Sleeper sleeper) {
+        Mailbox(Path projectRoot, Clock clock, Sleeper sleeper, java.util.function.LongPredicate alive) {
             this.folder = Objects.requireNonNull(projectRoot, "projectRoot").resolve(".loom").resolve("guide");
             this.clock = Objects.requireNonNull(clock, "clock");
             this.sleeper = Objects.requireNonNull(sleeper, "sleeper");
+            this.alive = Objects.requireNonNull(alive, "alive");
+        }
+
+        /** The editor is open when its file names a process that is still running: a file left by a crashed editor is not. */
+        boolean editorOpen() {
+            Path f = folder.resolve("editor.json");
+            if (!Files.isRegularFile(f)) return false;
+            try {
+                long pid = JSON.readTree(f.toFile()).path("pid").asLong(0);
+                return pid > 0 && alive.test(pid);
+            } catch (IOException e) {
+                return false;
+            }
+        }
+
+        private void sweepStaleAnswers() {
+            Path answers = folder.resolve("answers");
+            if (!Files.isDirectory(answers)) return;
+            Instant before = clock.instant().minus(STALE_ANSWER);
+            try (var s = Files.list(answers)) {
+                for (Path a : s.toList())
+                    if (Files.getLastModifiedTime(a).toInstant().isBefore(before)) Files.deleteIfExists(a);
+            } catch (IOException e) {
+                // a sweep that cannot finish is tried again on the next request
+            }
         }
 
         @Override
         public String send(String action, JsonNode args) {
-            if (!Files.isRegularFile(folder.resolve("editor.json"))) return NOT_OPEN;
+            if (!editorOpen()) return NOT_OPEN;
+            sweepStaleAnswers();
             byte[] idBytes = new byte[12];
             RANDOM.nextBytes(idBytes);
             String id = HexFormat.of().formatHex(idBytes);

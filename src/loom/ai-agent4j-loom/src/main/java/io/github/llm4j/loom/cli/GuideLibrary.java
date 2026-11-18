@@ -93,8 +93,14 @@ final class GuideLibrary {
         return text(page).flatMap(t -> t.lines().filter(l -> l.startsWith("#")).findFirst()).map(GuideLibrary::headingText).orElse(page);
     }
 
-    /** A page cut into sections at its headings; headings inside code blocks are not headings. */
+    private static final java.util.Map<String, List<Section>> SECTIONS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** A page cut into sections at its headings; headings inside code blocks are not headings. Read once per page. */
     static List<Section> sections(String page) {
+        return SECTIONS.computeIfAbsent(page, GuideLibrary::split);
+    }
+
+    private static List<Section> split(String page) {
         String text = text(page).orElse("");
         List<Section> out = new ArrayList<>();
         String heading = "";

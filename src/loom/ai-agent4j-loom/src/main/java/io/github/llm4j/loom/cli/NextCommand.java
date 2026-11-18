@@ -146,6 +146,10 @@ final class NextCommand implements Callable<Integer> {
     }
 
     private static int skipOrUnskip(NextCommand c, WeaveEnv env, Path script) {
+        if (c.skip != null && c.unskip != null) {
+            env.err().println("Error: give --skip or --unskip, not both.");
+            return 2;
+        }
         String stage = c.skip != null ? c.skip : c.unskip;
         if (!JourneyStages.IDS.contains(stage)) {
             env.err().println("Error: no stage " + stage + ". The stages are: " + String.join(", ", JourneyStages.IDS) + ".");
@@ -154,7 +158,8 @@ final class NextCommand implements Callable<Integer> {
         Path root = io.github.llm4j.loom.init.ProjectLayout.root(script);
         try {
             if (c.unskip != null) {
-                boolean removed = SkippedStages.unskip(root, stage);
+                boolean fromReadme = JourneyStages.EVALUATION_STAGES.contains(stage) && unmarkEvaluationSkipped(root, env);
+                boolean removed = SkippedStages.unskip(root, stage) || fromReadme;
                 env.out().println(removed ? "No longer skipped: " + stage + "." : stage + " was not skipped.");
                 return 0;
             }
@@ -171,6 +176,26 @@ final class NextCommand implements Callable<Integer> {
             env.err().println("Error: could not record it: " + e.getMessage());
             return 1;
         }
+    }
+
+    /**
+     * Takes one evaluation stage back from the README line {@code Evaluation: skipped}, which stands for all three: the line
+     * is removed, and the other two stay skipped as entries of the skip list with the line as their reason. False when the
+     * README has no such line.
+     */
+    private static boolean unmarkEvaluationSkipped(Path root, WeaveEnv env) throws java.io.IOException {
+        Path readme = root.resolve("README.md");
+        if (!java.nio.file.Files.isRegularFile(readme)) return false;
+        List<String> lines = new ArrayList<>(java.nio.file.Files.readAllLines(readme));
+        String marker = lines.stream().filter(l -> l.contains("Evaluation: skipped")).findFirst().orElse(null);
+        if (marker == null) return false;
+        var recorded = SkippedStages.read(root).skips();
+        for (String other : JourneyStages.EVALUATION_STAGES)
+            if (!recorded.containsKey(other))
+                SkippedStages.skip(root, other, "README said: " + marker.strip(), "README.md", env.clock().instant());
+        lines.removeIf(l -> l.contains("Evaluation: skipped"));
+        java.nio.file.Files.write(readme, lines);
+        return true;
     }
 
     /** Keeps the README line the skills already read, once all three evaluation stages are skipped. */

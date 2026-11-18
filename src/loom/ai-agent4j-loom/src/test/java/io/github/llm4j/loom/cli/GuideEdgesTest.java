@@ -136,8 +136,8 @@ class GuideEdgesTest {
         Files.writeString(e.file(), Files.readString(e.file()) + "{ broken\n\n");
         Files.writeString(e.file().resolveSibling("discussed.json"), "nope");
 
-        assertThat(e.undiscussed(false)).hasSize(1);
-        assertThat(e.undiscussed(false).get(0).has("stage")).isFalse();
+        assertThat(e.undiscussed(false).events()).hasSize(1);
+        assertThat(e.undiscussed(false).events().get(0).has("stage")).isFalse();
         assertThat(e.undiscussedCount()).isEqualTo(1);
         e.undiscussed(true);
         assertThat(e.undiscussedCount()).isZero();

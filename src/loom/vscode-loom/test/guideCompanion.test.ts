@@ -8,7 +8,7 @@ import {
 } from '../src/companion/agentFiles';
 import { GUIDE_OFFER_NEVER, GUIDE_OFFER_NOT_NOW, GUIDE_OFFER_SET_UP, GuideOfferFacts, guideOfferMessage, offerGuideSetUp, shouldOfferGuide } from '../src/companion/guideOffer';
 import { ACTIONS, EditorActions, handleRequest, insideProject, pending, refusal } from '../src/companion/mailbox';
-import { MAX_EVENTS, NOTICE_SPACING_MS, NoticeGate, appendEvent, noticeFor, stageChanges, statusText, undiscussed } from '../src/companion/model';
+import { EDITOR_EVENTS, MAX_EVENTS, NOTICE_SPACING_MS, NoticeGate, SERVER_EVENTS, appendEvent, noticeFor, stageChanges, statusText, undiscussed } from '../src/companion/model';
 import { Journey } from '../src/views/progressModel';
 
 const tmp = (): string => fs.mkdtempSync(path.join(os.tmpdir(), 'loom-guide-'));
@@ -48,20 +48,34 @@ test('notices are spaced out, never shown while the person types, and can be swi
     assert.equal(gate.allow(true, false), true);
 });
 
-test('the events file keeps the newest, cuts long fields and counts what was not discussed', () => {
+test('the editor writes only its own events file, append-only, keeping the newest and cutting long fields', () => {
     const dir = tmp();
     for (let i = 0; i < MAX_EVENTS + 5; i++) appendEvent(dir, { kind: 'saved', subject: 'main.loom' }, new Date(0));
     appendEvent(dir, { kind: 'saved', subject: 'x'.repeat(5000) }, new Date(0));
-    const lines = fs.readFileSync(path.join(dir, '.loom', 'guide', 'events.jsonl'), 'utf8').trim().split('\n');
+    const lines = fs.readFileSync(path.join(dir, '.loom', 'guide', EDITOR_EVENTS), 'utf8').trim().split('\n');
     assert.equal(lines.length, MAX_EVENTS);
     assert.ok(lines[lines.length - 1].length < 400);
     assert.equal(JSON.parse(lines[lines.length - 1]).seq, MAX_EVENTS + 6);
+    assert.equal(fs.existsSync(path.join(dir, '.loom', 'guide', SERVER_EVENTS)), false, 'never the server\'s file');
     assert.equal(undiscussed(dir).length, MAX_EVENTS);
-    fs.writeFileSync(path.join(dir, '.loom', 'guide', 'discussed.json'), JSON.stringify({ seq: MAX_EVENTS + 5 }));
+    fs.writeFileSync(path.join(dir, '.loom', 'guide', 'discussed.json'), JSON.stringify({ editor: MAX_EVENTS + 5 }));
     assert.equal(undiscussed(dir).length, 1);
     assert.equal(statusText(0), undefined);
     assert.match(statusText(1) ?? '', /1 note$/);
     assert.match(statusText(3) ?? '', /3 notes$/);
+});
+
+test('a torn last line does not reset the numbers, and both files are read, each with its own mark', () => {
+    const dir = tmp();
+    const folder = path.join(dir, '.loom', 'guide');
+    appendEvent(dir, { kind: 'saved', subject: 'a' }, new Date(1000));
+    appendEvent(dir, { kind: 'saved', subject: 'b' }, new Date(2000));
+    fs.appendFileSync(path.join(folder, EDITOR_EVENTS), '{"seq":3,"kin');
+    assert.equal(appendEvent(dir, { kind: 'saved', subject: 'c' }, new Date(3000)), 3, 'numbers carry on after a torn line');
+    fs.writeFileSync(path.join(folder, SERVER_EVENTS), JSON.stringify({ seq: 1, at: new Date(1500).toISOString(), kind: 'claim-mismatch', stage: 'deploy' }) + '\n');
+    fs.writeFileSync(path.join(folder, 'discussed.json'), JSON.stringify({ editor: 1 }));
+    const notes = undiscussed(dir);
+    assert.deepEqual(notes.map((e) => `${e.source}:${e.kind}`), ['server:claim-mismatch', 'editor:saved', 'editor:saved']);
 });
 
 function fakeActions(log: string[]): EditorActions {

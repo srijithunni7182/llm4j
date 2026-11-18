@@ -22,7 +22,8 @@ export class GuideCompanion implements vscode.Disposable {
     private readonly gate = new NoticeGate(() => Date.now());
     private readonly status: vscode.StatusBarItem;
     private lastJourney: Journey | undefined;
-    private lastNoticed = 0;
+    /** Events already considered for a notice, by file and number. */
+    private readonly noticed = new Set<string>();
 
     constructor(
         private readonly context: vscode.ExtensionContext,
@@ -34,7 +35,7 @@ export class GuideCompanion implements vscode.Disposable {
         this.markPresent();
         const requests = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(root, '.loom/guide/requests/*.json'));
         requests.onDidCreate((uri) => void this.answer(uri.fsPath), undefined, this.disposables);
-        const events = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(root, '.loom/guide/{events.jsonl,discussed.json}'));
+        const events = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(root, '.loom/guide/{events-editor.jsonl,events-server.jsonl,discussed.json}'));
         events.onDidChange(() => this.refresh(), undefined, this.disposables);
         events.onDidCreate(() => this.refresh(), undefined, this.disposables);
         this.disposables.push(requests, events);
@@ -84,9 +85,10 @@ export class GuideCompanion implements vscode.Disposable {
         } else {
             this.status.hide();
         }
-        const fresh = notes.filter((e) => (e.seq ?? 0) > this.lastNoticed);
+        const key = (e: GuideEvent): string => `${e.source}:${e.seq}`;
+        const fresh = notes.filter((e) => !this.noticed.has(key(e)));
         if (fresh.length === 0) return;
-        this.lastNoticed = Math.max(...fresh.map((e) => e.seq ?? 0));
+        for (const e of fresh) this.noticed.add(key(e));
         const worth = fresh.map(noticeFor).filter((t): t is string => t !== undefined);
         const enabled = vscode.workspace.getConfiguration('loom.guide').get<boolean>('notices', true);
         if (worth.length > 0 && this.gate.allow(enabled, false)) {

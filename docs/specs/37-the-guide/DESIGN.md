@@ -103,7 +103,7 @@ These are VERIFICATION §0 items G1 to G6.
 - **R7** **Feature moments.** Data in the same resource: a trigger, a feature id from R6, and a suggested way to show it. The Guide is given the matching moments with the project summary. The triggers are things the project shows (for example, a tool with `changes` effects and no approval, a prompt file changed since the last eval, a run whose cost went over the estimate, a failing run with a journal), or words in the developer's question (cost, key, slow, wrong, production).
 
 **Events and notices (extension).**
-- **R8** The extension records **events** in `.loom/guide/events.jsonl`:
+- **R8** The extension records **events** in `.loom/guide/events-editor.jsonl` and `weave guide-mcp` the builder's checkpoints in `events-server.jsonl` (one writer per file, so no lock is shared across languages; append-only, a trim through a rename; a torn line is skipped; changed after review of PR 131):
   - which events: a `.loom` or prompt file saved, the review findings changed, a test, eval or preflight run finished, a real run started or finished, a skip recorded, a builder checkpoint, a stage changing state;
   - what each holds: a kind, a time, a stage, and identifiers (file, rule id, run id, numbers), **never file contents, prompt text, model output or secret values**;
   - bounds: at most 500 events, oldest dropped, and git-ignored with the rest of `.loom/`.

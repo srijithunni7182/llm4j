@@ -259,7 +259,7 @@ class GuideMcpServerTest {
         List<String> lines = Files.readAllLines(events.file());
         assertThat(lines).hasSize(GuideEvents.MAX);
         assertThat(lines.get(lines.size() - 1).length()).isLessThan(400);
-        assertThat(events.undiscussed(false)).hasSize(GuideEvents.MAX_PER_READ);
+        assertThat(events.undiscussed(false).events()).hasSize(GuideEvents.MAX_PER_READ);
         assertThat(events.undiscussedCount()).isEqualTo(GuideEvents.MAX);
     }
 }

@@ -7,7 +7,7 @@ import { Journey, Stage } from '../views/progressModel';
  * editor records, which of them deserve a notice, and how often a notice may appear.
  */
 
-/** One event, as `.loom/guide/events.jsonl` holds it. Identifiers only: never file contents or secrets. */
+/** One event, as `.loom/guide/events-editor.jsonl` and `events-server.jsonl` hold it. Identifiers only: never file contents or secrets. */
 export interface GuideEvent {
     seq?: number;
     at?: string;
@@ -15,6 +15,8 @@ export interface GuideEvent {
     stage?: string;
     subject?: string;
     data?: Record<string, string>;
+    /** Which file it came from: `editor` or `server`. */
+    source?: string;
 }
 
 export const MAX_EVENTS = 500;
@@ -90,51 +92,75 @@ function readLines(file: string): string[] {
     }
 }
 
-/** Appends an event to the project's events file, keeping the newest {@link MAX_EVENTS}. */
+/** A line's event, or undefined for one that cannot be read (a torn last line, for example). */
+function parse(line: string): GuideEvent | undefined {
+    try {
+        const e = JSON.parse(line);
+        return e && typeof e === 'object' && !Array.isArray(e) ? (e as GuideEvent) : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+/** The editor writes only this file; `weave guide-mcp` writes `events-server.jsonl`. One writer each, so no lock is shared. */
+export const EDITOR_EVENTS = 'events-editor.jsonl';
+export const SERVER_EVENTS = 'events-server.jsonl';
+const SOURCES: Array<[string, string]> = [['editor', EDITOR_EVENTS], ['server', SERVER_EVENTS]];
+
+/** Appends an event to the editor's events file, keeping the newest {@link MAX_EVENTS}. Append-only; a trim replaces the file whole. */
 export function appendEvent(root: string, e: GuideEvent, now: Date): number {
     const folder = guideFolder(root);
     fs.mkdirSync(folder, { recursive: true });
-    const file = path.join(folder, 'events.jsonl');
-    let lines = readLines(file);
-    let last = 0;
-    if (lines.length > 0) {
-        try {
-            last = Number(JSON.parse(lines[lines.length - 1]).seq) || 0;
-        } catch {
-            last = 0;
-        }
-    }
+    const file = path.join(folder, EDITOR_EVENTS);
+    const lines = readLines(file);
+    const last = lines.reduce((max, l) => Math.max(max, Number(parse(l)?.seq) || 0), 0);
     const event: GuideEvent = { seq: last + 1, at: now.toISOString(), kind: cut(e.kind) };
     if (e.stage) event.stage = cut(e.stage);
     if (e.subject) event.subject = cut(e.subject);
     if (e.data) event.data = Object.fromEntries(Object.entries(e.data).map(([k, v]) => [cut(k), cut(String(v))]));
-    lines.push(JSON.stringify(event));
-    if (lines.length > MAX_EVENTS) {
-        lines = lines.slice(lines.length - MAX_EVENTS);
+    const line = JSON.stringify(event);
+    if (lines.length + 1 > MAX_EVENTS) {
+        const tmp = file + '.tmp';
+        fs.writeFileSync(tmp, [...lines.slice(lines.length - MAX_EVENTS + 1), line].join('\n') + '\n');
+        fs.renameSync(tmp, file);
+    } else {
+        // a torn last line has no newline: start a fresh line rather than glue this event onto it
+        let torn = false;
+        try {
+            const size = fs.statSync(file).size;
+            if (size > 0) {
+                const fd = fs.openSync(file, 'r');
+                const b = Buffer.alloc(1);
+                fs.readSync(fd, b, 0, 1, size - 1);
+                fs.closeSync(fd);
+                torn = b[0] !== 0x0a;
+            }
+        } catch {
+            torn = false;
+        }
+        fs.appendFileSync(file, (torn ? '\n' : '') + line + '\n');
     }
-    fs.writeFileSync(file, lines.join('\n') + '\n');
     return event.seq as number;
 }
 
-/** The events the Guide has not discussed yet. */
+/** The events the Guide has not discussed yet, from both files. */
 export function undiscussed(root: string): GuideEvent[] {
     const folder = guideFolder(root);
-    let seen = 0;
+    let seen: Record<string, number> = {};
     try {
-        seen = Number(JSON.parse(fs.readFileSync(path.join(folder, 'discussed.json'), 'utf8')).seq) || 0;
+        seen = JSON.parse(fs.readFileSync(path.join(folder, 'discussed.json'), 'utf8'));
     } catch {
-        seen = 0;
+        seen = {};
     }
     const out: GuideEvent[] = [];
-    for (const l of readLines(path.join(folder, 'events.jsonl'))) {
-        try {
-            const e = JSON.parse(l) as GuideEvent;
-            if ((e.seq ?? 0) > seen) out.push(e);
-        } catch {
-            // a damaged line is skipped
+    for (const [source, name] of SOURCES) {
+        const upTo = Number(seen[source]) || 0;
+        for (const l of readLines(path.join(folder, name))) {
+            const e = parse(l);
+            if (e && (Number(e.seq) || 0) > upTo) out.push({ ...e, source });
         }
     }
-    return out;
+    return out.sort((a, b) => String(a.at).localeCompare(String(b.at)));
 }
 
 /** The status bar text for the notes not yet discussed, or undefined when there are none. */
