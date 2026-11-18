@@ -45,8 +45,8 @@ class GuideScenariosTest {
 
     @TempDir Path dir;
 
-    static final String GUIDE_MODEL = "claude-haiku-5-5";
-    static final String JUDGE_MODEL = "claude-sonnet-5-5";
+    static final String GUIDE_MODEL = "claude-sonnet-5-5";
+    static final String JUDGE_MODEL = "claude-opus-5-5";
     static final double THRESHOLD = 0.7;
     /** Model turns per Guide answer; the hosts allow more, but an answer needing more is too slow. */
     private static final int MAX_STEPS = 12;
@@ -124,6 +124,20 @@ class GuideScenariosTest {
         AgentResult result = agent.run(c.path("message").asText());
         String answer = result.getFinalAnswer() == null ? "" : result.getFinalAnswer();
 
+        if (RECORD) {
+            // keep what was paid for before the judge can fail: a recording with no judge part is judged with -Dguide.rejudge=true
+            ObjectNode partial = JSON.createObjectNode();
+            partial.put("fingerprint", fingerprint);
+            partial.put("guideModel", GUIDE_MODEL);
+            partial.put("recordedAt", Instant.now().toString());
+            partial.put("guidePromptTokens", guide.promptTokens);
+            partial.put("promptTokens", guide.promptTokens);
+            partial.put("completionTokens", guide.completionTokens);
+            partial.put("answer", answer);
+            partial.set("guide", guide.recorded());
+            Files.createDirectories(recordingFile.getParent());
+            Files.writeString(recordingFile, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(partial) + "\n");
+        }
         String reading = read.length() <= MAX_READ_CHARS ? read.toString() : read.substring(0, MAX_READ_CHARS) + "\n… (cut)";
         String criteria = c.path("rubric").asText()
                 + "\n\nThe developer said: " + c.path("message").asText()

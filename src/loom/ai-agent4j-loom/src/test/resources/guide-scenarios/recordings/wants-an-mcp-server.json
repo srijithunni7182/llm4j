@@ -1,72 +1,63 @@
 {
-  "fingerprint" : "4f08476958ddfe78c22f79db3d8be7528c0e7b7904133a8f6794f291261884c9",
-  "judgeFingerprint" : "ed6e1bc0d6d2776016433ccf31b2847e5c5a5070d44a9d2cc93c054e64c950b2",
-  "guideModel" : "claude-haiku-5-5",
-  "judgeModel" : "claude-sonnet-5-5",
-  "recordedAt" : "2026-11-18T01:36:48.996402166Z",
-  "judgedAt" : "2026-11-18T01:40:43.193222253Z",
-  "promptTokens" : 54528,
-  "guidePromptTokens" : 47943,
-  "completionTokens" : 395,
-  "answer" : "Yes. llm4j has a native MCP client. An `mcp` block in the script connects to the server, and you list the agent in `mcp_servers:`, so the Researcher gets that server's tools. Each tool needs a declared effect (`none`, `reads` or `changes`), and you can set `approve:` on any tool that should ask a person first.\n\nIs your docs server a program the workflow starts (stdio), or a remote HTTP address? That decides the block's shape.",
+  "fingerprint" : "0787652c0ecf677c90318dc36fe40c4c39654693555abe11263f294d1e97bfeb",
+  "judgeFingerprint" : "7e1a3f8f6531b7b7eb692286549e95a68f4e29f340f2096b7ac8c4b3ac92f93f",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "claude-opus-5-5",
+  "recordedAt" : "2026-11-18T02:12:16.292241242Z",
+  "judgedAt" : "2026-11-18T02:12:16.292293356Z",
+  "promptTokens" : 39972,
+  "guidePromptTokens" : 33329,
+  "completionTokens" : 1654,
+  "answer" : "Yes, llm4j has this built in. An `mcp` block gives an agent the server's tools. For your Researcher it could look like this, assuming your docs server is remote:\n\n```loom\nmcp InternalDocs {\n    transport: \"http\"\n    url: \"https://docs-mcp.example.internal/mcp\"\n    auth: secret.DOCS_MCP_TOKEN\n    effects: { search_docs: reads, get_page: reads }\n    reach: reads\n}\nagent Researcher { model: \"gemini-2.5-flash\"  mcp_servers: [InternalDocs] }\n```\n\n- **Effects:** A server's own annotations are untrusted. You declare each tool's effect yourself, and a tool you leave out is assumed to change things.\n- **Pin:** `weave mcp list` shows the tools and can write the `effects:` and a `pin:`. If the tool list later changes, the server won't start.\n- **Stdio:** If the server is a local program instead, you need `isolation:` (`process` or `container`). Without it, the audit reports LA31.\n- **Key:** If it needs a token, I can open a secure form for it. Don't paste it in the chat.\n\nIs the server remote over HTTP or a local program, and does it need a token? Once I know, I can draft the instruction for the builder.",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01KShWDCkxRidxKbQgvnfUcu",
+      "id" : "toolu_01SKPJDjDLFruauje9yfzcqp",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_01LPHvRYXJdKigaCkqtNVCc4",
+      "id" : "toolu_0167zKS7h8QEtUE26KAuRxwK",
       "name" : "new_events",
       "arguments" : { }
     }, {
-      "id" : "toolu_01G1fVKZikwfywcgysjHWGyh",
+      "id" : "toolu_016FX3fSgy7rpuqyDD61Cfe7",
       "name" : "facts",
       "arguments" : {
         "feature" : "list"
       }
-    } ]
-  }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01ViCfvdMKb8ZSacBtJwXQUm",
+    }, {
+      "id" : "toolu_018CKZhj79Jz2sReo132Z5L1",
       "name" : "docs",
       "arguments" : {
-        "search" : "MCP server tools agent mcp block"
-      }
-    }, {
-      "id" : "toolu_01Bd4ugf1gZVSwkvEXqBQr3K",
-      "name" : "facts",
-      "arguments" : {
-        "catalog" : "list"
+        "search" : "mcp block server tools agent"
       }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01SrjKqmHSsjYpxbsuYVQeHW",
+      "id" : "toolu_01QbKkrjDoFSbPW6cW3hkVpq",
       "name" : "docs",
       "arguments" : {
         "page" : "guide/LOOM_GUIDE.md",
         "section" : "MCP servers (`mcp`)"
       }
     }, {
-      "id" : "toolu_01L3GM8McW2737iFenVZEx5Y",
-      "name" : "facts",
+      "id" : "toolu_01AjRs8RpbtZB1wvsieqk75M",
+      "name" : "docs",
       "arguments" : {
-        "catalog" : "mcp"
+        "page" : "catalog/TOOLS_CATALOG.md",
+        "section" : "`mcp`"
       }
     } ]
   }, {
-    "content" : "Yes. llm4j has a native MCP client. An `mcp` block in the script connects to the server, and you list the agent in `mcp_servers:`, so the Researcher gets that server's tools. Each tool needs a declared effect (`none`, `reads` or `changes`), and you can set `approve:` on any tool that should ask a person first.\n\nIs your docs server a program the workflow starts (stdio), or a remote HTTP address? That decides the block's shape.",
+    "content" : "Yes, llm4j has this built in. An `mcp` block gives an agent the server's tools. For your Researcher it could look like this, assuming your docs server is remote:\n\n```loom\nmcp InternalDocs {\n    transport: \"http\"\n    url: \"https://docs-mcp.example.internal/mcp\"\n    auth: secret.DOCS_MCP_TOKEN\n    effects: { search_docs: reads, get_page: reads }\n    reach: reads\n}\nagent Researcher { model: \"gemini-2.5-flash\"  mcp_servers: [InternalDocs] }\n```\n\n- **Effects:** A server's own annotations are untrusted. You declare each tool's effect yourself, and a tool you leave out is assumed to change things.\n- **Pin:** `weave mcp list` shows the tools and can write the `effects:` and a `pin:`. If the tool list later changes, the server won't start.\n- **Stdio:** If the server is a local program instead, you need `isolation:` (`process` or `container`). Without it, the audit reports LA31.\n- **Key:** If it needs a token, I can open a secure form for it. Don't paste it in the chat.\n\nIs the server remote over HTTP or a local program, and does it need a token? Once I know, I can draft the instruction for the builder.",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The criterion asks for several things: a warm, upbeat tone that treats this as good news; accuracy on the mcp block, effects per tool, approve on changing tools, the audit checking it, and a command that proposes effects and pins the tool list (weave mcp list --write or weave connect mcp); a declaration shown for their case; no invented options; and ending with a question or next step.\\n\\nThe output opens with a flat \\\"Yes.\\\" and has no warmth or sense of being pleased. It is accurate as far as it goes: the mcp block, mcp_servers, effects with none/reads/changes, and approve are all correct. It omits the audit, the command (weave mcp list --write / weave connect mcp) and the pin, and it shows no declaration. The effect values (none, reads, changes) are plausible, though only reads and changes appear in the read material. It ends with a relevant question about stdio versus http, which is good.\\n\\nThe response meets only a few of the criterion's elements (accuracy, no invention, ends with a question). It misses the warm tone, the declaration, the audit and the command. Overall this is a partial fit, leaning weak.\",\n  \"rating\": 2\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"Tone: The answer opens with \\\"Yes, llm4j has this built in.\\\" That is affirmative but plain and matter-of-fact. It does not come across as genuinely pleased or upbeat, so the 'good news' warmth the criterion asks for is weak.\\n\\nAccuracy and content:\\n- It shows an `mcp` block for the Researcher's case using real options from the docs: `transport: \\\"http\\\"`, `url`, `auth: secret.X`, `effects` and `reach`.\\n- It attaches the server to the Researcher with `mcp_servers`.\\n- It declares an effect for each placeholder tool and correctly says that an unlisted tool is assumed to change things.\\n- It names `weave mcp list` as writing the effects and a pin. That is accurate, though it does not spell out the `--write` flag.\\n- It mentions the audit reporting LA31 when `isolation:` is missing, which is accurate for stdio servers.\\n- It invents no options or commands.\\n\\nGaps:\\n- It never mentions `approve:` for tools that change things. The criterion explicitly expects this, and the docs example shows it. Every tool in the example is a read, but the guidance on approving changing tools is absent.\\n- The audit is tied only to isolation, not to checking effects or approvals more broadly.\\n\\nEnding: It closes with clear questions and a next step, which satisfies that part.\\n\\nOverall the answer is accurate and well structured, but it lacks the warm, pleased tone and omits approve, so it only partially meets the criterion.\",\n  \"rating\": 3\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]

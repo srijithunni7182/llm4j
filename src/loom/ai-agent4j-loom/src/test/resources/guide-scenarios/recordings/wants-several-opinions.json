@@ -1,43 +1,43 @@
 {
-  "fingerprint" : "62babb522b9e1b280b8a43fb407cff0a215b4cabdfe24d2e1aaeeb777a46caf0",
-  "judgeFingerprint" : "73d8d4450f43d7c697dff6af2c1255696874ad3ed9aebb16bd96509fa59cbc27",
-  "guideModel" : "claude-haiku-5-5",
-  "judgeModel" : "claude-sonnet-5-5",
-  "recordedAt" : "2026-11-18T01:37:14.716702279Z",
-  "judgedAt" : "2026-11-18T01:40:54.934506942Z",
-  "promptTokens" : 151142,
-  "guidePromptTokens" : 144612,
-  "completionTokens" : 812,
-  "answer" : "This is what Loom's `broadcast` is for. It sends one task to a list of agents at once, Researcher, Writer and Editor here, and returns their answers together as one combined result. Nothing has been written yet, so your script still has no `broadcast` line.\n\nThe comparison is a separate step. `broadcast` only collects the three takes, and a later step has to decide between them, with an agent, an evaluator or a rule. Your three agents all use gemini-2.5-flash, so the step that compares them could also be a fourth agent.\n\nYour harness isn't designed yet. It's the next stage and it sets the call limits this fan-out will count against.\n\nWould you like me to draft the instruction for the builder, or first read the broadcast section of the docs with you?",
+  "fingerprint" : "04f1b668024df71108d98a2d576584798cd9bdc07f33bda81afe1715591030a2",
+  "judgeFingerprint" : "2d1d18611a30d6a2785d9b901f26e810cda23de4a4db786f3cc2c14834805bf5",
+  "guideModel" : "claude-sonnet-5-5",
+  "judgeModel" : "claude-opus-5-5",
+  "recordedAt" : "2026-11-18T02:12:51.388832691Z",
+  "judgedAt" : "2026-11-18T02:12:51.388874345Z",
+  "promptTokens" : 82790,
+  "guidePromptTokens" : 76237,
+  "completionTokens" : 1899,
+  "answer" : "Good news: Loom already does this. It's `broadcast`.\n\nOne `broadcast` step sends the same topic to your Researcher, Writer and Editor at the same time. It returns their three answers together as one JSON result. In plain Java you'd have to fan out the prompt to three clients, collect the replies and build the combined result yourself.\n\n`broadcast` only collects the answers. It doesn't compare them. The comparison is a separate step, such as one more agent that reads the three takes and says where they agree and differ. I've drafted an instruction for the builder that covers both steps and a scripted test. I haven't confirmed the exact `broadcast` syntax, so the builder is told to read it in the docs and not guess.\n\nRead the draft and send it if it looks right. Which agent should do the comparing: one of the three, or a fourth agent that only judges?",
   "guide" : [ {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01EFMKtSapWhrHt6gTLZL3kP",
+      "id" : "toolu_01Uk5fnpAsdAGFP5hA6ca5bq",
       "name" : "project_summary",
       "arguments" : { }
     }, {
-      "id" : "toolu_01R5RBvVXQo1kSUMVojtmmCm",
+      "id" : "toolu_01RrDAPeSwkajhWWGTgstWsk",
       "name" : "new_events",
       "arguments" : { }
     }, {
-      "id" : "toolu_01NzG4SzcLfEPqMWZBGfapAH",
+      "id" : "toolu_018roHepb9gJhBBoiDP5YdbE",
       "name" : "facts",
       "arguments" : {
         "feature" : "list"
       }
     } ]
   }, {
-    "content" : "",
+    "content" : "Broadcast matches. Let me read it.",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01NvFwt5FdhBuaEfDzYdiedW",
+      "id" : "toolu_013mjAb4sJRZ9jqKnXYrX8sD",
       "name" : "facts",
       "arguments" : {
         "feature" : "broadcast"
       }
     }, {
-      "id" : "toolu_01HhGnnrJjiotXWv75AQmTFy",
+      "id" : "toolu_01Juikj66GSXdnsNTXZP53by",
       "name" : "docs",
       "arguments" : {
         "search" : "broadcast same task to several agents"
@@ -47,7 +47,7 @@
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_01HMHGREeMLUeVD7Xgcjhaza",
+      "id" : "toolu_015j1vT6KLbryMVLJbznRZyb",
       "name" : "docs",
       "arguments" : {
         "page" : "guide/LOOM_GUIDE.md",
@@ -58,69 +58,30 @@
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_011iWAv1LzECtBFWyw7rJdvd",
+      "id" : "toolu_014DBLiJ4gHsKpAsXNRhMfUF",
       "name" : "docs",
       "arguments" : {
-        "search" : "broadcast [ agents ] task result combined JSON syntax"
+        "search" : "broadcast ["
       }
     } ]
   }, {
     "content" : "",
     "finish" : "tool_calls",
     "toolCalls" : [ {
-      "id" : "toolu_014QJp6YQKyGvqi39Zu6gw46",
-      "name" : "docs",
+      "id" : "toolu_01RJ9x3cqgxsu39s2iLFo1Rt",
+      "name" : "draft_builder_instruction",
       "arguments" : {
-        "page" : "library/modules/ai-agent4j-loom/README.md",
-        "section" : "The primitive set"
+        "stage" : "script",
+        "text" : "In main.loom, add a step that uses `broadcast` to send the same topic to Researcher, Writer and Editor at once and collect their three answers as one combined result. Read the broadcast syntax in the llm4j docs (guide/LOOM_GUIDE.md, \"The Primitive Set\", and the tested broadcast pattern) before writing it; do not guess it. Then add a final `delegate` to one agent (or a judge) that compares the three takes and says where they agree and differ. Add a scripted test for it, then run `weave check main.loom --no-env` and `weave test main.loom --coverage`."
       }
     } ]
   }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01SCuC5TuKBavcZr7EbYhDav",
-      "name" : "docs",
-      "arguments" : {
-        "page" : "guide/LOOM_GUIDE.md",
-        "section" : "Broadcast"
-      }
-    }, {
-      "id" : "toolu_01TTcEzMZAhh6xHB8vGAoWt4",
-      "name" : "show_file",
-      "arguments" : {
-        "path" : "main.loom"
-      }
-    } ]
-  }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01EXckW6hv8n9enrKnmSp919",
-      "name" : "docs",
-      "arguments" : {
-        "page" : "guide/LOOM_GUIDE.md",
-        "section" : "Concurrency Example (Parallel Branches)"
-      }
-    } ]
-  }, {
-    "content" : "",
-    "finish" : "tool_calls",
-    "toolCalls" : [ {
-      "id" : "toolu_01ACqdCEBDaQoBYr15taKrnC",
-      "name" : "record_learning",
-      "arguments" : {
-        "concept" : "broadcast",
-        "level" : "seen"
-      }
-    } ]
-  }, {
-    "content" : "This is what Loom's `broadcast` is for. It sends one task to a list of agents at once, Researcher, Writer and Editor here, and returns their answers together as one combined result. Nothing has been written yet, so your script still has no `broadcast` line.\n\nThe comparison is a separate step. `broadcast` only collects the three takes, and a later step has to decide between them, with an agent, an evaluator or a rule. Your three agents all use gemini-2.5-flash, so the step that compares them could also be a fourth agent.\n\nYour harness isn't designed yet. It's the next stage and it sets the call limits this fan-out will count against.\n\nWould you like me to draft the instruction for the builder, or first read the broadcast section of the docs with you?",
+    "content" : "Good news: Loom already does this. It's `broadcast`.\n\nOne `broadcast` step sends the same topic to your Researcher, Writer and Editor at the same time. It returns their three answers together as one JSON result. In plain Java you'd have to fan out the prompt to three clients, collect the replies and build the combined result yourself.\n\n`broadcast` only collects the answers. It doesn't compare them. The comparison is a separate step, such as one more agent that reads the three takes and says where they agree and differ. I've drafted an instruction for the builder that covers both steps and a scripted test. I haven't confirmed the exact `broadcast` syntax, so the builder is told to read it in the docs and not guess.\n\nRead the draft and send it if it looks right. Which agent should do the comparing: one of the three, or a fourth agent that only judges?",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ],
   "judge" : [ {
-    "content" : "```json\n{\n  \"reasoning\": \"The answer recognises that the request matches `broadcast`. It explains correctly that one task goes to a list of agents at once and the answers come back as one combined result. It also says the comparison is a separate step, and names the Researcher, Writer and Editor in prose. It ends with a question and an offer of next steps, which meets the closing requirement. It falls short on several points. The tone is flat ('This is what Loom's broadcast is for'), with no sense that this is good news or that no concurrency code is needed. It shows no lines of Loom code with the agents' names; it even says no `broadcast` line exists yet, but does not show what one would look like. It never says what the developer would otherwise build by hand (fanning a prompt out to several clients, collecting replies, building the combined result). It adds material the developer did not ask about: the harness stage, 'call limits', and the claim that all three agents use gemini-2.5-flash, which cannot be checked against the visible read. The harness remark is speculative. Overall the answer is partly right but misses the code snippet, the by-hand contrast and the enthusiasm.\",\n  \"rating\": 2\n}\n```",
+    "content" : "```json\n{\n  \"reasoning\": \"Step by step against the criterion:\\n\\n1. **Recognises broadcast with genuine enthusiasm.** Met. It opens with \\\"Good news: Loom already does this. It's `broadcast`.\\\"\\n\\n2. **Explains what broadcast does.** Met. It says one broadcast sends the same topic to the Researcher, Writer and Editor at once and returns their three answers together as one JSON result. It also notes that comparing is a separate step, which matches the facts' 'not' field.\\n\\n3. **Says what they would otherwise build by hand.** Met. It names fanning the prompt out to three clients, collecting the replies and building the combined result, which matches the 'saves' field.\\n\\n4. **Invents no option.** Met. It makes no invented syntax or options, and it honestly says the exact syntax is unconfirmed.\\n\\n5. **Asks a question or offers the next step.** Met. It asks whether one of the three agents or a fourth judge agent should do the comparing, and points to the drafted builder instruction.\\n\\n6. **Shows the few lines with these agents' names.** Not met. No snippet is shown. The docs the Guide read did not include exact broadcast syntax, and it chose honesty over guessing, which is commendable. Still, it could have read further to find the syntax and show the lines.\\n\\nAll elements are met except the code lines, which is a noticeable but not severe gap.\",\n  \"rating\": 4\n}\n```",
     "finish" : "stop",
     "toolCalls" : [ ]
   } ]
