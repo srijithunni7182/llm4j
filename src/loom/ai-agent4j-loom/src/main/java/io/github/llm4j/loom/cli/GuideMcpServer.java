@@ -53,7 +53,8 @@ final class GuideMcpServer {
             List.of(
                     new Tool("project_summary", Kind.READ, "Where the project stands, computed from its files: the journey (each stage's state, why it exists, what to look at, the developer's decision, what a skip loses, the evidence), agents, tools and their effects, findings, budget, skips and the feature moments that apply. Call it at the start of every turn.", Map.of(), List.of()),
                     new Tool("new_events", Kind.READ, "What happened since the Guide last looked (files saved, findings, test, eval and run results, builder checkpoints, claim mismatches), oldest first. Reading marks them discussed.", Map.of(), List.of()),
-                    new Tool("facts", Kind.READ, "The facts the Guide may state about llm4j features, each with what it does NOT do and its page, and the moments that bring them up. Never claim more than a fact says.", Map.of("id", "string: one fact id (optional)"), List.of()),
+                    new Tool("facts", Kind.READ, "What llm4j and Loom do, as facts you may state. feature=list gives every workflow shape and feature Loom has (parallel, broadcast, steering, supervise, earned autonomy, approvals, schedules...) with the words a developer uses when they need it; feature=<id> gives how Loom does it, what it saves and where to read it. catalog=list or catalog=<tool> gives the tools catalog. With id or nothing, the facts about the stack's features, each with what it does NOT do. Never claim more than you read.", Map.of("id", "string: one fact id (optional)", "feature", "string: list, or a feature id (optional)", "catalog", "string: list, or a tool name (optional)"), List.of()),
+                    new Tool("docs", Kind.READ, "The whole llm4j documentation, shipped with the extension: the language reference, the guide chapters, the tools catalog and pages, the core and Loom wikis, security, evaluation and the modules. search=<words> finds the best sections; page=<path> gives that page's headings; page with section=<heading> gives one section. With nothing, the list of pages. Look a feature up here before you explain or recommend it.", Map.of("search", "string: words to look for (optional)", "page", "string: a page path from the list or a search (optional)", "section", "string: a heading of that page (optional)"), List.of()),
                     new Tool("explain_finding", Kind.READ, "The full explanation of a review or audit rule: the risk, why it matters and the fix.", Map.of("rule", "string: the rule id, e.g. LA02"), List.of("rule")),
                     new Tool("eval_summary", Kind.READ, "The last evaluation recorded for the project (mock or real, stale or current) and where its report is.", Map.of(), List.of()),
                     new Tool("learner", Kind.READ, "What the developer already knows: a level per concept, for the person and for this project.", Map.of(), List.of()),
@@ -181,7 +182,8 @@ final class GuideMcpServer {
         return switch (name) {
             case "project_summary" -> GuideContextCommand.json(GuideContext.of(script, env));
             case "new_events" -> JSON.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of("events", events.undiscussed(true)));
-            case "facts" -> facts(a.path("id").asText(null));
+            case "facts" -> a.hasNonNull("feature") ? feature(a.path("feature").asText()) : a.hasNonNull("catalog") ? catalog(a.path("catalog").asText()) : facts(a.path("id").asText(null));
+            case "docs" -> docs(a.path("search").asText(""), a.path("page").asText(""), a.path("section").asText(""));
             case "explain_finding" -> explain(a.path("rule").asText());
             case "eval_summary" -> evalSummary();
             case "learner" -> JSON.writerWithDefaultPrettyPrinter().writeValueAsString(learner.both());
@@ -204,6 +206,48 @@ final class GuideMcpServer {
             }
             default -> editor.send(name, a);
         };
+    }
+
+    /** The documentation lookups of the {@code docs} tool and {@code weave guide-facts --search/--page}. */
+    static String docs(String search, String page, String section) {
+        if (!search.isBlank()) {
+            List<GuideLibrary.Hit> hits = GuideLibrary.search(search);
+            if (hits.isEmpty()) return "Nothing in the documentation matches \"" + search + "\". Try other words, or say plainly that llm4j may not do it.";
+            StringBuilder b = new StringBuilder("Best sections for \"" + search + "\" (read one with page and section):\n");
+            for (GuideLibrary.Hit h : hits) b.append("- ").append(h.page()).append(" | ").append(h.heading().isEmpty() ? "(top of page)" : h.heading()).append("\n  ").append(h.snippet()).append('\n');
+            return b.toString().strip();
+        }
+        if (!page.isBlank()) {
+            if (GuideLibrary.text(page).isEmpty()) throw new IllegalArgumentException("No page " + page + ". Search first, or call docs with nothing for the list.");
+            if (section.isBlank()) return GuideLibrary.outline(page);
+            return GuideLibrary.section(page, section).orElseThrow(() -> new IllegalArgumentException("No section \"" + section + "\" in " + page + ". Its headings:\n" + GuideLibrary.outline(page)));
+        }
+        StringBuilder b = new StringBuilder("The documentation, by page (search it with search=<words>):\n");
+        for (String p : GuideLibrary.pages()) b.append("- ").append(p).append(" | ").append(GuideLibrary.title(p)).append('\n');
+        return b.toString().strip();
+    }
+
+    /** Every Loom feature with the words that call for it, or one feature in full. */
+    static String feature(String id) {
+        var all = GuideCatalogue.features();
+        try {
+            if (id.equals("list")) {
+                var list = new java.util.ArrayList<Object>();
+                for (GuideCatalogue.Feature f : all.values()) list.add(Map.of("id", f.id(), "title", f.title(), "when", f.when()));
+                return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of("features", list, "next", "When the developer's need matches one, call facts feature=<id>, then read its section with docs."));
+            }
+            GuideCatalogue.Feature f = all.get(id);
+            if (f == null) throw new IllegalArgumentException("No feature " + id + ". The features are: " + String.join(", ", all.keySet()) + ".");
+            return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(f.json());
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static String catalog(String name) {
+        if (name.equals("list")) return ToolCatalog.glance();
+        return ToolCatalog.section(name)
+                .orElseThrow(() -> new IllegalArgumentException("No tool " + name + " in the catalog. The tools are: " + String.join(", ", ToolCatalog.names()) + "."));
     }
 
     private String facts(String id) {

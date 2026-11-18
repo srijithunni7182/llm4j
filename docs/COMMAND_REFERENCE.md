@@ -2262,7 +2262,12 @@ weave guide-facts [OPTIONS] [<fact>]
 
 **Options**
 
+- `--catalog=<list|<tool>` — Print the tools catalog instead: list for every ready-made tool in one line, or one tool's section (http, openapi, mcp, sandbox, ...).
+- `--feature=<list|<id>` — What Loom does as a workflow language: list for every shape and feature with the words that call for it, or one feature in full.
 - `--moments` — Also list the moments that bring each fact up.
+- `--page=<path>` — A page of the shipped documentation: its headings, or with --section one section.
+- `--search=<words>` — Search the whole shipped documentation and list the best sections.
+- `--section=<heading>` — With --page: the section under this heading.
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave guide-mcp`

@@ -79,7 +79,44 @@ final class GuideCatalogue {
         }
     }
 
+    /** One thing Loom does as a workflow language, and the words a developer uses when they need it. */
+    record Feature(String id, String title, List<String> when, String how, String saves, String pattern, String doc, String not) {
+        Feature {
+            when = List.copyOf(when);
+        }
+
+        String docPage() {
+            int hash = doc.indexOf('#');
+            return hash < 0 ? doc : doc.substring(0, hash);
+        }
+
+        String docHeading() {
+            int hash = doc.indexOf('#');
+            return hash < 0 ? "" : doc.substring(hash + 1);
+        }
+
+        Map<String, Object> json() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", id);
+            m.put("title", title);
+            m.put("when", when);
+            m.put("how", how);
+            m.put("saves", saves);
+            m.put("not", not);
+            m.put("read", "docs page=" + docPage() + " section=" + docHeading());
+            if (!pattern.isEmpty()) m.put("pattern", "docs page=" + PATTERNS + " section=" + pattern + " (a tested skeleton)");
+            return m;
+        }
+    }
+
+    /** The workflow-patterns skill's skeletons, shipped in the jar. */
+    static final String PATTERNS = "skill-patterns/references/patterns.md";
+
     private GuideCatalogue() {}
+
+    static Map<String, Feature> features() {
+        return Holder.FEATURES;
+    }
 
     static Map<String, Fact> facts() {
         return Holder.FACTS;
@@ -93,6 +130,7 @@ final class GuideCatalogue {
     private static final class Holder {
         static final Map<String, Fact> FACTS = loadFacts();
         static final List<Moment> MOMENTS = loadMoments();
+        static final Map<String, Feature> FEATURES = loadFeatures();
     }
 
     private static JsonNode yaml(String name) {
@@ -123,6 +161,30 @@ final class GuideCatalogue {
                                             f.path("editor").asText(""),
                                             f.path("not").asText(""),
                                             f.path("doc").asText("")));
+                        });
+        return Collections.unmodifiableMap(out);
+    }
+
+    private static Map<String, Feature> loadFeatures() {
+        Map<String, Feature> out = new LinkedHashMap<>();
+        yaml("features.yaml")
+                .fields()
+                .forEachRemaining(
+                        e -> {
+                            JsonNode f = e.getValue();
+                            List<String> when = new ArrayList<>();
+                            f.path("when").forEach(w -> when.add(w.asText()));
+                            out.put(
+                                    e.getKey(),
+                                    new Feature(
+                                            e.getKey(),
+                                            f.path("title").asText(""),
+                                            when,
+                                            f.path("how").asText(""),
+                                            f.path("saves").asText(""),
+                                            f.path("pattern").asText(""),
+                                            f.path("doc").asText(""),
+                                            f.path("not").asText("")));
                         });
         return Collections.unmodifiableMap(out);
     }

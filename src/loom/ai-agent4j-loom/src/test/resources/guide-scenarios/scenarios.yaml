@@ -121,3 +121,45 @@ plain-question:
   mustCall: []
   maxWords: 120
   rubric: "Answers directly and briefly (eval/golden, the YAML files there), without walking the whole journey or lecturing."
+
+wants-an-mcp-server:
+  template: pipeline
+  message: "I'd like my Researcher agent to use an MCP server we already run for our internal docs. Is that possible?"
+  mustCall: [facts]
+  mustSay: ["mcp"]
+  mustNotSay: ["not possible", "not supported", "you would have to write"]
+  maxWords: 260
+  rubric: "Sounds genuinely pleased that Loom already does this (warm, upbeat, like good news) and stays accurate: an mcp block for the server listed on the Researcher, an effect for each of the server's tools, approve on the tools that change things, the audit checking it, and a command that proposes the effects and pins the tool list (weave mcp list --write or weave connect mcp both exist). It shows the declaration for their case, invents no option or command, and ends with a question or next step."
+
+wants-to-call-an-api:
+  template: pipeline
+  message: "My Writer needs to call our company's REST API to fetch product details. How do I do that?"
+  mustCall: [facts]
+  mustSay: ["openapi", "http"]
+  mustNotSay: ["write a tool class", "you would have to write"]
+  maxWords: 260
+  rubric: "Delivers it as good news with some flair: llm4j already has http and the even better openapi tool. Accurately explains that with openapi each operation becomes its own tool with its own effect, approval and audit entry (and weave connect openapi can write them from the spec), and that http works under a fixed base URL when there is no OpenAPI description. Invents no option or command, keeps the key out of the chat, and offers a concrete next step."
+
+wants-several-opinions:
+  template: pipeline
+  message: "I want the Researcher, the Writer and the Editor to each give their take on the same topic, and then compare them."
+  mustCall: [facts]
+  mustSay: ["broadcast"]
+  maxWords: 260
+  rubric: "Recognises that this matches Loom's broadcast and says so with genuine enthusiasm (it is good news, they need no hand-written concurrency): one broadcast sends the same task to the agents at once and returns their answers together for a step that compares them. Shows the few lines with these agents' names, says what they would otherwise build by hand, invents no option, and asks a question or offers the next step."
+
+wants-to-step-in:
+  template: pipeline
+  message: "Sometimes the Researcher goes off on a tangent. Can I correct it while it is working instead of waiting for it to finish?"
+  mustCall: [facts]
+  mustSay: ["steerable"]
+  maxWords: 260
+  rubric: "Recognises that this is Loom's steering and is visibly pleased to say Loom does it: steerable: true on the Researcher (with streaming to watch it) lets a person correct it mid-run, ask it to wrap up or stop it, and on_stopped or intervention says what the run does then. Shows where it goes, is accurate, and asks a question or offers the next step."
+
+wants-it-to-decide-alone:
+  template: pipeline
+  message: "Today a person approves every refund. Eventually I want the agent to approve refunds by itself, but only once we trust it."
+  mustCall: [facts]
+  mustSay: ["autonomy"]
+  maxWords: 280
+  rubric: "Recognises that this is exactly earned autonomy and says so with enthusiasm: a decision records the agent's choices beside the person's, a trust rule or a ladder the owner writes decides when the agent may decide alone, and it can be demoted again. Makes clear the thresholds are the owner's policy (it does not decide autonomy is wise), is accurate, and offers the next step."

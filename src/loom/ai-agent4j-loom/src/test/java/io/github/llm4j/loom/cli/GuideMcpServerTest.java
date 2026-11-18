@@ -94,7 +94,7 @@ class GuideMcpServerTest {
         assertThat(names).containsExactlyInAnyOrderElementsOf(GuideMcpServer.TOOLS.stream().map(GuideMcpServer.Tool::name).toList());
         Set<String> allowed = Set.of(
                 "project_summary", "new_events", "facts", "explain_finding", "eval_summary", "learner",
-                "record_learning", "journey_checkpoint", "draft_builder_instruction",
+                "docs", "record_learning", "journey_checkpoint", "draft_builder_instruction",
                 "show_graph", "show_review", "show_eval_report", "show_file", "show_run", "start_observed_run",
                 "open_secret_form", "open_walkthrough");
         assertThat(names).allMatch(allowed::contains);

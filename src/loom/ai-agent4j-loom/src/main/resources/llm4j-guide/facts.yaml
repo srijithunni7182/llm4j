@@ -242,3 +242,12 @@ harness-design:
   editor: "Loom: What Should I Do Next?"
   not: "It is a design record; Loom enforces what the script declares, not what the document says."
   doc: "docs/guide/15-steer-stop-and-supervise.md#15. Steer, stop and supervise a running workflow"
+
+tools-catalog:
+  title: "The tools catalog: sixteen ready-made tools and two connectors"
+  for: "Give an agent a real capability (post to Slack, call an API, query a database, edit and test code, drive a browser, use any MCP server) with one declaration, instead of writing tool code."
+  solves: "Hand-written tools usually skip the guards: a URL the model can point anywhere, an effect nobody approves, an answer with no size cap. Every catalog tool has them built in, and each declared tool gets its own effect, approval and audit entry."
+  command: "weave guide-facts --catalog list"
+  editor: ""
+  not: "A tool only does what its section in the catalog says (read it with facts catalog=<tool>); the guards limit what a model can do with it, they do not make a wrong model answer right."
+  doc: "docs/TOOLS_CATALOG.md#Tools catalog"

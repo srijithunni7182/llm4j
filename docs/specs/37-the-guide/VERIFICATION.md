@@ -140,6 +140,12 @@ Built in one session: 37a (`5c3f3a58`), the MCP server (`8a410654`, `30e4cbe7`),
 7. **The server speaks the MCP handshake era** (`initialize`, versions 2025-06-18, 2025-03-26 and 2024-11-05) and answers `server/discover` the same way; whether Copilot and Claude Code accept it is M1 and M2.
 8. **G5:** section J of GitHub's terms is still to be read before release.
 
+### Added after the first build, at the owner's request
+
+- **Everything llm4j can do ships with the extension.** The jar carries `catalog/TOOLS_CATALOG.md` and `library/` (the Loom and core wikis, the tools' pages, security, the user-facing pages of `docs/`, the eval4j and report guides, the modules' READMEs) beside `guide/`. The `docs` tool searches it (best sections first, a word in a heading counting more), lists it, gives a page's headings and one section (at most 8,000 characters). `GuideLibraryTest` holds every user-facing folder to shipping whole and searches in a developer's words to finding the right page. Maintainer pages (release notes, publishing, CI, migration, the testing strategy and the compatibility ledger) are left out.
+- **Every Loom shape and feature, matched to what the developer says.** `features.yaml` (25 features: parallel, broadcast, routing, bounded loops, fan-out, approvals, people mid-run, schedules, steering, supervision, checkpoints, durable runs, earned autonomy, A2A, media, memory, tasks, composition, routing of models, sandboxed code…) gives each the words a developer uses, how Loom does it, what it saves, what it does not do, its section and its tested pattern; `facts feature=list|<id>`. `GuideFeaturesTest` holds every section and pattern to shipping and every construct a feature names to appearing in the language reference or the patterns (broken once with an invented `teleport` block).
+- **The persona sounds pleased when the stack has what the developer needs** (two examples in its own text), and must look a feature up with `docs` before it explains or recommends it.
+
 ### Gates
 
 - `make docs-check`: passes.

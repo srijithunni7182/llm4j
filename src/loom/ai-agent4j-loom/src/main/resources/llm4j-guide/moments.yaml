@@ -89,3 +89,21 @@ long-run:
   words: ["long", "context", "window", "forgets"]
   fact: "context"
   show: "Show the agent's context settings and, on a live run, the context gauge."
+
+call-an-api:
+  project: ""
+  words: ["api", "rest", "endpoint", "http", "call a service", "openapi", "swagger"]
+  fact: "tools-catalog"
+  show: "Read the http and openapi sections (facts catalog=http, catalog=openapi). If the API has an OpenAPI description, openapi gives one tool per operation, each with its own effect, approval and audit entry, and weave connect openapi writes them; otherwise http under a fixed base URL. Show one declaration for their API."
+
+use-an-mcp-server:
+  project: ""
+  words: ["mcp", "model context protocol", "mcp server", "claude desktop tools"]
+  fact: "tools-catalog"
+  show: "Read the mcp section (facts catalog=mcp). An mcp block gives an agent a server's tools, local or remote, isolated, with an effect per tool, approve on the ones that change things, and a pin that notices when the server's tools change; weave mcp list --write proposes the effects. Show the block for their server."
+
+pick-a-tool:
+  project: ""
+  words: ["tool", "slack", "email", "database", "sql", "browser", "git", "run code", "pdf"]
+  fact: "tools-catalog"
+  show: "Read the catalog's list (facts catalog=list), pick the tool that fits, read its section, and show one declaration for their workflow."
